@@ -1,0 +1,19 @@
+* {
+  color: white;
+  font-family: sans-serif;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #3D3D4C;
+  padding: 0;
+  margin: 0;
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+.removed {
+  display: none;
+}

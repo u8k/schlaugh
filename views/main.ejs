@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Daily Post</title>
+    <link rel="stylesheet" href="style.css">
+	  <!--<link rel="icon" type="image/png" href="img/icon.png">-->
+  </head>
+  <body>
+    <h1>The Daily Post</h1>
+    <div class="main-wrapper">
+
+    <p id="log-button" onclick="showPanel('user-info-panel')">
+      <% if (user) { %>
+        log out
+      <% } else { %>
+        log in
+      <% } %>
+    </p>
+
+    <div id="user-info-panel" class="removed">
+      <% if (user) { %>
+        <p>signed in as:</p>
+        <br>
+        <h3 id="userName"><%= user.username %></h3>
+        <br>
+        <br>
+        <div class="text-button" onclick="signOut()">sign out</div>
+        <br>
+        <br>
+        <div class="text-button return-button" onclick="closePanel()">return</div>
+      <% } else { %>
+        <h3 id="loginError"></h3>
+        <input id="nameInput" type="text" placeholder="name">
+        <br>
+        <input id="passInput" type="password" placeholder="password">
+        <br>
+        <br>
+        <div class="text-button" onclick="sign('in')">sign in</div>
+        <br>
+        <div class="text-button" onclick="sign('up')">sign up</div>
+        <br>
+        <br>
+        <div class="text-button return-button" onclick="closePanel()">return</div>
+      <% } %>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
