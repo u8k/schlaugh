@@ -1,22 +1,21 @@
 var mongoose = require('mongoose');
 
-var userObject = {
-	username: {type: String, required: true},
-	password: {type: String, required: true}
+var postObject = {
+	//author: {type: String, required: true}, //since it's embedded, we know this?
+	body: {type: String, required: true},
+	pubDate: {type: String, required: true},
+	//title?
 };
 
-/*
-var intervalSchema = mongoose.Schema({
-	attempts: {type: Number, default: 0},
-	wins: {type: Number, default: 0}
-});
+var PostSchema = mongoose.Schema(postObject);
 
-for (var i = -12; i < 13; i++) {
-	if (i !== 0) {
-		userObject['interval'+i] = {type: intervalSchema, default: intervalSchema};
-	}
-}
-*/
+var userObject = {
+	username: {type: String, required: true},
+	password: {type: String, required: true},
+	//email: {type: String, required: true},
+	posts: [PostSchema]
+};
+
 
 var UserSchema = mongoose.Schema(userObject);
 

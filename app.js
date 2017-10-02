@@ -6,16 +6,17 @@ var session = require('cookie-session');
 var passport = require('passport');
 var bcrypt = require('bcryptjs');
 var User = require('./models/user');
+//var Post = require('./models/post');
 
 
 //connect and check mongoDB
-var promise = mongoose.connect('mongodb://localhost:27017/nodekb', {useMongoClient: true});
+var promise = mongoose.connect('mongodb://localhost:27017/dailypost', {useMongoClient: true});
 //var promise = mongoose.connect(process.env.MONGODB_URI, {useMongoClient: true});
 var db = mongoose.connection;
+mongoose.Promise = global.Promise;
 db.once('open', function(){
   console.log('Connected to MongoDB');
 });
-
 // Check for DB errors
 db.on('error', function(err){
   console.log(err);
@@ -48,39 +49,89 @@ require('./config/passport')(passport);
 app.use(passport.initialize());
 app.use(passport.session());
 
+//date helper function
+var getCurDate = function (minusDays) {
+  if (!minusDays) {minusDays = 0}
+  var now = new Date(new Date().getTime() - 9*3600*1000 - minusDays*24*3600000);   //UTC offset by -9
+  var year = now.getUTCFullYear();
+  var mon = now.getUTCMonth()+1;
+  if (mon < 10) {mon = "0"+mon}
+  var date = now.getUTCDate();
+  if (date < 10) {date = "0"+date}
+  return year+"-"+mon+"-"+date;
+}
 
 ////ROUTING////
 
 // main/only page
 app.get('/', function(req, res) {
-	if (req.user) {
-		var query = {username: req.user.username};
-		User.findOne(query, function(err, user) {
-			if (err) throw err;
-			res.render('main', {user: user});
-		});
-	} else {
-		res.locals.user = null;
-		res.render('main');
-	}
+  Post.find({pubDate: getCurDate()}, { author:1, body:1, _id:0 }, function(err, posts) {
+    if (err) {throw err;
+    } else {
+      if (req.user) {
+    		var query = {username: req.user.username};
+    		User.findOne(query,  { username:1, _id:0 }, function(err, user) {
+    			if (err) {throw err;}
+          else {
+            User.find({}, { username:1, _id:0 }, function(err, users) {
+              if (err) {throw err;}
+              else {
+                var query = {$and: [
+                  { pubDate: getCurDate(-1) }, //negative into the future
+                  { author: req.user.username }
+                ]};
+            		Post.findOne(query, { author:1, body:1, _id:0 }, function(err, pending) {
+                  if (err) {throw err;}
+                  else {
+                    res.render('main', {user:user, posts:posts, users:users, pending:pending});
+                  }
+                })
+              }
+            })
+          }
+    		});
+    	} else {
+    		res.locals.user = null;
+    		res.render('main', {posts:posts});
+    	}
+    }
+  });
 });
 
-// update data
+// new post
 app.post('/', function(req, res) {
-	var stat = {}
-	stat['interval' + req.body.interval] = {
-		attempts: req.body.attempts,
-		wins: req.body.wins
-	}
+	var text = req.body.text;
 	var query = {username: req.user.username};
-	User.update(query, {$set: stat}, function(err){
-		if(err){
-			console.log(err);
-		} else {
-			res.send('success');
-			//console.log(req.body);
-		}
+  User.findOne(query, function(err, user) {
+    if (err) throw err;
+    var newPost = new Post({
+      author: user.username,
+      body: text,
+      pubDate: getCurDate(-1) //negative into the future...
+    });
+    newPost.save(function(err){
+      if(err){
+      console.log(err);
+      return;
+      } else {
+        res.send('success');
+      }
+    });
 	});
+});
+
+// get posts-(should maybe get a "GET"?)
+app.post('/posts', function(req, res){
+  if (req.body.date === getCurDate(-1)) {
+    console.log('DENIED');
+    return;
+  }
+  Post.find({pubDate: req.body.date}, { author:1, body:1, _id:0 }, function(err, posts) {
+    if (err) {throw err;
+    } else {
+      return res.send({posts:posts});
+    }
+  });
 });
 
 // new user sign up
@@ -89,7 +140,7 @@ app.post('/register', function(req, res){
 	var password = req.body.password;
 	//check if there is already a user w/ that name
 	var query = {username:username};
-    User.findOne(query, function(err, user) {
+  User.findOne(query, function(err, user) {
 		if (err) throw err;
 		if (user) {return res.send("name taken");}
 		else {
@@ -137,7 +188,6 @@ app.post('/login', function(req, res) {
   })(req, res);
 });
 
-
 // logout
 app.get('/logout', function(req, res){
   req.logout();
@@ -145,8 +195,8 @@ app.get('/logout', function(req, res){
 });
 
 
+///////////
 app.set('port', (process.env.PORT || 3000));
-
 // Start Server
 app.listen(app.get('port'), function(){
   console.log('Servin it up fresh on port ' + app.get('port') + '!');

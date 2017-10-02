@@ -5,11 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Daily Post</title>
     <link rel="stylesheet" href="style.css">
+    <script src="ckeditor/ckeditor.js"></script>
 	  <!--<link rel="icon" type="image/png" href="img/icon.png">-->
   </head>
   <body>
+    <%
+      var monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"];
+      var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+      var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+
+      var today = dayNames[date.getUTCDay()]+", "+monthNames[date.getUTCMonth()]+" "+date.getUTCDate()+", "+date.getUTCFullYear();
+      var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours until next edition";
+    %>
     <h1>The Daily Post</h1>
-    <div class="main-wrapper">
 
     <p id="log-button" onclick="showPanel('user-info-panel')">
       <% if (user) { %>
@@ -18,6 +28,58 @@
         log in
       <% } %>
     </p>
+
+    <div id="writer">
+      <% if (user) { %>
+        <% if (pending) { %>
+          <p>pending post for tomorrow:</p>
+          <div class="post">
+            <p><%- pending.body %></p>
+            <p><%= pending.author %></p>
+          </div>
+          <% } else { %>
+            <p>no pending post</p>
+            <% } %>
+
+        <textarea id="editor" >
+          <% if (pending) { %>
+            <%- pending.body %>
+          <% } %>
+        </textarea>
+        <script>CKEDITOR.replace( 'editor' );</script>
+        <button type="button" onclick="submit()" >post</button>
+
+        <!--
+        <p><%= users.length %></p>
+        <p><%= users %></p>
+        -->
+      <% } %>
+    </div>
+
+
+    <h3>posts for:<br>
+      <div id="date-display"><%= today %></div>
+      <arrow class="" onclick="changeDay(1)">◀</arrow>
+      <arrow id="day-forward" class="hidden" onclick="changeDay(-1)">▶</arrow>
+    </h3>
+
+    <div id="posts">
+      <% for(var i=0; i < posts.length; i++) { %>
+        <div class="post">
+          <p><%- posts[i].body %></p>
+          <p><%= posts[i].author %></p>
+        </div>
+      <% } %>
+      <% if (posts.length === 0) { %>
+        <div class="post">
+          No Posts!
+        </div>
+      <% } %>
+    </div>
+
+    <h4><%= hoursRemaining %></h4>
+
+    <div id="panel-backing" class="removed"></div>
 
     <div id="user-info-panel" class="removed">
       <% if (user) { %>
