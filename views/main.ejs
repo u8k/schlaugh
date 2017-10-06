@@ -34,8 +34,7 @@
         <% if (pending) { %>
           <p>pending post for tomorrow:</p>
           <div class="post">
-            <p><%- pending.body %></p>
-            <p><%= pending.author %></p>
+            <p><%- pending %></p>
           </div>
           <% } else { %>
             <p>no pending post</p>
@@ -43,16 +42,12 @@
 
         <textarea id="editor" >
           <% if (pending) { %>
-            <%- pending.body %>
+            <%- pending %>
           <% } %>
         </textarea>
         <script>CKEDITOR.replace( 'editor' );</script>
         <button type="button" onclick="submit()" >post</button>
 
-        <!--
-        <p><%= users.length %></p>
-        <p><%= users %></p>
-        -->
       <% } %>
     </div>
 
@@ -62,20 +57,7 @@
       <arrow class="" onclick="changeDay(1)">◀</arrow>
       <arrow id="day-forward" class="hidden" onclick="changeDay(-1)">▶</arrow>
     </h3>
-
-    <div id="posts">
-      <% for(var i=0; i < posts.length; i++) { %>
-        <div class="post">
-          <p><%- posts[i].body %></p>
-          <p><%= posts[i].author %></p>
-        </div>
-      <% } %>
-      <% if (posts.length === 0) { %>
-        <div class="post">
-          No Posts!
-        </div>
-      <% } %>
-    </div>
+    <div id="posts"></div>
 
     <h4><%= hoursRemaining %></h4>
 

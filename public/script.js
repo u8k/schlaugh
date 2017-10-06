@@ -29,13 +29,12 @@ var getCurDate = function (minusDays) {
 
 var changeDay = function (dir) {
   dateOffset += dir;
-  /*
   if (dateOffset === 0) {
     document.getElementById("day-forward").classList.add("hidden");
   } else if (dateOffset === 1 && dir === 1) {
     document.getElementById("day-forward").classList.remove("hidden");
   }
-  */
+
   var data = {date: getCurDate(dateOffset)}
   document.getElementById('date-display').innerHTML = getCurDate(dateOffset);
   var url = 'posts'
@@ -59,7 +58,6 @@ var changeDay = function (dir) {
         post.setAttribute('class', 'post');
         var text = document.createElement("p");
         text.innerHTML = json.posts[i].body;
-        //text.appendChild(document.createTextNode(json.posts[i].body));
         post.appendChild(text);
         var author = document.createElement("p");
         author.appendChild(document.createTextNode(json.posts[i].author));

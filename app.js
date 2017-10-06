@@ -1,25 +1,22 @@
 var express = require('express');
 var path = require('path');
-var mongoose = require('mongoose');
 var bodyParser = require('body-parser');
 var session = require('cookie-session');
 var passport = require('passport');
 var bcrypt = require('bcryptjs');
-var User = require('./models/user');
-//var Post = require('./models/post');
-
+var mongodb = require('mongodb');
+var MongoClient = require('mongodb').MongoClient;
+var ObjectId = require('mongodb').ObjectID;
+var db;
 
 //connect and check mongoDB
-var promise = mongoose.connect('mongodb://localhost:27017/dailypost', {useMongoClient: true});
-//var promise = mongoose.connect(process.env.MONGODB_URI, {useMongoClient: true});
-var db = mongoose.connection;
-mongoose.Promise = global.Promise;
-db.once('open', function(){
-  console.log('Connected to MongoDB');
-});
-// Check for DB errors
-db.on('error', function(err){
-  console.log(err);
+var uri = 'mongodb://localhost:27017/dailypost'
+//var uri = process.env.MONGODB_URI
+MongoClient.connect(uri, function(err, database) {
+  if (err) {throw err;}
+  else {console.log("MONGO IS ALIVE");
+  db = database;
+  }
 });
 
 // Init App
@@ -65,71 +62,57 @@ var getCurDate = function (minusDays) {
 
 // main/only page
 app.get('/', function(req, res) {
-  Post.find({pubDate: getCurDate()}, { author:1, body:1, _id:0 }, function(err, posts) {
-    if (err) {throw err;
-    } else {
-      if (req.user) {
-    		var query = {username: req.user.username};
-    		User.findOne(query,  { username:1, _id:0 }, function(err, user) {
-    			if (err) {throw err;}
-          else {
-            User.find({}, { username:1, _id:0 }, function(err, users) {
-              if (err) {throw err;}
-              else {
-                var query = {$and: [
-                  { pubDate: getCurDate(-1) }, //negative into the future
-                  { author: req.user.username }
-                ]};
-            		Post.findOne(query, { author:1, body:1, _id:0 }, function(err, pending) {
-                  if (err) {throw err;}
-                  else {
-                    res.render('main', {user:user, posts:posts, users:users, pending:pending});
-                  }
-                })
-              }
-            })
-          }
-    		});
-    	} else {
-    		res.locals.user = null;
-    		res.render('main', {posts:posts});
-    	}
-    }
-  });
+  if (req.user) {
+    db.collection('users').findOne({_id: req.user._id}
+    , {_id:0, username:1, posts:1, threads:1}
+    , function (err, user) {
+      if (err) {throw err;}
+      else {
+        var pending;
+        if (user.posts[getCurDate(-1)]) {
+          pending = user.posts[getCurDate(-1)]; //negative into the future
+        }
+        res.render('main', {user:user, pending:pending}); //'user' holds all the post data right now, UNNECESARY
+      }
+    });
+  } else {
+    res.render('main', {user: null});     //direct to a login page?
+  }
 });
 
 // new post
 app.post('/', function(req, res) {
 	var text = req.body.text;
-	var query = {username: req.user.username};
-  User.findOne(query, function(err, user) {
-    if (err) throw err;
-    var newPost = new Post({
-      author: user.username,
-      body: text,
-      pubDate: getCurDate(-1) //negative into the future...
-    });
-    newPost.save(function(err){
-      if(err){
-      console.log(err);
-      return;
-      } else {
-        res.send('success');
-      }
-    });
-	});
+  var setValue = {posts: {}};
+  setValue.posts[getCurDate(-1)] = text;
+  db.collection('users').updateOne({_id: req.user._id},
+    {$set: setValue },
+    function(err, user) {
+      if (err) {throw err;}
+      else {res.send('success');}
+    }
+  );
 });
 
-// get posts-(should maybe get a "GET"?)
+// get posts-(should maybe be a "GET"? nahhhh)
 app.post('/posts', function(req, res){
   if (req.body.date === getCurDate(-1)) {
-    console.log('DENIED');
-    return;
+    return res.send({posts: [{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]});
   }
-  Post.find({pubDate: req.body.date}, { author:1, body:1, _id:0 }, function(err, posts) {
-    if (err) {throw err;
-    } else {
-      return res.send({posts:posts});
+  db.collection('users').find({},{ _id:0, posts:1, username:1 }).toArray(function(err, users) {  //later make this only check "following" instead of all users
+    if (err) {throw err;}
+    else {
+      //console.log(users);
+      var posts = [];
+      for (var i = 0; i < users.length; i++) {
+        if (users[i].posts[req.body.date]) {
+          posts.push({
+            body: users[i].posts[req.body.date],
+            author: users[i].username
+          })
+        }
+      }
+      return res.send({posts: posts});
     }
   });
 });
@@ -139,50 +122,50 @@ app.post('/register', function(req, res){
 	var username = req.body.username;
 	var password = req.body.password;
 	//check if there is already a user w/ that name
-	var query = {username:username};
-  User.findOne(query, function(err, user) {
-		if (err) throw err;
+  db.collection('users').findOne({username: username}, function (err, user) {
+    if (err) throw err;
 		if (user) {return res.send("name taken");}
 		else {
-			var newUser = new User({
-				username: username,
-				password: password
-			});
-
-			bcrypt.genSalt(10, function(err, salt){
-				bcrypt.hash(newUser.password, salt, function(err, hash){
-					if(err){
-						console.log(err);
-					}
-					newUser.password = hash;
-					newUser.save(function(err){
-						if(err){
-						console.log(err);
-						return;
-						} else {
-							req.login(newUser, function(err) {
-								if (err) {return res.send(err);}
-								return res.send("success");
-							});
-						}
-					});
+      db.collection('users').insertOne({
+        username: username,
+        password: password,
+        posts: {},
+        threads: {},
+      }, {}, function (err) {
+        if (err) {throw err;}
+        bcrypt.genSalt(10, function(err, salt){
+  				bcrypt.hash(password, salt, function(err, hash){
+  					if (err) {throw err;}
+            var setValue = {password: hash};
+            db.collection('users').findOneAndUpdate({username: username},
+              {$set: setValue }, {},
+              function(err, r) {
+                if (err) {throw err;}
+                else {
+    							req.logIn(r.value, function(err) {
+    								if (err) {console.log(err); return res.send(err);}
+    								return res.send("success");
+    							});
+    						}
+              });
+          });
 				});
-			});
+      });
 		}
-	});
+  });
 });
 
 // log in
 app.post('/login', function(req, res) {
   passport.authenticate('local', function(err, user, info) {
     if (err) {
-		return res.send(err);
+		  return res.send(err);
 		}
     if (!user) {
-		return res.send("invalid username/password");
+		  return res.send("invalid username/password");
 		}
     req.logIn(user, function(err) {
-      if (err) {return res.send(err);}
+      if (err) {console.log(err); return res.send(err);}
       return res.send("success");
     });
   })(req, res);
@@ -200,4 +183,11 @@ app.set('port', (process.env.PORT || 3000));
 // Start Server
 app.listen(app.get('port'), function(){
   console.log('Servin it up fresh on port ' + app.get('port') + '!');
+});
+
+// If the Node process ends, close the DB connection
+process.on('SIGINT', function() {
+  db.close();
+  console.log('bye');
+  process.exit(0);
 });
