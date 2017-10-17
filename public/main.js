@@ -1,12 +1,15 @@
 "use strict";
 
-var submit = function () {
-  var data = {text: CKEDITOR.instances.editor.getData()}
+var glo = {
+  dateOffset: -1, //negative into the future
+}
+
+var submitPost = function (remove) {  //also handles editing and deleting
+  var data = {text: CKEDITOR.instances.postEditor.getData(), remove:remove }
   var url = '/'
   ajaxCall(url, 'POST', data, function(json) {
     if (json === 'success') {
-      console.log('yisss');
-      //location.reload();
+      // refresh view
     } else {
       console.log('error submitting post');
       //document.getElementById('loginError').innerHTML = json;
@@ -14,9 +17,35 @@ var submit = function () {
   });
 }
 
-var dateOffset = 0;
-//date helper function
-var getCurDate = function (minusDays) {
+var showThread = function (index) {
+  document.getElementById('messageWriter').classList.remove('removed');
+  glo.activeThreadIndex = index;
+  console.log(glo.threads[index].thread);
+  // visually indicate active thread
+}
+
+var submitMessage = function (remove) {
+  var data = {
+    recipient: glo.threads[glo.activeThreadIndex]._id,
+    text: CKEDITOR.instances.messageEditor.getData(),
+    remove: remove,
+  };
+  ajaxCall('inbox', 'POST', data, function(json) {
+    if (json === 'success') {
+      glo.threads[glo.activeThreadIndex].thread.push({
+        incoming: false,
+        date: getCurDate(-1),
+        body: CKEDITOR.instances.messageEditor.getData(),
+      });
+      // refresh view
+    } else {
+      console.log('error submitting message',json);
+      //document.getElementById('loginError').innerHTML = json;
+    }
+  });
+}
+
+var getCurDate = function (minusDays) { //date helper function
   if (!minusDays) {minusDays = 0}
   var now = new Date(new Date().getTime() - 9*3600*1000 - minusDays*24*3600000);   //UTC offset by -9
   var year = now.getUTCFullYear();
@@ -28,15 +57,14 @@ var getCurDate = function (minusDays) {
 }
 
 var changeDay = function (dir) {
-  dateOffset += dir;
-  if (dateOffset === 0) {
+  glo.dateOffset += dir;
+  if (glo.dateOffset === 0) {
     document.getElementById("day-forward").classList.add("hidden");
-  } else if (dateOffset === 1 && dir === 1) {
+  } else if (glo.dateOffset === 1 && dir === 1) {
     document.getElementById("day-forward").classList.remove("hidden");
   }
-
-  var data = {date: getCurDate(dateOffset)}
-  document.getElementById('date-display').innerHTML = getCurDate(dateOffset);
+  var data = {date: getCurDate(glo.dateOffset)}
+  document.getElementById('date-display').innerHTML = getCurDate(glo.dateOffset);
   var url = 'posts'
   ajaxCall(url, 'POST', data, function(json) {
     var parent = document.getElementById('posts');
@@ -45,7 +73,7 @@ var changeDay = function (dir) {
       parent.removeChild(parent.childNodes[0]);
     }
     json = JSON.parse(json)
-    if (json.posts.length === 0) {
+    if (json.length === 0) {
       var post = document.createElement("div");
       post.setAttribute('class', 'post');
       var text = document.createElement("p");
@@ -53,22 +81,20 @@ var changeDay = function (dir) {
       post.appendChild(text);
       parent.appendChild(post);
     } else {
-      for (var i = 0; i < json.posts.length; i++) {
+      for (var i = 0; i < json.length; i++) {
         var post = document.createElement("div");
         post.setAttribute('class', 'post');
         var text = document.createElement("p");
-        text.innerHTML = json.posts[i].body;
+        text.innerHTML = json[i].body;
         post.appendChild(text);
         var author = document.createElement("p");
-        author.appendChild(document.createTextNode(json.posts[i].author));
+        author.appendChild(document.createTextNode(json[i].author));
         post.appendChild(author);
         parent.appendChild(post);
       }
     }
   });
 }
-
-
 
 var showPanel = function(panelName) {
   closePanel();
@@ -79,35 +105,14 @@ var showPanel = function(panelName) {
 var closePanel = function(currentPanel) {
   document.getElementById('panel-backing').classList.add('removed');
   document.getElementById('user-info-panel').classList.add('removed');
+  if (document.getElementById('inbox-panel')) {
+    document.getElementById('inbox-panel').classList.add('removed');
+  }
   /*
   if (currentPanel) {
     document.getElementById('options-button').onclick = function(){showPanel(currentPanel);};
   }
   */
-}
-
-var sign = function(inOrUp) {
-  var data = {
-    username: document.getElementById('nameInput').value,
-    password: document.getElementById('passInput').value
-  }
-  if (data.username === "") {
-    document.getElementById('loginError').innerHTML = 'need a name!';
-    return;
-  }
-  if (data.password === "") {
-    document.getElementById('loginError').innerHTML = 'need a pass!';
-    return;
-  }
-  if (inOrUp === 'in') {var url = 'login'}
-  else {var url = 'register'}
-  ajaxCall(url, 'POST', data, function(json) {
-    if (json === 'success') {
-      location.reload();
-    } else {
-      document.getElementById('loginError').innerHTML = json;
-    }
-  });
 }
 
 var signOut = function() {
@@ -121,7 +126,7 @@ var signOut = function() {
   });
 }
 
-function ajaxCall(url, method, data, callback) {
+var ajaxCall = function(url, method, data, callback) {
   var xhttp = new XMLHttpRequest();
   xhttp.open(method, url, true);
   xhttp.setRequestHeader('Content-Type', 'application/json');
@@ -134,18 +139,32 @@ function ajaxCall(url, method, data, callback) {
   xhttp.send(JSON.stringify(data));
 }
 
-window.onkeyup = function(e) {
-  var key = e.keyCode;
-  //console.log(key);
-  switch (key) {
-    case 32:  // space
-      //action();
-      break;
-    case 65:  // A
+changeDay(1);
 
-      break;
-    case 83:  // S
-
-      break;
-  }
-}
+//fetch thread data for inbox
+(function () {
+  ajaxCall('inbox', 'GET', "", function(json) {
+    json = JSON.parse(json)
+    console.log(json);
+    glo.threads = json;
+    var parent = document.getElementById("mutuals-list");
+    if (json.length === 0) {
+      var mutual = document.createElement("div");
+      mutual.setAttribute('class', 'mutual');
+      var text = document.createElement("p");
+      text.appendChild(document.createTextNode("No Friends!"));
+      mutual.appendChild(text);
+      parent.appendChild(mutual);
+    } else {
+      for (var i = 0; i < json.length; i++) {
+        var mutual = document.createElement("div");
+        mutual.setAttribute('class', 'mutual');
+        mutual.innerHTML = json[i].name;
+        (function (index) {
+          mutual.onclick = function(){showThread(index);}
+        })(i);
+        parent.appendChild(mutual);
+      }
+    }
+  });
+})();

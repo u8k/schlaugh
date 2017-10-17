@@ -24,6 +24,7 @@ body {
   z-index: 2;
   background-color: rgba(0, 0, 0, 0.85);
 }
+#inbox-panel,
 #user-info-panel {
   position: fixed;
   top: 47%;
