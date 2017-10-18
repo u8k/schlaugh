@@ -35,6 +35,10 @@ body {
   color: black;
 }
 
+.highlight {
+  font-weight: bold;
+}
+
 .hidden {
   visibility: hidden;
 }

@@ -27,13 +27,16 @@
 
     <div id="postWriter">
       <% if (pending) { %>
-        <p>pending post for tomorrow:</p>
-        <div class="post">
-          <p><%- pending %></p>
+        <p id="pending-status">pending post for tomorrow:</p>
+        <div id="pending-post" class="post">
+          <%- pending %>
         </div>
+        <button type="button" id='delete-pending-post' onclick="submitPost(true)" >delete</button>
         <% } else { %>
-          <p>no pending post</p>
-          <% } %>
+          <p id="pending-status">no pending post</p>
+          <div id="pending-post" class="post"></div>
+          <button type="button" id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
+      <% } %>
 
       <textarea id="postEditor" >
         <% if (pending) { %>
@@ -42,9 +45,6 @@
       </textarea>
       <script>CKEDITOR.replace( 'postEditor' );</script>
       <button type="button" onclick="submitPost()" >post</button>
-      <% if (pending) { %>
-        <button type="button" onclick="submitPost(true)" >delete</button>
-      <% } %>
     </div>
 
     <h3>posts for:<br>
@@ -63,18 +63,12 @@
       <br>
 
       <div id="messageWriter" class="removed">
-        <textarea id="messageEditor" >
-
-        </textarea>
+        <textarea id="messageEditor" ></textarea>
         <script>CKEDITOR.replace( 'messageEditor' );</script>
-        <button type="button" onclick="submitMessage()" >post</button>
-        <button type="button" onclick="submitMessage(true)" >delete</button>
-        <!--
-        <% if (pending) { %>
-          <button type="button" onclick="submitMessage(true)" >delete</button>
-        <% } %>
-        -->
+        <button type="button" onclick="submitMessage()">post</button>
+        <button type="button" id='delete-message' onclick="submitMessage(true)">delete</button>
       </div>
+      <div id="thread-box"></div>
       <br>
       <div class="text-button return-button" onclick="closePanel()">return</div>
     </div>

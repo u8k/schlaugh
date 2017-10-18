@@ -107,7 +107,7 @@ app.post('/', function(req, res) {
 // get posts-(should maybe be a "GET"? ehhhh(following list))
 app.post('/posts', function(req, res){
   if (req.body.date === getCurDate(-1)) {
-    return res.send({posts: [{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]});
+    return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
   }
   db.collection('users').find({},{ _id:0, posts:1, username:1 }).toArray(function(err, users) {  //later make this only check "following" instead of all users
     //      can i make that^ only return the post for the date i want instead of all posts?
@@ -172,7 +172,7 @@ app.get('/inbox', function(req, res){
   });
 });
 
-// send/update a message
+// new/edit/delete message
 app.post('/inbox', function(req, res){
   var recipient = ObjectId(req.body.recipient);
   db.collection('users').findOne({_id: req.user._id}
@@ -185,15 +185,17 @@ app.post('/inbox', function(req, res){
         user.threads[recipient] = [];
       } else {
         // check the last two items, overwrite if there is already a pending message
-        for (var j = 1; j < 3; j++) {
-          if (user.threads[recipient][user.threads[recipient].length-j] && user.threads[recipient][user.threads[recipient].length-j].date === getCurDate(-1) && user.threads[recipient][user.threads[recipient].length-j].incoming === false) {
+        var thread = user.threads[recipient];
+        var len = thread.length;
+        for (var j = len-1; j > len-3; j--) {
+          if (thread[j] && thread[j].date === getCurDate(-1) && thread[j].incoming === false) {
             overwrite = true;
             if (req.body.remove) {
-              user.threads[recipient].splice(user.threads[recipient].length-j, 1);
+              user.threads[recipient].splice(j, 1);
             } else {
-              user.threads[recipient][user.threads[recipient].length-j].body = req.body.text;
+              user.threads[recipient][j].body = req.body.text;
             }
-            j+=2;
+            j-=2;
           }
         }
       }
@@ -218,14 +220,17 @@ app.post('/inbox', function(req, res){
                   user.threads[req.user._id] = [];
                 }
                 if (overwrite) {
-                  for (var j = 1; j < 3; j++) {
-                    if (user.threads[req.user._id][user.threads[req.user._id].length-j] && user.threads[req.user._id][user.threads[req.user._id].length-j].date === getCurDate(-1) && user.threads[req.user._id][user.threads[req.user._id].length-j].incoming === true) {
+                  // find the message to be overwritten
+                  var thread = user.threads[req.user._id];
+                  var len = thread.length;
+                  for (var j = len-1; j > len-3; j--) {
+                    if (thread[j] && thread[j].date === getCurDate(-1) && thread[j].incoming === true) {
                       if (req.body.remove) {
-                        delete user.threads[req.user._id].splice(user.threads[req.user._id].length-j, 1);
+                        user.threads[req.user._id].splice(j, 1);
                       } else {
-                        user.threads[req.user._id][user.threads[req.user._id].length-j].body = req.body.text;
+                        user.threads[req.user._id][j].body = req.body.text;
                       }
-                      j+=2;
+                      j-=2;
                     }
                   }
                 } else {
@@ -313,7 +318,7 @@ app.post('/login', function(req, res) {
 // logout
 app.get('/logout', function(req, res){
   req.logout();
-  res.send("success") //REDIRECT
+  res.send("success");
 });
 
 
