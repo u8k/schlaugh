@@ -1,0 +1,48 @@
+* {
+  color: white;
+  font-family: sans-serif;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #3D3D4C;
+  padding: 0;
+  margin: 0;
+}
+
+.post {
+  background-color: darkblue;
+}
+
+#panel-backing {
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  top: 0;
+  left: 0;
+  text-align: center;
+  z-index: 2;
+  background-color: rgba(0, 0, 0, 0.85);
+}
+#inbox-panel,
+#user-info-panel {
+  position: fixed;
+  top: 47%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  text-align: center;
+  z-index: 3;
+  color: black;
+}
+
+.highlight {
+  font-weight: bold;
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+.removed {
+  display: none;
+}

@@ -52,7 +52,11 @@
       <arrow class="" onclick="changeDay(1)">◀</arrow>
       <arrow id="day-forward" class="hidden" onclick="changeDay(-1)">▶</arrow>
     </h3>
-    <div id="posts"></div>
+    <div id="posts">
+      <div id="loading" class="post removed">
+        <p>***loading the day***</p>
+      </div>
+    </div>
 
     <h4><%= hoursRemaining %></h4>
 

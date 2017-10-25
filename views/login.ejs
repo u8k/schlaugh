@@ -4,22 +4,45 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Daily Post</title>
-    <!--<link rel="stylesheet" href="login.css">-->
+    <link rel="stylesheet" href="login.css">
 	  <!--<link rel="icon" type="image/png" href="img/icon.png">-->
   </head>
 
   <body>
     <h1>The Daily Post</h1>
 
+    <div id="inOrUp">
+      <biv class="text-button" onclick="show(false)">sign in</biv>
+      or
+      <biv class="text-button" onclick="show(true)">sign up</biv>
+    </div>
+
     <h3 id="loginError"></h3>
-    <input id="nameInput" type="text" placeholder="name">
-    <br>
-    <input id="passInput" type="password" placeholder="password">
-    <br>
-    <br>
-    <div class="text-button" onclick="sign('in')">sign in</div>
-    <br>
-    <div class="text-button" onclick="sign('up')">sign up</div>
+
+    <div id="up" class="removed">
+      <input id="name-input" type="text" placeholder="name">
+      <br>
+      <input id="email-input" type="text" placeholder="email address">
+      <br>
+      <input id="pass-input" type="password" placeholder="password">
+      <br>
+      <input id="pass-input-two" type="password" placeholder="password">
+      <br>
+      <biv class="text-button" onclick="sign('up')">sign up</biv>
+    </div>
+
+    <div id="in" class="removed">
+      <input id="in-name-input" type="text" placeholder="name">
+      <!--
+      or
+      <input id="email-input" type="text" placeholder="email address">
+      -->
+      <br>
+      <input id="in-pass-input" type="password" placeholder="password">
+      <br>
+      <biv class="text-button" onclick="sign('in')">sign in</biv>
+    </div>
 
     <script src="login.js"></script>
   </body>
+</html>

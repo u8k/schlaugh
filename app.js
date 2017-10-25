@@ -60,6 +60,7 @@ var getCurDate = function (minusDays) {
 
 ////ROUTING////
 
+
 // main/only page
 app.get('/', function(req, res) {
   if (req.user) {
@@ -84,14 +85,19 @@ app.get('/', function(req, res) {
 // new/edit/delete post
 app.post('/', function(req, res) {
   db.collection('users').findOne({_id: req.user._id}
-  , {_id:0, posts:1}
+  , {_id:0, posts:1, postList:1}
   , function (err, user) {
     if (err) {throw err;}
     else {
+      if (!user.postList) {user.postList = [];}   //get rid of this later?
       if (req.body.remove) {  //is trying to delete a post that doesn't exist a problem????
         delete user.posts[getCurDate(-1)];
+        if (user.postList[user.postList.length-1] === getCurDate(-1)) { //should always be true?
+          user.postList.pop();
+        }
       } else {
         user.posts[getCurDate(-1)] = req.body.text;
+        user.postList.push(getCurDate(-1));
       }
       db.collection('users').updateOne({_id: req.user._id},
         {$set: user },
@@ -109,7 +115,8 @@ app.post('/posts', function(req, res){
   if (req.body.date === getCurDate(-1)) {
     return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
   }
-  db.collection('users').find({},{ _id:0, posts:1, username:1 }).toArray(function(err, users) {  //later make this only check "following" instead of all users
+  //later make this▼ only check "following" instead of all users
+  db.collection('users').find({},{ _id:0, posts:1, username:1 }).toArray(function(err, users) {
     //      can i make that^ only return the post for the date i want instead of all posts?
     if (err) {throw err;}
     else {
@@ -118,8 +125,8 @@ app.post('/posts', function(req, res){
         if (users[i].posts[req.body.date]) {
           posts.push({
             body: users[i].posts[req.body.date],
-            author: users[i].username
-          })
+            author: users[i].username,
+          });
         }
       }
       return res.send(posts);
@@ -260,41 +267,51 @@ app.post('/inbox', function(req, res){
 app.post('/register', function(req, res){
 	var username = req.body.username;
 	var password = req.body.password;
+	var email = req.body.email;
 	//check if there is already a user w/ that name
   db.collection('users').findOne({username: username}, {}, function (err, user) {
     if (err) throw err;
 		if (user) {return res.send("name taken");}
 		else {
-      db.collection('users').insertOne({
-        username: username,
-        password: password,
-        posts: {},
-        threads: {},
-        following: {},
-        followers: {},
-        mutuals: {},
-        about: "",
-        //field for little iconPic that goes next to posts?
-      }, {}, function (err) {
-        if (err) {throw err;}
-        bcrypt.genSalt(10, function(err, salt){
-  				bcrypt.hash(password, salt, function(err, hash){
-  					if (err) {throw err;}
-            var setValue = {password: hash};
-            db.collection('users').findOneAndUpdate({username: username}, //MAKE BETTER
-              {$set: setValue }, {},
-              function(err, r) {
-                if (err) {throw err;}
-                else {
-    							req.logIn(r.value, function(err) {
-    								if (err) {throw err; return res.send(err);}
-    								return res.send("success");
-    							});
-    						}
+      //check if there is already a user w/ that email
+      db.collection('users').findOne({email: email}, {}, function (err, user) {
+        if (err) throw err;
+    		if (user) {return res.send("name taken");}
+    		else {
+          db.collection('users').insertOne({
+            username: username,
+            password: password,
+            email: email,
+            posts: {},
+            postList: [],
+            threads: {},
+            following: {},
+            followers: {},
+            mutuals: {},
+            about: "",
+            //field for little iconPic that goes next to posts?
+          }, {}, function (err) {
+            if (err) {throw err;}
+            bcrypt.genSalt(10, function(err, salt){
+      				bcrypt.hash(password, salt, function(err, hash){
+      					if (err) {throw err;}
+                var setValue = {password: hash};
+                db.collection('users').findOneAndUpdate({username: username}, //MAKE BETTER
+                  {$set: setValue }, {},
+                  function(err, r) {
+                    if (err) {throw err;}
+                    else {
+        							req.logIn(r.value, function(err) {
+        								if (err) {throw err; return res.send(err);}
+        								return res.send("success");
+        							});
+        						}
+                  });
               });
+    				});
           });
-				});
-      });
+        }
+      })
 		}
   });
 });
@@ -316,10 +333,60 @@ app.post('/login', function(req, res) {
 });
 
 // logout
-app.get('/logout', function(req, res){
+app.post('/logout', function(req, res){
   req.logout();
   res.send("success");
 });
+
+// view all of a users posts
+app.get('/:username', function(req, res) {
+  db.collection('users').findOne({username: req.params.username}
+  , {_id:0, posts:1, postList:1}
+  , function (err, user) {
+    if (err) {throw err; res.send(err);}
+    else {
+      if (!user) {
+        res.send('but there was nobody home');
+      } else {
+        var posts = [];
+        for (var i = 0; i < user.postList.length; i++) {
+          if (user.postList[i] !== getCurDate(-1)) {
+            posts.push({
+              body: user.posts[user.postList[i]],
+              date: user.postList[i],
+            });
+          }
+        }
+        res.render('user', {username:req.params.username, posts:posts});
+      }
+    }
+  });
+});
+
+// view a post
+app.get('/:username/:date', function(req, res) {
+  db.collection('users').findOne({username: req.params.username}
+  , { _id:0, posts:1 }
+  , function (err, user) {
+    if (err) {throw err; res.send(err);}
+    else {
+      if (!user) {
+        res.send('but there was nobody home');
+      } else {
+        var posts = [];
+        if (req.params.date === getCurDate(-1)) {res.send("10 points from Slytherin");}
+        else if (user.posts[req.params.date]) {
+          posts.push({
+            body: user.posts[req.params.date],
+            date: req.params.date,
+          });
+          res.render('user', {username:req.params.username, posts:posts});
+        } else {res.send("not even a single thing");}
+      }
+    }
+  });
+});
+
 
 
 ///////////

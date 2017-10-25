@@ -1,24 +1,50 @@
 
+var $ = function (id) {return document.getElementById(id);}
+
+var show = function (up) {
+  if (up === true) {$('up').classList.remove('removed');}
+  else {$('in').classList.remove('removed');}
+  $('inOrUp').classList.add('removed');
+}
+
 var sign = function(inOrUp) {
-  var data = {
-    username: document.getElementById('nameInput').value,
-    password: document.getElementById('passInput').value
+  if (inOrUp === 'in') {
+    var data = {
+      username: $('in-name-input').value,
+      password: $('in-pass-input').value,
+    }
+  } else {
+    var data = {
+      username: $('name-input').value,
+      password: $('pass-input').value,
+    }
   }
   if (data.username === "") {
-    document.getElementById('loginError').innerHTML = 'need a name!';
+    $('loginError').innerHTML = 'need a name!';
     return;
   }
   if (data.password === "") {
-    document.getElementById('loginError').innerHTML = 'need a pass!';
+    $('loginError').innerHTML = 'need a pass!';
     return;
   }
-  if (inOrUp === 'in') {var url = 'login'}
-  else {var url = 'register'}
+  if (inOrUp === 'in') {
+    var url = 'login';
+  } else {
+    var url = 'register';
+    data.email = $('email-input').value;
+
+    //TODO validate email format
+
+    if (data.password !== $('pass-input-two').value) {
+      $('loginError').innerHTML = 'passwords are not the same';
+      return;
+    }
+  }
   ajaxCall(url, 'POST', data, function(json) {
     if (json === 'success') {
       location.reload();
     } else {
-      document.getElementById('loginError').innerHTML = json;
+      $('loginError').innerHTML = json;
     }
   });
 }

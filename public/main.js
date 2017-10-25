@@ -129,29 +129,31 @@ var getCurDate = function (minusDays) { //date helper function
 
 var changeDay = function (dir) {
   var date = getCurDate(glo.dateOffset);
+  // hide the previously displayed day
   if ($('posts-for-'+ date)) {
     $('posts-for-'+ date).classList.add('removed');
   }
   glo.dateOffset += dir;
+  date = getCurDate(glo.dateOffset);
+  // hide/unhide nextDay button as needed
   if (glo.dateOffset === 0) {
     $("day-forward").classList.add("hidden");
   } else if (glo.dateOffset === 1 && dir === 1) {
     $("day-forward").classList.remove("hidden");
   }
-  date = getCurDate(glo.dateOffset);
   $('date-display').innerHTML = date;
   // check if we already have the post data for that day
   if ($('posts-for-'+date)) {
     $('posts-for-'+date).classList.remove('removed');
   } else {
     // we don't, so make the ajax call
+    $('loading').classList.remove('removed');
     var data = {date: date};
     var url = 'posts'
     ajaxCall(url, 'POST', data, function(json) {
       var bucket = document.createElement("div");
       bucket.setAttribute('class', 'post-bucket');
       bucket.setAttribute('id', 'posts-for-'+date);
-      $('posts').appendChild(bucket);
       json = JSON.parse(json)
       if (json.length === 0) {
         var post = document.createElement("div");
@@ -173,6 +175,8 @@ var changeDay = function (dir) {
           bucket.appendChild(post);
         }
       }
+      $('loading').classList.add('removed');
+      $('posts').appendChild(bucket);
     });
   }
 }
@@ -198,7 +202,7 @@ var closePanel = function(currentPanel) {
 
 var signOut = function() {
   var url = 'logout'
-  ajaxCall(url, 'GET', '', function(json) {
+  ajaxCall(url, 'POST', {}, function(json) {
     if (json === 'success') {
       location.reload();
     } else {
