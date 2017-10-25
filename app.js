@@ -10,8 +10,8 @@ var ObjectId = require('mongodb').ObjectID;
 var db;
 
 //connect and check mongoDB
-var uri = 'mongodb://localhost:27017/dailypost'
-//var uri = process.env.MONGODB_URI
+//var uri = 'mongodb://localhost:27017/dailypost';
+var uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/dailypost';
 MongoClient.connect(uri, function(err, database) {
   if (err) {throw err;}
   else {console.log("MONGO IS ALIVE");
