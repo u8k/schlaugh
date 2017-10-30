@@ -1,10 +1,10 @@
 * {
-  color: white;
   font-family: sans-serif;
   box-sizing: border-box;
 }
 
 body {
+  color: white;
   background-color: #3D3D4C;
   padding: 0;
   margin: 0;
@@ -24,7 +24,7 @@ body {
   z-index: 2;
   background-color: rgba(0, 0, 0, 0.85);
 }
-#inbox-panel,
+
 #user-info-panel {
   position: fixed;
   top: 47%;
@@ -32,6 +32,11 @@ body {
   transform: translateX(-50%) translateY(-50%);
   text-align: center;
   z-index: 3;
+  color: white;
+}
+
+.message {
+  background-color: lightgrey;
   color: black;
 }
 

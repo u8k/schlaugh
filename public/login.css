@@ -1,5 +1,4 @@
 * {
-  color: white;
   font-family: sans-serif;
   box-sizing: border-box;
 }
@@ -10,34 +9,8 @@ body {
   margin: 0;
 }
 
-.post {
-  background-color: darkblue;
-}
+h1, h4 {color: white;}
 
-#panel-backing {
-  height: 100vh;
-  width: 100vw;
-  position: fixed;
-  top: 0;
-  left: 0;
-  text-align: center;
-  z-index: 2;
-  background-color: rgba(0, 0, 0, 0.85);
-}
-#inbox-panel,
-#user-info-panel {
-  position: fixed;
-  top: 47%;
-  left: 50%;
-  transform: translateX(-50%) translateY(-50%);
-  text-align: center;
-  z-index: 3;
-  color: black;
-}
-
-.highlight {
-  font-weight: bold;
-}
 
 .hidden {
   visibility: hidden;

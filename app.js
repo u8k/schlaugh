@@ -285,11 +285,11 @@ app.post('/register', function(req, res){
             posts: {},
             postList: [],
             threads: {},
+            threadList: [],
             following: {},
             followers: {},
-            mutuals: {},
             about: "",
-            //field for little iconPic that goes next to posts?
+            iconURI: "",
           }, {}, function (err) {
             if (err) {throw err;}
             bcrypt.genSalt(10, function(err, salt){
@@ -386,7 +386,6 @@ app.get('/:username/:date', function(req, res) {
     }
   });
 });
-
 
 
 ///////////

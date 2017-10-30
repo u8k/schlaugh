@@ -10,72 +10,81 @@
   </head>
   <body>
     <%
-      var monthNames = ["January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"];
-      var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-
       var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
-
-      var today = dayNames[date.getUTCDay()]+", "+monthNames[date.getUTCMonth()]+" "+date.getUTCDate()+", "+date.getUTCFullYear();
       var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours until next edition";
     %>
     <h1>The Daily Post</h1>
-
     <p id="log-button" onclick="showPanel('user-info-panel')">log out</p>
 
-    <button id="inbox-button" onclick="showPanel('inbox-panel')">inbox</button>
+    <div id="posts-panel">
+      <h2>posts</h2>
+      <button id="inbox-button" onclick="switchPanel('inbox-panel')">inbox</button>
 
-    <div id="postWriter">
-      <% if (pending) { %>
-        <p id="pending-status">pending post for tomorrow:</p>
-        <div id="pending-post" class="post">
-          <%- pending %>
-        </div>
-        <button type="button" id='delete-pending-post' onclick="submitPost(true)" >delete</button>
-        <% } else { %>
-          <p id="pending-status">no pending post</p>
-          <div id="pending-post" class="post"></div>
-          <button type="button" id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
-      <% } %>
-
-      <textarea id="postEditor" >
+      <div id="post-preview">
         <% if (pending) { %>
-          <%- pending %>
+          <p id="pending-status">pending post for tomorrow:</p>
+          <div id="pending-post" class="post">
+            <%- pending %>
+          </div>
+          <button type="button" id='write-post-button' onclick="showWriter('post')" >edit post</button>
+          <% } else { %>
+            <p id="pending-status">no pending post</p>
+            <div id="pending-post" class="post"></div>
+            <button type="button" id='write-post-button' onclick="showWriter('post')" >new post</button>
         <% } %>
-      </textarea>
-      <script>CKEDITOR.replace( 'postEditor' );</script>
-      <button type="button" onclick="submitPost()" >post</button>
+      </div>
+
+      <div id="post-writer" class="removed">
+        <textarea id="postEditor" >
+          <% if (pending) { %>
+            <%- pending %>
+          <% } %>
+        </textarea>
+        <script>CKEDITOR.replace( 'postEditor' );</script>
+        <button type="button" onclick="submitPost()" >submit</button>
+        <% if (pending) { %>
+          <button type="button" id='delete-pending-post' onclick="submitPost(true)" >delete</button>
+        <% } else { %>
+          <button type="button" id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
+        <% } %>
+        <button type="button" onclick="hideWriter('post');" >x</button>
+      </div>
+
+      <h3>posts for:<br>
+        <div id="date-display">derp</div>
+        <arrow class="" onclick="changeDay(1)">◀</arrow>
+        <arrow id="day-forward" class="hidden" onclick="changeDay(-1)">▶</arrow>
+      </h3>
+      <div id="posts">
+        <div id="loading" class="post removed">
+          <p>***loading the day***</p>
+        </div>
+      </div>
     </div>
 
-    <h3>posts for:<br>
-      <div id="date-display">derp</div>
-      <arrow class="" onclick="changeDay(1)">◀</arrow>
-      <arrow id="day-forward" class="hidden" onclick="changeDay(-1)">▶</arrow>
-    </h3>
-    <div id="posts">
-      <div id="loading" class="post removed">
-        <p>***loading the day***</p>
+    <div id="inbox-panel" class="removed">
+      <h2>inbox</h2>
+      <button onclick="switchPanel('posts-panel')">posts</button>
+      <br>
+      <br>
+      <div id="mutuals-list"></div>
+      <br>
+      <div id="thread-box"></div>
+      <br>
+      <div id="message-preview" class="removed">
+        <p id="pending-message-status">vvv</p>
+        <div id="pending-message" class="message"></div>
+        <button type="button" id='write-message-button' onclick="showWriter('message')" >vvv</button>
+      </div>
+      <div id="message-writer" class="removed">
+        <textarea id="messageEditor" ></textarea>
+        <script>CKEDITOR.replace( 'messageEditor' );</script>
+        <button type="button" onclick="submitMessage()">submit</button>
+        <button type="button" id='delete-message' onclick="submitMessage(true)">delete</button>
       </div>
     </div>
 
     <h4><%= hoursRemaining %></h4>
-
-    <div id="inbox-panel" class="removed">
-      <h2>inbox</h2>
-      <br>
-      <div id="mutuals-list"></div>
-      <br>
-
-      <div id="messageWriter" class="removed">
-        <textarea id="messageEditor" ></textarea>
-        <script>CKEDITOR.replace( 'messageEditor' );</script>
-        <button type="button" onclick="submitMessage()">post</button>
-        <button type="button" id='delete-message' onclick="submitMessage(true)">delete</button>
-      </div>
-      <div id="thread-box"></div>
-      <br>
-      <div class="text-button return-button" onclick="closePanel()">return</div>
-    </div>
 
     <div id="panel-backing" class="removed"></div>
 

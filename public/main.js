@@ -9,6 +9,7 @@ var $ = function (id) {return document.getElementById(id);}
 var submitPost = function (remove) {  //also handles editing and deleting
   if (remove) {var text = null;}
   else {var text = CKEDITOR.instances.postEditor.getData();}
+  if (text === "") {return;}
   var data = {text: text, remove:remove }
   ajaxCall("/", 'POST', data, function(json) {
     if (json === 'success') {
@@ -16,11 +17,14 @@ var submitPost = function (remove) {  //also handles editing and deleting
         CKEDITOR.instances.postEditor.setData("");
         $('pending-status').innerHTML = "no pending post";
         $('delete-pending-post').classList.add("removed");
+        $('write-post-button').innerHTML = "new post";
       } else {
         $('pending-status').innerHTML = "pending post for tomorrow:";
         $('delete-pending-post').classList.remove("removed");
+        $('write-post-button').innerHTML = "edit post";
       }
       $('pending-post').innerHTML = text;
+      hideWriter('post');
     } else {
       console.log('error submitting post');
       //$('loginError').innerHTML = json;
@@ -28,39 +32,65 @@ var submitPost = function (remove) {  //also handles editing and deleting
   });
 }
 
-var showThread = function (index) {
+var showWriter = function (kind) {
+  $(kind+'-writer').classList.remove('removed');
+  $(kind+'-preview').classList.add('removed');
+}
+var hideWriter = function (kind) {
+  $(kind+'-writer').classList.add('removed');
+  $(kind+'-preview').classList.remove('removed');
+}
+
+var switchThread = function (index) {
   var oldex = glo.activeThreadIndex;
-  if (oldex === index) {return;}
-  $(index+'-mutual').classList.add('highlight');
-  var conf = true;
-  //hide current thread, if there is one
+  //is there a currently open thread?
   if (oldex !== undefined) {
-    $(oldex+'-mutual').classList.remove('highlight');
-    $(oldex+"-thread").classList.add('removed');
-    // check for and ask about unsaved text
+    //does this open thread have unsaved text?
     var text = CKEDITOR.instances.messageEditor.getData();
     if (text !== "") {
       var last = glo.threads[oldex].thread[glo.threads[oldex].thread.length-1];
       if (!last || last.date !== getCurDate(-1) || text !== last.body) {
-        conf = confirm("lose current unposted text?");
+        //is it okay to lose that unsaved text?
+        if (!confirm("lose current unposted text?")) {return;}
       }
     }
-  }
-  if (conf) {
-    var pending = "";
-    //check the last message for a current pending message
-    var last = glo.threads[index].thread[glo.threads[index].thread.length-1];
-    if (last && last.date === getCurDate(-1)) {
-      pending = last.body;
-      $('delete-message').classList.remove('removed');
-    } else {
-      $('delete-message').classList.add('removed');
+    //hide current thread
+    $(oldex+'-mutual').classList.remove('highlight');
+    $(oldex+"-thread").classList.add('removed');
+    $("message-writer").classList.add('removed');
+    // are we just hiding a thread, not opening a new one?
+    if (oldex === index) {
+      glo.activeThreadIndex = undefined;
+      $("message-preview").classList.add('removed');
+      return;
     }
-    CKEDITOR.instances.messageEditor.setData(pending);
-    $('messageWriter').classList.remove('removed');
-    glo.activeThreadIndex = index;
-    $(index+"-thread").classList.remove('removed');
   }
+  updatePendingMessage(index);
+  glo.activeThreadIndex = index;
+  // actually open the new thread
+  $(index+"-thread").classList.remove('removed');
+  $("message-preview").classList.remove('removed');
+  $(index+'-mutual').classList.add('highlight');
+}
+
+var updatePendingMessage = function (index) {
+  var pending = "";
+  var last = glo.threads[index].thread[glo.threads[index].thread.length-1];
+  // does the thread have a pending message?
+  if (last && last.date === getCurDate(-1)) {
+    pending = last.body;
+    $('delete-message').classList.remove('removed');
+    $('write-message-button').innerHTML = "edit message";
+    $('pending-message-status').innerHTML = "pending:";
+    $('pending-message').innerHTML = pending;
+  } else {
+    $('delete-message').classList.add('removed');
+    $('write-message-button').innerHTML = "new message";
+    $('pending-message-status').innerHTML = "no pending message:";
+    $('pending-message').innerHTML = "";
+  }
+  CKEDITOR.instances.messageEditor.setData(pending);
+  hideWriter('message');
 }
 
 var submitMessage = function (remove) {  //also handles editing and deleting
@@ -74,41 +104,20 @@ var submitMessage = function (remove) {  //also handles editing and deleting
   };
   ajaxCall('inbox', 'POST', data, function(json) {
     if (json === 'success') {
-      //check the last message for a current pending message
       var len = glo.threads[i].thread.length-1;
       var last = glo.threads[i].thread[len];
+      // is the thread's last message already a pending message?
       if (last && last.date === getCurDate(-1)) {
-        if (remove) {
-          //is the current pending the ONLY message?
-          if (glo.threads[i].thread.length === 1) {
-            $(i+"-"+(len)+"-message-body").innerHTML = "no messages"
-            $(i+"-"+(len)+"-message-date").innerHTML = ""
-          } else {
-            $(i+"-"+(len)+"-message").parentNode.removeChild($(i+"-"+(len)+"-message"));
-          }
-          $('delete-message').classList.add('removed');
-          CKEDITOR.instances.messageEditor.setData("");
-          glo.threads[i].thread.splice(len,1);
-        } else {
-          last.body = text;
-          $(i+"-"+(len)+"-message-body").innerHTML = text;
-          $('delete-message').classList.remove('removed');
-        }
+        if (remove) {glo.threads[i].thread.splice(len,1);}
+        else {last.body = text;}    //overwrite
       } else {
-        $('delete-message').classList.remove('removed');
         glo.threads[i].thread.push({
           incoming: false,
           date: getCurDate(-1),
           body: text,
         });
-        //is this the first message in the thread?
-        if (glo.threads[i].thread.length === 1) {
-          $(i+"-0-message-body").innerHTML = text;
-          $(i+"-0-message-date").innerHTML = getCurDate(-1);
-        } else {
-          createMessage(i, len+1);
-        }
       }
+      updatePendingMessage(i);
     } else {
       console.log('error submitting message',json);
       //$('loginError').innerHTML = json;
@@ -181,6 +190,12 @@ var changeDay = function (dir) {
   }
 }
 
+var switchPanel = function (panelName) {
+  $('inbox-panel').classList.add('removed');
+  $('posts-panel').classList.add('removed');
+  $(panelName).classList.remove('removed');
+}
+
 var showPanel = function(panelName) {
   closePanel();
   $(panelName).classList.remove('removed');
@@ -193,11 +208,6 @@ var closePanel = function(currentPanel) {
   if ($('inbox-panel')) {
     $('inbox-panel').classList.add('removed');
   }
-  /*
-  if (currentPanel) {
-    $('options-button').onclick = function(){showPanel(currentPanel);};
-  }
-  */
 }
 
 var signOut = function() {
@@ -229,12 +239,19 @@ var createMessage = function (i, j) {
   if (glo.threads[i].thread[j]) {
     var text = glo.threads[i].thread[j].body;
     var date = glo.threads[i].thread[j].date;
+    if (date === getCurDate(-1)) {
+      if (j === 0) {
+        var text = "no messages";
+        var date = '';
+      } else {
+        return;
+      }
+    }
     if (glo.threads[i].thread[j].incoming === true) {orrientation = "incoming";}
   } else {
     var text = "no messages";
     var date = '';
   }
-  if (date === getCurDate(-1)) {var orrientation = "pending"}
   var message = document.createElement("div");
   message.setAttribute('class', 'message '+orrientation);
   message.setAttribute('id', i+"-"+j+"-message");
@@ -274,7 +291,7 @@ changeDay(1);
         mutual.setAttribute('id', i+'-mutual');
         mutual.innerHTML = json[i].name;
         (function (index) {
-          mutual.onclick = function(){showThread(index);}
+          mutual.onclick = function(){switchThread(index);}
         })(i);
         parent.appendChild(mutual);
         //thread for each mutual
