@@ -1,21 +1,34 @@
-* {
-  font-family: sans-serif;
-  box-sizing: border-box;
-}
-
 body {
-  background-color: #3D3D4C;
-  padding: 0;
+  color: white;
+  background-color: #4A4A56;
+  padding: 1.5vmin;
   margin: 0;
+  text-align: center;
 }
 
-h1, h4 {color: white;}
-
-
-.hidden {
-  visibility: hidden;
+#site-title {
+  font-size: 1.8em;
+  position: absolute;
+  margin: 1.5vmin;
+  top: 0;
+  left: 0;
 }
 
-.removed {
-  display: none;
+arrow {
+  font-size: 1.8em;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
+
+#up, #in, #inOrUp, #loginError {
+  position: absolute;
+  top: 40vh;
+  left: 50vw;
+  transform: translate(-50%, -50%);
+}
+#loginError{top: 75vh;}
+
+.removed {display: none;}

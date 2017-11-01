@@ -17,10 +17,12 @@ var submitPost = function (remove) {  //also handles editing and deleting
         CKEDITOR.instances.postEditor.setData("");
         $('pending-status').innerHTML = "no pending post";
         $('delete-pending-post').classList.add("removed");
+        $('pending-post').classList.add("removed");
         $('write-post-button').innerHTML = "new post";
       } else {
-        $('pending-status').innerHTML = "pending post for tomorrow:";
+        $('pending-status').innerHTML = "your pending post for tomorrow:";
         $('delete-pending-post').classList.remove("removed");
+        $('pending-post').classList.remove("removed");
         $('write-post-button').innerHTML = "edit post";
       }
       $('pending-post').innerHTML = text;
@@ -80,13 +82,15 @@ var updatePendingMessage = function (index) {
   if (last && last.date === getCurDate(-1)) {
     pending = last.body;
     $('delete-message').classList.remove('removed');
+    $('pending-message').classList.remove('removed');
     $('write-message-button').innerHTML = "edit message";
     $('pending-message-status').innerHTML = "pending:";
     $('pending-message').innerHTML = pending;
   } else {
     $('delete-message').classList.add('removed');
+    $('pending-message').classList.add('removed');
     $('write-message-button').innerHTML = "new message";
-    $('pending-message-status').innerHTML = "no pending message:";
+    $('pending-message-status').innerHTML = "no pending message";
     $('pending-message').innerHTML = "";
   }
   CKEDITOR.instances.messageEditor.setData(pending);
@@ -136,7 +140,7 @@ var getCurDate = function (minusDays) { //date helper function
   return year+"-"+mon+"-"+date;
 }
 
-var changeDay = function (dir) {
+var changeDay = function (dir) { // load and display all posts for a given day
   var date = getCurDate(glo.dateOffset);
   // hide the previously displayed day
   if ($('posts-for-'+ date)) {
@@ -164,23 +168,23 @@ var changeDay = function (dir) {
       bucket.setAttribute('class', 'post-bucket');
       bucket.setAttribute('id', 'posts-for-'+date);
       json = JSON.parse(json)
+      // if there are no posts for the day
       if (json.length === 0) {
         var post = document.createElement("div");
-        post.setAttribute('class', 'post');
-        var text = document.createElement("p");
-        text.innerHTML = "No Posts!";
-        post.appendChild(text);
+        post.innerHTML = "No Posts!";
         bucket.appendChild(post);
       } else {
         for (var i = 0; i < json.length; i++) {
           var post = document.createElement("div");
           post.setAttribute('class', 'post');
-          var text = document.createElement("p");
-          text.innerHTML = json[i].body;
-          post.appendChild(text);
-          var author = document.createElement("p");
+          var author = document.createElement("div");
+          author.setAttribute('class', 'meta-text');
           author.innerHTML = json[i].author;
           post.appendChild(author);
+          var text = document.createElement("text");
+          text.setAttribute('class', 'body-text');
+          text.innerHTML = json[i].body;
+          post.appendChild(text);
           bucket.appendChild(post);
         }
       }
@@ -193,21 +197,12 @@ var changeDay = function (dir) {
 var switchPanel = function (panelName) {
   $('inbox-panel').classList.add('removed');
   $('posts-panel').classList.add('removed');
+  $('write-panel').classList.add('removed');
   $(panelName).classList.remove('removed');
 }
 
-var showPanel = function(panelName) {
-  closePanel();
-  $(panelName).classList.remove('removed');
-  $('panel-backing').classList.remove('removed');
-}
-
-var closePanel = function(currentPanel) {
-  $('panel-backing').classList.add('removed');
-  $('user-info-panel').classList.add('removed');
-  if ($('inbox-panel')) {
-    $('inbox-panel').classList.add('removed');
-  }
+var accountSettings = function () {
+  console.log("burp");
 }
 
 var signOut = function() {
@@ -235,37 +230,31 @@ var ajaxCall = function(url, method, data, callback) {
 }
 
 var createMessage = function (i, j) {
-  var orrientation = "outgoing";
-  if (glo.threads[i].thread[j]) {
-    var text = glo.threads[i].thread[j].body;
-    var date = glo.threads[i].thread[j].date;
-    if (date === getCurDate(-1)) {
-      if (j === 0) {
-        var text = "no messages";
-        var date = '';
-      } else {
-        return;
-      }
-    }
-    if (glo.threads[i].thread[j].incoming === true) {orrientation = "incoming";}
-  } else {
-    var text = "no messages";
-    var date = '';
+  var x = glo.threads[i].thread[j];
+  if (!x || (x.date === getCurDate(-1) && j === 0)) {
+    // show "no messages"
+    var message = document.createElement("div");
+    message.innerHTML = "no messages";
+    $(i+"-thread").appendChild(message);
+  } else if (x.date === getCurDate(-1)) {
+    // do nothing
+    return;
+  } else {  // show the message
+    var orri = "outgoing";
+    if (x.incoming) {orri = "incoming";}
+    var message = document.createElement("div");
+    message.setAttribute('class', 'message '+orri);
+    //message.setAttribute('id', i+"-"+j+"-message");
+    $(i+"-thread").appendChild(message);
+    var dateStamp = document.createElement("div");
+    dateStamp.setAttribute('class', 'meta-text');
+    dateStamp.innerHTML = x.date;
+    message.appendChild(dateStamp);
+    var body = document.createElement("div");
+    body.setAttribute('class', 'message-body');
+    body.innerHTML = x.body;
+    message.appendChild(body);
   }
-  var message = document.createElement("div");
-  message.setAttribute('class', 'message '+orrientation);
-  message.setAttribute('id', i+"-"+j+"-message");
-  $(i+"-thread").appendChild(message);
-  var body = document.createElement("div");
-  body.setAttribute('class', 'message-body');
-  body.setAttribute('id', i+"-"+j+"-message-body");
-  body.innerHTML = text;
-  message.appendChild(body);
-  var dateStamp = document.createElement("div");
-  dateStamp.setAttribute('class', 'message-date');
-  dateStamp.setAttribute('id', i+"-"+j+"-message-date");
-  dateStamp.innerHTML = date;
-  message.appendChild(dateStamp);
 }
 
 changeDay(1);

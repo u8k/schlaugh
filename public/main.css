@@ -1,53 +1,103 @@
-* {
-  font-family: sans-serif;
-  box-sizing: border-box;
-}
+* {box-sizing: border-box;}
 
 body {
-  color: white;
-  background-color: #3D3D4C;
-  padding: 0;
+  padding: 1.5vmin;
   margin: 0;
+  text-align: center;
 }
 
-.post {
-  background-color: darkblue;
+p {margin: 0}
+
+#user-info {
+  position: absolute;
+  top: 0;
+  right: 0;
+  text-align: right;
+  font-size: 1.1em;
+  margin: 1.5vmin;
 }
 
-#panel-backing {
-  height: 100vh;
-  width: 100vw;
-  position: fixed;
+#site-title {
+  font-size: 1.8em;
+  position: absolute;
+  margin: 1.5vmin;
   top: 0;
   left: 0;
-  text-align: center;
-  z-index: 2;
-  background-color: rgba(0, 0, 0, 0.85);
 }
 
-#user-info-panel {
-  position: fixed;
-  top: 47%;
-  left: 50%;
-  transform: translateX(-50%) translateY(-50%);
-  text-align: center;
-  z-index: 3;
-  color: white;
+nav {
+  margin-top: 40px;
+  font-size: 2.4em
 }
 
-.message {
-  background-color: lightgrey;
-  color: black;
+postNav {
+  font-size: 2em;
+}
+
+clicky {
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+#post-writer{width: 75%; margin: auto;}
+#message-writer{width: 65%; margin: auto;}
+
+#thread-box {
+  width: 80%;
+  margin: auto;
+}
+
+.post, .message {
+  width: 75%;
+  margin: auto;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  padding: 15px;
+  text-align: justify;
+}
+.message {width: 85%;}
+
+#pending-message {width: 65%}
+
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  .post {width: 98%;}
+  #thread-box {width: 100%;}
+  #pending-message {width: 85%}
+  #post-writer{width: 95%;}
+  #message-writer{width: 85%;}
+}
+
+.outgoing {margin-right: 0}
+.incoming {margin-left: 0}
+
+.meta-text {
+  text-align: right;
+  text-decoration: underline;
+  margin-bottom: 10px;
 }
 
 .highlight {
+  font-size: 1.4em;
   font-weight: bold;
 }
 
-.hidden {
-  visibility: hidden;
+.color, body {
+  color: white;
+  background-color: #4A4A56;
+}
+.inverse-color, .post, .message {
+  color: #D8D8D8;
+  background-color: #32363F;
 }
 
-.removed {
-  display: none;
+a, a.visited {
+  color: #BFA5FF;
+  text-decoration: none;
 }
+
+.hidden {visibility: hidden;}
+.removed {display: none;}

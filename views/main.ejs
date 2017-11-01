@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Daily Post</title>
+    <title>owlPost</title>
     <link rel="stylesheet" href="main.css">
     <script src="ckeditor/ckeditor.js"></script>
 	  <!--<link rel="icon" type="image/png" href="img/icon.png">-->
@@ -13,23 +13,32 @@
       var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
       var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours until next edition";
     %>
-    <h1>The Daily Post</h1>
-    <p id="log-button" onclick="showPanel('user-info-panel')">log out</p>
+    <text id="site-title">owlPost</text>
+    <div id="user-info">
+      <text onclick="accountSettings()"><%= username %></text>
+      <br>
+      <text onclick="signOut()">log out</text>
+    </div>
 
-    <div id="posts-panel">
-      <h2>posts</h2>
-      <button id="inbox-button" onclick="switchPanel('inbox-panel')">inbox</button>
+    <div id="write-panel" class="removed">
+      <nav>
+        <text class="highlight">write</text>
+        <clicky onclick="switchPanel('posts-panel')">posts</clicky>
+        <clicky onclick="switchPanel('inbox-panel')">messages</clicky>
+        <br><br>
+      </nav>
 
       <div id="post-preview">
         <% if (pending) { %>
-          <p id="pending-status">pending post for tomorrow:</p>
+          <text id="pending-status">your pending post for tomorrow:</text>
           <div id="pending-post" class="post">
             <%- pending %>
           </div>
           <button type="button" id='write-post-button' onclick="showWriter('post')" >edit post</button>
           <% } else { %>
-            <p id="pending-status">no pending post</p>
-            <div id="pending-post" class="post"></div>
+            <text id="pending-status">no pending post</text>
+            <br>
+            <div id="pending-post" class="post removed"></div>
             <button type="button" id='write-post-button' onclick="showWriter('post')" >new post</button>
         <% } %>
       </div>
@@ -49,22 +58,33 @@
         <% } %>
         <button type="button" onclick="hideWriter('post');" >x</button>
       </div>
+    </div>
 
-      <h3>posts for:<br>
-        <div id="date-display">derp</div>
-        <arrow class="" onclick="changeDay(1)">◀</arrow>
-        <arrow id="day-forward" class="hidden" onclick="changeDay(-1)">▶</arrow>
-      </h3>
+    <div id="posts-panel">
+      <nav>
+        <clicky onclick="switchPanel('write-panel')">write</clicky>
+        <text class="highlight">posts</text>
+        <clicky onclick="switchPanel('inbox-panel')">messages</clicky>
+        <br><br>
+      </nav>
+
+      <postNav>
+        <text id="date-display">derp</text>
+        <br>
+        <clicky class="" onclick="changeDay(1)">◀</clicky>
+        <clicky id="day-forward" class="hidden" onclick="changeDay(-1)">▶</clicky>
+      </postNav>
       <div id="posts">
-        <div id="loading" class="post removed">
-          <p>***loading the day***</p>
-        </div>
+        <text id="loading" class="removed">***loading the day***</text>
       </div>
     </div>
 
     <div id="inbox-panel" class="removed">
-      <h2>inbox</h2>
-      <button onclick="switchPanel('posts-panel')">posts</button>
+      <nav>
+        <clicky onclick="switchPanel('write-panel')">write</clicky>
+        <clicky onclick="switchPanel('posts-panel')">posts</clicky>
+        <text class="highlight">messages</text>
+      </nav>
       <br>
       <br>
       <div id="mutuals-list"></div>
@@ -73,7 +93,7 @@
       <br>
       <div id="message-preview" class="removed">
         <p id="pending-message-status">vvv</p>
-        <div id="pending-message" class="message"></div>
+        <div id="pending-message" class="message removed"></div>
         <button type="button" id='write-message-button' onclick="showWriter('message')" >vvv</button>
       </div>
       <div id="message-writer" class="removed">
@@ -84,21 +104,7 @@
       </div>
     </div>
 
-    <h4><%= hoursRemaining %></h4>
-
-    <div id="panel-backing" class="removed"></div>
-
-    <div id="user-info-panel" class="removed">
-      <p>signed in as:</p>
-      <br>
-      <h3 id="userName"><%= username %></h3>
-      <br>
-      <br>
-      <div class="text-button" onclick="signOut()">sign out</div>
-      <br>
-      <br>
-      <div class="text-button return-button" onclick="closePanel()">return</div>
-    </div>
+    <h4 class="removed"><%= hoursRemaining %></h4>
 
     <script src="main.js"></script>
   </body>

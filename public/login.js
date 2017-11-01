@@ -7,6 +7,13 @@ var show = function (up) {
   $('inOrUp').classList.add('removed');
 }
 
+var back = function () {
+  $('up').classList.add('removed');
+  $('in').classList.add('removed');
+  $('inOrUp').classList.remove('removed');
+  $('loginError').innerHTML = "";
+}
+
 var sign = function(inOrUp) {
   if (inOrUp === 'in') {
     var data = {
