@@ -10,7 +10,6 @@ var ObjectId = require('mongodb').ObjectID;
 var db;
 
 //connect and check mongoDB
-//var uri = 'mongodb://localhost:27017/dailypost';
 var uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/dailypost';
 MongoClient.connect(uri, function(err, database) {
   if (err) {throw err;}
@@ -65,10 +64,11 @@ var getCurDate = function (minusDays) {
 app.get('/', function(req, res) {
   if (req.user) {
     db.collection('users').findOne({_id: req.user._id}
-    , {_id:0, username:1, posts:1}
+    , {}//_id:0, username:1, posts:1}
     , function (err, user) {
       if (err) {throw err;}
       else {
+        console.log(user);
         var pending;
         if (user.posts[getCurDate(-1)]) {
           pending = user.posts[getCurDate(-1)]; //negative into the future
@@ -89,15 +89,19 @@ app.post('/', function(req, res) {
   , function (err, user) {
     if (err) {throw err;}
     else {
-      if (!user.postList) {user.postList = [];}   //get rid of this later?
+      if (!user.postList) {user.postList = [];}   //get rid of this later
       if (req.body.remove) {  //is trying to delete a post that doesn't exist a problem????
         delete user.posts[getCurDate(-1)];
         if (user.postList[user.postList.length-1] === getCurDate(-1)) { //should always be true?
           user.postList.pop();
         }
       } else {
-        user.posts[getCurDate(-1)] = req.body.text;
-        user.postList.push(getCurDate(-1));
+        if (user.posts[getCurDate(-1)]) {    //edit existing
+          user.posts[getCurDate(-1)] = req.body.text;
+        } else {                             //create new
+          user.posts[getCurDate(-1)] = req.body.text;
+          user.postList.push(getCurDate(-1));
+        }
       }
       db.collection('users').updateOne({_id: req.user._id},
         {$set: user },
@@ -116,7 +120,7 @@ app.post('/posts', function(req, res){
     return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
   }
   //later make this▼ only check "following" instead of all users
-  db.collection('users').find({},{ _id:0, posts:1, username:1 }).toArray(function(err, users) {
+  db.collection('users').find({},{ posts:1, username:1 }).toArray(function(err, users) {
     //      can i make that^ only return the post for the date i want instead of all posts?
     if (err) {throw err;}
     else {
@@ -126,6 +130,7 @@ app.post('/posts', function(req, res){
           posts.push({
             body: users[i].posts[req.body.date],
             author: users[i].username,
+            _id: users[i]._id,
           });
         }
       }
@@ -149,9 +154,9 @@ app.get('/inbox', function(req, res){
           var threads = [];
           for (var i = 0; i < users.length; i++) {
             if (String(req.user._id) !== String(users[i]._id)) {
-              if (user.threads[users[i]._id]) {
+              if (user.threads[users[i]._id] && user.threads[users[i]._id].length !== 0) {
                 var thread = user.threads[users[i]._id];
-                //check if the last two items are allowed
+                //check the last two items, see if they are allowed
                 for (var j = 1; j < 3; j++) {
                   if (thread[thread.length-j] && thread[thread.length-j].date === getCurDate(-1) && thread[thread.length-j].incoming === true) {
                     thread.splice(thread.length-j, 1);
@@ -162,12 +167,6 @@ app.get('/inbox', function(req, res){
                   name: users[i].username,
                   _id: users[i]._id,
                   thread: thread
-                });
-              } else {
-                threads.push({
-                  name: users[i].username,
-                  _id: users[i]._id,
-                  thread: []
                 });
               }
             }
@@ -290,6 +289,8 @@ app.post('/register', function(req, res){
             followers: {},
             about: "",
             iconURI: "",
+            notifs: [],
+            settings: {},
           }, {}, function (err) {
             if (err) {throw err;}
             bcrypt.genSalt(10, function(err, salt){

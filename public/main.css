@@ -34,7 +34,7 @@ postNav {
   font-size: 2em;
 }
 
-clicky {
+clicky, .clicky {
   cursor: pointer;
   -webkit-user-select: none;
   -moz-user-select: none;

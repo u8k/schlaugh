@@ -15,7 +15,7 @@
     %>
     <text id="site-title">owlPost</text>
     <div id="user-info">
-      <text onclick="accountSettings()"><%= username %></text>
+      <text id="user-name" onclick="accountSettings()"><%= username %></text>
       <br>
       <text onclick="signOut()">log out</text>
     </div>
@@ -87,7 +87,12 @@
       </nav>
       <br>
       <br>
-      <div id="mutuals-list"></div>
+      <postNav>
+        <clicky id="back-arrow" class="removed" onclick="closeThread()">◀</clicky>
+        <br>
+        <text id="thread-title">threads</text>
+      </postNav>
+      <div id="thread-list"></div>
       <br>
       <div id="thread-box"></div>
       <br>
@@ -103,8 +108,8 @@
         <button type="button" id='delete-message' onclick="submitMessage(true)">delete</button>
       </div>
     </div>
-
-    <h4 class="removed"><%= hoursRemaining %></h4>
+    <br>
+    <text><%= hoursRemaining %></text>
 
     <script src="main.js"></script>
   </body>

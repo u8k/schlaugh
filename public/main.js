@@ -43,36 +43,37 @@ var hideWriter = function (kind) {
   $(kind+'-preview').classList.remove('removed');
 }
 
-var switchThread = function (index) {
-  var oldex = glo.activeThreadIndex;
-  //is there a currently open thread?
-  if (oldex !== undefined) {
-    //does this open thread have unsaved text?
-    var text = CKEDITOR.instances.messageEditor.getData();
-    if (text !== "") {
-      var last = glo.threads[oldex].thread[glo.threads[oldex].thread.length-1];
-      if (!last || last.date !== getCurDate(-1) || text !== last.body) {
-        //is it okay to lose that unsaved text?
-        if (!confirm("lose current unposted text?")) {return;}
-      }
-    }
-    //hide current thread
-    $(oldex+'-mutual').classList.remove('highlight');
-    $(oldex+"-thread").classList.add('removed');
-    $("message-writer").classList.add('removed');
-    // are we just hiding a thread, not opening a new one?
-    if (oldex === index) {
-      glo.activeThreadIndex = undefined;
-      $("message-preview").classList.add('removed');
-      return;
+var closeThread = function () {
+  var i = glo.activeThreadIndex;
+  //does the open thread have unsaved text?
+  var text = CKEDITOR.instances.messageEditor.getData();
+  if (text !== "") {
+    var last = glo.threads[i].thread[glo.threads[i].thread.length-1];
+    if (!last || last.date !== getCurDate(-1) || text !== last.body) {
+      //is it okay to lose that unsaved text?
+      if (!confirm("lose current unposted text?")) {return;}
     }
   }
-  updatePendingMessage(index);
-  glo.activeThreadIndex = index;
-  // actually open the new thread
-  $(index+"-thread").classList.remove('removed');
+  //hide current thread
+  $("back-arrow").classList.add('removed');
+  $("thread-list").classList.remove('removed');
+  $(i+"-thread").classList.add('removed');
+  $("message-writer").classList.add('removed');
+  glo.activeThreadIndex = undefined;
+  $("message-preview").classList.add('removed');
+  $("thread-title").innerHTML = "threads";
+}
+
+var openThread = function (i) {
+  // check for an already open thread
+  if (glo.activeThreadIndex !== undefined) {closeThread();}
+  updatePendingMessage(i);
+  glo.activeThreadIndex = i;
+  $(i+"-thread").classList.remove('removed');
   $("message-preview").classList.remove('removed');
-  $(index+'-mutual').classList.add('highlight');
+  $("back-arrow").classList.remove('removed');
+  $("thread-list").classList.add('removed');
+  $("thread-title").innerHTML = glo.threads[i].name;
 }
 
 var updatePendingMessage = function (index) {
@@ -161,9 +162,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
   } else {
     // we don't, so make the ajax call
     $('loading').classList.remove('removed');
-    var data = {date: date};
-    var url = 'posts'
-    ajaxCall(url, 'POST', data, function(json) {
+    ajaxCall('posts', 'POST', {date: date}, function(json) {
       var bucket = document.createElement("div");
       bucket.setAttribute('class', 'post-bucket');
       bucket.setAttribute('id', 'posts-for-'+date);
@@ -174,12 +173,27 @@ var changeDay = function (dir) { // load and display all posts for a given day
         post.innerHTML = "No Posts!";
         bucket.appendChild(post);
       } else {
+        // create posts
         for (var i = 0; i < json.length; i++) {
           var post = document.createElement("div");
           post.setAttribute('class', 'post');
           var author = document.createElement("div");
           author.setAttribute('class', 'meta-text');
           author.innerHTML = json[i].author;
+          // click handler for author name
+          (function (index) {
+            author.onclick = function(){
+              //is this a post of the logged in user's own?
+              if (json[index].author === glo.user) {
+                accountSettings();
+              } else {
+                checkForThread({
+                  name: json[index].author,
+                  _id: json[index]._id,
+                });
+              }
+            }
+          })(i);
           post.appendChild(author);
           var text = document.createElement("text");
           text.setAttribute('class', 'body-text');
@@ -192,6 +206,20 @@ var changeDay = function (dir) { // load and display all posts for a given day
       $('posts').appendChild(bucket);
     });
   }
+}
+
+var checkForThread = function (x) {
+  // if the thread already exists, open it
+  if (glo.threadRef[x.name] !== undefined) {openThread(glo.threadRef[x.name]);}
+  else {  //create a new thread
+    x.thread = [];
+    var index = glo.threads.length;
+    glo.threads.push(x);
+    populateThread(index)
+    openThread(index);
+  }
+  switchPanel('inbox-panel');
+  showWriter('message');
 }
 
 var switchPanel = function (panelName) {
@@ -257,42 +285,46 @@ var createMessage = function (i, j) {
   }
 }
 
+var populateThread = function (i) {
+  var parent = $("thread-list");
+  glo.threadRef[glo.threads[i].name] = i;
+  //populate thread list
+  var name = document.createElement("div");
+  name.innerHTML = glo.threads[i].name;
+  name.setAttribute('class', 'clicky');
+  (function (index) {
+    name.onclick = function(){openThread(index);}
+  })(i);
+  parent.appendChild(name);
+  //thread for each name
+  var thread = document.createElement("div");
+  thread.setAttribute('class', 'thread removed');
+  thread.setAttribute('id', i+'-thread');
+  $('thread-box').appendChild(thread);
+  //populate threads with messages
+  createMessage(i, 0);
+  for (var j = 1; j < glo.threads[i].thread.length; j++) {
+    createMessage(i, j);
+  }
+}
+
 changeDay(1);
 
 //fetch thread data for inbox
 (function () {
+  glo.user = $("user-name").innerHTML;
   ajaxCall('inbox', 'GET', "", function(json) {
     json = JSON.parse(json);
     glo.threads = json;
-    var parent = $("mutuals-list");
+    glo.threadRef = {};
+    var parent = $("thread-list");
     if (json.length === 0) {
-      var mutual = document.createElement("div");
-      mutual.setAttribute('class', 'mutual');
-      mutual.setAttribute('id', '0-mutual');
-      mutual.innerHTML = "No Friends!"
-      parent.appendChild(mutual);
-      //TODO? add an onclick function that pops up a message explaining 'mutuals'???
+      var name = document.createElement("div");
+      name.innerHTML = "no threads!";
+      parent.appendChild(name);
     } else {
       for (var i = 0; i < json.length; i++) {
-        //populate list of mutuals
-        var mutual = document.createElement("div");
-        mutual.setAttribute('class', 'mutual');
-        mutual.setAttribute('id', i+'-mutual');
-        mutual.innerHTML = json[i].name;
-        (function (index) {
-          mutual.onclick = function(){switchThread(index);}
-        })(i);
-        parent.appendChild(mutual);
-        //thread for each mutual
-        var thread = document.createElement("div");
-        thread.setAttribute('class', 'thread removed');
-        thread.setAttribute('id', i+'-thread');
-        $('thread-box').appendChild(thread);
-        //populate threads with messages
-        createMessage(i, 0);
-        for (var j = 1; j < json[i].thread.length; j++) {
-          createMessage(i, j);
-        }
+        populateThread(i)
       }
     }
   });
