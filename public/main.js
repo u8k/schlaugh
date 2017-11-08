@@ -179,7 +179,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
           post.setAttribute('class', 'post');
           var author = document.createElement("div");
           author.setAttribute('class', 'meta-text');
-          author.innerHTML = json[i].author;
+          author.innerHTML = "<clicky>"+json[i].author+"</clicky>";
           // click handler for author name
           (function (index) {
             author.onclick = function(){
@@ -187,6 +187,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
               if (json[index].author === glo.user) {
                 accountSettings();
               } else {
+                //look for a thread btwn the author and logged in user
                 checkForThread({
                   name: json[index].author,
                   _id: json[index]._id,

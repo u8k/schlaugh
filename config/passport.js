@@ -3,7 +3,7 @@ var bcrypt = require('bcryptjs');
 var mongodb = require('mongodb');
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
-var dbURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/dailypost';
+var dbURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/owlpost';
 
 module.exports = function(passport){
   // Local Strategy

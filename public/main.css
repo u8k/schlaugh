@@ -86,8 +86,8 @@ clicky, .clicky {
 }
 
 .color, body {
-  color: white;
-  background-color: #4A4A56;
+  color: #D8D8D8;
+  background-color: #324144;
 }
 .inverse-color, .post, .message {
   color: #D8D8D8;
