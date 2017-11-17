@@ -31,6 +31,7 @@
       <div id="post-preview">
         <% if (pending) { %>
           <text id="pending-status">your pending post for tomorrow:</text>
+          <br>
           <div id="pending-post" class="post">
             <%- pending %>
           </div>
@@ -44,6 +45,7 @@
       </div>
 
       <div id="post-writer" class="removed">
+        <postNav><clicky onclick="hideWriter('post')">◀</clicky></postNav>
         <textarea id="postEditor" >
           <% if (pending) { %>
             <%- pending %>
@@ -56,7 +58,6 @@
         <% } else { %>
           <button type="button" id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
         <% } %>
-        <button type="button" onclick="hideWriter('post');" >x</button>
       </div>
     </div>
 
@@ -71,7 +72,7 @@
       <postNav>
         <text id="date-display">derp</text>
         <br>
-        <clicky class="" onclick="changeDay(1)">◀</clicky>
+        <clicky onclick="changeDay(1)">◀</clicky>
         <clicky id="day-forward" class="hidden" onclick="changeDay(-1)">▶</clicky>
       </postNav>
       <div id="posts">

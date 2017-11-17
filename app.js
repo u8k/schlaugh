@@ -63,21 +63,21 @@ var checkFreshness = function (user, type) {
     user[type + 'ListUpdatedOn'] = today;
     if (type === 'thread') {
       // clear the "prevPos" fields on the threadListPending
-      var i = user.threadListPending.length-1;
-      while (user.threadListPending[i].prevPos !== undefined) {
-        user.threadListPending[i].prevPos = undefined;
+      var tlp = user.threadListPending;
+      var i = tlp.length-1;
+      while (tlp[i] && tlp[i].prevPos !== undefined) {
+        tlp[i].prevPos = undefined;
         i--;
       }
-      user.threadList = user.threadListPending;
+      user.threadList = tlp;
     } else {  //type is "post"
-      if (user.postListPending[0]) {
-        while (user.postListPending[0].date <= today) {
-          user.postList.push({
-            date: user.postListPending[0].date,
-            num: user.postListPending[0].num,
-          });
-          user.postListPending.splice(0,1);
-        }
+      var plp = user.postListPending;
+      while (plp[0] && plp[0].date <= today) {
+        user.postList.push({
+          date: plp[0].date,
+          num: plp[0].num,
+        });
+        plp.splice(0,1);
       }
     }
   }
@@ -89,7 +89,7 @@ var findThreadInPending = function (user, threadID) {
       return i;
     }
   }
-  console.log('error, threadID not found');
+  //console.log('ln 92, error, threadID not found');
 }
 
 //*******//ROUTING//*******//
@@ -123,7 +123,7 @@ app.post('/', function(req, res) {
   , function (err, user) {
     if (err) {throw err;}
     else {
-      checkFreshness("post");
+      checkFreshness(user, "post");
       var tmrw = getCurDate(-1);
       if (req.body.remove) {                        //remove
         delete user.posts[tmrw];
@@ -183,7 +183,9 @@ app.get('/inbox', function(req, res) {
       checkFreshness(user, "thread");
       var threads = [];
         // later have "pagination" options here, ie, only grab the X most recent threads
-      for (var i = user.threadList.length-1; i >= 0; i--) {
+      var count = user.threadList.length-1;
+      if (count === -1) {return res.send(threads);}
+      for (var i = count; i >= 0; i--) {
         var t = user.threads[user.threadList[i].id];
         //check the last two messages of each thread, see if they are allowed
         for (var j = 1; j < 3; j++) {
@@ -193,24 +195,38 @@ app.get('/inbox', function(req, res) {
             j+=2;
           }
         }
-        if (t.length !== 0) {
-          // this currently assumes 1-on-1 threads, and will have to be
-          // changed to look up multiple users for group threads
-          db.collection('users').findOne({_id: ObjectId(user.threadList[i].id)}
-          , {_id:0, username:1}
-          , function (err, otherUser) {
-            if (err) {throw err;}
-            else {
-              threads.push({
-                names: [otherUser.username],
-                _ids: [user.threadList[i].id],
-                thread: t,
-              });
+        (function (i,t) {
+          if (t.length !== 0) {
+            // this currently assumes 1-on-1 threads, and will have to be
+            // changed to look up multiple users for group threads
+            db.collection('users').findOne({_id: ObjectId(user.threadList[i].id)}
+            , {_id:0, username:1}
+            , function (err, otherUser) {
+              if (err) {throw err;}
+              else {
+                if (otherUser) {
+                  threads.push({
+                    names: [otherUser.username],
+                    _ids: [user.threadList[i].id],
+                    thread: t,
+                  });
+                } else {
+                  //console.log('ln214, id not found???');
+                }
+                if (count === 0) {
+                  res.send(threads);
+                }
+                count--;
+              }
+            });
+          } else {
+            if (count === 0) {
+              res.send(threads);
             }
-          });
-        }
+            count--;
+          }
+        })(i,t);
       }
-      res.send(threads);
     }
   });
 });
@@ -227,13 +243,13 @@ app.post('/inbox', function(req, res) {
     else {
       var tmrw = getCurDate(-1)
       var overwrite = false;
-      var t = user.threads[recipient];
-      if (!t) {
-        t = [];
+      if (!user.threads[recipient]) {
+        user.threads[recipient] = [];
         user.threadListPending.push({id:recipient, prevPos: Infinity});
         user.threadList.push({id:recipient});
       } else {
         // check the last two items, overwrite if there is already a pending message
+        var t = user.threads[recipient];
         var len = t.length;
         for (var j = len-1; j > len-3; j--) {
           if (t[j] && t[j].date === tmrw && t[j].sender === 0) {
@@ -245,7 +261,7 @@ app.post('/inbox', function(req, res) {
         }
       }
       if (!overwrite) { //no message to overwrite, so push new message
-        t.push({
+        user.threads[recipient].push({
           sender: 0,
           date: tmrw,
           body: req.body.text,
@@ -267,13 +283,14 @@ app.post('/inbox', function(req, res) {
               else {
                 checkFreshness(user, "thread");
                 var p = user.threadListPending;
-                var t = user.threads[req.user._id];
-                if (!t) {
-                  t = [];
+                if (!user.threads[req.user._id]) {
+                  user.threads[req.user._id] = [];
                   p.push({id:req.user._id, prevPos: Infinity});
                   var newThread = true;
-                } else if (overwrite) {
+                }
+                if (overwrite) {
                   // find the message to be overwritten
+                  var t = user.threads[req.user._id];
                   var len = t.length;
                   for (var j = len-1; j > len-3; j--) {
                     if (t[j] && t[j].date === tmrw && t[j].sender !== 0) {
@@ -300,7 +317,7 @@ app.post('/inbox', function(req, res) {
                     }
                   }
                 } else {  //not overwriting/removing, so push a new message
-                  t.push({
+                  user.threads[req.user._id].push({
                     sender: 1,  // change this < for groups
                     date: tmrw,
                     body: req.body.text,
@@ -339,11 +356,11 @@ app.post('/register', function(req, res){
     if (err) throw err;
 		if (user) {return res.send("name taken");}
 		else {
-      //check if there is already a user w/ that email
-      db.collection('users').findOne({email: email}, {}, function (err, user) {
+      //check if there is already a user w/ that email ????????????
+      /*db.collection('users').findOne({email: email}, {}, function (err, user) {
         if (err) throw err;
     		if (user) {return res.send("name taken");}
-    		else {
+    		else { */
           var today = getCurDate();
           db.collection('users').insertOne({
             username: username,
@@ -390,8 +407,8 @@ app.post('/register', function(req, res){
               });
     				});
           });
-        }
-      })
+    /*  }///
+      })  */
 		}
   });
 });
@@ -413,7 +430,7 @@ app.post('/login', function(req, res) {
 });
 
 // logout
-app.post('/logout', function(req, res){
+app.get('/logout', function(req, res){
   req.logout();
   res.send("success");
 });
@@ -421,7 +438,7 @@ app.post('/logout', function(req, res){
 // view all of a users posts
 app.get('/:username', function(req, res) {
   db.collection('users').findOne({username: req.params.username}
-  , {_id:0, posts:1, postList:1, postListPending}
+  , {_id:0, posts:1, postList:1, postListPending:1}
   //TODO: later make that^ also return "settings" to check post visibility permissions
   , function (err, user) {
     if (err) {throw err; res.send(err);}
@@ -429,10 +446,11 @@ app.get('/:username', function(req, res) {
       if (!user) {
         res.send('but there was nobody home');
       } else {
-        checkFreshness("post");
+        checkFreshness(user, "post");
         var posts = [];
         var pL = user.postList;
         var tmrw = getCurDate(-1);
+        // reverse the array to order posts by most recent?
         for (var i = 0; i < pL.length; i++) {
           if (pL[i].date !== tmrw) {
             posts.push({
@@ -450,13 +468,13 @@ app.get('/:username', function(req, res) {
 // view a post
 app.get('/:username/:num', function(req, res) {
   db.collection('users').findOne({username: req.params.username}
-  , { _id:0, posts:1, postList:1, postListPending }
+  , { _id:0, posts:1, postList:1, postListPending:1 }
   //TODO: later make that^ also return "settings" to check post visibility permissions
   , function (err, user) {
     if (err) {throw err; res.send(err);}
     else {
       if (user) {
-        checkFreshness("post");
+        checkFreshness(user, "post");
         var i = req.params.num;
         if (user.postList[i] && user.postList[i].date !== getCurDate(-1)) {
           res.render('post', {

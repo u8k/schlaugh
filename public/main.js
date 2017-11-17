@@ -73,7 +73,7 @@ var openThread = function (i) {
   $("message-preview").classList.remove('removed');
   $("back-arrow").classList.remove('removed');
   $("thread-list").classList.add('removed');
-  $("thread-title").innerHTML = glo.threads[i].name;
+  $("thread-title").innerHTML = glo.threads[i].names;
 }
 
 var updatePendingMessage = function (index) {
@@ -103,7 +103,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
   if (text === "") {return;}
   var i = glo.activeThreadIndex;
   var data = {
-    recipient: glo.threads[i]._id,
+    recipient: glo.threads[i]._ids[0],  //CHANGE THIS FOR GROUPS
     text: text,
     remove: remove,
   };
@@ -117,7 +117,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
         else {last.body = text;}    //overwrite
       } else {
         glo.threads[i].thread.push({
-          incoming: false,
+          sender: 0,
           date: getCurDate(-1),
           body: text,
         });
@@ -189,8 +189,8 @@ var changeDay = function (dir) { // load and display all posts for a given day
               } else {
                 //look for a thread btwn the author and logged in user
                 checkForThread({
-                  name: json[index].author,
-                  _id: json[index]._id,
+                  names: [json[index].author],
+                  _ids: [json[index]._id],
                 });
               }
             }
@@ -211,12 +211,16 @@ var changeDay = function (dir) { // load and display all posts for a given day
 
 var checkForThread = function (x) {
   // if the thread already exists, open it
-  if (glo.threadRef[x.name] !== undefined) {openThread(glo.threadRef[x.name]);}
+  if (glo.threadRef[x.names] !== undefined) {openThread(glo.threadRef[x.names]);}
   else {  //create a new thread
     x.thread = [];
     var index = glo.threads.length;
+    glo.threadRef[x.names] = index;
     glo.threads.push(x);
-    populateThread(index)
+    if (index === 0) {
+      $("thread-list").removeChild($("thread-list").childNodes[0]);
+    }
+    populateThread(index);
     openThread(index);
   }
   switchPanel('inbox-panel');
@@ -236,7 +240,7 @@ var accountSettings = function () {
 
 var signOut = function() {
   var url = 'logout'
-  ajaxCall(url, 'POST', {}, function(json) {
+  ajaxCall(url, 'GET', {}, function(json) {
     if (json === 'success') {
       location.reload();
     } else {
@@ -269,8 +273,8 @@ var createMessage = function (i, j) {
     // do nothing
     return;
   } else {  // show the message
-    var orri = "outgoing";
-    if (x.incoming) {orri = "incoming";}
+    var orri = "incoming";
+    if (x.sender === 0) {orri = "outgoing";}
     var message = document.createElement("div");
     message.setAttribute('class', 'message '+orri);
     //message.setAttribute('id', i+"-"+j+"-message");
@@ -288,10 +292,10 @@ var createMessage = function (i, j) {
 
 var populateThread = function (i) {
   var parent = $("thread-list");
-  glo.threadRef[glo.threads[i].name] = i;
+  glo.threadRef[glo.threads[i].names] = i;
   //populate thread list
   var name = document.createElement("div");
-  name.innerHTML = glo.threads[i].name;
+  name.innerHTML = glo.threads[i].names;
   name.setAttribute('class', 'clicky');
   (function (index) {
     name.onclick = function(){openThread(index);}

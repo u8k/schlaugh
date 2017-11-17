@@ -30,8 +30,16 @@ var sign = function(inOrUp) {
     $('loginError').innerHTML = 'need a name!';
     return;
   }
+  if (/[^a-z0-9-_]/.test(data.username)) {
+    $('loginError').innerHTML = 'invalid name, a-z0-9-_ only';
+    return;
+  }
   if (data.password === "") {
     $('loginError').innerHTML = 'need a pass!';
+    return;
+  }
+  if (/[^a-zA-Z0-9-_!@#$%&*?]/.test(data.password)) {
+    $('loginError').innerHTML = 'invalid pass, a-zA-Z0-9-_!@#$%&*? only';
     return;
   }
   if (inOrUp === 'in') {
