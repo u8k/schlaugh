@@ -34,6 +34,10 @@ var sign = function(inOrUp) {
     $('loginError').innerHTML = 'invalid name, a-z0-9-_ only';
     return;
   }
+  if (data.username.length > 30) {
+    $('loginError').innerHTML = 'name is too long';
+    return;
+  }
   if (data.password === "") {
     $('loginError').innerHTML = 'need a pass!';
     return;

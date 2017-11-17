@@ -131,9 +131,15 @@ app.post('/', function(req, res) {
       } else if (user.posts[tmrw]) {      //edit existing
           user.posts[tmrw][0].body = req.body.text;
       } else {                                      //create new
-          user.posts[tmrw] = [{body: req.body.text}];
+          user.posts[tmrw] = [{
+            body: req.body.text,
+            tags: {}
+          }];
           var num = user.posts[tmrw].length-1;
-          user.postListPending.push({date: tmrw, num: num});
+          user.postListPending.push({
+            date: tmrw,
+            num: num
+          });
         }
       db.collection('users').updateOne({_id: req.user._id},
         {$set: user },
@@ -389,22 +395,28 @@ app.post('/register', function(req, res){
             settings: {},
           }, {}, function (err) {
             if (err) {throw err;}
-            bcrypt.genSalt(10, function(err, salt){
-      				bcrypt.hash(password, salt, function(err, hash){
-      					if (err) {throw err;}
-                var setValue = {password: hash};
-                db.collection('users').findOneAndUpdate({username: username}, //MAKE BETTER
-                  {$set: setValue }, {},
-                  function(err, r) {
-                    if (err) {throw err;}
-                    else {
-        							req.logIn(r.value, function(err) {
-        								if (err) {throw err; return res.send(err);}
-        								return res.send("success");
-        							});
-        						}
-                  });
-              });
+            //bcrypt.genSalt(10, function(err, salt){
+      			bcrypt.hash(password, 10, function(err, passHash){
+      				if (err) {throw err;}
+              else {
+                bcrypt.hash(password, 10, function(err, emailHash){
+                  if (err) {throw err;}
+                  else {
+                    var setValue = {password: passHash, email: emailHash};
+                    db.collection('users').findOneAndUpdate({username: username}, //MAKE BETTER
+                      {$set: setValue }, {},
+                      function(err, r) {
+                        if (err) {throw err;}
+                        else {
+                          req.logIn(r.value, function(err) {
+                            if (err) {throw err; return res.send(err);}
+                            return res.send("success");
+                          });
+                        }
+                      });
+                  }
+                });
+              };
     				});
           });
     /*  }///
