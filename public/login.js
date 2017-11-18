@@ -17,7 +17,7 @@ var back = function () {
 var sign = function(inOrUp) {
   if (inOrUp === 'in') {
     var data = {
-      username: $('in-name-input').value,
+      username: $('in-name-input').value.toLowerCase(),
       password: $('in-pass-input').value,
     }
   } else {
@@ -42,7 +42,7 @@ var sign = function(inOrUp) {
     $('loginError').innerHTML = 'need a pass!';
     return;
   }
-  if (/[^a-zA-Z0-9-_!@#$%&*?]/.test(data.password)) {
+  if (/[^ a-zA-Z0-9-_!@#$%&*?]/.test(data.password)) {
     $('loginError').innerHTML = 'invalid pass, a-zA-Z0-9-_!@#$%&*? only';
     return;
   }

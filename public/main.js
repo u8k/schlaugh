@@ -142,6 +142,9 @@ var getCurDate = function (minusDays) { //date helper function
 }
 
 var changeDay = function (dir) { // load and display all posts for a given day
+  //don't allow changing day if currently loading
+  if (glo.loading) {return;}
+  else {glo.loading = true;}
   var date = getCurDate(glo.dateOffset);
   // hide the previously displayed day
   if ($('posts-for-'+ date)) {
@@ -173,13 +176,19 @@ var changeDay = function (dir) { // load and display all posts for a given day
         post.innerHTML = "No Posts!";
         bucket.appendChild(post);
       } else {
-        // create posts
+        // create temporary randomizing helper array
+        var rando = [];
         for (var i = 0; i < json.length; i++) {
+          rando.push(i);
+        }
+        // create posts
+        while(rando.length !== 0) {
+          var i = Math.floor(Math.random() * (rando.length));
           var post = document.createElement("div");
           post.setAttribute('class', 'post');
           var author = document.createElement("div");
           author.setAttribute('class', 'meta-text');
-          author.innerHTML = "<clicky>"+json[i].author+"</clicky>";
+          author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
           // click handler for author name
           (function (index) {
             author.onclick = function(){
@@ -198,15 +207,18 @@ var changeDay = function (dir) { // load and display all posts for a given day
           post.appendChild(author);
           var text = document.createElement("text");
           text.setAttribute('class', 'body-text');
-          text.innerHTML = json[i].body;
+          text.innerHTML = json[rando[i]].body;
           post.appendChild(text);
           bucket.appendChild(post);
+          //remove the current index refference from the randomizing helper array
+          rando.splice(i,1);
         }
       }
       $('loading').classList.add('removed');
       $('posts').appendChild(bucket);
     });
   }
+  glo.loading = false;
 }
 
 var checkForThread = function (x) {
