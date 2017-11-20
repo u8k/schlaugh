@@ -203,7 +203,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
                 });
               }
             }
-          })(i);
+          })(rando[i]);
           post.appendChild(author);
           var text = document.createElement("text");
           text.setAttribute('class', 'body-text');
@@ -325,10 +325,7 @@ var populateThread = function (i) {
   }
 }
 
-changeDay(1);
-
-//fetch thread data for inbox
-(function () {
+var fetchThreads = function () {
   glo.user = $("user-name").innerHTML;
   ajaxCall('inbox', 'GET', "", function(json) {
     json = JSON.parse(json);
@@ -341,8 +338,11 @@ changeDay(1);
       parent.appendChild(name);
     } else {
       for (var i = 0; i < json.length; i++) {
-        populateThread(i)
+        populateThread(i);
       }
     }
   });
-})();
+}
+
+fetchThreads();
+changeDay(1);
