@@ -145,6 +145,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
   //don't allow changing day if currently loading
   if (glo.loading) {return;}
   else {glo.loading = true;}
+  //console.log('touch');
   var date = getCurDate(glo.dateOffset);
   // hide the previously displayed day
   if ($('posts-for-'+ date)) {
@@ -162,6 +163,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
   // check if we already have the post data for that day
   if ($('posts-for-'+date)) {
     $('posts-for-'+date).classList.remove('removed');
+    glo.loading = false;
   } else {
     // we don't, so make the ajax call
     $('loading').classList.remove('removed');
@@ -216,9 +218,9 @@ var changeDay = function (dir) { // load and display all posts for a given day
       }
       $('loading').classList.add('removed');
       $('posts').appendChild(bucket);
+      glo.loading = false;
     });
   }
-  glo.loading = false;
 }
 
 var checkForThread = function (x) {
