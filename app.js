@@ -201,15 +201,8 @@ app.get('/inbox', function(req, res) {
             j+=2;
           }
         }
-        //populate the the array
-        if (t.length !== 0) {
-          var j = threads.length
-          threads.push({
-            _ids: [user.threadList[i].id],
-            thread: t,
-          });
-          // back to the db for names, db calls don't necesarilly return in order, hence the...mess
-          (function (i,t,j) {
+        (function (i,t) {
+          if (t.length !== 0) {
             // this currently assumes 1-on-1 threads, and will have to be
             // changed to look up multiple users for group threads
             db.collection('users').findOne({_id: ObjectId(user.threadList[i].id)}
@@ -218,7 +211,11 @@ app.get('/inbox', function(req, res) {
               if (err) {throw err;}
               else {
                 if (otherUser) {
-                  threads[j]['names'] = [otherUser.username];
+                  threads.push({
+                    names: [otherUser.username],
+                    _ids: [user.threadList[i].id],
+                    thread: t,
+                  });
                 } else {
                   //console.log('ln214, id not found???');
                 }
@@ -228,8 +225,13 @@ app.get('/inbox', function(req, res) {
                 count--;
               }
             });
-          })(i,t,j);
-        } else {count--};
+          } else {
+            if (count === 0) {
+              res.send(threads);
+            }
+            count--;
+          }
+        })(i,t);
       }
     }
   });
