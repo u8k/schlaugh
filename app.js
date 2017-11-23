@@ -58,13 +58,47 @@ var getCurDate = function (minusDays) { //date helper function
 }
 
 var checkFreshness = function (user, type) {
+
+  //*****************temp db checker/fixer************************
+  if (type === 'thread') {
+    //remove duplicates/glitches
+    var tlp = user.threadListPending;
+    var ref = {};
+    for (var i = 0; i < tlp.length; i++) {
+      if (!user.threads[tlp[i].id]) {
+      }
+      if (ref[tlp[i].id]) {
+        tlp.splice(i,1);
+        i--;
+      } else {
+        ref[tlp[i].id] = true;
+      }
+    }
+    //make sure everything is accounted for
+    for (var x in user.threads) {
+      if (user.threads.hasOwnProperty(x)) {
+        var missing = true;
+        for (var i = 0; i < tlp.length; i++) {
+          if (String(tlp[i].id) === String(x)) {
+            missing = false;
+            break;
+          }
+        }
+        if (missing) {
+          tlp.push({id: ObjectId(x), prevPos: Infinity})
+        }
+      }
+    }
+  }
+  //***************************************************************
+
   var today = getCurDate();
   if (user[type + 'ListUpdatedOn'] !== today) {
     user[type + 'ListUpdatedOn'] = today;
     if (type === 'thread') {
-      // clear the "prevPos" fields on the threadListPending
       var tlp = user.threadListPending;
       var i = tlp.length-1;
+      // clear the "prevPos" fields on the threadListPending
       while (tlp[i] && tlp[i].prevPos !== undefined) {
         tlp[i].prevPos = undefined;
         i--;
@@ -85,11 +119,10 @@ var checkFreshness = function (user, type) {
 
 var findThreadInPending = function (user, threadID) {
   for (var i = 0; i < user.threadListPending.length; i++) {
-    if (user.threadListPending[i].id === threadID) {
+    if (String(user.threadListPending[i].id) === String(threadID)) {
       return i;
     }
   }
-  //console.log('ln 92, error, threadID not found');
 }
 
 //*******//ROUTING//*******//
@@ -231,6 +264,16 @@ app.get('/inbox', function(req, res) {
           })(i,t,j);
         } else {count--};
       }
+
+      //*****************temp db checker/fixer************************
+      db.collection('users').updateOne({_id: req.user._id},
+        {$set: user },
+        function(err, user) {
+          if (err) {throw err;}
+          else {}
+        })
+      //***************************************************************
+
     }
   });
 });
@@ -245,13 +288,16 @@ app.post('/inbox', function(req, res) {
   , function (err, user) {
     if (err) {throw err;}
     else {
-      var tmrw = getCurDate(-1)
+      var tmrw = getCurDate(-1);
       var overwrite = false;
+      // if the sender does not already have a thread w/ the recipient, create one
       if (!user.threads[recipient]) {
         user.threads[recipient] = [];
+        // and create the corresponding refference on threadlists
         user.threadListPending.push({id:recipient, prevPos: Infinity});
         user.threadList.push({id:recipient});
       } else {
+        // there is an extant thread, so
         // check the last two items, overwrite if there is already a pending message
         var t = user.threads[recipient];
         var len = t.length;
@@ -287,6 +333,7 @@ app.post('/inbox', function(req, res) {
               else {
                 checkFreshness(user, "thread");
                 var p = user.threadListPending;
+                // if the recipient does not already have a thread w/ the sender, create one
                 if (!user.threads[req.user._id]) {
                   user.threads[req.user._id] = [];
                   p.push({id:req.user._id, prevPos: Infinity});
@@ -302,20 +349,25 @@ app.post('/inbox', function(req, res) {
                         t.splice(j, 1);            // remove
                         // restore the threadListPending position to the previous
                         var index = findThreadInPending(user, req.user._id);
-                        // did it have a previous position?
-                        if (p[index].prevPos !== Infinity) {
-                          // calc adjustments needed due to other moves
-                          var adj = 0;
-                          var i = p.length-1;
-                          while (p[i].prevPos !== undefined) {
-                            if (p[i].prevPos < p[index].prevPos) {adj++;}
-                            i--;
+                        if (index) {// this should always be true, we're checking
+                                    // so as to limit  damage in case it's not
+                          // did it have a previous position?
+                          var bump = 0;
+                          if (p[index].prevPos !== Infinity) {
+                            // calc adjustments needed due to other moves
+                            var adj = 0;
+                            var i = p.length-1;
+                            while (p[i] && p[i].prevPos !== undefined) {
+                              if (p[i].prevPos < p[index].prevPos) {adj++;}
+                              i--;
+                            }
+                            // put a copy of the threadRef back in it's old position
+                            p.splice(p[index].prevPos-adj, 0, {id: req.user._id});
+                            bump = 1;
                           }
-                          // put a copy of the threadRef back in it's old position
-                          p.splice(p[index].prevPos-adj, 0, {id: req.user._id});
+                          // remove the threadRef from it's current position
+                          p.splice(index - bump, 1);
                         }
-                        // remove the threadRef from it's current position
-                        p.splice(index, 1);
                       } else {t[j].body = req.body.text;} // overwrite
                       j-=2;
                     }
@@ -330,7 +382,10 @@ app.post('/inbox', function(req, res) {
                   // and update the threadListPending
                   if (!newThread) {
                     var cur = findThreadInPending(user, req.user._id);
-                    p.splice(cur, 1)                      //remove the old
+                    if (cur) {p.splice(cur, 1);}                //remove the old
+                  // it *should* always find an old one to remove, but in the event
+                  //   of a glitch such that it doesn't I'd rather not overwrite
+                  //   something else and make the problem worse
                     p.push({id: req.user._id, prevPos: cur})  //add the new
                   }
                 }
