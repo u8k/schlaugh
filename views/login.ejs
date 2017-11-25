@@ -1,52 +1,37 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>schlaugh</title>
-    <link rel="stylesheet" href="login.css">
-	  <!--<link rel="icon" type="image/png" href="img/icon.png">-->
-  </head>
+<div id="inOrUp">
+  <button class="text-button" onclick="show(false)">sign in</button>
+  <h4>or</h4>
+  <button class="text-button" onclick="show(true)">sign up</button>
+</div>
 
-  <body>
-    <text id="site-title">schlaugh</text>
+<div id="up" class="removed">
+  <arrow onclick="back()">◀</arrow>
+  <br><br>
+  <input id="name-input" type="text" placeholder="name">
+  <br>
+  <input id="email-input" type="text" placeholder="email address">
+  <br>
+  <input id="pass-input" type="password" placeholder="password">
+  <br>
+  <input id="pass-input-two" type="password" placeholder="password">
+  <br><br>
+  <button class="text-button" onclick="sign('up')">sign up</button>
+</div>
 
-    <div id="inOrUp">
-      <button class="text-button" onclick="show(false)">sign in</button>
-      <h4>or</h4>
-      <button class="text-button" onclick="show(true)">sign up</button>
-    </div>
+<div id="in" class="removed">
+  <arrow onclick="back()">◀</arrow>
+  <br><br>
+  <input id="in-name-input" type="text" placeholder="name">
+  <!--
+  or
+  <input id="email-input" type="text" placeholder="email address">
+  -->
+  <br>
+  <input id="in-pass-input" type="password" placeholder="password">
+  <br><br>
+  <button class="text-button" onclick="sign('in')">sign in</button>
+</div>
 
-    <div id="up" class="removed">
-      <arrow onclick="back()">◀</arrow>
-      <br><br>
-      <input id="name-input" type="text" placeholder="name">
-      <br>
-      <input id="email-input" type="text" placeholder="email address">
-      <br>
-      <input id="pass-input" type="password" placeholder="password">
-      <br>
-      <input id="pass-input-two" type="password" placeholder="password">
-      <br><br>
-      <button class="text-button" onclick="sign('up')">sign up</button>
-    </div>
+<h3 id="loginError"></h3>
 
-    <div id="in" class="removed">
-      <arrow onclick="back()">◀</arrow>
-      <br><br>
-      <input id="in-name-input" type="text" placeholder="name">
-      <!--
-      or
-      <input id="email-input" type="text" placeholder="email address">
-      -->
-      <br>
-      <input id="in-pass-input" type="password" placeholder="password">
-      <br><br>
-      <button class="text-button" onclick="sign('in')">sign in</button>
-    </div>
-
-    <h3 id="loginError"></h3>
-
-    <script src="login.js"></script>
-  </body>
-</html>
+<script src="login.js"></script>

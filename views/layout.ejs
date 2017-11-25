@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>schlaugh</title>
+    <link rel="stylesheet" href="main.css">
+    <script src="ckeditor/ckeditor.js"></script>
+	  <!--<link rel="icon" type="image/png" href="img/icon.png">-->
+  </head>
+  <body>
+
+    <header>
+      <h1>schlaugh</h1>
+
+      <% if (typeof username !== "undefined") { %>
+        <nav class="user-info">
+          <ul>
+            <li id="user-name" onclick="accountSettings()">
+              <%= username %>
+            </li>
+            <li><text onclick="signOut()">log out</text></li>
+          </ul>
+        </nav>
+      <% } %>
+    </header>
+
+    <main>
+      <%- include(pagename) %>
+    </main>
+
+    <footer>
+      <%
+        var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+        var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours until next edition";
+      %>
+      <text><%= hoursRemaining %></text>
+    </footer>
+
+    <script src="main.js"></script>
+  </body>
+</html>

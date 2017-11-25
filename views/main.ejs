@@ -1,117 +1,89 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>schlaugh</title>
-    <link rel="stylesheet" href="main.css">
-    <script src="ckeditor/ckeditor.js"></script>
-	  <!--<link rel="icon" type="image/png" href="img/icon.png">-->
-  </head>
-  <body>
-    <%
-      var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
-      var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours until next edition";
-    %>
-    <text id="site-title">schlaugh</text>
-    <div id="user-info">
-      <text id="user-name" onclick="accountSettings()"><%= username %></text>
+<div id="write-panel" class="removed">
+  <nav>
+    <text class="highlight">write</text>
+    <clicky onclick="switchPanel('posts-panel')">posts</clicky>
+    <clicky onclick="switchPanel('inbox-panel')">messages</clicky>
+    <br><br>
+  </nav>
+
+  <div id="post-preview">
+    <% if (pending) { %>
+      <text id="pending-status">your pending post for tomorrow:</text>
       <br>
-      <text onclick="signOut()">log out</text>
-    </div>
-
-    <div id="write-panel" class="removed">
-      <nav>
-        <text class="highlight">write</text>
-        <clicky onclick="switchPanel('posts-panel')">posts</clicky>
-        <clicky onclick="switchPanel('inbox-panel')">messages</clicky>
-        <br><br>
-      </nav>
-
-      <div id="post-preview">
-        <% if (pending) { %>
-          <text id="pending-status">your pending post for tomorrow:</text>
-          <br>
-          <div id="pending-post" class="post">
-            <%- pending %>
-          </div>
-          <button type="button" id='write-post-button' onclick="showWriter('post')" >edit post</button>
-          <% } else { %>
-            <text id="pending-status">no pending post</text>
-            <br>
-            <div id="pending-post" class="post removed"></div>
-            <button type="button" id='write-post-button' onclick="showWriter('post')" >new post</button>
-        <% } %>
+      <div id="pending-post" class="post">
+        <%- pending %>
       </div>
-
-      <div id="post-writer" class="removed">
-        <postNav><clicky onclick="hideWriter('post')">◀</clicky></postNav>
-        <textarea id="postEditor" >
-          <% if (pending) { %>
-            <%- pending %>
-          <% } %>
-        </textarea>
-        <script>CKEDITOR.replace( 'postEditor' );</script>
-        <button type="button" onclick="submitPost()" >submit</button>
-        <% if (pending) { %>
-          <button type="button" id='delete-pending-post' onclick="submitPost(true)" >delete</button>
-        <% } else { %>
-          <button type="button" id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
-        <% } %>
-      </div>
-    </div>
-
-    <div id="posts-panel">
-      <nav>
-        <clicky onclick="switchPanel('write-panel')">write</clicky>
-        <text class="highlight">posts</text>
-        <clicky onclick="switchPanel('inbox-panel')">messages</clicky>
-        <br><br>
-      </nav>
-
-      <postNav>
-        <text id="date-display"></text>
+      <button type="button" id='write-post-button' onclick="showWriter('post')" >edit post</button>
+      <% } else { %>
+        <text id="pending-status">no pending post</text>
         <br>
-        <clicky onclick="changeDay(1)">◀</clicky>
-        <clicky id="day-forward" class="hidden" onclick="changeDay(-1)">▶</clicky>
-      </postNav>
-      <div id="posts">
-        <text id="loading" class="removed">***loading the day***</text>
-      </div>
-    </div>
+        <div id="pending-post" class="post removed"></div>
+        <button type="button" id='write-post-button' onclick="showWriter('post')" >new post</button>
+    <% } %>
+  </div>
 
-    <div id="inbox-panel" class="removed">
-      <nav>
-        <clicky onclick="switchPanel('write-panel')">write</clicky>
-        <clicky onclick="switchPanel('posts-panel')">posts</clicky>
-        <text class="highlight">messages</text>
-      </nav>
-      <br>
-      <br>
-      <postNav>
-        <clicky id="back-arrow" class="removed" onclick="closeThread()">◀</clicky>
-        <br>
-        <text id="thread-title">threads</text>
-      </postNav>
-      <div id="thread-list"></div>
-      <br>
-      <div id="thread-box"></div>
-      <br>
-      <div id="message-preview" class="removed">
-        <p id="pending-message-status"></p>
-        <div id="pending-message" class="message removed"></div>
-        <button type="button" id='write-message-button' onclick="showWriter('message')" ></button>
-      </div>
-      <div id="message-writer" class="removed">
-        <textarea id="messageEditor" ></textarea>
-        <script>CKEDITOR.replace( 'messageEditor' );</script>
-        <button type="button" onclick="submitMessage()">submit</button>
-        <button type="button" id='delete-message' onclick="submitMessage(true)">delete</button>
-      </div>
-    </div>
+  <div id="post-writer" class="removed">
+    <postNav><clicky onclick="hideWriter('post')">◀</clicky></postNav>
+    <textarea id="postEditor" >
+      <% if (pending) { %>
+        <%- pending %>
+      <% } %>
+    </textarea>
+    <script>CKEDITOR.replace( 'postEditor' );</script>
+    <button type="button" onclick="submitPost()" >submit</button>
+    <% if (pending) { %>
+      <button type="button" id='delete-pending-post' onclick="submitPost(true)" >delete</button>
+    <% } else { %>
+      <button type="button" id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
+    <% } %>
+  </div>
+</div>
+
+<div id="posts-panel">
+  <nav>
+    <clicky onclick="switchPanel('write-panel')">write</clicky>
+    <text class="highlight">posts</text>
+    <clicky onclick="switchPanel('inbox-panel')">messages</clicky>
+    <br><br>
+  </nav>
+
+  <postNav>
+    <text id="date-display"></text>
     <br>
-    <text><%= hoursRemaining %></text>
+    <clicky onclick="changeDay(1)">◀</clicky>
+    <clicky id="day-forward" class="hidden" onclick="changeDay(-1)">▶</clicky>
+  </postNav>
+  <div id="posts">
+    <text id="loading" class="removed">***loading the day***</text>
+  </div>
+</div>
 
-    <script src="main.js"></script>
-  </body>
-</html>
+<div id="inbox-panel" class="removed">
+  <nav>
+    <clicky onclick="switchPanel('write-panel')">write</clicky>
+    <clicky onclick="switchPanel('posts-panel')">posts</clicky>
+    <text class="highlight">messages</text>
+  </nav>
+  <br>
+  <br>
+  <postNav>
+    <clicky id="back-arrow" class="removed" onclick="closeThread()">◀</clicky>
+    <br>
+    <text id="thread-title">threads</text>
+  </postNav>
+  <div id="thread-list"></div>
+  <br>
+  <div id="thread-box"></div>
+  <br>
+  <div id="message-preview" class="removed">
+    <p id="pending-message-status"></p>
+    <div id="pending-message" class="message removed"></div>
+    <button type="button" id='write-message-button' onclick="showWriter('message')" ></button>
+  </div>
+  <div id="message-writer" class="removed">
+    <textarea id="messageEditor" ></textarea>
+    <script>CKEDITOR.replace( 'messageEditor' );</script>
+    <button type="button" onclick="submitMessage()">submit</button>
+    <button type="button" id='delete-message' onclick="submitMessage(true)">delete</button>
+  </div>
+</div>

@@ -140,12 +140,12 @@ app.get('/', function(req, res) {
         if (user.posts[tmrw]) {
           pending = user.posts[tmrw][0].body;
         }
-        res.render('main', {username:user.username, pending:pending});
+        res.render('layout', {pagename:'main', username:user.username, pending:pending});
       }
     });
   } else {
     //direct to a login page
-    res.render('login');
+    res.render('layout', {pagename:'login'});
   }
 });
 
@@ -213,7 +213,7 @@ app.post('/posts', function(req, res) {
 
 // get all messages
 app.get('/inbox', function(req, res) {
-  if (!req.user) {return res.render('login');}
+  if (!req.user) {return res.render('layout', {pagename:'login'});}
   db.collection('users').findOne({_id: req.user._id}
   , {_id:0, threads:1, threadList:1, threadListUpdatedOn:1, threadListPending: 1}
   , function (err, user) {
@@ -524,7 +524,7 @@ app.get('/:username', function(req, res) {
             });
           }
         }
-        res.render('user', {username:req.params.username, posts:posts});
+        res.render('layout', {pagename:'user', username:req.params.username, posts:posts});
       }
     }
   });
@@ -542,7 +542,8 @@ app.get('/:username/:num', function(req, res) {
         checkFreshness(user, "post");
         var i = req.params.num;
         if (user.postList[i] && user.postList[i].date !== getCurDate(-1)) {
-          res.render('post', {
+          res.render('layout', {
+            pagename: 'post',
             username: req.params.username,
             body: user.posts[user.postList[i].date][user.postList[i].num].body,
             date: user.postList[i].date,
