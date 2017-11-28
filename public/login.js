@@ -1,6 +1,4 @@
 
-var $ = function (id) {return document.getElementById(id);}
-
 var show = function (up) {
   if (up === true) {$('up').classList.remove('removed');}
   else {$('in').classList.remove('removed');}
@@ -66,17 +64,4 @@ var sign = function(inOrUp) {
       $('loginError').innerHTML = json;
     }
   });
-}
-
-var ajaxCall = function(url, method, data, callback) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.open(method, url, true);
-  xhttp.setRequestHeader('Content-Type', 'application/json');
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      var json = (xhttp.responseText);
-      callback(json);
-    }
-  }
-  xhttp.send(JSON.stringify(data));
 }

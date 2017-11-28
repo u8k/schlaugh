@@ -2,14 +2,13 @@ var express = require('express');
 var path = require('path');
 var bodyParser = require('body-parser');
 var session = require('cookie-session');
-var passport = require('passport');
 var bcrypt = require('bcryptjs');
 var mongodb = require('mongodb');
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
-var db;
 
 //connect and check mongoDB
+var db;
 var uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/owlpost';
 MongoClient.connect(uri, function(err, database) {
   if (err) {throw err;}
@@ -38,13 +37,6 @@ app.use(session({
   keys: ['SECRETSECRETIVEGOTTASECRET'],
   maxAge: 7 * 24 * 60 * 60 * 1000 // IT'S BEEN...(one week)
 }))
-
-// Passport Config
-require('./config/passport')(passport);
-// Passport Middleware
-app.use(passport.initialize());
-app.use(passport.session());
-
 
 var getCurDate = function (minusDays) { //date helper function
   if (!minusDays) {minusDays = 0} //negative into the future
@@ -129,11 +121,12 @@ var findThreadInPending = function (user, threadID) {
 
 // main/only page
 app.get('/', function(req, res) {
-  if (req.user) {
-    db.collection('users').findOne({_id: req.user._id}
+  if (req.session.user) {
+    db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {_id:0, username:1, posts:1}
     , function (err, user) {
       if (err) {throw err;}
+      else if (!user) {res.render('layout', {pagename:'login'});}
       else {
         var pending;
         var tmrw = getCurDate(-1)
@@ -151,7 +144,7 @@ app.get('/', function(req, res) {
 
 // new/edit/delete post
 app.post('/', function(req, res) {
-  db.collection('users').findOne({_id: req.user._id}
+  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
   , {_id:0, posts:1, postList:1, postListPending:1}
   , function (err, user) {
     if (err) {throw err;}
@@ -174,7 +167,7 @@ app.post('/', function(req, res) {
             num: num
           });
         }
-      db.collection('users').updateOne({_id: req.user._id},
+      db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
         {$set: user },
         function(err, user) {
           if (err) {throw err;}
@@ -213,12 +206,13 @@ app.post('/posts', function(req, res) {
 
 // get all messages
 app.get('/inbox', function(req, res) {
-  if (!req.user) {return res.render('layout', {pagename:'login'});}
-  db.collection('users').findOne({_id: req.user._id}
+  if (!req.session.user) {return res.render('layout', {pagename:'login'});}
+  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
   , {_id:0, threads:1, threadList:1, threadListUpdatedOn:1, threadListPending: 1}
   , function (err, user) {
     if (err) {throw err;}
     else {
+      //console.log("threads", user.threads);
       checkFreshness(user, "thread");
       var threads = [];
         // later have "pagination" options here, ie, only grab the X most recent threads
@@ -266,7 +260,7 @@ app.get('/inbox', function(req, res) {
       }
 
       //*****************temp db checker/fixer************************
-      db.collection('users').updateOne({_id: req.user._id},
+      db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
         {$set: user },
         function(err, user) {
           if (err) {throw err;}
@@ -283,7 +277,7 @@ app.post('/inbox', function(req, res) {
   var recipient = ObjectId(req.body.recipient);
   //modification needed here^ for group threads
     //and for checking if the message is allowed by the recipient's settings
-  db.collection('users').findOne({_id: req.user._id}
+  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
   , {_id:0, threads:1, threadList:1, threadListPending: 1}
   , function (err, user) {
     if (err) {throw err;}
@@ -318,7 +312,7 @@ app.post('/inbox', function(req, res) {
           unread: false,
         });
       }
-      db.collection('users').updateOne({_id: req.user._id},
+      db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
         {$set: user },
         function(err, user) {
           if (err) {throw err;}
@@ -334,21 +328,21 @@ app.post('/inbox', function(req, res) {
                 checkFreshness(user, "thread");
                 var p = user.threadListPending;
                 // if the recipient does not already have a thread w/ the sender, create one
-                if (!user.threads[req.user._id]) {
-                  user.threads[req.user._id] = [];
-                  p.push({id:req.user._id, prevPos: Infinity});
+                if (!user.threads[req.session.user._id]) {
+                  user.threads[req.session.user._id] = [];
+                  p.push({id:req.session.user._id, prevPos: Infinity});
                   var newThread = true;
                 }
                 if (overwrite) {
                   // find the message to be overwritten
-                  var t = user.threads[req.user._id];
+                  var t = user.threads[req.session.user._id];
                   var len = t.length;
                   for (var j = len-1; j > len-3; j--) {
                     if (t[j] && t[j].date === tmrw && t[j].sender !== 0) {
                       if (req.body.remove) {
                         t.splice(j, 1);            // remove
                         // restore the threadListPending position to the previous
-                        var index = findThreadInPending(user, req.user._id);
+                        var index = findThreadInPending(user, req.session.user._id);
                         if (index) {// this should always be true, we're checking
                                     // so as to limit  damage in case it's not
                           // did it have a previous position?
@@ -362,7 +356,7 @@ app.post('/inbox', function(req, res) {
                               i--;
                             }
                             // put a copy of the threadRef back in it's old position
-                            p.splice(p[index].prevPos-adj, 0, {id: req.user._id});
+                            p.splice(p[index].prevPos-adj, 0, {id: req.session.user._id});
                             bump = 1;
                           }
                           // remove the threadRef from it's current position
@@ -373,7 +367,7 @@ app.post('/inbox', function(req, res) {
                     }
                   }
                 } else {  //not overwriting/removing, so push a new message
-                  user.threads[req.user._id].push({
+                  user.threads[req.session.user._id].push({
                     sender: 1,  // change this < for groups
                     date: tmrw,
                     body: req.body.text,
@@ -381,12 +375,12 @@ app.post('/inbox', function(req, res) {
                   });
                   // and update the threadListPending
                   if (!newThread) {
-                    var cur = findThreadInPending(user, req.user._id);
+                    var cur = findThreadInPending(user, req.session.user._id);
                     if (cur) {p.splice(cur, 1);}                //remove the old
                   // it *should* always find an old one to remove, but in the event
                   //   of a glitch such that it doesn't I'd rather not overwrite
                   //   something else and make the problem worse
-                    p.push({id: req.user._id, prevPos: cur})  //add the new
+                    p.push({id: req.session.user._id, prevPos: cur})  //add the new
                   }
                 }
                 db.collection('users').updateOne({_id: recipient},
@@ -415,88 +409,89 @@ app.post('/register', function(req, res){
     if (err) throw err;
 		if (user) {return res.send("name taken");}
 		else {
-      //check if there is already a user w/ that email ????????????
-      /*db.collection('users').findOne({email: email}, {}, function (err, user) {
-        if (err) throw err;
-    		if (user) {return res.send("name taken");}
-    		else { */
-          var today = getCurDate();
-          db.collection('users').insertOne({
-            username: username,
-            password: password,
-            email: email,
-            posts: {},
-            postList: [],
-            postListPending: [],
-            postListUpdatedOn: today,
-            threads: {},
-            threadList: [],
-            threadListPending: [],
-            threadListUpdatedOn: today,
-            following: {},
-            followers: {},
-            about: {
-              oldText: "",
-              newText: "",
-              updatedOn: today,
-            },
-            iconURI: {
-              oldLink: "",
-              newLink: "",
-              updatedOn: today,
-            },
-            settings: {},
-          }, {}, function (err) {
-            if (err) {throw err;}
-            //bcrypt.genSalt(10, function(err, salt){
-      			bcrypt.hash(password, 10, function(err, passHash){
-      				if (err) {throw err;}
+      var today = getCurDate();
+      db.collection('users').insertOne({
+        username: username,
+        password: password,
+        email: email,
+        posts: {},
+        postList: [],
+        postListPending: [],
+        postListUpdatedOn: today,
+        threads: {},
+        threadList: [],
+        threadListPending: [],
+        threadListUpdatedOn: today,
+        following: {},
+        followers: {},
+        about: {
+          oldText: "",
+          newText: "",
+          updatedOn: today,
+        },
+        iconURI: {
+          oldLink: "",
+          newLink: "",
+          updatedOn: today,
+        },
+        settings: {},
+      }, {}, function (err) {
+        if (err) {throw err;}
+        bcrypt.hash(password, 10, function(err, passHash){
+          if (err) {throw err;}
+          else {
+            bcrypt.hash(password, 10, function(err, emailHash){
+              if (err) {throw err;}
               else {
-                bcrypt.hash(password, 10, function(err, emailHash){
-                  if (err) {throw err;}
-                  else {
-                    var setValue = {password: passHash, email: emailHash};
-                    db.collection('users').findOneAndUpdate({username: username}, //MAKE BETTER
-                      {$set: setValue }, {},
-                      function(err, r) {
-                        if (err) {throw err;}
-                        else {
-                          req.logIn(r.value, function(err) {
-                            if (err) {throw err; return res.send(err);}
-                            return res.send("success");
-                          });
-                        }
+                var setValue = {password: passHash, email: emailHash};
+                db.collection('users').findOneAndUpdate({username: username}, //MAKE BETTER
+                  {$set: setValue }, {},
+                  function(err, r) {
+                    if (err) {throw err;}
+                    else {
+                      req.logIn(r.value, function(err) {
+                        if (err) {throw err; return res.send(err);}
+                        return res.send("success");
                       });
-                  }
-                });
-              };
-    				});
-          });
-    /*  }///
-      })  */
+                    }
+                  });
+              }
+            });
+          };
+        });
+      });
 		}
   });
 });
 
 // log in
 app.post('/login', function(req, res) {
-  passport.authenticate('local', function(err, user, info) {
-    if (err) {
-		  return res.send(err);
-		}
-    if (!user) {
-		  return res.send("invalid username/password");
-		}
-    req.logIn(user, function(err) {
-      if (err) {throw err; return res.send(err);}
-      return res.send("success");
-    });
-  })(req, res);
+  var username = req.body.username;
+	var password = req.body.password;
+  var nope = "invalid username/password"
+  db.collection('users').findOne({username: username}
+    , { password:1 }
+    , function (err, user) {
+      //check if username is registered
+      if (!user) {return res.send(nope);}
+      else {
+        // Match Password
+        bcrypt.compare(password, user.password, function(err, isMatch){
+          if (err) {throw err;}
+          else if (isMatch) {
+            req.session.user = { _id: ObjectId(user._id) };
+            return res.send("success");
+          } else {
+            return res.send(nope);
+          }
+        });
+      }
+  });
 });
 
 // logout
 app.get('/logout', function(req, res){
-  req.logout();
+  req.session.user = null;
   res.send("success");
 });
 
@@ -524,7 +519,27 @@ app.get('/:username', function(req, res) {
             });
           }
         }
-        res.render('layout', {pagename:'user', username:req.params.username, posts:posts});
+        if (req.session.user) {
+          db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+          , {_id:0, username:1}
+          , function (err, user) {
+            if (err) {throw err;}
+            else {
+              res.render('layout', {
+                pagename:'user',
+                authorName:req.params.username,
+                posts:posts,
+                username: user.username,
+              });
+            }
+          });
+        } else {
+          res.render('layout', {
+            pagename:'user',
+            authorName:req.params.username,
+            posts:posts,
+          });
+        }
       }
     }
   });
@@ -535,19 +550,36 @@ app.get('/:username/:num', function(req, res) {
   db.collection('users').findOne({username: req.params.username}
   , { _id:0, posts:1, postList:1, postListPending:1 }
   //TODO: later make that^ also return "settings" to check post visibility permissions
-  , function (err, user) {
+  , function (err, author) {
     if (err) {throw err; res.send(err);}
     else {
-      if (user) {
-        checkFreshness(user, "post");
+      if (author) {
+        checkFreshness(author, "post");
         var i = req.params.num;
-        if (user.postList[i] && user.postList[i].date !== getCurDate(-1)) {
-          res.render('layout', {
-            pagename: 'post',
-            username: req.params.username,
-            body: user.posts[user.postList[i].date][user.postList[i].num].body,
-            date: user.postList[i].date,
-          });
+        if (author.postList[i] && author.postList[i].date !== getCurDate(-1)) {
+          if (req.session.user) {
+            db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+            , {_id:0, username:1}
+            , function (err, user) {
+              if (err) {throw err;}
+              else {
+                res.render('layout', {
+                  pagename:'post',
+                  authorName:req.params.username,
+                  body: author.posts[author.postList[i].date][author.postList[i].num].body,
+                  date: author.postList[i].date,
+                  username: user.username,
+                });
+              }
+            });
+          } else {
+            res.render('layout', {
+              pagename:'post',
+              authorName:req.params.username,
+              body: author.posts[author.postList[i].date][author.postList[i].num].body,
+              date: author.postList[i].date,
+            });
+          }
         } else {res.send("not even a single thing");}
       } else {res.send('but there was nobody home');}
     }
