@@ -7,7 +7,7 @@ var accountSettings = function () {
 }
 
 var signOut = function() {
-  var url = 'logout'
+  var url = '/logout'
   ajaxCall(url, 'GET', {}, function(json) {
     if (json === 'success') {
       location.reload();

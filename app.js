@@ -38,7 +38,9 @@ app.use(session({
   maxAge: 7 * 24 * 60 * 60 * 1000 // IT'S BEEN...(one week)
 }))
 
-var getCurDate = function (minusDays) { //date helper function
+//*******//HELPTER FUNCTIONS//*******//
+
+var getCurDate = function (minusDays) {
   if (!minusDays) {minusDays = 0} //negative into the future
   var now = new Date(new Date().getTime() - 9*3600*1000 - minusDays*24*3600000);   //UTC offset by -9
   var year = now.getUTCFullYear();
@@ -50,40 +52,6 @@ var getCurDate = function (minusDays) { //date helper function
 }
 
 var checkFreshness = function (user, type) {
-
-  //*****************temp db checker/fixer************************
-  if (type === 'thread') {
-    //remove duplicates/glitches
-    var tlp = user.threadListPending;
-    var ref = {};
-    for (var i = 0; i < tlp.length; i++) {
-      if (!user.threads[tlp[i].id]) {
-      }
-      if (ref[tlp[i].id]) {
-        tlp.splice(i,1);
-        i--;
-      } else {
-        ref[tlp[i].id] = true;
-      }
-    }
-    //make sure everything is accounted for
-    for (var x in user.threads) {
-      if (user.threads.hasOwnProperty(x)) {
-        var missing = true;
-        for (var i = 0; i < tlp.length; i++) {
-          if (String(tlp[i].id) === String(x)) {
-            missing = false;
-            break;
-          }
-        }
-        if (missing) {
-          tlp.push({id: ObjectId(x), prevPos: Infinity})
-        }
-      }
-    }
-  }
-  //***************************************************************
-
   var today = getCurDate();
   if (user[type + 'ListUpdatedOn'] !== today) {
     user[type + 'ListUpdatedOn'] = today;
@@ -91,8 +59,8 @@ var checkFreshness = function (user, type) {
       var tlp = user.threadListPending;
       var i = tlp.length-1;
       // clear the "prevPos" fields on the threadListPending
-      while (tlp[i] && tlp[i].prevPos !== undefined) {
-        tlp[i].prevPos = undefined;
+      while (tlp[i] && tlp[i].prevPos !== null) {
+        tlp[i].prevPos = null;
         i--;
       }
       user.threadList = tlp;
@@ -206,14 +174,66 @@ app.post('/posts', function(req, res) {
 
 // get all messages
 app.get('/inbox', function(req, res) {
+  res.send(null);
+});
+/*
   if (!req.session.user) {return res.render('layout', {pagename:'login'});}
   db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
   , {_id:0, threads:1, threadList:1, threadListUpdatedOn:1, threadListPending: 1}
   , function (err, user) {
     if (err) {throw err;}
     else {
-      //console.log("threads", user.threads);
+      //*****************temp db checker/fixer************************
+      //remove duplicates/glitches
+      var tlp = user.threadListPending;
+      var ref = {};
+      for (var i = 0; i < tlp.length; i++) {
+        if (!user.threads[tlp[i].id]) { ///////////!!!!!?!??!?!??!?!
+          console.log("ln203", tlp[i].id);
+        }
+        if (ref[ObjectId(tlp[i].id)]) {
+          tlp.splice(i,1);
+          i--;
+        } else {
+          ref[ObjectId(tlp[i].id)] = true;
+        }
+      }
+      //make sure everything is accounted for
+      for (var x in user.threads) {
+        if (user.threads.hasOwnProperty(x)) {
+          var missing = true;
+          for (var i = 0; i < tlp.length; i++) {
+            if (String(tlp[i].id) === String(x)) {
+              missing = false;
+              break;
+            }
+          }
+          if (missing) {
+            tlp.push({id: ObjectId(x), prevPos: Infinity})
+          }
+        }
+      }
+      db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
+        {$set: user },
+        function(err, user) {
+          if (err) {throw err;}
+          else {}
+        });
+      //***************************************************************
+
+      console.log(user.threadListUpdatedOn);
+      console.log("threadList", user.threadList);
+      console.log(" ");
+      console.log("threadListPending", user.threadListPending);
+      console.log("________");
       checkFreshness(user, "thread");
+      console.log("threadList", user.threadList);
+      console.log(" ");
+      console.log("threadListPending", user.threadListPending);
+      console.log("________");
+      console.log("________");
+      console.log(" ");
+
       var threads = [];
         // later have "pagination" options here, ie, only grab the X most recent threads
       var count = user.threadList.length-1;
@@ -258,26 +278,21 @@ app.get('/inbox', function(req, res) {
           })(i,t,j);
         } else {count--};
       }
-
-      //*****************temp db checker/fixer************************
-      db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
-        {$set: user },
-        function(err, user) {
-          if (err) {throw err;}
-          else {}
-        })
-      //***************************************************************
-
     }
   });
 });
+*/
 
 // new/edit/delete message
 app.post('/inbox', function(req, res) {
+  res.send(null);
+});
+/*
   var recipient = ObjectId(req.body.recipient);
+  var sender = ObjectId(req.session.user._id);
   //modification needed here^ for group threads
     //and for checking if the message is allowed by the recipient's settings
-  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+  db.collection('users').findOne({_id: sender}
   , {_id:0, threads:1, threadList:1, threadListPending: 1}
   , function (err, user) {
     if (err) {throw err;}
@@ -312,7 +327,7 @@ app.post('/inbox', function(req, res) {
           unread: false,
         });
       }
-      db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
+      db.collection('users').updateOne({_id: sender},
         {$set: user },
         function(err, user) {
           if (err) {throw err;}
@@ -328,21 +343,22 @@ app.post('/inbox', function(req, res) {
                 checkFreshness(user, "thread");
                 var p = user.threadListPending;
                 // if the recipient does not already have a thread w/ the sender, create one
-                if (!user.threads[req.session.user._id]) {
-                  user.threads[req.session.user._id] = [];
-                  p.push({id:req.session.user._id, prevPos: Infinity});
+                if (!user.threads[sender]) {
+                  user.threads[sender] = [];
+                  p.push({id:sender, prevPos: Infinity});
                   var newThread = true;
                 }
                 if (overwrite) {
                   // find the message to be overwritten
-                  var t = user.threads[req.session.user._id];
+                  var t = user.threads[sender];
                   var len = t.length;
                   for (var j = len-1; j > len-3; j--) {
                     if (t[j] && t[j].date === tmrw && t[j].sender !== 0) {
                       if (req.body.remove) {
                         t.splice(j, 1);            // remove
                         // restore the threadListPending position to the previous
-                        var index = findThreadInPending(user, req.session.user._id);
+                        var index = findThreadInPending(user, sender);
+                        console.log('index', index);
                         if (index) {// this should always be true, we're checking
                                     // so as to limit  damage in case it's not
                           // did it have a previous position?
@@ -356,10 +372,11 @@ app.post('/inbox', function(req, res) {
                               i--;
                             }
                             // put a copy of the threadRef back in it's old position
-                            p.splice(p[index].prevPos-adj, 0, {id: req.session.user._id});
+                            p.splice(p[index].prevPos-adj, 0, {id: sender});
                             bump = 1;
                           }
                           // remove the threadRef from it's current position
+                          console.log(index - bump);
                           p.splice(index - bump, 1);
                         }
                       } else {t[j].body = req.body.text;} // overwrite
@@ -367,7 +384,7 @@ app.post('/inbox', function(req, res) {
                     }
                   }
                 } else {  //not overwriting/removing, so push a new message
-                  user.threads[req.session.user._id].push({
+                  user.threads[sender].push({
                     sender: 1,  // change this < for groups
                     date: tmrw,
                     body: req.body.text,
@@ -375,12 +392,13 @@ app.post('/inbox', function(req, res) {
                   });
                   // and update the threadListPending
                   if (!newThread) {
-                    var cur = findThreadInPending(user, req.session.user._id);
+                    var cur = findThreadInPending(user, sender);
+                    console.log("ln 389", p.cur);
                     if (cur) {p.splice(cur, 1);}                //remove the old
                   // it *should* always find an old one to remove, but in the event
                   //   of a glitch such that it doesn't I'd rather not overwrite
                   //   something else and make the problem worse
-                    p.push({id: req.session.user._id, prevPos: cur})  //add the new
+                    p.push({id: sender, prevPos: cur})  //add the new
                   }
                 }
                 db.collection('users').updateOne({_id: recipient},
@@ -398,6 +416,7 @@ app.post('/inbox', function(req, res) {
     }
   });
 })
+*/
 
 // new user sign up
 app.post('/register', function(req, res){

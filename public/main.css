@@ -93,6 +93,7 @@ clicky, .clicky {
   text-align: right;
   text-decoration: underline;
   margin-bottom: 10px;
+  display: block;
 }
 
 .highlight {

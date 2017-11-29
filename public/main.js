@@ -4,6 +4,125 @@ var glo = {
   dateOffset: -1, //negative into the future
 }
 
+var getCurDate = function (minusDays) { //date helper function
+  if (!minusDays) {minusDays = 0}
+  var now = new Date(new Date().getTime() - 9*3600*1000 - minusDays*24*3600000);   //UTC offset by -9
+  var year = now.getUTCFullYear();
+  var mon = now.getUTCMonth()+1;
+  if (mon < 10) {mon = "0"+mon}
+  var date = now.getUTCDate();
+  if (date < 10) {date = "0"+date}
+  return year+"-"+mon+"-"+date;
+}
+
+var switchPanel = function (panelName) {
+  //$('inbox-panel').classList.add('removed');
+  $('posts-panel').classList.add('removed');
+  $('write-panel').classList.add('removed');
+  $(panelName).classList.remove('removed');
+}
+
+var changeDay = function (dir) { // load and display all posts for a given day
+  //don't allow changing day if currently loading
+  if (glo.loading) {return;}
+  else {glo.loading = true;}
+  //console.log('touch');
+  var date = getCurDate(glo.dateOffset);
+  // hide the previously displayed day
+  if ($('posts-for-'+ date)) {
+    $('posts-for-'+ date).classList.add('removed');
+  }
+  glo.dateOffset += dir;
+  date = getCurDate(glo.dateOffset);
+  // hide/unhide nextDay button as needed
+  if (glo.dateOffset === 0) {
+    //$("day-forward").classList.add("hidden");
+  } else if (glo.dateOffset === 1 && dir === 1) {
+    $("day-forward").classList.remove("hidden");
+  }
+  $('date-display').innerHTML = date;
+  // check if we already have the post data for that day
+  if ($('posts-for-'+date)) {
+    $('posts-for-'+date).classList.remove('removed');
+    glo.loading = false;
+  } else {
+    // we don't, so make the ajax call
+    $('loading').classList.remove('removed');
+    ajaxCall('posts', 'POST', {date: date}, function(json) {
+      var bucket = document.createElement("div");
+      bucket.setAttribute('class', 'post-bucket');
+      bucket.setAttribute('id', 'posts-for-'+date);
+      json = JSON.parse(json)
+      // if there are no posts for the day
+      if (json.length === 0) {
+        var post = document.createElement("div");
+        post.innerHTML = "No Posts!";
+        bucket.appendChild(post);
+      } else {
+        // create temporary randomizing helper array
+        var rando = [];
+        for (var i = 0; i < json.length; i++) {
+          rando.push(i);
+        }
+        // create posts
+        while(rando.length !== 0) {
+          var i = Math.floor(Math.random() * (rando.length));
+          var post = document.createElement("div");
+          post.setAttribute('class', 'post');
+          //
+          // temporary simple link while threads are down
+          var author = document.createElement("a");
+          author.setAttribute('class', 'meta-text');
+          author.setAttribute('href', '/'+json[rando[i]].author);
+          author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
+          /* thread stuff that we'll put back later
+
+          var author = document.createElement("div");
+          author.setAttribute('class', 'meta-text');
+          author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
+          // click handler for author name
+          (function (index) {
+            author.onclick = function(){
+              //is this a post of the logged in user's own?
+              if (json[index].author === glo.user) {
+                accountSettings();
+              } else {
+                //look for a thread btwn the author and logged in user
+                checkForThread({
+                  names: [json[index].author],
+                  _ids: [json[index]._id],
+                });
+              }
+            }
+          })(rando[i]);
+          */
+
+          post.appendChild(author);
+          var text = document.createElement("text");
+          text.setAttribute('class', 'body-text');
+          text.innerHTML = json[rando[i]].body;
+          post.appendChild(text);
+          bucket.appendChild(post);
+          //remove the current index refference from the randomizing helper array
+          rando.splice(i,1);
+        }
+      }
+      $('loading').classList.add('removed');
+      $('posts').appendChild(bucket);
+      glo.loading = false;
+    });
+  }
+}
+
+var showWriter = function (kind) {
+  $(kind+'-writer').classList.remove('removed');
+  $(kind+'-preview').classList.add('removed');
+}
+var hideWriter = function (kind) {
+  $(kind+'-writer').classList.add('removed');
+  $(kind+'-preview').classList.remove('removed');
+}
+
 var submitPost = function (remove) {  //also handles editing and deleting
   if (remove) {var text = null;}
   else {var text = CKEDITOR.instances.postEditor.getData();}
@@ -32,15 +151,7 @@ var submitPost = function (remove) {  //also handles editing and deleting
   });
 }
 
-var showWriter = function (kind) {
-  $(kind+'-writer').classList.remove('removed');
-  $(kind+'-preview').classList.add('removed');
-}
-var hideWriter = function (kind) {
-  $(kind+'-writer').classList.add('removed');
-  $(kind+'-preview').classList.remove('removed');
-}
-
+/*
 var closeThread = function () {
   var i = glo.activeThreadIndex;
   //does the open thread have unsaved text?
@@ -128,99 +239,6 @@ var submitMessage = function (remove) {  //also handles editing and deleting
   });
 }
 
-var getCurDate = function (minusDays) { //date helper function
-  if (!minusDays) {minusDays = 0}
-  var now = new Date(new Date().getTime() - 9*3600*1000 - minusDays*24*3600000);   //UTC offset by -9
-  var year = now.getUTCFullYear();
-  var mon = now.getUTCMonth()+1;
-  if (mon < 10) {mon = "0"+mon}
-  var date = now.getUTCDate();
-  if (date < 10) {date = "0"+date}
-  return year+"-"+mon+"-"+date;
-}
-
-var changeDay = function (dir) { // load and display all posts for a given day
-  //don't allow changing day if currently loading
-  if (glo.loading) {return;}
-  else {glo.loading = true;}
-  //console.log('touch');
-  var date = getCurDate(glo.dateOffset);
-  // hide the previously displayed day
-  if ($('posts-for-'+ date)) {
-    $('posts-for-'+ date).classList.add('removed');
-  }
-  glo.dateOffset += dir;
-  date = getCurDate(glo.dateOffset);
-  // hide/unhide nextDay button as needed
-  if (glo.dateOffset === 0) {
-    $("day-forward").classList.add("hidden");
-  } else if (glo.dateOffset === 1 && dir === 1) {
-    $("day-forward").classList.remove("hidden");
-  }
-  $('date-display').innerHTML = date;
-  // check if we already have the post data for that day
-  if ($('posts-for-'+date)) {
-    $('posts-for-'+date).classList.remove('removed');
-    glo.loading = false;
-  } else {
-    // we don't, so make the ajax call
-    $('loading').classList.remove('removed');
-    ajaxCall('posts', 'POST', {date: date}, function(json) {
-      var bucket = document.createElement("div");
-      bucket.setAttribute('class', 'post-bucket');
-      bucket.setAttribute('id', 'posts-for-'+date);
-      json = JSON.parse(json)
-      // if there are no posts for the day
-      if (json.length === 0) {
-        var post = document.createElement("div");
-        post.innerHTML = "No Posts!";
-        bucket.appendChild(post);
-      } else {
-        // create temporary randomizing helper array
-        var rando = [];
-        for (var i = 0; i < json.length; i++) {
-          rando.push(i);
-        }
-        // create posts
-        while(rando.length !== 0) {
-          var i = Math.floor(Math.random() * (rando.length));
-          var post = document.createElement("div");
-          post.setAttribute('class', 'post');
-          var author = document.createElement("div");
-          author.setAttribute('class', 'meta-text');
-          author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
-          // click handler for author name
-          (function (index) {
-            author.onclick = function(){
-              //is this a post of the logged in user's own?
-              if (json[index].author === glo.user) {
-                accountSettings();
-              } else {
-                //look for a thread btwn the author and logged in user
-                checkForThread({
-                  names: [json[index].author],
-                  _ids: [json[index]._id],
-                });
-              }
-            }
-          })(rando[i]);
-          post.appendChild(author);
-          var text = document.createElement("text");
-          text.setAttribute('class', 'body-text');
-          text.innerHTML = json[rando[i]].body;
-          post.appendChild(text);
-          bucket.appendChild(post);
-          //remove the current index refference from the randomizing helper array
-          rando.splice(i,1);
-        }
-      }
-      $('loading').classList.add('removed');
-      $('posts').appendChild(bucket);
-      glo.loading = false;
-    });
-  }
-}
-
 var checkForThread = function (x) {
   // if the thread already exists, open it
   if (glo.threadRef[x.names] !== undefined) {openThread(glo.threadRef[x.names]);}
@@ -237,13 +255,6 @@ var checkForThread = function (x) {
   }
   switchPanel('inbox-panel');
   showWriter('message');
-}
-
-var switchPanel = function (panelName) {
-  $('inbox-panel').classList.add('removed');
-  $('posts-panel').classList.add('removed');
-  $('write-panel').classList.add('removed');
-  $(panelName).classList.remove('removed');
 }
 
 var createMessage = function (i, j) {
@@ -317,4 +328,6 @@ var fetchThreads = function () {
 }
 
 fetchThreads();
+*/
+
 changeDay(1);
