@@ -423,6 +423,9 @@ app.post('/register', function(req, res){
 	var username = req.body.username;
 	var password = req.body.password;
 	var email = req.body.email;
+  if (req.body.secretCode !== "fartButt") {
+    {return res.send("invalid code");}
+  }
 	//check if there is already a user w/ that name
   db.collection('users').findOne({username: username}, {}, function (err, user) {
     if (err) throw err;
@@ -454,8 +457,9 @@ app.post('/register', function(req, res){
           updatedOn: today,
         },
         settings: {},
-      }, {}, function (err) {
+      }, {}, function (err, result) {
         if (err) {throw err;}
+        newID = ObjectId(result.insertedId);
         bcrypt.hash(password, 10, function(err, passHash){
           if (err) {throw err;}
           else {
@@ -463,15 +467,13 @@ app.post('/register', function(req, res){
               if (err) {throw err;}
               else {
                 var setValue = {password: passHash, email: emailHash};
-                db.collection('users').findOneAndUpdate({username: username}, //MAKE BETTER
+                db.collection('users').updateOne({_id: newID},
                   {$set: setValue }, {},
                   function(err, r) {
                     if (err) {throw err;}
                     else {
-                      req.logIn(r.value, function(err) {
-                        if (err) {throw err; return res.send(err);}
-                        return res.send("success");
-                      });
+                      req.session.user = { _id: newID };
+                      return res.send("success");
                     }
                   });
               }

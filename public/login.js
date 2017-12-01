@@ -49,9 +49,7 @@ var sign = function(inOrUp) {
   } else {
     var url = 'register';
     data.email = $('email-input').value;
-
-    //TODO validate email format
-
+    data.secretCode = $('secret-code').value;
     if (data.password !== $('pass-input-two').value) {
       $('loginError').innerHTML = 'passwords are not the same';
       return;
