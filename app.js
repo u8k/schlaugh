@@ -89,7 +89,8 @@ var findThreadInPending = function (user, threadID) {
 
 // main/only page
 app.get('/', function(req, res) {
-  if (req.session.user) {
+  if (!req.session.user) {res.render('layout', {pagename:'login'});}
+  else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {_id:0, username:1, posts:1}
     , function (err, user) {
@@ -104,46 +105,47 @@ app.get('/', function(req, res) {
         res.render('layout', {pagename:'main', username:user.username, pending:pending});
       }
     });
-  } else {
-    //direct to a login page
-    res.render('layout', {pagename:'login'});
   }
 });
 
 // new/edit/delete post
 app.post('/', function(req, res) {
-  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-  , {_id:0, posts:1, postList:1, postListPending:1}
-  , function (err, user) {
-    if (err) {throw err;}
-    else {
-      checkFreshness(user, "post");
-      var tmrw = getCurDate(-1);
-      if (req.body.remove) {                        //remove
-        delete user.posts[tmrw];
-        user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
-      } else if (user.posts[tmrw]) {      //edit existing
-          user.posts[tmrw][0].body = req.body.text;
-      } else {                                      //create new
-          user.posts[tmrw] = [{
-            body: req.body.text,
-            tags: {}
-          }];
-          var num = user.posts[tmrw].length-1;
-          user.postListPending.push({
-            date: tmrw,
-            num: num
-          });
-        }
-      db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
-        {$set: user },
-        function(err, user) {
-          if (err) {throw err;}
-          else {res.send('success');}
-        }
-      );
-    }
-  });
+  if (!req.session.user) {res.send('error, not logged in');}
+  else {
+    var userID = ObjectId(req.session.user._id)
+    db.collection('users').findOne({_id: userID}
+    , {_id:0, posts:1, postList:1, postListPending:1}
+    , function (err, user) {
+      if (err) {throw err;}
+      else {
+        checkFreshness(user, "post");
+        var tmrw = getCurDate(-1);
+        if (req.body.remove) {                        //remove
+          delete user.posts[tmrw];
+          user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
+        } else if (user.posts[tmrw]) {      //edit existing
+            user.posts[tmrw][0].body = req.body.text;
+        } else {                                      //create new
+            user.posts[tmrw] = [{
+              body: req.body.text,
+              tags: {}
+            }];
+            var num = user.posts[tmrw].length-1;
+            user.postListPending.push({
+              date: tmrw,
+              num: num
+            });
+          }
+        db.collection('users').updateOne({_id: userID},
+          {$set: user },
+          function(err, user) {
+            if (err) {throw err;}
+            else {res.send('success');}
+          }
+        );
+      }
+    });
+  }
 });
 
 // get posts-(should maybe be a "GET"? ehhhh(following list))
@@ -420,68 +422,88 @@ app.post('/inbox', function(req, res) {
 
 // new user sign up
 app.post('/register', function(req, res){
+    // !!!!!!!! SANITIZE THESE INPUTS!!!!!!!!!!!!!!!!!!!!!
 	var username = req.body.username;
 	var password = req.body.password;
 	var email = req.body.email;
-  if (req.body.secretCode !== "fartButt") {
-    {return res.send("invalid code");}
-  }
-	//check if there is already a user w/ that name
-  db.collection('users').findOne({username: username}, {}, function (err, user) {
-    if (err) throw err;
-		if (user) {return res.send("name taken");}
-		else {
-      var today = getCurDate();
-      db.collection('users').insertOne({
-        username: username,
-        password: password,
-        email: email,
-        posts: {},
-        postList: [],
-        postListPending: [],
-        postListUpdatedOn: today,
-        threads: {},
-        threadList: [],
-        threadListPending: [],
-        threadListUpdatedOn: today,
-        following: {},
-        followers: {},
-        about: {
-          oldText: "",
-          newText: "",
-          updatedOn: today,
-        },
-        iconURI: {
-          oldLink: "",
-          newLink: "",
-          updatedOn: today,
-        },
-        settings: {},
-      }, {}, function (err, result) {
-        if (err) {throw err;}
-        newID = ObjectId(result.insertedId);
-        bcrypt.hash(password, 10, function(err, passHash){
-          if (err) {throw err;}
-          else {
-            bcrypt.hash(password, 10, function(err, emailHash){
+	var secretCode = req.body.secretCode;
+                      // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // look up current active/valid secret access codes
+  db.collection('users').findOne({ username: "admin" }
+  , { codes:1}
+  , function (err, admin) {
+    if (err) {throw err;}
+    // check if the provided code is a match
+    else if (!admin.codes[secretCode]) {return res.send("invalid code");}
+    else {
+      //check if there is already a user w/ that name
+      db.collection('users').findOne({username: username}, {}, function (err, user) {
+        if (err) throw err;
+    		if (user) {return res.send("name taken");}
+    		else {
+          var today = getCurDate();
+          db.collection('users').insertOne({
+            username: username,
+            password: password,
+            email: email,
+            posts: {},
+            postList: [],
+            postListPending: [],
+            postListUpdatedOn: today,
+            threads: {},
+            threadList: [],
+            threadListPending: [],
+            threadListUpdatedOn: today,
+            following: {},
+            followers: {},
+            about: {
+              oldText: "",
+              newText: "",
+              updatedOn: today,
+            },
+            iconURI: {
+              oldLink: "",
+              newLink: "",
+              updatedOn: today,
+            },
+            settings: {},
+          }, {}, function (err, result) {
+            if (err) {throw err;}
+            newID = ObjectId(result.insertedId);
+            bcrypt.hash(password, 10, function(err, passHash){
               if (err) {throw err;}
               else {
-                var setValue = {password: passHash, email: emailHash};
-                db.collection('users').updateOne({_id: newID},
-                  {$set: setValue }, {},
-                  function(err, r) {
-                    if (err) {throw err;}
-                    else {
-                      req.session.user = { _id: newID };
-                      return res.send("success");
-                    }
-                  });
-              }
+                bcrypt.hash(password, 10, function(err, emailHash){
+                  if (err) {throw err;}
+                  else {
+                    var setValue = {password: passHash, email: emailHash};
+                    db.collection('users').updateOne({_id: newID},
+                      {$set: setValue }, {},
+                      function(err, r) {
+                        if (err) {throw err;}
+                        else {
+                          // "sign in" the user
+                          req.session.user = { _id: newID };
+                          // remove the code from the admin stash so it can't be used again
+                          delete admin.codes[secretCode];
+                          db.collection('users').updateOne({_id: admin._id},
+                            {$set: admin },
+                            function(err, user) {
+                              if (err) {throw err;}
+                              else {return res.send("success");}
+                            }
+                          );
+                        }
+                      }
+                    );
+                  }
+                });
+              };
             });
-          };
-        });
+          });
+    		}
       });
-		}
+    }
   });
 });
 
@@ -514,6 +536,48 @@ app.post('/login', function(req, res) {
 app.get('/logout', function(req, res){
   req.session.user = null;
   res.send("success");
+});
+
+// admin
+app.get('/shavingmypiano', function(req, res){
+  if (req.session.user) {
+    db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+    , {_id:0, username:1, codes:1}
+    , function (err, user) {
+      if (err) {throw err;}
+      else if (!user || user.username !== "admin") {res.send('but there was nobody home');}
+      else {
+        res.render('admin', { codes: user.codes });
+      }
+    });
+  } else {
+    res.send('but there was nobody home');
+  }
+});
+app.post('/shavingmypiano', function(req, res){
+  if (req.session.user) {
+    var userID = ObjectId(req.session.user._id)
+    db.collection('users').findOne({_id: userID}
+    , {_id:0, username:1, codes:1}
+    , function (err, admin) {
+      if (err) {throw err;}
+      else if (!admin || admin.username !== "admin") {
+        res.send('but there was nobody home');
+      } else {
+        if (!admin.codes) {admin.codes = {};}
+        admin.codes[req.body.code] = true;
+        db.collection('users').updateOne({_id: userID},
+          {$set: admin },
+          function(err, user) {
+            if (err) {throw err;}
+            else {res.render('admin', { codes: admin.codes });}
+          }
+        );
+      }
+    });
+  } else {
+    res.send('but there was nobody home');
+  }
 });
 
 // view all of a users posts
