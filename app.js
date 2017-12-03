@@ -6,6 +6,7 @@ var bcrypt = require('bcryptjs');
 var mongodb = require('mongodb');
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
+var pool = require('./public/pool.js');
 
 //connect and check mongoDB
 var db;
@@ -40,19 +41,8 @@ app.use(session({
 
 //*******//HELPTER FUNCTIONS//*******//
 
-var getCurDate = function (minusDays) {
-  if (!minusDays) {minusDays = 0} //negative into the future
-  var now = new Date(new Date().getTime() - 9*3600*1000 - minusDays*24*3600000);   //UTC offset by -9
-  var year = now.getUTCFullYear();
-  var mon = now.getUTCMonth()+1;
-  if (mon < 10) {mon = "0"+mon}
-  var date = now.getUTCDate();
-  if (date < 10) {date = "0"+date}
-  return year+"-"+mon+"-"+date;
-}
-
 var checkFreshness = function (user, type) {
-  var today = getCurDate();
+  var today = pool.getCurDate();
   if (user[type + 'ListUpdatedOn'] !== today) {
     user[type + 'ListUpdatedOn'] = today;
     if (type === 'thread') {
@@ -98,7 +88,7 @@ app.get('/', function(req, res) {
       else if (!user) {res.render('layout', {pagename:'login'});}
       else {
         var pending;
-        var tmrw = getCurDate(-1)
+        var tmrw = pool.getCurDate(-1)
         if (user.posts[tmrw]) {
           pending = user.posts[tmrw][0].body;
         }
@@ -119,7 +109,7 @@ app.post('/', function(req, res) {
       if (err) {throw err;}
       else {
         checkFreshness(user, "post");
-        var tmrw = getCurDate(-1);
+        var tmrw = pool.getCurDate(-1);
         if (req.body.remove) {                        //remove
           delete user.posts[tmrw];
           user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
@@ -150,7 +140,7 @@ app.post('/', function(req, res) {
 
 // get posts-(should maybe be a "GET"? ehhhh(following list))
 app.post('/posts', function(req, res) {
-  if (req.body.date === getCurDate(-1)) {
+  if (req.body.date === pool.getCurDate(-1)) {
     return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
   }
   //later make this▼ only check "following" instead of all users
@@ -245,7 +235,7 @@ app.get('/inbox', function(req, res) {
         //check the last two messages of each thread, see if they are allowed
         for (var j = 1; j < 3; j++) {
           var x = t.length-j;
-          if (t[x] && t[x].date === getCurDate(-1) && t[x].sender !== 0) {
+          if (t[x] && t[x].date === pool.getCurDate(-1) && t[x].sender !== 0) {
             t.splice(x, 1);
             j+=2;
           }
@@ -299,7 +289,7 @@ app.post('/inbox', function(req, res) {
   , function (err, user) {
     if (err) {throw err;}
     else {
-      var tmrw = getCurDate(-1);
+      var tmrw = pool.getCurDate(-1);
       var overwrite = false;
       // if the sender does not already have a thread w/ the recipient, create one
       if (!user.threads[recipient]) {
@@ -428,9 +418,14 @@ app.post('/register', function(req, res){
 	var email = req.body.email;
 	var secretCode = req.body.secretCode;
                       // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // validate
+  var x = pool.userNameValidate(username);
+  if (x) {return res.send(x);}
+  var y = pool.passwordValidate(password);
+  if (y) {return res.send(y);}
   // look up current active/valid secret access codes
   db.collection('users').findOne({ username: "admin" }
-  , { codes:1}
+  , { codes:1 }
   , function (err, admin) {
     if (err) {throw err;}
     // check if the provided code is a match
@@ -441,7 +436,7 @@ app.post('/register', function(req, res){
         if (err) throw err;
     		if (user) {return res.send("name taken");}
     		else {
-          var today = getCurDate();
+          var today = pool.getCurDate();
           db.collection('users').insertOne({
             username: username,
             password: password,
@@ -511,6 +506,12 @@ app.post('/register', function(req, res){
 app.post('/login', function(req, res) {
   var username = req.body.username;
 	var password = req.body.password;
+  // validate
+  var x = pool.userNameValidate(username);
+  if (x) {return res.send(x);}
+  var y = pool.passwordValidate(password);
+  if (y) {return res.send(y);}
+      // is that ^ neccesary????
   var nope = "invalid username/password"
   db.collection('users').findOne({username: username}
     , { password:1 }
@@ -594,7 +595,7 @@ app.get('/:username', function(req, res) {
         checkFreshness(user, "post");
         var posts = [];
         var pL = user.postList;
-        var tmrw = getCurDate(-1);
+        var tmrw = pool.getCurDate(-1);
         // reverse the array to order posts by most recent?
         for (var i = 0; i < pL.length; i++) {
           if (pL[i].date !== tmrw) {
@@ -641,7 +642,7 @@ app.get('/:username/:num', function(req, res) {
       if (author) {
         checkFreshness(author, "post");
         var i = req.params.num;
-        if (author.postList[i] && author.postList[i].date !== getCurDate(-1)) {
+        if (author.postList[i] && author.postList[i].date !== pool.getCurDate(-1)) {
           if (req.session.user) {
             db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
             , {_id:0, username:1}

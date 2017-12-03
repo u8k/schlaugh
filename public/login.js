@@ -1,3 +1,4 @@
+"use strict";
 
 var show = function (up) {
   if (up === true) {$('up').classList.remove('removed');}
@@ -24,24 +25,15 @@ var sign = function(inOrUp) {
       password: $('pass-input').value,
     }
   }
-  if (data.username === "") {
-    $('loginError').innerHTML = 'need a name!';
+  // validate
+  var x = pool.userNameValidate(data.username);
+  if (x) {
+    $('loginError').innerHTML = x;
     return;
   }
-  if (/[^a-z0-9-_]/.test(data.username)) {
-    $('loginError').innerHTML = 'invalid name, a-z0-9-_ only';
-    return;
-  }
-  if (data.username.length > 30) {
-    $('loginError').innerHTML = 'name is too long';
-    return;
-  }
-  if (data.password === "") {
-    $('loginError').innerHTML = 'need a pass!';
-    return;
-  }
-  if (/[^ a-zA-Z0-9-_!@#$%&*?]/.test(data.password)) {
-    $('loginError').innerHTML = 'invalid pass, a-zA-Z0-9-_!@#$%&*? only';
+  var y = pool.passwordValidate(data.password);
+  if (y) {
+    $('loginError').innerHTML = y;
     return;
   }
   if (inOrUp === 'in') {

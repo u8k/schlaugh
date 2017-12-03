@@ -4,17 +4,6 @@ var glo = {
   dateOffset: -1, //negative into the future
 }
 
-var getCurDate = function (minusDays) { //date helper function
-  if (!minusDays) {minusDays = 0}
-  var now = new Date(new Date().getTime() - 9*3600*1000 - minusDays*24*3600000);   //UTC offset by -9
-  var year = now.getUTCFullYear();
-  var mon = now.getUTCMonth()+1;
-  if (mon < 10) {mon = "0"+mon}
-  var date = now.getUTCDate();
-  if (date < 10) {date = "0"+date}
-  return year+"-"+mon+"-"+date;
-}
-
 var switchPanel = function (panelName) {
   //$('inbox-panel').classList.add('removed');
   $('posts-panel').classList.add('removed');
@@ -26,17 +15,16 @@ var changeDay = function (dir) { // load and display all posts for a given day
   //don't allow changing day if currently loading
   if (glo.loading) {return;}
   else {glo.loading = true;}
-  //console.log('touch');
-  var date = getCurDate(glo.dateOffset);
+  var date = pool.getCurDate(glo.dateOffset);
   // hide the previously displayed day
   if ($('posts-for-'+ date)) {
     $('posts-for-'+ date).classList.add('removed');
   }
   glo.dateOffset += dir;
-  date = getCurDate(glo.dateOffset);
+  date = pool.getCurDate(glo.dateOffset);
   // hide/unhide nextDay button as needed
   if (glo.dateOffset === 0) {
-    //$("day-forward").classList.add("hidden");
+    $("day-forward").classList.add("hidden");
   } else if (glo.dateOffset === 1 && dir === 1) {
     $("day-forward").classList.remove("hidden");
   }
@@ -158,7 +146,7 @@ var closeThread = function () {
   var text = CKEDITOR.instances.messageEditor.getData();
   if (text !== "") {
     var last = glo.threads[i].thread[glo.threads[i].thread.length-1];
-    if (!last || last.date !== getCurDate(-1) || text !== last.body) {
+    if (!last || last.date !== pool.getCurDate(-1) || text !== last.body) {
       //is it okay to lose that unsaved text?
       if (!confirm("lose current unposted text?")) {return;}
     }
@@ -189,7 +177,7 @@ var updatePendingMessage = function (index) {
   var pending = "";
   var last = glo.threads[index].thread[glo.threads[index].thread.length-1];
   // does the thread have a pending message?
-  if (last && last.date === getCurDate(-1)) {
+  if (last && last.date === pool.getCurDate(-1)) {
     pending = last.body;
     $('delete-message').classList.remove('removed');
     $('pending-message').classList.remove('removed');
@@ -221,13 +209,13 @@ var submitMessage = function (remove) {  //also handles editing and deleting
       var len = glo.threads[i].thread.length-1;
       var last = glo.threads[i].thread[len];
       // is the thread's last message already a pending message?
-      if (last && last.date === getCurDate(-1)) {
+      if (last && last.date === pool.getCurDate(-1)) {
         if (remove) {glo.threads[i].thread.splice(len,1);}
         else {last.body = text;}    //overwrite
       } else {
         glo.threads[i].thread.push({
           sender: 0,
-          date: getCurDate(-1),
+          date: pool.getCurDate(-1),
           body: text,
         });
       }
@@ -259,12 +247,12 @@ var checkForThread = function (x) {
 
 var createMessage = function (i, j) {
   var x = glo.threads[i].thread[j];
-  if (!x || (x.date === getCurDate(-1) && j === 0)) {
+  if (!x || (x.date === pool.getCurDate(-1) && j === 0)) {
     // show "no messages"
     var message = document.createElement("div");
     message.innerHTML = "no messages";
     $(i+"-thread").appendChild(message);
-  } else if (x.date === getCurDate(-1)) {
+  } else if (x.date === pool.getCurDate(-1)) {
     // do nothing
     return;
   } else {  // show the message
