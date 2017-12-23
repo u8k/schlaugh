@@ -60,6 +60,18 @@ clicky, .clicky {
 #post-writer{width: 75%; margin: auto;}
 #message-writer{width: 65%; margin: auto;}
 
+.editor{
+  height: 50vh;
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+#editor-options {
+  text-align: right;
+}
+
 #thread-box {
   width: 80%;
   margin: auto;
@@ -72,9 +84,13 @@ clicky, .clicky {
   margin-bottom: 10px;
   border-radius: 4px;
   padding: 15px;
-  text-align: justify;
 }
 .message {width: 85%;}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
 
 #pending-message {width: 65%}
 
@@ -110,7 +126,7 @@ body, h1 {
   color: #D8D8D8;
   background-color: #324144;
 }
-.post, .message {
+.post, .message, .editor {
   color: #D8D8D8;
   background-color: #32363F;
 }

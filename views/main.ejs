@@ -1,4 +1,3 @@
-<script src="ckeditor/ckeditor.js"></script>
 
 <div id="write-panel" class="removed">
   <nav>
@@ -28,17 +27,24 @@
 
   <div id="post-writer" class="removed">
     <postNav><clicky onclick="hideWriter('post')">◀</clicky></postNav>
-    <textarea id="postEditor" >
-      <% if (pending) { %>
-        <%- pending %>
-      <% } %>
-    </textarea>
-    <script>CKEDITOR.replace( 'postEditor' );</script>
-    <button type="button" onclick="submitPost()" >submit</button>
+    <br>
+    <div id="editor-options">
+      <button class="" onclick="styleText('b')"><b>B</b></button>
+      <button class="" onclick="styleText('i')"><i>I</i></button>
+      <button class="" onclick="styleText('u')"><u>U</u></button>
+      <button class="" onclick="styleText('s')"><s>S</s></button>
+      <button class="" onclick="hyperlink()">link</button>
+      <button class="" onclick="image()">img</button>
+      <button class="" onclick="linebreak()">&lt;br&gt;</button>
+    </div>
+    <textarea id="postEditor" class="editor"><% if (pending) { %><%- pending %><% } %></textarea>
+      <!-- that^ has to be all on one line like that...*grumbles* -->
+    <br>
+    <button onclick="submitPost()" >submit</button>
     <% if (pending) { %>
-      <button type="button" id='delete-pending-post' onclick="submitPost(true)" >delete</button>
+      <button id='delete-pending-post' onclick="submitPost(true)" >delete</button>
     <% } else { %>
-      <button type="button" id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
+      <button id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
     <% } %>
   </div>
 </div>

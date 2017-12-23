@@ -113,13 +113,15 @@ var hideWriter = function (kind) {
 
 var submitPost = function (remove) {  //also handles editing and deleting
   if (remove) {var text = null;}
-  else {var text = CKEDITOR.instances.postEditor.getData();}
-  if (text === "") {return;}
+  else {var text = $('postEditor').value;}
+  if (text === "") {
+    hideWriter('post');
+    return;
+    }
   var data = {text: text, remove:remove }
   ajaxCall("/", 'POST', data, function(json) {
-    if (json === 'success') {
+    if (json || json === "") {
       if (remove) {
-        CKEDITOR.instances.postEditor.setData("");
         $('pending-status').innerHTML = "no pending post";
         $('delete-pending-post').classList.add("removed");
         $('pending-post').classList.add("removed");
@@ -130,13 +132,91 @@ var submitPost = function (remove) {  //also handles editing and deleting
         $('pending-post').classList.remove("removed");
         $('write-post-button').innerHTML = "edit post";
       }
-      $('pending-post').innerHTML = text;
+      $('postEditor').innerHTML = json;
+      $('postEditor').value = json;
+      $('pending-post').innerHTML = json;
       hideWriter('post');
     } else {
       console.log('error submitting post');
       //$('loginError').innerHTML = json;
     }
   });
+}
+
+var getCursorPosition = function (elem) {
+	// IE < 9 Support
+	if (document.selection) {
+		elem.focus();
+		var range = document.selection.createRange();
+		var rangelen = range.text.length;
+		range.moveStart ('character', -elem.value.length);
+		var start = range.text.length - rangelen;
+		return {'start': start, 'end': start + rangelen };
+	}
+	// IE >=9 and other browsers
+	else if (elem.selectionStart || elem.selectionStart == '0') {
+		return {'start': elem.selectionStart, 'end': elem.selectionEnd };
+	} else {
+		return {'start': 0, 'end': 0};
+	}
+}
+var setCursorPosition = function (elem, start, end) {
+	// IE >= 9 and other browsers
+	if (elem.setSelectionRange) {
+		elem.focus();
+		elem.setSelectionRange(start, end);
+	}
+	// IE < 9
+	else if (elem.createTextRange) {
+		var range = elem.createTextRange();
+		range.collapse(true);
+		range.moveEnd('character', end);
+		range.moveStart('character', start);
+		range.select();
+	}
+}
+
+var styleText = function (s) {
+  var area = $('postEditor');
+  var x = getCursorPosition(area);
+  var a = x.start;
+  var b = x.end + 3;
+  var y = area.value;
+  area.value = y.slice(0, a)+'<'+s+'>'+y.slice(a, b-3)+'</'+s+'>'+y.slice(b-3);
+  setCursorPosition(area, a+3, b);
+}
+var hyperlink = function () {
+  var area = $('postEditor');
+  var x = getCursorPosition(area);
+  var a = x.start;
+  var b = x.end;
+  var y = area.value;
+  var linkText = "butts.cash"
+  if (a !== b) {linkText = y.substr(a,b)}
+  var target = prompt("target url:", "http://www.butts.cash/");
+  if (target != null) {
+    linkText = prompt("link text:", linkText);
+    if (linkText != null) {
+      area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
+    }
+  }
+}
+var linebreak = function () {
+  var area = $('postEditor');
+  var x = getCursorPosition(area).start;
+  area.value = area.value.slice(0, x)+'<br>'+area.value.slice(x);
+  setCursorPosition(area, x+4, x+4);
+}
+var image = function () {
+  var area = $('postEditor');
+  var x = getCursorPosition(area);
+  var a = x.start;
+  var b = x.end;
+  var y = area.value;
+  var target = prompt("image url:", "https://68.media.tumblr.com/708a562ba83f035812b6363558a79947/tumblr_o9h0kjFeB51vymizko1_1280.jpg");
+  if (target != null) {
+    area.value = y.slice(0, a)+'<img src="'+target+'">'+y.slice(b);
+  }
 }
 
 /*

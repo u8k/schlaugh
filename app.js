@@ -75,6 +75,83 @@ var findThreadInPending = function (user, threadID) {
   }
 }
 
+var convertEditorInput = function (string) {
+  var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen) {
+    if (aOpen) {string += "</a>"}
+    if (bOpen) {string += "</b>"}
+    if (iOpen) {string += "</i>"}
+    if (uOpen) {string += "</u>"}
+    if (sOpen) {string += "</s>"}
+    return string;
+  }
+  var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen) {
+    var next = string.substr(pos).search(/</);
+    if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen);}
+    else {
+      pos += next;
+      if (string.substr(pos+1,2) === "b>" && !bOpen) {
+        bOpen = true;
+        pos += 2;
+      } else if (string.substr(pos+1,2) === "i>" && !iOpen) {
+        iOpen = true;
+        pos += 2;
+      } else if (string.substr(pos+1,2) === "u>" && !uOpen) {
+        uOpen = true;
+        pos += 2;
+      } else if (string.substr(pos+1,2) === "s>" && !sOpen) {
+        sOpen = true;
+        pos += 2;
+      } else if (string.substr(pos+1,3) === "/b>") {
+        bOpen = false;
+        pos += 3;
+      } else if (string.substr(pos+1,3) === "/i>") {
+        iOpen = false;
+        pos += 3;
+      } else if (string.substr(pos+1,3) === "/u>") {
+        uOpen = false;
+        pos += 3;
+      } else if (string.substr(pos+1,3) === "/s>") {
+        sOpen = false;
+        pos += 3;
+      } else if (string.substr(pos+1,3) === "br>") {
+        pos += 3;
+      } else if (string.substr(pos+1,8) === 'a href="') {
+        aOpen = true;
+        pos += 8;
+        var qPos = string.substr(pos+1).search(/"/);
+        if (qPos === -1) {
+          string += '">';
+          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen);
+        }
+        else {pos += qPos;}
+        if (string[pos+2] !== ">") {
+          string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
+        }
+        else {pos += 1;}
+      } else if (string.substr(pos+1,3) === "/a>") {
+        aOpen = false;
+        pos += 3;
+      } else if (string.substr(pos+1,9) === 'img src="') {
+        pos += 9;
+        var qPos = string.substr(pos+1).search(/"/);
+        if (qPos === -1) {
+          string += '">';
+          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen);
+        }
+        else {pos += qPos;}
+        if (string[pos+2] !== ">") {
+          string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
+        }
+        else {pos += 1;}
+      } else {
+        string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
+      }
+      return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen);
+    }
+  }
+  return recurse(0, false, false, false, false, false);
+}
+
 //*******//ROUTING//*******//
 
 // main/only page
@@ -108,16 +185,21 @@ app.post('/', function(req, res) {
     , function (err, user) {
       if (err) {throw err;}
       else {
+          //TODO SANITIZE!?!!!!!!!!
+
         checkFreshness(user, "post");
         var tmrw = pool.getCurDate(-1);
-        if (req.body.remove) {                        //remove
+        if (req.body.remove) {                       //remove
           delete user.posts[tmrw];
+          var text = "";
           user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
-        } else if (user.posts[tmrw]) {      //edit existing
-            user.posts[tmrw][0].body = req.body.text;
-        } else {                                      //create new
+        } else {
+          var text = convertEditorInput(req.body.text);
+          if (user.posts[tmrw]) {                   //edit existing
+            user.posts[tmrw][0].body = text;
+          } else {                                  //create new
             user.posts[tmrw] = [{
-              body: req.body.text,
+              body: text,
               tags: {}
             }];
             var num = user.posts[tmrw].length-1;
@@ -126,11 +208,12 @@ app.post('/', function(req, res) {
               num: num
             });
           }
+        }
         db.collection('users').updateOne({_id: userID},
           {$set: user },
           function(err, user) {
             if (err) {throw err;}
-            else {res.send('success');}
+            else {res.send(text);}
           }
         );
       }
