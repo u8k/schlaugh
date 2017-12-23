@@ -84,12 +84,15 @@ clicky, .clicky {
   margin-bottom: 10px;
   border-radius: 4px;
   padding: 15px;
+  text-align: left;
 }
 .message {width: 85%;}
 
 img {
   max-width: 100%;
   height: auto;
+  display: block;
+  margin: auto;
 }
 
 #pending-message {width: 65%}
