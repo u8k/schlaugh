@@ -35,9 +35,11 @@
       <button class="" onclick="styleText('s')"><s>S</s></button>
       <button class="" onclick="hyperlink()">link</button>
       <button class="" onclick="image()">img</button>
+      <!--
       <button class="" onclick="linebreak()">&lt;br&gt;</button>
+      -->
     </div>
-    <textarea id="postEditor" class="editor"><% if (pending) { %><%- pending %><% } %></textarea>
+    <textarea id="postEditor" class="editor"><% if (pending) { %><%- pendingWriter %><% } %></textarea>
       <!-- that^ has to be all on one line like that...*grumbles* -->
     <br>
     <button onclick="submitPost()" >submit</button>

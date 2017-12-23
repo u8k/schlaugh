@@ -132,9 +132,10 @@ var submitPost = function (remove) {  //also handles editing and deleting
         $('pending-post').classList.remove("removed");
         $('write-post-button').innerHTML = "edit post";
       }
+      $('pending-post').innerHTML = json;
+      json = json.replace(/<br>/g, '\n');
       $('postEditor').innerHTML = json;
       $('postEditor').value = json;
-      $('pending-post').innerHTML = json;
       hideWriter('post');
     } else {
       console.log('error submitting post');

@@ -101,6 +101,12 @@ var convertEditorInput = function (string) {
       } else if (string.substr(pos+1,2) === "s>" && !sOpen) {
         sOpen = true;
         pos += 2;
+      } else if (string.substr(pos+1,3) === "li>") {
+        pos += 3;
+      } else if (string.substr(pos+1,3) === "ul>") {
+        pos += 3;
+      } else if (string.substr(pos+1,3) === "ol>") {
+        pos += 3;
       } else if (string.substr(pos+1,3) === "/b>") {
         bOpen = false;
         pos += 3;
@@ -113,6 +119,12 @@ var convertEditorInput = function (string) {
       } else if (string.substr(pos+1,3) === "/s>") {
         sOpen = false;
         pos += 3;
+      } else if (string.substr(pos+1,4) === "/li>") {
+        pos += 4;
+      } else if (string.substr(pos+1,4) === "/ul>") {
+        pos += 4;
+      } else if (string.substr(pos+1,4) === "/ol>") {
+        pos += 4;
       } else if (string.substr(pos+1,3) === "br>") {
         pos += 3;
       } else if (string.substr(pos+1,8) === 'a href="') {
@@ -165,11 +177,13 @@ app.get('/', function(req, res) {
       else if (!user) {res.render('layout', {pagename:'login'});}
       else {
         var pending;
+        var pendingWriter;
         var tmrw = pool.getCurDate(-1)
         if (user.posts[tmrw]) {
           pending = user.posts[tmrw][0].body;
+          pendingWriter = pending.replace(/<br>/g, '\n');
         }
-        res.render('layout', {pagename:'main', username:user.username, pending:pending});
+        res.render('layout', {pagename:'main', username:user.username, pending:pending, pendingWriter:pendingWriter});
       }
     });
   }
@@ -194,7 +208,7 @@ app.post('/', function(req, res) {
           var text = "";
           user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
         } else {
-          var text = convertEditorInput(req.body.text);
+          var text = convertEditorInput(req.body.text.replace(/\r?\n|\r/g, '<br>'));
           if (user.posts[tmrw]) {                   //edit existing
             user.posts[tmrw][0].body = text;
           } else {                                  //create new
