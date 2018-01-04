@@ -1,33 +1,37 @@
 <div id="inOrUp">
-  <button class="text-button" onclick="show(false)">sign in</button>
+  <button class="text-button" onclick="show(false)">schlaugh in</button>
   <h4>or</h4>
-  <button class="text-button" onclick="show(true)">sign up</button>
+  <button class="text-button" onclick="show(true)">schlaugh up</button>
 </div>
 
 <div id="up" class="removed">
   <arrow onclick="back()">◀</arrow>
   <br><br>
-  <input id="name-input" type="text" placeholder="name">
-  <br>
-  <input id="email-input" type="text" placeholder="email address">
-  <br>
-  <input id="pass-input" type="password" placeholder="password">
-  <br>
-  <input id="pass-input-two" type="password" placeholder="password">
-  <br>
-  <input id="secret-code" type="password" placeholder="secret code">
-  <br><br>
-  <button class="text-button" onclick="sign('up')">sign up</button>
+  <form>
+    <input id="name-input" type="text" placeholder="name">
+    <br>
+    <input id="email-input" type="text" placeholder="email address">
+    <br>
+    <input id="pass-input" type="password" placeholder="password">
+    <br>
+    <input id="pass-input-two" type="password" placeholder="password">
+    <br>
+    <input id="secret-code" type="password" placeholder="secret code">
+    <br><br>
+    <button class="text-button" onclick="sign('up')">sign up</button>
+  </form>
 </div>
 
 <div id="in" class="removed">
   <arrow onclick="back()">◀</arrow>
   <br><br>
-  <input id="in-name-input" type="text" placeholder="name">
-  <br>
-  <input id="in-pass-input" type="password" placeholder="password">
-  <br><br>
-  <button class="text-button" onclick="sign('in')">sign in</button>
+  <form>
+    <input id="in-name-input" type="text" placeholder="name">
+    <br>
+    <input id="in-pass-input" type="password" placeholder="password">
+    <br><br>
+    <button class="text-button" onclick="sign('in')">sign in</button>
+  </form>
 </div>
 
 <h3 id="loginError"></h3>

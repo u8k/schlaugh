@@ -58,7 +58,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
           var post = document.createElement("div");
           post.setAttribute('class', 'post');
           //
-          // temporary simple link while threads are down
+          // temporary simple author link while threads are down
           var author = document.createElement("a");
           author.setAttribute('class', 'meta-text');
           author.setAttribute('href', '/'+json[rando[i]].author);
@@ -132,7 +132,7 @@ var submitPost = function (remove) {  //also handles editing and deleting
         $('pending-post').classList.remove("removed");
         $('write-post-button').innerHTML = "edit post";
       }
-      $('pending-post').innerHTML = json;
+      $('pending-post').innerHTML = pool.checkForCuts(json, 'pending');
       json = json.replace(/<br>/g, '\n');
       $('postEditor').innerHTML = json;
       $('postEditor').value = json;
@@ -218,6 +218,12 @@ var image = function () {
   if (target != null) {
     area.value = y.slice(0, a)+'<img src="'+target+'">'+y.slice(b);
   }
+}
+var insertCut = function () {
+  var area = $('postEditor');
+  var x = getCursorPosition(area).start;
+  area.value = area.value.slice(0, x)+'<cut>'+area.value.slice(x);
+  setCursorPosition(area, x+5, x+5);
 }
 
 /*
@@ -400,3 +406,4 @@ fetchThreads();
 */
 
 changeDay(1);
+$('pending-post').innerHTML = pool.checkForCuts($('pending-post').innerHTML, 'pending');

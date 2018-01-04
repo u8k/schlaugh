@@ -36,4 +36,23 @@
     return year+"-"+mon+"-"+date;
   }
 
+  exports.checkForCuts = function (string, id) {
+    var recurse = function (pos, count) {
+      var next = string.substr(pos).search(/<cut/);
+      if (next === -1) {return string;}
+      else {
+        pos += next;
+        var offset = 5
+        if (string[pos+4] !== '>') {offset = 6;}
+        string = string.substr(0,pos) +
+          "<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("+'"'+
+          "removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+
+          ");'>more</a>"+"<div class='removed' id='"+id+"-"+count+"'>"+
+          string.substr(pos+offset)+"</div>";
+      }
+      return recurse(pos+1, count+1);
+    }
+    return recurse(0,0);
+  }
+
 }(typeof exports === 'undefined' ? this.pool = {} : exports));

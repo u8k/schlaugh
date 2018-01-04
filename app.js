@@ -76,6 +76,8 @@ var findThreadInPending = function (user, threadID) {
 }
 
 var convertEditorInput = function (string) {
+  string = string.replace(/\r?\n|\r/g, '<br>');
+
   var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen) {
     if (aOpen) {string += "</a>"}
     if (bOpen) {string += "</b>"}
@@ -127,6 +129,12 @@ var convertEditorInput = function (string) {
         pos += 4;
       } else if (string.substr(pos+1,3) === "br>") {
         pos += 3;
+      } else if (string.substr(pos+1,4) === "br/>") {
+        pos += 4;
+      } else if (string.substr(pos+1,4) === "cut>") {
+        pos += 4;
+      } else if (string.substr(pos+1,5) === "cut/>") {
+        pos += 5;
       } else if (string.substr(pos+1,8) === 'a href="') {
         aOpen = true;
         pos += 8;
@@ -208,7 +216,7 @@ app.post('/', function(req, res) {
           var text = "";
           user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
         } else {
-          var text = convertEditorInput(req.body.text.replace(/\r?\n|\r/g, '<br>'));
+          var text = convertEditorInput(req.body.text);
           if (user.posts[tmrw]) {                   //edit existing
             user.posts[tmrw][0].body = text;
           } else {                                  //create new
@@ -250,7 +258,7 @@ app.post('/posts', function(req, res) {
       for (var i = 0; i < users.length; i++) {
         if (users[i].posts[req.body.date]) {
           posts.push({
-            body: users[i].posts[req.body.date][0].body,
+            body: pool.checkForCuts(users[i].posts[req.body.date][0].body, users[i]._id+'-'+req.body.date),
             author: users[i].username,
             _id: users[i]._id,
           });
@@ -681,7 +689,7 @@ app.post('/shavingmypiano', function(req, res){
 // view all of a users posts
 app.get('/:username', function(req, res) {
   db.collection('users').findOne({username: req.params.username}
-  , {_id:0, posts:1, postList:1, postListPending:1}
+  , { posts:1, postList:1, postListPending:1}
   //TODO: later make that^ also return "settings" to check post visibility permissions
   , function (err, user) {
     if (err) {throw err; res.send(err);}
@@ -697,7 +705,7 @@ app.get('/:username', function(req, res) {
         for (var i = 0; i < pL.length; i++) {
           if (pL[i].date !== tmrw) {
             posts.push({
-              body: user.posts[pL[i].date][pL[i].num].body,
+              body: pool.checkForCuts(user.posts[pL[i].date][pL[i].num].body, user._id+"-"+pL[i].date+"-"+pL[i].num),
               date: pL[i].date,
             });
           }
@@ -728,10 +736,10 @@ app.get('/:username', function(req, res) {
   });
 });
 
-// view a post
+// view a single post
 app.get('/:username/:num', function(req, res) {
   db.collection('users').findOne({username: req.params.username}
-  , { _id:0, posts:1, postList:1, postListPending:1 }
+  , { posts:1, postList:1, postListPending:1 }
   //TODO: later make that^ also return "settings" to check post visibility permissions
   , function (err, author) {
     if (err) {throw err; res.send(err);}
@@ -740,6 +748,7 @@ app.get('/:username/:num', function(req, res) {
         checkFreshness(author, "post");
         var i = req.params.num;
         if (author.postList[i] && author.postList[i].date !== pool.getCurDate(-1)) {
+          var postBody = pool.checkForCuts(author.posts[author.postList[i].date][author.postList[i].num].body, author._id+"-"+author.postList[i].date+"-"+author.postList[i].num)
           if (req.session.user) {
             db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
             , {_id:0, username:1}
@@ -749,7 +758,7 @@ app.get('/:username/:num', function(req, res) {
                 res.render('layout', {
                   pagename:'post',
                   authorName:req.params.username,
-                  body: author.posts[author.postList[i].date][author.postList[i].num].body,
+                  body: postBody,
                   date: author.postList[i].date,
                   username: user.username,
                 });
@@ -759,7 +768,7 @@ app.get('/:username/:num', function(req, res) {
             res.render('layout', {
               pagename:'post',
               authorName:req.params.username,
-              body: author.posts[author.postList[i].date][author.postList[i].num].body,
+              body: postBody,
               date: author.postList[i].date,
             });
           }
