@@ -78,17 +78,18 @@ var findThreadInPending = function (user, threadID) {
 var convertEditorInput = function (string) {
   string = string.replace(/\r?\n|\r/g, '<br>');
 
-  var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen) {
+  var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, cOpen) {
     if (aOpen) {string += "</a>"}
     if (bOpen) {string += "</b>"}
     if (iOpen) {string += "</i>"}
     if (uOpen) {string += "</u>"}
     if (sOpen) {string += "</s>"}
+    if (cOpen) {string += "</cut>"}
     return string;
   }
-  var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen) {
+  var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, cOpen) {
     var next = string.substr(pos).search(/</);
-    if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen);}
+    if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);}
     else {
       pos += next;
       if (string.substr(pos+1,2) === "b>" && !bOpen) {
@@ -103,6 +104,9 @@ var convertEditorInput = function (string) {
       } else if (string.substr(pos+1,2) === "s>" && !sOpen) {
         sOpen = true;
         pos += 2;
+      } else if (string.substr(pos+1,4) === "cut>" && !cOpen) {
+        cOpen = true;
+        pos += 4;
       } else if (string.substr(pos+1,3) === "li>") {
         pos += 3;
       } else if (string.substr(pos+1,3) === "ul>") {
@@ -121,6 +125,9 @@ var convertEditorInput = function (string) {
       } else if (string.substr(pos+1,3) === "/s>") {
         sOpen = false;
         pos += 3;
+      } else if (string.substr(pos+1,5) === "/cut>") {
+        cOpen = false;
+        pos += 5;
       } else if (string.substr(pos+1,4) === "/li>") {
         pos += 4;
       } else if (string.substr(pos+1,4) === "/ul>") {
@@ -131,17 +138,13 @@ var convertEditorInput = function (string) {
         pos += 3;
       } else if (string.substr(pos+1,4) === "br/>") {
         pos += 4;
-      } else if (string.substr(pos+1,4) === "cut>") {
-        pos += 4;
-      } else if (string.substr(pos+1,5) === "cut/>") {
-        pos += 5;
       } else if (string.substr(pos+1,8) === 'a href="') {
         aOpen = true;
         pos += 8;
         var qPos = string.substr(pos+1).search(/"/);
         if (qPos === -1) {
           string += '">';
-          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen);
+          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);
         }
         else {pos += qPos;}
         if (string[pos+2] !== ">") {
@@ -156,7 +159,7 @@ var convertEditorInput = function (string) {
         var qPos = string.substr(pos+1).search(/"/);
         if (qPos === -1) {
           string += '">';
-          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen);
+          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);
         }
         else {pos += qPos;}
         if (string[pos+2] !== ">") {
@@ -166,7 +169,7 @@ var convertEditorInput = function (string) {
       } else {
         string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
       }
-      return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen);
+      return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);
     }
   }
   return recurse(0, false, false, false, false, false);

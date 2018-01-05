@@ -38,17 +38,27 @@
 
   exports.checkForCuts = function (string, id) {
     var recurse = function (pos, count) {
-      var next = string.substr(pos).search(/<cut/);
+      var next = string.substr(pos).search(/<cut>/);
       if (next === -1) {return string;}
       else {
         pos += next;
-        var offset = 5
-        if (string[pos+4] !== '>') {offset = 6;}
-        string = string.substr(0,pos) +
-          "<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("+'"'+
-          "removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+
-          ");'>more</a>"+"<div class='removed' id='"+id+"-"+count+"'>"+
-          string.substr(pos+offset)+"</div>";
+        var gap = string.substr(pos).search('</cut>');
+        if (gap === -1) { //this is ONLY for backwards compat w/ the one/first day this worked differently
+          var offset = 5;
+          if (string[pos+4] !== '>') {offset = 6;}
+          string = string.substr(0,pos)
+            +"<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("
+            +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'
+            +");'>more</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
+            +string.substr(pos+offset)+"</div>";
+        } else {
+        string = string.substr(0,pos)
+          +"<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("
+          +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+");'>"
+          +string.substr(pos+5, gap-5)
+          +"</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
+          +string.substr(pos+gap)+"</div>";
+        }
       }
       return recurse(pos+1, count+1);
     }

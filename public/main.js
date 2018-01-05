@@ -155,7 +155,7 @@ var getCursorPosition = function (elem) {
 		return {'start': start, 'end': start + rangelen };
 	}
 	// IE >=9 and other browsers
-	else if (elem.selectionStart || elem.selectionStart == '0') {
+	else if (elem.selectionStart || elem.selectionStart === 0) {
 		return {'start': elem.selectionStart, 'end': elem.selectionEnd };
 	} else {
 		return {'start': 0, 'end': 0};
@@ -193,9 +193,9 @@ var hyperlink = function () {
   var b = x.end;
   var y = area.value;
   var linkText = "butts.cash"
-  if (a !== b) {linkText = y.substr(a,b)}
+  if (a !== b) {linkText = y.substr(a,b-a)}
   var target = prompt("target url:", "http://www.butts.cash/");
-  if (target != null) {
+  if (target !== null) {
     linkText = prompt("link text:", linkText);
     if (linkText != null) {
       area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
@@ -215,15 +215,22 @@ var image = function () {
   var b = x.end;
   var y = area.value;
   var target = prompt("image url:", "https://68.media.tumblr.com/708a562ba83f035812b6363558a79947/tumblr_o9h0kjFeB51vymizko1_1280.jpg");
-  if (target != null) {
+  if (target !== null) {
     area.value = y.slice(0, a)+'<img src="'+target+'">'+y.slice(b);
   }
 }
 var insertCut = function () {
   var area = $('postEditor');
-  var x = getCursorPosition(area).start;
-  area.value = area.value.slice(0, x)+'<cut>'+area.value.slice(x);
-  setCursorPosition(area, x+5, x+5);
+  var x = getCursorPosition(area);
+  var a = x.start;
+  var b = x.end;
+  var y = area.value;
+  var linkText = "more"
+  if (a !== b) {linkText = y.substr(a,b-a)}
+  linkText = prompt("text:", linkText);
+  if (linkText != null) {
+      area.value = y.slice(0, a)+'<cut>'+linkText+'</cut>'+y.slice(b);
+  }
 }
 
 /*
