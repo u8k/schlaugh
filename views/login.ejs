@@ -7,35 +7,31 @@
 <div id="up" class="removed">
   <arrow onclick="back()">◀</arrow>
   <br><br>
-  <form>
-    <input id="name-input" type="text" placeholder="name">
+  <form action="javascript:void(0);" onsubmit="return sign('up')">
+    <input id="name-input" type="text" name="username" placeholder="name">
     <br>
-    <input id="email-input" type="text" placeholder="email address">
+    <input id="email-input" type="text" name="email" placeholder="email address">
     <br>
-    <input id="pass-input" type="password" placeholder="password">
+    <input id="pass-input" type="password" name="password" placeholder="password">
     <br>
-    <input id="pass-input-two" type="password" placeholder="password">
+    <input id="pass-input-two" type="password" name="password" placeholder="password">
     <br>
-    <input id="secret-code" type="password" placeholder="secret code">
+    <input id="secret-code" type="password" name="secretCode" placeholder="secret code">
     <br><br>
-    <button class="text-button" onclick="sign('up')">sign up</button>
+    <input type="submit" value="schlaugh up">
   </form>
 </div>
 
 <div id="in" class="removed">
   <arrow onclick="back()">◀</arrow>
   <br><br>
-  <!--
-  <form>
-  -->
-    <input id="in-name-input" type="text" placeholder="name">
+  <form action="javascript:void(0);" onsubmit="return sign('in')">
+    <input id="in-name-input" type="text" name="username" placeholder="username">
     <br>
-    <input id="in-pass-input" type="password" placeholder="password">
+    <input id="in-pass-input" type="password" name="password" placeholder="password">
     <br><br>
-    <button class="text-button" onclick="sign('in')">sign in</button>
-  <!--  
+    <input type="submit" value="schlaugh in">
   </form>
-  -->
 </div>
 
 <h3 id="loginError"></h3>

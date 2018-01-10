@@ -184,7 +184,7 @@ var styleText = function (s) {
   var b = x.end + 3;
   var y = area.value;
   area.value = y.slice(0, a)+'<'+s+'>'+y.slice(a, b-3)+'</'+s+'>'+y.slice(b-3);
-  setCursorPosition(area, a+3, b);
+  setCursorPosition(area, a+2+s.length, b-1+s.length);
 }
 var hyperlink = function () {
   var area = $('postEditor');
@@ -201,12 +201,6 @@ var hyperlink = function () {
       area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
     }
   }
-}
-var linebreak = function () {
-  var area = $('postEditor');
-  var x = getCursorPosition(area).start;
-  area.value = area.value.slice(0, x)+'<br>'+area.value.slice(x);
-  setCursorPosition(area, x+4, x+4);
 }
 var image = function () {
   var area = $('postEditor');

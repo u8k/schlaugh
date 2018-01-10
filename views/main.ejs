@@ -21,7 +21,7 @@
         <text id="pending-status">no pending post</text>
         <br>
         <div id="pending-post" class="post removed"></div>
-        <button type="button" id='write-post-button' onclick="showWriter('post')" >new post</button>
+        <button type="button" id='write-post-button' onclick="showWriter('post')">new post</button>
     <% } %>
   </div>
 
@@ -33,12 +33,12 @@
       <button class="" onclick="styleText('i')"><i>I</i></button>
       <button class="" onclick="styleText('u')"><u>U</u></button>
       <button class="" onclick="styleText('s')"><s>S</s></button>
+      <button class="" onclick="styleText('li')">&lt;li&gt;</button>
+      <button class="" onclick="styleText('ul')">&lt;ul&gt;</button>
+      <button class="" onclick="styleText('ol')">&lt;ol&gt;</button>
       <button class="" onclick="hyperlink()">link</button>
       <button class="" onclick="image()">img</button>
       <button class="" onclick="insertCut()">cut</button>
-      <!--
-      <button class="" onclick="linebreak()">&lt;br&gt;</button>
-      -->
     </div>
     <textarea id="postEditor" class="editor"><% if (pending) { %><%- pendingWriter %><% } %></textarea>
       <!-- that^ has to be all on one line like that...*grumbles* -->

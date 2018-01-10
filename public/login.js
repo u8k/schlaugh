@@ -29,12 +29,12 @@ var sign = function(inOrUp) {
   var x = pool.userNameValidate(data.username);
   if (x) {
     $('loginError').innerHTML = x;
-    return;
+    return false;
   }
   var y = pool.passwordValidate(data.password);
   if (y) {
     $('loginError').innerHTML = y;
-    return;
+    return false;
   }
   if (inOrUp === 'in') {
     var url = 'login';
@@ -44,7 +44,7 @@ var sign = function(inOrUp) {
     data.secretCode = $('secret-code').value;
     if (data.password !== $('pass-input-two').value) {
       $('loginError').innerHTML = 'passwords are not the same';
-      return;
+      return false;
     }
   }
   ajaxCall(url, 'POST', data, function(json) {
@@ -54,4 +54,5 @@ var sign = function(inOrUp) {
       $('loginError').innerHTML = json;
     }
   });
+  return false;
 }
