@@ -197,7 +197,11 @@ var hyperlink = function () {
   var target = prompt("target url:", "http://www.butts.cash/");
   if (target !== null) {
     linkText = prompt("link text:", linkText);
-    if (linkText != null) {
+    if (linkText !== null) {
+      if (target.substr(0,4) !== "http") {
+        target = "http://" + target;
+        console.log(target);
+      }
       area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
     }
   }
