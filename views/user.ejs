@@ -1,10 +1,18 @@
 <h2><%= authorName %></h2>
 
+<% if (typeof username !== "undefined" && username === authorName) { %>
+  <div class="">
+    baby it's you
+  </div>
+<% } %>
+
 <div id="posts">
-  <% for(var i=0; i < posts.length; i++) { %>
+  <% for(var i=posts.length-1; i > -1; i--) { %>
     <div class="post">
+      <div class="meta-text">
+        <a href="<%= authorName + "/" + i %>"><%= posts[i].date %></a>
+      </div>
       <%- posts[i].body %>
-      <p><%= posts[i].date %></p>
     </div>
   <% } %>
   <% if (posts.length === 0) { %>

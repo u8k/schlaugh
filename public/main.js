@@ -59,8 +59,9 @@ var changeDay = function (dir) { // load and display all posts for a given day
           post.setAttribute('class', 'post');
           //
           // temporary simple author link while threads are down
+          var authorBox = document.createElement("div");
+          authorBox.setAttribute('class', 'meta-text');
           var author = document.createElement("a");
-          author.setAttribute('class', 'meta-text');
           author.setAttribute('href', '/'+json[rando[i]].author);
           author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
           /* thread stuff that we'll put back later
@@ -85,7 +86,8 @@ var changeDay = function (dir) { // load and display all posts for a given day
           })(rando[i]);
           */
 
-          post.appendChild(author);
+          authorBox.appendChild(author);
+          post.appendChild(authorBox);
           var text = document.createElement("text");
           text.setAttribute('class', 'body-text');
           text.innerHTML = json[rando[i]].body;
@@ -112,7 +114,10 @@ var hideWriter = function (kind) {
 }
 
 var submitPost = function (remove) {  //also handles editing and deleting
-  if (remove) {var text = null;}
+  if (remove) {
+    if (!confirm("you sure you want me should delete it?")) {return;}
+    var text = null;
+  }
   else {var text = $('postEditor').value;}
   if (text === "") {
     hideWriter('post');
