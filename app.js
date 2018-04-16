@@ -202,7 +202,7 @@ app.get('/', function(req, res) {
 
 // new/edit/delete post
 app.post('/', function(req, res) {
-  if (!req.session.user) {res.send('error, not logged in');}
+  if (!req.session.user) {res.send('error');}
   else {
     var userID = ObjectId(req.session.user._id)
     db.collection('users').findOne({_id: userID}

@@ -126,6 +126,10 @@ var submitPost = function (remove) {  //also handles editing and deleting
   var data = {text: text, remove:remove }
   ajaxCall("/", 'POST', data, function(json) {
     if (json || json === "") {
+      if (json === "error") {
+        alert("we've encountered an unexpected complication while submitting your post, your post might not be saved, please copy all of your text to be safe, refresh the page and try again");
+        return;
+      }
       if (remove) {
         $('pending-status').innerHTML = "no pending post";
         $('delete-pending-post').classList.add("removed");
