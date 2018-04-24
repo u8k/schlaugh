@@ -77,7 +77,7 @@ clicky, .clicky {
   margin: auto;
 }
 
-.post, .message {
+.post, .message, #account-settings {
   width: 75%;
   margin: auto;
   margin-top: 10px;
@@ -85,8 +85,10 @@ clicky, .clicky {
   border-radius: 4px;
   padding: 15px;
   text-align: left;
+  position: relative;
 }
 .message {width: 85%;}
+#account-settings {text-align: center;}
 
 img {
   max-width: 100%;
@@ -98,11 +100,12 @@ img {
 #pending-message {width: 65%}
 
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .post {width: 98%;}
+  .post, #account-settings {width: 98%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
   #post-writer{width: 95%;}
   #message-writer{width: 85%;}
+  .author-pic {display: none;}
 }
 
 .outgoing {margin-right: 0}
@@ -113,6 +116,18 @@ img {
   text-decoration: underline;
   margin-bottom: 10px;
   display: block;
+}
+
+.author-pic {
+  width: 50px;
+  position: absolute;
+  left: -55px;
+  top: 10px;
+  border-radius: 4px;
+}
+
+#user-pic {
+  width: 50px;
 }
 
 .highlight {
@@ -129,7 +144,7 @@ body, h1 {
   color: #D8D8D8;
   background-color: #324144;
 }
-.post, .message, .editor {
+.post, .message, .editor, #account-settings {
   color: #D8D8D8;
   background-color: #32363F;
 }

@@ -6,6 +6,7 @@ var bcrypt = require('bcryptjs');
 var mongodb = require('mongodb');
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
+var request = require('request');
 var pool = require('./public/pool.js');
 
 //connect and check mongoDB
@@ -159,9 +160,27 @@ var convertEditorInput = function (string) {
         var qPos = string.substr(pos+1).search(/"/);
         if (qPos === -1) {
           string += '">';
+          //
+          //
+          // IMAGE CHECK HERE TOO!!!!!!
+          //
+          //
           return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);
         }
-        else {pos += qPos;}
+        else {
+          //
+          /*
+          console.log(string.substr(pos+1,qPos));
+
+          request.head(string.substr(pos+1,qPos), function (error, response) {
+            console.log('error:', error); // Print the error if one occurred
+            console.log('statusCode:', response && response.statusCode);
+            console.log(response.headers['content-type']);
+            console.log(response.headers['content-length']);
+          });
+          */
+          //
+          pos += qPos;}
         if (string[pos+2] !== ">") {
           string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
         }
@@ -182,7 +201,7 @@ app.get('/', function(req, res) {
   if (!req.session.user) {res.render('layout', {pagename:'login'});}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, posts:1}
+    , {_id:0, username:1, posts:1, iconURI:1}
     , function (err, user) {
       if (err) {throw err;}
       else if (!user) {res.render('layout', {pagename:'login'});}
@@ -194,7 +213,9 @@ app.get('/', function(req, res) {
           pending = user.posts[tmrw][0].body;
           pendingWriter = pending.replace(/<br>/g, '\n');
         }
-        res.render('layout', {pagename:'main', username:user.username, pending:pending, pendingWriter:pendingWriter});
+        var userPic = user.iconURI
+        if (typeof userPic !== 'string') {userPic = "";}
+        res.render('layout', {pagename:'main', username:user.username, pending:pending, pendingWriter:pendingWriter, userPic:userPic});
       }
     });
   }
@@ -252,7 +273,7 @@ app.post('/posts', function(req, res) {
     return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
   }
   //later make this▼ only check "following" instead of all users
-  db.collection('users').find({},{ posts:1, username:1 }).toArray(function(err, users) {
+  db.collection('users').find({},{ posts:1, username:1, iconURI:1}).toArray(function(err, users) {
     //can i make that^ only return the post for the date i want instead of all posts?
     //TODO: later make that^ also return "settings" and then check post visibility permissions
     if (err) {throw err;}
@@ -260,9 +281,14 @@ app.post('/posts', function(req, res) {
       var posts = [];
       for (var i = 0; i < users.length; i++) {
         if (users[i].posts[req.body.date]) {
+          var authorPic = users[i].iconURI
+          if (typeof authorPic !== 'string') {
+            authorPic = "";
+          }
           posts.push({
             body: pool.checkForCuts(users[i].posts[req.body.date][0].body, users[i]._id+'-'+req.body.date),
             author: users[i].username,
+            authorPic: authorPic,
             _id: users[i]._id,
           });
         }
@@ -518,6 +544,46 @@ app.post('/inbox', function(req, res) {
 })
 */
 
+// change user picture URL
+app.post('/changePic', function(req, res) {
+  if (!req.session.user) {res.send('you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please');}
+
+  var updateUrl = function (url) {
+    db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+    , {_id:0, iconURI:1}
+    , function (err, user) {
+      if (err) {throw err;}
+      else {
+        user.iconURI = url;
+        db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
+          {$set: user },
+          function(err, user) {
+            if (err) {throw err;}
+            else {res.send("success");}
+          }
+        );
+      }
+    });
+  }
+
+  var url = req.body.url;
+  //validate URL
+  if (url === "") {updateUrl(url);}
+  else {
+    request.head(url, function (error, resp) {
+      if (error || resp.statusCode !== 200) {
+        return res.send('your url seems to be invalid');
+      } else if (resp.headers['content-type'].substr(0,5) !== "image") {
+        return res.send('i have seen an image\n\nand that is no image');
+      } else if (resp.headers['content-length'] > 10485760) {
+        return res.send("your image is "+resp.headers['content-length']+" bytes\nwhich is "+(resp.headers['content-length'] - 10485760)+" bytes too many\n\nsorry pal");
+      } else {
+        updateUrl(url);
+      }
+    });
+  }
+});
+
 // new user sign up
 app.post('/register', function(req, res){
     // !!!!!!!! SANITIZE THESE INPUTS!!!!!!!!!!!!!!!!!!!!!
@@ -564,11 +630,7 @@ app.post('/register', function(req, res){
               newText: "",
               updatedOn: today,
             },
-            iconURI: {
-              oldLink: "",
-              newLink: "",
-              updatedOn: today,
-            },
+            iconURI: "",
             settings: {},
           }, {}, function (err, result) {
             if (err) {throw err;}
@@ -715,15 +777,18 @@ app.get('/:username', function(req, res) {
         }
         if (req.session.user) {
           db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-          , {_id:0, username:1}
+          , {_id:0, username:1, iconURI:1}
           , function (err, user) {
             if (err) {throw err;}
             else {
+              var userPic = user.iconURI
+              if (typeof userPic !== 'string') {userPic = "";}
               res.render('layout', {
                 pagename:'user',
                 authorName:req.params.username,
                 posts:posts,
                 username: user.username,
+                userPic: userPic
               });
             }
           });
@@ -754,16 +819,19 @@ app.get('/:username/:num', function(req, res) {
           var postBody = pool.checkForCuts(author.posts[author.postList[i].date][author.postList[i].num].body, author._id+"-"+author.postList[i].date+"-"+author.postList[i].num)
           if (req.session.user) {
             db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-            , {_id:0, username:1}
+            , {_id:0, username:1, iconURI:1}
             , function (err, user) {
               if (err) {throw err;}
               else {
+                var userPic = user.iconURI
+                if (typeof userPic !== 'string') {userPic = "";}
                 res.render('layout', {
                   pagename:'post',
                   authorName:req.params.username,
                   body: postBody,
                   date: author.postList[i].date,
                   username: user.username,
+                  userPic: userPic
                 });
               }
             });

@@ -15,15 +15,38 @@
 
       <% if (typeof username !== "undefined") { %>
         <nav class="user-info">
-          <ul>
-            <li id="user-name" onclick="accountSettings()">
-              <%= username %>
-            </li>
-            <li><text onclick="signOut()">schlaugh out</text></li>
-          </ul>
+          <a id="user-name" class="clicky" onclick="accountSettings(true)">
+            <%= username %>
+          </a>
         </nav>
       <% } %>
     </header>
+
+    <% if (typeof username !== "undefined") { %>
+      <div id="account-settings" class="removed">
+        <h2>account settings</h2>
+        <% if ( userPic !== "") { %>
+          <img id="user-pic" src= <%= userPic %> >
+        <% } else { %>
+          <img id="user-pic" class="removed" src="">
+        <% } %>
+        <br>
+        <label for="pic-url">picURL</label><br>
+        <input id="pic-url" type="text" name="pic-url" value=""><br>
+        <button onclick="submitPic()">submit</button>
+        <% if ( userPic !== "") { %>
+          <button onclick="submitPic(true)">remove</button>
+        <% } %>
+        <br><br><br>
+        <input name="x" type="radio"> magic<br>
+        <input name="x" type="radio"> more magic<br>
+        <br><br>
+        <a class="clicky" onclick="signOut()">schlaugh out</a>
+        <br><br><br>
+        <button onclick="accountSettings(false)" >x</button>
+        <br><br><br>
+      </div>
+    <% } %>
 
     <main>
       <%- include(pagename) %>

@@ -58,6 +58,12 @@ var changeDay = function (dir) { // load and display all posts for a given day
           var post = document.createElement("div");
           post.setAttribute('class', 'post');
           //
+          if (json[rando[i]].authorPic !== "") {
+            var authorPic = document.createElement("img");
+            authorPic.setAttribute('src', json[rando[i]].authorPic);
+            authorPic.setAttribute('class', 'author-pic');
+            post.appendChild(authorPic);
+          }
           // temporary simple author link while threads are down
           var authorBox = document.createElement("div");
           authorBox.setAttribute('class', 'meta-text');

@@ -2,8 +2,30 @@
 
 var $ = function (id) {return document.getElementById(id);}
 
-var accountSettings = function () {
-  console.log("burp");
+var accountSettings = function (x) {
+  if (x) {
+    $('account-settings').classList.remove('removed');
+    $('user-name').onclick = function(){accountSettings(false);}
+  }
+  else {
+    $('account-settings').classList.add('removed');
+    $('user-name').onclick = function(){accountSettings(true);}
+  }
+}
+
+var submitPic = function (remove) {
+  if (remove) {
+    $('pic-url').value = "";
+  }
+  var picURL = $('pic-url').value;
+  ajaxCall('/changePic', 'POST', {url:picURL}, function(json) {
+    if (json === 'success') {
+      $("user-pic").setAttribute('src', picURL);
+      $("user-pic").classList.remove('removed');
+    } else {
+      alert(json);
+    }
+  });
 }
 
 var signOut = function() {
