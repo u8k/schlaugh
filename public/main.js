@@ -59,10 +59,13 @@ var changeDay = function (dir) { // load and display all posts for a given day
           post.setAttribute('class', 'post');
           //
           if (json[rando[i]].authorPic !== "") {
+            var authorPicBox = document.createElement("a");
+            authorPicBox.setAttribute('href', '/'+json[rando[i]].author);
+            post.appendChild(authorPicBox);
             var authorPic = document.createElement("img");
             authorPic.setAttribute('src', json[rando[i]].authorPic);
             authorPic.setAttribute('class', 'author-pic');
-            post.appendChild(authorPic);
+            authorPicBox.appendChild(authorPic);
           }
           // temporary simple author link while threads are down
           var authorBox = document.createElement("div");
@@ -129,33 +132,29 @@ var submitPost = function (remove) {  //also handles editing and deleting
     hideWriter('post');
     return;
     }
-  var data = {text: text, remove:remove }
+  var data = {text:text, remove:remove}
   ajaxCall("/", 'POST', data, function(json) {
-    if (json || json === "") {
-      if (json === "error") {
-        alert("we've encountered an unexpected complication while submitting your post, your post might not be saved, please copy all of your text to be safe, refresh the page and try again");
-        return;
-      }
-      if (remove) {
-        $('pending-status').innerHTML = "no pending post";
-        $('delete-pending-post').classList.add("removed");
-        $('pending-post').classList.add("removed");
-        $('write-post-button').innerHTML = "new post";
-      } else {
-        $('pending-status').innerHTML = "your pending post for tomorrow:";
-        $('delete-pending-post').classList.remove("removed");
-        $('pending-post').classList.remove("removed");
-        $('write-post-button').innerHTML = "edit post";
-      }
-      $('pending-post').innerHTML = pool.checkForCuts(json, 'pending');
-      json = json.replace(/<br>/g, '\n');
-      $('postEditor').innerHTML = json;
-      $('postEditor').value = json;
-      hideWriter('post');
-    } else {
-      console.log('error submitting post');
-      //$('loginError').innerHTML = json;
+    json = JSON.parse(json)
+    if (!json[0]) {
+      alert(json[1]);
+      return;
     }
+    if (remove) {
+      $('pending-status').innerHTML = "no pending post";
+      $('delete-pending-post').classList.add("removed");
+      $('pending-post').classList.add("removed");
+      $('write-post-button').innerHTML = "new post";
+    } else {
+      $('pending-status').innerHTML = "your pending post for tomorrow:";
+      $('delete-pending-post').classList.remove("removed");
+      $('pending-post').classList.remove("removed");
+      $('write-post-button').innerHTML = "edit post";
+    }
+    $('pending-post').innerHTML = pool.checkForCuts(json[1], 'pending');
+    var x = json[1].replace(/<br>/g, '\n');
+    $('postEditor').innerHTML = x;
+    $('postEditor').value = x;
+    hideWriter('post');
   });
 }
 

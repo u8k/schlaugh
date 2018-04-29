@@ -1,10 +1,17 @@
 <h2><%= authorName %></h2>
+<% if ( authorPic !== "") { %>
+  <img id="author-pic" src= <%= authorPic %> >
+<% } else { %>
+  <img id="author-pic" class="removed" src="">
+<% } %>
 
+<!--
 <% if (typeof username !== "undefined" && username === authorName) { %>
   <div class="">
     baby it's you
   </div>
 <% } %>
+-->
 
 <div id="posts">
   <% for(var i=posts.length-1; i > -1; i--) { %>

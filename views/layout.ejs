@@ -32,10 +32,16 @@
         <% } %>
         <br>
         <label for="pic-url">picURL</label><br>
-        <input id="pic-url" type="text" name="pic-url" value=""><br>
+        <% if ( userPic !== "") { %>
+          <input id="pic-url" type="text" name="pic-url" value=<%= userPic %>><br>
+        <% } else { %>
+          <input id="pic-url" type="text" name="pic-url" value=""><br>
+        <% } %>
         <button onclick="submitPic()">submit</button>
         <% if ( userPic !== "") { %>
           <button onclick="submitPic(true)">remove</button>
+        <% } else { %>
+          <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
         <% } %>
         <br><br><br>
         <input name="x" type="radio"> magic<br>

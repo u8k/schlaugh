@@ -1,4 +1,9 @@
 <h2> <a href="/<%= authorName %>"><%= authorName %></a> </h2>
+<% if ( authorPic !== "") { %>
+  <img id="author-pic" src= <%= authorPic %> >
+<% } else { %>
+  <img id="author-pic" class="removed" src="">
+<% } %>
 
 <div class="post">
   <div class="meta-text">

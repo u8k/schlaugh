@@ -1,4 +1,8 @@
-* {box-sizing: border-box;}
+* {
+  box-sizing: border-box;
+}
+
+*:focus {outline:0;}
 
 body {
   padding: 1.5vmin;
@@ -14,6 +18,15 @@ h1 {
   display: block;
   font-size: 1.8em;
   margin: 0;
+}
+
+h2 {
+  margin-bottom: 10px;
+}
+
+#author-pic {
+  margin-bottom: 15px;
+  width: 80px;
 }
 
 nav {
@@ -140,7 +153,7 @@ a, a.visited {
   text-decoration: none;
 }
 
-body, h1 {
+body, h1, #pic-url {
   color: #D8D8D8;
   background-color: #324144;
 }

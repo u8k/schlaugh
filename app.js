@@ -40,6 +40,7 @@ app.use(session({
   maxAge: 7 * 24 * 60 * 60 * 1000 // IT'S BEEN...(one week)
 }))
 
+
 //*******//HELPTER FUNCTIONS//*******//
 
 var checkFreshness = function (user, type) {
@@ -79,18 +80,18 @@ var findThreadInPending = function (user, threadID) {
 var convertEditorInput = function (string) {
   string = string.replace(/\r?\n|\r/g, '<br>');
 
-  var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, cOpen) {
+  var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList) {
     if (aOpen) {string += "</a>"}
     if (bOpen) {string += "</b>"}
     if (iOpen) {string += "</i>"}
     if (uOpen) {string += "</u>"}
     if (sOpen) {string += "</s>"}
     if (cOpen) {string += "</cut>"}
-    return string;
+    return [imgList, string];
   }
-  var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, cOpen) {
+  var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList) {
     var next = string.substr(pos).search(/</);
-    if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);}
+    if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList);}
     else {
       pos += next;
       if (string.substr(pos+1,2) === "b>" && !bOpen) {
@@ -145,7 +146,7 @@ var convertEditorInput = function (string) {
         var qPos = string.substr(pos+1).search(/"/);
         if (qPos === -1) {
           string += '">';
-          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);
+          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList);
         }
         else {pos += qPos;}
         if (string[pos+2] !== ">") {
@@ -159,40 +160,37 @@ var convertEditorInput = function (string) {
         pos += 9;
         var qPos = string.substr(pos+1).search(/"/);
         if (qPos === -1) {
+          imgList.push(string.substr(pos+1))
           string += '">';
-          //
-          //
-          // IMAGE CHECK HERE TOO!!!!!!
-          //
-          //
-          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);
+          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList);
         }
         else {
-          //
-          /*
-          console.log(string.substr(pos+1,qPos));
-
-          request.head(string.substr(pos+1,qPos), function (error, response) {
-            console.log('error:', error); // Print the error if one occurred
-            console.log('statusCode:', response && response.statusCode);
-            console.log(response.headers['content-type']);
-            console.log(response.headers['content-length']);
-          });
-          */
-          //
-          pos += qPos;}
+          imgList.push(string.substr(pos+1,qPos))
+          pos += qPos;
+        }
         if (string[pos+2] !== ">") {
           string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
         }
         else {pos += 1;}
-      } else {
+      } else {  // the found tag is not on the sanctioned list, so replace it
         string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
       }
-      return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, cOpen);
+      return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList);
     }
   }
-  return recurse(0, false, false, false, false, false);
+  return recurse(0, false, false, false, false, false, false, []);
 }
+
+var writeToDB = function (userID, data, callback) {
+  db.collection('users').updateOne({_id: userID},
+    {$set: data},
+    function(err, user) {
+      if (err) {throw err;}
+      else {callback()}
+    }
+  );
+}
+
 
 //*******//ROUTING//*******//
 
@@ -223,48 +221,75 @@ app.get('/', function(req, res) {
 
 // new/edit/delete post
 app.post('/', function(req, res) {
-  if (!req.session.user) {res.send('error');}
-  else {
-    var userID = ObjectId(req.session.user._id)
-    db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1, postList:1, postListPending:1}
-    , function (err, user) {
-      if (err) {throw err;}
-      else {
-          //TODO SANITIZE!?!!!!!!!!
+  if (!req.session.user) {return res.send([false, "we've encountered an unexpected complication while submitting your post, your post might not be saved, please copy all of your text to be safe, refresh the page and try again"]);}
+  var userID = ObjectId(req.session.user._id)
+  db.collection('users').findOne({_id: userID}
+  , {_id:0, posts:1, postList:1, postListPending:1}
+  , function (err, user) {
+    if (err) {throw err;}
+    else {
+        //TODO SANITIZE!?!?!?!?!?!?!?!?!
 
-        checkFreshness(user, "post");
-        var tmrw = pool.getCurDate(-1);
-        if (req.body.remove) {                       //remove
-          delete user.posts[tmrw];
-          var text = "";
-          user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
-        } else {
-          var text = convertEditorInput(req.body.text);
-          if (user.posts[tmrw]) {                   //edit existing
-            user.posts[tmrw][0].body = text;
-          } else {                                  //create new
-            user.posts[tmrw] = [{
-              body: text,
-              tags: {}
-            }];
-            var num = user.posts[tmrw].length-1;
-            user.postListPending.push({
-              date: tmrw,
-              num: num
-            });
-          }
-        }
-        db.collection('users').updateOne({_id: userID},
-          {$set: user },
-          function(err, user) {
-            if (err) {throw err;}
-            else {res.send(text);}
-          }
-        );
+      checkFreshness(user, "post");
+      var tmrw = pool.getCurDate(-1);
+      if (req.body.remove) {                     //remove pending post, do not replace
+        delete user.posts[tmrw];
+        var text = "";
+        user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
+        return writeToDB(userID, user, function () {res.send([true, text]);});
       }
-    });
-  }
+
+      var updateUserPost = function () {
+        if (user.posts[tmrw]) {                   //edit existing
+          user.posts[tmrw][0].body = text;
+        } else {                                  //create new
+          user.posts[tmrw] = [{
+            body: text,
+            tags: {}
+          }];
+          var num = user.posts[tmrw].length-1;
+          user.postListPending.push({
+            date: tmrw,
+            num: num
+          });
+        }
+      }
+
+      var validate = convertEditorInput(req.body.text);
+      var text = validate[1];
+      if (validate[0].length !== 0) {               // does the post contain images?
+        var count = validate[0].length;
+        var bitCount = 104857600;   // 100mb(-ish...maybe)
+        for (var i = 0; i < validate[0].length; i++) {
+          (function (index) {
+            request.head(validate[0][i], function (error, resp) {
+              if (count > 0) {
+                count -=1;
+                if (error || resp.statusCode !== 200) {
+                  count = 0;
+                  return res.send([false, 'the url for image '+(index+1)+' seems to be invalid\n\nyour post has not been saved']);
+                } else if (resp.headers['content-type'].substr(0,5) !== "image") {
+                  count = 0;
+                  return res.send([false, 'the url for image '+(index+1)+' is not a url for an image\n\nyour post has not been saved']);
+                } else {bitCount -= resp.headers['content-length'];}
+                if (count === 0) {
+                  if (bitCount < 0) {
+                    return res.send([false, "your images exceed the byte limit by "+(-bitCount)+" bytes\n\nyour post has not been saved"]);
+                  } else {
+                    updateUserPost();
+                    return writeToDB(userID, user, function () {res.send([true, text]);});
+                  }
+                }
+              }
+            });
+          })(i);
+        }
+      } else {    // no images to check, so go ahead and write the post
+        updateUserPost();
+        return writeToDB(userID, user, function () {res.send([true, text]);});
+      }
+    }
+  });
 });
 
 // get posts-(should maybe be a "GET"? ehhhh(following list))
@@ -546,26 +571,19 @@ app.post('/inbox', function(req, res) {
 
 // change user picture URL
 app.post('/changePic', function(req, res) {
-  if (!req.session.user) {res.send('you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please');}
-
+  if (!req.session.user) {return res.send('you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please');}
+  var userID = ObjectId(req.session.user._id)
   var updateUrl = function (url) {
-    db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+    db.collection('users').findOne({_id: userID}
     , {_id:0, iconURI:1}
     , function (err, user) {
       if (err) {throw err;}
       else {
         user.iconURI = url;
-        db.collection('users').updateOne({_id: ObjectId(req.session.user._id)},
-          {$set: user },
-          function(err, user) {
-            if (err) {throw err;}
-            else {res.send("success");}
-          }
-        );
+        writeToDB(userID, user, function () {res.send("success");})
       }
     });
   }
-
   var url = req.body.url;
   //validate URL
   if (url === "") {updateUrl(url);}
@@ -651,13 +669,7 @@ app.post('/register', function(req, res){
                           req.session.user = { _id: newID };
                           // remove the code from the admin stash so it can't be used again
                           delete admin.codes[secretCode];
-                          db.collection('users').updateOne({_id: admin._id},
-                            {$set: admin },
-                            function(err, user) {
-                              if (err) {throw err;}
-                              else {return res.send("success");}
-                            }
-                          );
+                          writeToDB(admin._id, admin, function () {res.send("success");});
                         }
                       }
                     );
@@ -754,27 +766,28 @@ app.post('/shavingmypiano', function(req, res){
 // view all of a users posts
 app.get('/:username', function(req, res) {
   db.collection('users').findOne({username: req.params.username}
-  , { posts:1, postList:1, postListPending:1}
+  , { posts:1, postList:1, postListPending:1, iconURI:1}
   //TODO: later make that^ also return "settings" to check post visibility permissions
-  , function (err, user) {
+  , function (err, author) {
     if (err) {throw err; res.send(err);}
     else {
-      if (!user) {
+      if (!author) {
         res.send('but there was nobody home');
       } else {
-        checkFreshness(user, "post");
+        checkFreshness(author, "post");
         var posts = [];
-        var pL = user.postList;
+        var pL = author.postList;
         var tmrw = pool.getCurDate(-1);
-        // reverse the array to order posts by most recent?
         for (var i = 0; i < pL.length; i++) {
           if (pL[i].date !== tmrw) {
             posts.push({
-              body: pool.checkForCuts(user.posts[pL[i].date][pL[i].num].body, user._id+"-"+pL[i].date+"-"+pL[i].num),
+              body: pool.checkForCuts(author.posts[pL[i].date][pL[i].num].body, author._id+"-"+pL[i].date+"-"+pL[i].num),
               date: pL[i].date,
             });
           }
         }
+        var authorPic = author.iconURI;
+        if (typeof authorPic !== 'string') {authorPic = "";}
         if (req.session.user) {
           db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
           , {_id:0, username:1, iconURI:1}
@@ -787,6 +800,7 @@ app.get('/:username', function(req, res) {
                 pagename:'user',
                 authorName:req.params.username,
                 posts:posts,
+                authorPic: authorPic,
                 username: user.username,
                 userPic: userPic
               });
@@ -797,6 +811,7 @@ app.get('/:username', function(req, res) {
             pagename:'user',
             authorName:req.params.username,
             posts:posts,
+            authorPic: authorPic
           });
         }
       }
@@ -807,7 +822,7 @@ app.get('/:username', function(req, res) {
 // view a single post
 app.get('/:username/:num', function(req, res) {
   db.collection('users').findOne({username: req.params.username}
-  , { posts:1, postList:1, postListPending:1 }
+  , { posts:1, postList:1, postListPending:1, iconURI:1}
   //TODO: later make that^ also return "settings" to check post visibility permissions
   , function (err, author) {
     if (err) {throw err; res.send(err);}
@@ -817,19 +832,22 @@ app.get('/:username/:num', function(req, res) {
         var i = req.params.num;
         if (author.postList[i] && author.postList[i].date !== pool.getCurDate(-1)) {
           var postBody = pool.checkForCuts(author.posts[author.postList[i].date][author.postList[i].num].body, author._id+"-"+author.postList[i].date+"-"+author.postList[i].num)
+          var authorPic = author.iconURI;
+          if (typeof authorPic !== 'string') {authorPic = "";}
           if (req.session.user) {
             db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
             , {_id:0, username:1, iconURI:1}
             , function (err, user) {
               if (err) {throw err;}
               else {
-                var userPic = user.iconURI
+                var userPic = user.iconURI;
                 if (typeof userPic !== 'string') {userPic = "";}
                 res.render('layout', {
                   pagename:'post',
                   authorName:req.params.username,
                   body: postBody,
                   date: author.postList[i].date,
+                  authorPic: authorPic,
                   username: user.username,
                   userPic: userPic
                 });
@@ -841,6 +859,7 @@ app.get('/:username/:num', function(req, res) {
               authorName:req.params.username,
               body: postBody,
               date: author.postList[i].date,
+              authorPic: authorPic,
             });
           }
         } else {res.send("not even a single thing");}

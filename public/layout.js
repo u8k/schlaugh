@@ -16,12 +16,14 @@ var accountSettings = function (x) {
 var submitPic = function (remove) {
   if (remove) {
     $('pic-url').value = "";
+    $("remove-pic").classList.add('removed');
   }
   var picURL = $('pic-url').value;
   ajaxCall('/changePic', 'POST', {url:picURL}, function(json) {
     if (json === 'success') {
       $("user-pic").setAttribute('src', picURL);
       $("user-pic").classList.remove('removed');
+      $("remove-pic").classList.remove('removed');
     } else {
       alert(json);
     }
