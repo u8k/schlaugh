@@ -184,5 +184,11 @@ arrow {
   margin-top: 5vh;
 }
 
+l {text-align: left;}
+c {text-align: center;}
+r {text-align: right;}
+l, c, r {display: block;}
+
+
 .hidden {visibility: hidden;}
 .removed {display: none;}

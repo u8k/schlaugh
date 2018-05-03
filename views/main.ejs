@@ -36,6 +36,9 @@
       <button class="" onclick="styleText('li')">&lt;li&gt;</button>
       <button class="" onclick="styleText('ul')">&lt;ul&gt;</button>
       <button class="" onclick="styleText('ol')">&lt;ol&gt;</button>
+      <button class="" onclick="styleText('l')">L</button>
+      <button class="" onclick="styleText('c')">C</button>
+      <button class="" onclick="styleText('r')">R</button>
       <button class="" onclick="hyperlink()">link</button>
       <button class="" onclick="image()">img</button>
       <button class="" onclick="insertCut()">cut</button>
@@ -43,7 +46,7 @@
     <textarea id="postEditor" class="editor"><% if (pending) { %><%- pendingWriter %><% } %></textarea>
       <!-- that^ HAS to be all on one line like that...*grumbles* -->
     <br>
-    <button onclick="submitPost()" >submit</button>
+    <button onclick="submitPost()" >schlaubmit</button>
     <% if (pending) { %>
       <button id='delete-pending-post' onclick="submitPost(true)" >delete</button>
     <% } else { %>

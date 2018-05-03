@@ -80,18 +80,21 @@ var findThreadInPending = function (user, threadID) {
 var convertEditorInput = function (string) {
   string = string.replace(/\r?\n|\r/g, '<br>');
 
-  var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList) {
+  var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList) {
     if (aOpen) {string += "</a>"}
     if (bOpen) {string += "</b>"}
     if (iOpen) {string += "</i>"}
     if (uOpen) {string += "</u>"}
     if (sOpen) {string += "</s>"}
-    if (cOpen) {string += "</cut>"}
+    if (lOpen) {string += "</l>"}
+    if (cOpen) {string += "</c>"}
+    if (rOpen) {string += "</r>"}
+    if (cutOpen) {string += "</cut>"}
     return [imgList, string];
   }
-  var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList) {
+  var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList) {
     var next = string.substr(pos).search(/</);
-    if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList);}
+    if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);}
     else {
       pos += next;
       if (string.substr(pos+1,2) === "b>" && !bOpen) {
@@ -106,8 +109,17 @@ var convertEditorInput = function (string) {
       } else if (string.substr(pos+1,2) === "s>" && !sOpen) {
         sOpen = true;
         pos += 2;
-      } else if (string.substr(pos+1,4) === "cut>" && !cOpen) {
+      } else if (string.substr(pos+1,2) === "l>" && !lOpen) {
+        lOpen = true;
+        pos += 2;
+      } else if (string.substr(pos+1,2) === "c>" && !cOpen) {
         cOpen = true;
+        pos += 2;
+      } else if (string.substr(pos+1,2) === "r>" && !rOpen) {
+        rOpen = true;
+        pos += 2;
+      } else if (string.substr(pos+1,4) === "cut>" && !cutOpen) {
+        cutOpen = true;
         pos += 4;
       } else if (string.substr(pos+1,3) === "li>") {
         pos += 3;
@@ -127,8 +139,17 @@ var convertEditorInput = function (string) {
       } else if (string.substr(pos+1,3) === "/s>") {
         sOpen = false;
         pos += 3;
-      } else if (string.substr(pos+1,5) === "/cut>") {
+      } else if (string.substr(pos+1,3) === "/l>") {
+        lOpen = false;
+        pos += 3;
+      } else if (string.substr(pos+1,3) === "/c>") {
         cOpen = false;
+        pos += 3;
+      } else if (string.substr(pos+1,3) === "/r>") {
+        rOpen = false;
+        pos += 3;
+      } else if (string.substr(pos+1,5) === "/cut>") {
+        cutOpen = false;
         pos += 5;
       } else if (string.substr(pos+1,4) === "/li>") {
         pos += 4;
@@ -146,7 +167,7 @@ var convertEditorInput = function (string) {
         var qPos = string.substr(pos+1).search(/"/);
         if (qPos === -1) {
           string += '">';
-          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList);
+          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
         }
         else {pos += qPos;}
         if (string[pos+2] !== ">") {
@@ -162,7 +183,7 @@ var convertEditorInput = function (string) {
         if (qPos === -1) {
           imgList.push(string.substr(pos+1))
           string += '">';
-          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList);
+          return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
         }
         else {
           imgList.push(string.substr(pos+1,qPos))
@@ -175,10 +196,10 @@ var convertEditorInput = function (string) {
       } else {  // the found tag is not on the sanctioned list, so replace it
         string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
       }
-      return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, cOpen, imgList);
+      return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
     }
   }
-  return recurse(0, false, false, false, false, false, false, []);
+  return recurse(0, false, false, false, false, false, false, false, false, false, []);
 }
 
 var writeToDB = function (userID, data, callback) {

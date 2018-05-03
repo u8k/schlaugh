@@ -44,7 +44,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
       // if there are no posts for the day
       if (json.length === 0) {
         var post = document.createElement("div");
-        post.innerHTML = "No Posts!";
+        post.innerHTML = "Not Schlaugh!";
         bucket.appendChild(post);
       } else {
         // create temporary randomizing helper array
@@ -214,7 +214,6 @@ var hyperlink = function () {
     if (linkText !== null) {
       if (target.substr(0,4) !== "http") {
         target = "http://" + target;
-        console.log(target);
       }
       area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
     }
