@@ -30,6 +30,46 @@ var submitPic = function (remove) {
   });
 }
 
+var changeColor = function (jscolor, type) {
+  var sheet = document.styleSheets[1];
+  switch (type) {
+    case 0:                 //post background
+      var selector = ".post, .message, .editor, #account-settings, button";
+      var attribute = "background-color";
+      break;
+    case 1:                 //text
+      var selector = "body, h1, #pic-url, .post, .message, .editor, #account-settings, button";
+      var attribute = "color";
+      sheet.insertRule("button {border-color: #"+jscolor+";}", sheet.cssRules.length);
+      break;
+    case 2:                 //link text
+      var selector = "a, a.visited";
+      var attribute = "color";
+      break;
+    case 3:                 //background
+      var selector = "body, h1, #pic-url";
+      var attribute = "background-color";
+      break;
+  }
+  sheet.insertRule(selector+" {"+attribute+": #"+jscolor+";}", sheet.cssRules.length);
+  $('save-colors').classList.remove('hidden');
+}
+
+var saveColors = function () {
+  var data = {};
+  data.postBackground = $('post-background-color').style.backgroundColor;
+  data.text = $('text-color').style.backgroundColor;
+  data.linkText = $('link-text-color').style.backgroundColor;
+  data.background = $('background-color').style.backgroundColor;
+  ajaxCall('/saveColors', 'POST', data, function(json) {
+    if (json === 'success') {
+      $('save-colors').classList.add('hidden');
+    } else {
+      alert(json);
+    }
+  });
+}
+
 var signOut = function() {
   var url = '/logout'
   ajaxCall(url, 'GET', {}, function(json) {

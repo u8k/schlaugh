@@ -64,10 +64,12 @@ postNav {
 
 clicky, .clicky {
   cursor: pointer;
+  /*
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  */
 }
 
 #post-writer{width: 75%; margin: auto;}
@@ -112,25 +114,6 @@ img {
 
 #pending-message {width: 65%}
 
-@media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .post, #account-settings {width: 98%;}
-  #thread-box {width: 100%;}
-  #pending-message {width: 85%}
-  #post-writer{width: 95%;}
-  #message-writer{width: 85%;}
-  .author-pic {display: none;}
-}
-
-.outgoing {margin-right: 0}
-.incoming {margin-left: 0}
-
-.meta-text {
-  text-align: right;
-  text-decoration: underline;
-  margin-bottom: 10px;
-  display: block;
-}
-
 .author-pic {
   width: 50px;
   position: absolute;
@@ -139,8 +122,54 @@ img {
   border-radius: 4px;
 }
 
+.meta-text {
+  text-align: right;
+  margin-bottom: 10px;
+  display: block;
+}
+
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  .post, #account-settings {width: 98%;}
+  #thread-box {width: 100%;}
+  #pending-message {width: 85%}
+  #post-writer{width: 95%;}
+  #message-writer{width: 85%;}
+  .author-pic {margin-left: 0; position: static;}
+  .meta-text {position: relative; top: -55px;}
+}
+
+.outgoing {margin-right: 0}
+.incoming {margin-left: 0}
+
 #user-pic {
   width: 50px;
+}
+
+button, .button {
+  cursor: pointer;
+  background-color: #32363F;
+  border-color: #D8D8D8;
+  color: #D8D8D8;
+  border-style: solid;
+  border-width: thin;
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+
+input {
+  border-radius: 3px;
+  border-style: inset;
+  outline-style: none;
+  margin-bottom: 2px;
+  padding: 2px 5px 2px 5px;
+}
+/*hack to make Chrome not force a yellow background when it autofills
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #32363F inset !important;
+}*/
+
+.color-button {
+  width: 115px;
 }
 
 .highlight {
@@ -153,7 +182,7 @@ a, a.visited {
   text-decoration: none;
 }
 
-body, h1, #pic-url {
+body, h1, input {
   color: #D8D8D8;
   background-color: #324144;
 }
@@ -161,7 +190,6 @@ body, h1, #pic-url {
   color: #D8D8D8;
   background-color: #32363F;
 }
-
 
 arrow {
   font-size: 1.8em;

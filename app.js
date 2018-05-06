@@ -212,6 +212,12 @@ var writeToDB = function (userID, data, callback) {
   );
 }
 
+var defaultColors = {
+  postBackground: '#32363F',
+  text: '#D8D8D8',
+  linkText: '#BFA5FF',
+  background: '#324144',
+}
 
 //*******//ROUTING//*******//
 
@@ -220,7 +226,7 @@ app.get('/', function(req, res) {
   if (!req.session.user) {res.render('layout', {pagename:'login'});}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, posts:1, iconURI:1}
+    , {_id:0, username:1, posts:1, iconURI:1, settings:1}
     , function (err, user) {
       if (err) {throw err;}
       else if (!user) {res.render('layout', {pagename:'login'});}
@@ -232,9 +238,11 @@ app.get('/', function(req, res) {
           pending = user.posts[tmrw][0].body;
           pendingWriter = pending.replace(/<br>/g, '\n');
         }
-        var userPic = user.iconURI
+        var userPic = user.iconURI;
         if (typeof userPic !== 'string') {userPic = "";}
-        res.render('layout', {pagename:'main', username:user.username, pending:pending, pendingWriter:pendingWriter, userPic:userPic});
+        if (user.settings.colors) {var colors = user.settings.colors;}
+        else {var colors = defaultColors;}
+        res.render('layout', {pagename:'main', username:user.username, pending:pending, pendingWriter:pendingWriter, userPic:userPic, colors:colors});
       }
     });
   }
@@ -623,6 +631,21 @@ app.post('/changePic', function(req, res) {
   }
 });
 
+// save custom display colors
+app.post('/saveColors', function(req, res) {
+  if (!req.session.user) {return res.send('you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please');}
+  var userID = ObjectId(req.session.user._id);
+  db.collection('users').findOne({_id: userID}
+  , {_id:0, settings:1}
+  , function (err, user) {
+    if (err) {res.send(err); throw err;}
+    else {
+      user.settings.colors = req.body;
+      writeToDB(userID, user, function () {res.send("success");})
+    }
+  });
+});
+
 // new user sign up
 app.post('/register', function(req, res){
     // !!!!!!!! SANITIZE THESE INPUTS!!!!!!!!!!!!!!!!!!!!!
@@ -811,19 +834,22 @@ app.get('/:username', function(req, res) {
         if (typeof authorPic !== 'string') {authorPic = "";}
         if (req.session.user) {
           db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-          , {_id:0, username:1, iconURI:1}
+          , {_id:0, username:1, iconURI:1, settings:1}
           , function (err, user) {
             if (err) {throw err;}
             else {
               var userPic = user.iconURI
               if (typeof userPic !== 'string') {userPic = "";}
+              if (user.settings.colors) {var colors = user.settings.colors;}
+              else {var colors = defaultColors;}
               res.render('layout', {
                 pagename:'user',
                 authorName:req.params.username,
                 posts:posts,
                 authorPic: authorPic,
                 username: user.username,
-                userPic: userPic
+                userPic: userPic,
+                colors: colors,
               });
             }
           });
@@ -857,12 +883,14 @@ app.get('/:username/:num', function(req, res) {
           if (typeof authorPic !== 'string') {authorPic = "";}
           if (req.session.user) {
             db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-            , {_id:0, username:1, iconURI:1}
+            , {_id:0, username:1, iconURI:1, settings:1}
             , function (err, user) {
               if (err) {throw err;}
               else {
                 var userPic = user.iconURI;
                 if (typeof userPic !== 'string') {userPic = "";}
+                if (user.settings.colors) {var colors = user.settings.colors;}
+                else {var colors = defaultColors;}
                 res.render('layout', {
                   pagename:'post',
                   authorName:req.params.username,
@@ -870,7 +898,8 @@ app.get('/:username/:num', function(req, res) {
                   date: author.postList[i].date,
                   authorPic: authorPic,
                   username: user.username,
-                  userPic: userPic
+                  userPic: userPic,
+                  colors: colors,
                 });
               }
             });

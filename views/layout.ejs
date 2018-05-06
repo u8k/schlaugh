@@ -6,7 +6,30 @@
     <title>s c h l a u g h</title>
     <link rel="stylesheet" href="/main.css">
     <script src="/layout.js"></script>
+    <script src="/jscolor.js"></script>
 	  <link rel="icon" type="image/png" href="/favicon.png">
+    <% if (typeof colors !== "undefined") { %>
+      <style media="screen">
+        .post, .message, .editor, #account-settings, button {
+          background-color: <%= colors.postBackground %>;
+        }
+
+        body, h1, #pic-url, .post, .message, .editor, #account-settings, button {
+          color: <%= colors.text %>;
+        }
+        button {border-color: <%= colors.text %>;}
+
+        a, a.visited {
+          color: <%= colors.linkText %>;
+        }
+
+        body, h1, #pic-url {
+          background-color: <%= colors.background %>;
+        }
+
+
+      </style>
+    <% } %>
   </head>
   <body>
 
@@ -39,14 +62,18 @@
         <% } %>
         <button onclick="submitPic()">schlaubmit</button>
         <% if ( userPic !== "") { %>
-          <button onclick="submitPic(true)">remove</button>
+          <button id="remove-pic" onclick="submitPic(true)">remove</button>
         <% } else { %>
           <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
         <% } %>
         <br><br><br>
-        <input name="x" type="radio"> magic<br>
-        <input name="x" type="radio"> more magic<br>
-        <br><br>
+        <h2>colors</h2>
+        <button id="post-background-color" class="color-button jscolor {valueElement:null, value:'<%= colors.postBackground %>', onFineChange:'changeColor(this, 0)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">post background</button><br>
+        <button id="text-color" class="color-button jscolor {valueElement:null, value:'<%= colors.text %>', onFineChange:'changeColor(this, 1)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">text</button><br>
+        <button id="link-text-color" class="color-button jscolor {valueElement:null, value:'<%= colors.linkText %>', onFineChange:'changeColor(this, 2)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">link text</button><br>
+        <button id="background-color" class="color-button jscolor {valueElement:null, value:'<%= colors.background %>', onFineChange:'changeColor(this, 3)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">background</button><br>
+        <button id="save-colors" type="button" class="hidden" onclick="saveColors()">save</button>
+        <br><br><br>
         <a class="clicky" onclick="signOut()">schlaugh out</a>
         <br><br><br>
         <button onclick="accountSettings(false)" >x</button>
