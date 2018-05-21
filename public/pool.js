@@ -2,8 +2,19 @@
 
 (function(exports){
 
+  exports.runTests = function (tests) {
+    var results = [];
+    for (var i = 0; i < tests.length; i++) {
+      if (tests[i][0] !== tests[i][1]) {
+        tests[i][0] = i;
+        results.push(tests[i]);
+      }
+    }
+    return results;
+  }
+
   exports.userNameValidate = function (x) {
-    if (x === "") {
+    if (x === undefined || x === "") {
       return "need a name!";
     }
     if (/[^a-z0-9-_]/.test(x)) {
@@ -12,7 +23,7 @@
     if (x.length > 30) {
       return 'name is too long';
     }
-    else {return false;}
+    else {return false;}  // false indicates good, no problems
   }
 
   exports.passwordValidate = function (x) {
@@ -22,7 +33,7 @@
     if (/[^ a-zA-Z0-9-_!@#$%&*?]/.test(x)) {
       return 'invalid pass, a-zA-Z0-9-_!@#$%&*? only';
     }
-    else {return false;}
+    else {return false;}  // false indicates good, no problems
   }
 
   exports.getCurDate = function (minusDays) {

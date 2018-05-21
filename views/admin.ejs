@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>feeling good is important</title>
     <link rel="icon" type="image/png" href="/favicon.png">
+    <style media="screen">
+      * {background-color: dimGrey; color: ghostwhite;}
+    </style>
+    <script src="/layout.js"></script>
+    <script src="/pool.js"></script>
+    <script src="/main.js"></script>
+    <script src="/login.js"></script>
     <script src="/admin.js"></script>
   </head>
   <body>
@@ -20,9 +27,28 @@
     } %>
 
     <br><br>
-    <form action="/shavingmypiano" method="post">
+    <form action="/admin" method="post">
       <input type="text" name="code" placeholder="name">
       <input type="submit" value="submit">
     </form>
-    <br>
+    <br><br><br>
+    <h3>frontEnd tests:</h3>
+    <h4 id="test-title"></h4>
+    <div id="test-results"></div>
+    <script type="text/javascript">
+      displayTests(pool.runTests(tests));
+    </script>
+    <h3>backEnd tests:</h3>
+    <% if (results.length === 0) { %>
+      <h4>all tests passing!</h4>
+    <% } else { %>
+      <h4>failing tests:</h4>
+      <ul>
+      <% for(var i = 0; i < results.length; i++) { %>
+          <li>
+            <%= results[i][0] + ".  " + results[i][2]+" === "+results[i][1] %>
+          </li>
+      <% } %>
+    <% } %>
+  </ul>
   </body>

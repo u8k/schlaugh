@@ -40,6 +40,11 @@ var changeColor = function (jscolor, type) {
     case 1:                 //text
       var selector = "body, h1, #pic-url, .post, .message, .editor, #account-settings, button";
       var attribute = "color";
+      for (var i = 0; i < sheet.cssRules.length; i++) {
+        if (sheet.cssRules[i].selectorText === 'button') {
+          sheet.deleteRule(i)
+        }
+      }
       sheet.insertRule("button {border-color: #"+jscolor+";}", sheet.cssRules.length);
       break;
     case 2:                 //link text
@@ -50,6 +55,11 @@ var changeColor = function (jscolor, type) {
       var selector = "body, h1, #pic-url";
       var attribute = "background-color";
       break;
+  }
+  for (var i = 0; i < sheet.cssRules.length; i++) {
+    if (sheet.cssRules[i].selectorText === selector) {
+      sheet.deleteRule(i)
+    }
   }
   sheet.insertRule(selector+" {"+attribute+": #"+jscolor+";}", sheet.cssRules.length);
   $('save-colors').classList.remove('hidden');

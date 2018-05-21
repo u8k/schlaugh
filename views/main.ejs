@@ -110,3 +110,7 @@
 
 <script src="pool.js"></script>
 <script src="main.js"></script>
+<script type="text/javascript">
+  changeDay(1);
+  $('pending-post').innerHTML = pool.checkForCuts($('pending-post').innerHTML, 'pending');
+</script>

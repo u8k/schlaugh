@@ -422,6 +422,3 @@ var fetchThreads = function () {
 
 fetchThreads();
 */
-
-changeDay(1);
-$('pending-post').innerHTML = pool.checkForCuts($('pending-post').innerHTML, 'pending');

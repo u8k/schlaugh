@@ -647,7 +647,7 @@ app.post('/saveColors', function(req, res) {
 });
 
 // new user sign up
-app.post('/register', function(req, res){
+app.post('/register', function(req, res) {
     // !!!!!!!! SANITIZE THESE INPUTS!!!!!!!!!!!!!!!!!!!!!
 	var username = req.body.username;
 	var password = req.body.password;
@@ -760,53 +760,61 @@ app.post('/login', function(req, res) {
 });
 
 // logout
-app.get('/logout', function(req, res){
+app.get('/logout', function(req, res) {
   req.session.user = null;
   res.send("success");
 });
 
 // admin
-app.get('/shavingmypiano', function(req, res){
+app.get('/admin', function(req, res) {
   if (req.session.user) {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {_id:0, username:1, codes:1}
     , function (err, user) {
       if (err) {throw err;}
-      else if (!user || user.username !== "admin") {res.send('but there was nobody home');}
+      else if (!user || user.username !== "admin") {res.render('layout', {pagename:'404', type:'user'});}
       else {
-        res.render('admin', { codes: user.codes });
+        var results = pool.runTests(
+          [ //array of arrays, each inner array contains two statements that are supposed to be equal
+            //[pool.userNameValidate(), "need a name!", "pool.userNameValidate()"],
+            //[pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
+          ]
+        );
+        res.render('admin', { codes:user.codes, results:results });
       }
     });
   } else {
-    res.send('but there was nobody home');
+    res.render('layout', {pagename:'404', type:'user'});
   }
 });
-app.post('/shavingmypiano', function(req, res){
+app.post('/admin', function(req, res) {
   if (req.session.user) {
     var userID = ObjectId(req.session.user._id)
     db.collection('users').findOne({_id: userID}
-    , {_id:0, username:1, codes:1}
-    , function (err, admin) {
-      if (err) {throw err;}
-      else if (!admin || admin.username !== "admin") {
-        res.send('but there was nobody home');
-      } else {
-        if (!admin.codes) {admin.codes = {};}
-        admin.codes[req.body.code] = true;
-        db.collection('users').updateOne({_id: userID},
-          {$set: admin },
-          function(err, user) {
-            if (err) {throw err;}
-            else {res.render('admin', { codes: admin.codes });}
-          }
-        );
+      , {_id:0, username:1, codes:1}
+      , function (err, admin) {
+        if (err) {throw err;}
+        else if (!admin || admin.username !== "admin") {
+          res.render('layout', {pagename:'404', type:'user'});
+        } else {
+          if (!admin.codes) {admin.codes = {};}
+          admin.codes[req.body.code] = true;
+          db.collection('users').updateOne({_id: userID},
+            {$set: admin },
+            function(err, user) {
+              if (err) {throw err;}
+              else {res.render('admin', { codes: admin.codes });}
+            }
+          );
+        }
       }
-    });
+    );
   } else {
-    res.send('but there was nobody home');
+    res.render('layout', {pagename:'404', type:'user'});
   }
 });
 
+// user routes must be placed last
 // view all of a users posts
 app.get('/:username', function(req, res) {
   db.collection('users').findOne({username: req.params.username}
@@ -816,7 +824,7 @@ app.get('/:username', function(req, res) {
     if (err) {throw err; res.send(err);}
     else {
       if (!author) {
-        res.send('but there was nobody home');
+        res.render('layout', {pagename:'404', type:'user'});
       } else {
         checkFreshness(author, "post");
         var posts = [];
@@ -912,14 +920,16 @@ app.get('/:username/:num', function(req, res) {
               authorPic: authorPic,
             });
           }
-        } else {res.send("not even a single thing");}
-      } else {res.send('but there was nobody home');}
+        } else {res.render('layout', {pagename:'404', type:'post'});}
+      } else {res.render('layout', {pagename:'404', type:'user'});}
     }
   });
 });
 
 
-///////////
+
+
+//////////
 app.set('port', (process.env.PORT || 3000));
 // Start Server
 app.listen(app.get('port'), function(){
