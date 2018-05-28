@@ -11,7 +11,7 @@ var pool = require('./public/pool.js');
 
 //connect and check mongoDB
 var db;
-var uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/owlpost';
+var uri = process.env.MONGODB_URI || 'mongodb://mongo:27017/schlaugh';
 MongoClient.connect(uri, function(err, database) {
   if (err) {throw err;}
   else {console.log("MONGO IS ALIVE");

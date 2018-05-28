@@ -1,10 +1,10 @@
 {
-  "name": "the-daily-post",
+  "name": "schlaugh",
   "version": "1.0.0",
   "description": "social network",
-  "main": "app.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node app"
+    "start": "node server"
   },
   "author": "u8k",
   "license": "",
