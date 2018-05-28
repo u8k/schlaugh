@@ -659,6 +659,7 @@ app.post('/register', function(req, res) {
   if (x) {return res.send(x);}
   var y = pool.passwordValidate(password);
   if (y) {return res.send(y);}
+  /*
   // look up current active/valid secret access codes
   db.collection('users').findOne({ username: "admin" }
   , { codes:1 }
@@ -667,6 +668,7 @@ app.post('/register', function(req, res) {
     // check if the provided code is a match
     else if (!admin.codes[secretCode]) {return res.send("invalid code");}
     else {
+      */
       //check if there is already a user w/ that name
       db.collection('users').findOne({username: username}, {}, function (err, user) {
         if (err) throw err;
@@ -711,9 +713,13 @@ app.post('/register', function(req, res) {
                         else {
                           // "sign in" the user
                           req.session.user = { _id: newID };
+                          //
+                          res.send("success");
+                          /*
                           // remove the code from the admin stash so it can't be used again
                           delete admin.codes[secretCode];
                           writeToDB(admin._id, admin, function () {res.send("success");});
+                          */
                         }
                       }
                     );
@@ -724,8 +730,10 @@ app.post('/register', function(req, res) {
           });
     		}
       });
+  /*
     }
   });
+  */
 });
 
 // log in
@@ -766,27 +774,49 @@ app.get('/logout', function(req, res) {
 });
 
 // admin
-app.get('/admin', function(req, res) {
+var adminGate = function (req, res, callback) { //no need to pass 'user' once we take out the code nonsense
   if (req.session.user) {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {_id:0, username:1, codes:1}
     , function (err, user) {
       if (err) {throw err;}
       else if (!user || user.username !== "admin") {res.render('layout', {pagename:'404', type:'user'});}
-      else {
-        var results = pool.runTests(
-          [ //array of arrays, each inner array contains two statements that are supposed to be equal
-            //[pool.userNameValidate(), "need a name!", "pool.userNameValidate()"],
-            //[pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
-          ]
-        );
-        res.render('admin', { codes:user.codes, results:results });
-      }
+      else {callback(res, user);}
     });
   } else {
     res.render('layout', {pagename:'404', type:'user'});
   }
+}
+
+app.get('/admin', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var results = pool.runTests(
+      [ //array of arrays, each inner array contains two statements that are supposed to be equal
+        [pool.userNameValidate(), "need a name!", "pool.userNameValidate()"],
+        //[pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
+      ]
+    );
+    db.collection('users').find({},{}).toArray(function(err, users) {
+      if (err) {throw err;}
+      else {
+        console.log(users);
+      }
+    });
+    res.render('admin', { codes:user.codes, results:results });
+  });
 });
+
+app.get('/admin/users', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('users').find({},{ threads:1, threadList:1, threadListPending:1 }).toArray(function(err, users) {
+      if (err) {throw err;}
+      else {
+        console.log(users);
+      }
+    });
+  });
+});
+
 app.post('/admin', function(req, res) {
   if (req.session.user) {
     var userID = ObjectId(req.session.user._id)
@@ -813,6 +843,7 @@ app.post('/admin', function(req, res) {
     res.render('layout', {pagename:'404', type:'user'});
   }
 });
+
 
 // user routes must be placed last
 // view all of a users posts

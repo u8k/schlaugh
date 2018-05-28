@@ -40,9 +40,10 @@ var changeColor = function (jscolor, type) {
     case 1:                 //text
       var selector = "body, h1, #pic-url, .post, .message, .editor, #account-settings, button";
       var attribute = "color";
-      for (var i = 0; i < sheet.cssRules.length; i++) {
+      for (var i = sheet.cssRules.length-1; i > -1; i--) {
         if (sheet.cssRules[i].selectorText === 'button') {
-          sheet.deleteRule(i)
+          sheet.deleteRule(i);
+          i = -1;
         }
       }
       sheet.insertRule("button {border-color: #"+jscolor+";}", sheet.cssRules.length);
@@ -56,9 +57,10 @@ var changeColor = function (jscolor, type) {
       var attribute = "background-color";
       break;
   }
-  for (var i = 0; i < sheet.cssRules.length; i++) {
+  for (var i = sheet.cssRules.length-1; i > -1; i--) {
     if (sheet.cssRules[i].selectorText === selector) {
-      sheet.deleteRule(i)
+      sheet.deleteRule(i);
+      i = -1;
     }
   }
   sheet.insertRule(selector+" {"+attribute+": #"+jscolor+";}", sheet.cssRules.length);
