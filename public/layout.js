@@ -83,8 +83,7 @@ var saveColors = function () {
 }
 
 var signOut = function() {
-  var url = '/logout'
-  ajaxCall(url, 'GET', {}, function(json) {
+  ajaxCall('/logout', 'GET', {}, function(json) {
     if (json === 'success') {
       location.reload();
     } else {

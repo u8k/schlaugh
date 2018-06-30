@@ -212,16 +212,55 @@ var writeToDB = function (userID, data, callback) {
   );
 }
 
-var defaultColors = {
-  postBackground: '#32363F',
-  text: '#D8D8D8',
-  linkText: '#BFA5FF',
-  background: '#324144',
+var getUserPic = function (user) {
+  var userPic = user.iconURI;
+  if (typeof userPic !== 'string') {userPic = "";}
+  return userPic;
 }
+
+var getUserColors = function (user) {
+  if (user.settings.colors) {return user.settings.colors;}
+  else {return {
+    postBackground: '#32363F',
+    text: '#D8D8D8',
+    linkText: '#BFA5FF',
+    background: '#324144',
+  };}
+}
+
+var getUser = function (user, callback) {
+  db.collection('users').findOne({_id: ObjectId(user._id)}
+  , {_id:0, username:1, iconURI:1, settings:1}
+  , function (err, user) {
+    if (err) {throw err;}
+    if (!user) {return null;}
+    else {
+      user.pic = getUserPic(user);
+      user.colors = getUserColors(user);
+      return callback(user);
+    }
+  });
+}
+
+var serve404 = function (res, user) {
+  if (user) {
+    getUser(user, function (user) {
+      if (user) {
+        res.render('layout', {
+          pagename:'404',
+          username: user.username,
+          userPic: user.pic,
+          colors: user.colors,
+        });
+      } else {res.render('layout', {pagename:'404'});}
+    });  // doubled like this because asynch
+  } else {res.render('layout', {pagename:'404'});}
+}
+
 
 //*******//ROUTING//*******//
 
-// main/only page
+// main page
 app.get('/', function(req, res) {
   if (!req.session.user) {res.render('layout', {pagename:'login'});}
   else {
@@ -238,10 +277,8 @@ app.get('/', function(req, res) {
           pending = user.posts[tmrw][0].body;
           pendingWriter = pending.replace(/<br>/g, '\n');
         }
-        var userPic = user.iconURI;
-        if (typeof userPic !== 'string') {userPic = "";}
-        if (user.settings.colors) {var colors = user.settings.colors;}
-        else {var colors = defaultColors;}
+        var userPic = getUserPic(user);
+        var colors = getUserColors(user);
         res.render('layout', {pagename:'main', username:user.username, pending:pending, pendingWriter:pendingWriter, userPic:userPic, colors:colors});
       }
     });
@@ -774,18 +811,23 @@ app.get('/logout', function(req, res) {
 });
 
 // admin
-var adminGate = function (req, res, callback) { //no need to pass 'user' once we take out the code nonsense
+var adminGate = function (req, res, callback) {
   if (req.session.user) {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, codes:1}
+    , {_id:0, username:1, codes:1, iconURI:1, settings:1}
     , function (err, user) {
       if (err) {throw err;}
-      else if (!user || user.username !== "admin") {res.render('layout', {pagename:'404', type:'user'});}
-      else {callback(res, user);}
+      else if (user && user.username === "admin") {callback(res, user);} //no need to pass 'user' once we take out the code nonsense
+      else {
+        res.render('layout', {
+          pagename:'404',
+          username: user.username,
+          userPic: getUserPic(user),
+          colors: getUserColors(user),
+        });
+      }
     });
-  } else {
-    res.render('layout', {pagename:'404', type:'user'});
-  }
+  } else {res.render('layout', {pagename:'404'});}
 }
 
 app.get('/admin', function(req, res) {
@@ -796,25 +838,23 @@ app.get('/admin', function(req, res) {
         //[pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
       ]
     );
-    db.collection('users').find({},{}).toArray(function(err, users) {
-      if (err) {throw err;}
-      else {
-        console.log(users);
-      }
-    });
     res.render('admin', { codes:user.codes, results:results });
   });
 });
 
 app.get('/admin/users', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('users').find({},{ threads:1, threadList:1, threadListPending:1 }).toArray(function(err, users) {
+    db.collection('users').find({},{ _id:0, username:1 }).toArray(function(err, users) {
       if (err) {throw err;}
       else {
-        console.log(users);
+        return res.send(users);
       }
     });
   });
+});
+
+app.get('/admin/:num', function(req, res) {
+  serve404(res, req.session.user);
 });
 
 app.post('/admin', function(req, res) {
@@ -854,9 +894,7 @@ app.get('/:username', function(req, res) {
   , function (err, author) {
     if (err) {throw err; res.send(err);}
     else {
-      if (!author) {
-        res.render('layout', {pagename:'404', type:'user'});
-      } else {
+      if (author) {
         checkFreshness(author, "post");
         var posts = [];
         var pL = author.postList;
@@ -869,30 +907,8 @@ app.get('/:username', function(req, res) {
             });
           }
         }
-        var authorPic = author.iconURI;
-        if (typeof authorPic !== 'string') {authorPic = "";}
-        if (req.session.user) {
-          db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-          , {_id:0, username:1, iconURI:1, settings:1}
-          , function (err, user) {
-            if (err) {throw err;}
-            else {
-              var userPic = user.iconURI
-              if (typeof userPic !== 'string') {userPic = "";}
-              if (user.settings.colors) {var colors = user.settings.colors;}
-              else {var colors = defaultColors;}
-              res.render('layout', {
-                pagename:'user',
-                authorName:req.params.username,
-                posts:posts,
-                authorPic: authorPic,
-                username: user.username,
-                userPic: userPic,
-                colors: colors,
-              });
-            }
-          });
-        } else {
+        var authorPic = getUserPic(author);
+        var showAuthorToNonUser = function () {
           res.render('layout', {
             pagename:'user',
             authorName:req.params.username,
@@ -900,7 +916,22 @@ app.get('/:username', function(req, res) {
             authorPic: authorPic
           });
         }
-      }
+        if (req.session.user) {
+          getUser(req.session.user, function (user) {
+            if (user) {
+              res.render('layout', {
+                pagename:'user',
+                authorName:req.params.username,
+                posts:posts,
+                authorPic: authorPic,
+                username: user.username,
+                userPic: user.pic,
+                colors: user.colors,
+              });
+            } else {showAuthorToNonUser();}
+          }); // doubled like this because asynch
+        } else {showAuthorToNonUser();}
+      } else {serve404(res, req.session.user);}
     }
   });
 });
@@ -918,45 +949,41 @@ app.get('/:username/:num', function(req, res) {
         var i = req.params.num;
         if (author.postList[i] && author.postList[i].date !== pool.getCurDate(-1)) {
           var postBody = pool.checkForCuts(author.posts[author.postList[i].date][author.postList[i].num].body, author._id+"-"+author.postList[i].date+"-"+author.postList[i].num)
-          var authorPic = author.iconURI;
-          if (typeof authorPic !== 'string') {authorPic = "";}
-          if (req.session.user) {
-            db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-            , {_id:0, username:1, iconURI:1, settings:1}
-            , function (err, user) {
-              if (err) {throw err;}
-              else {
-                var userPic = user.iconURI;
-                if (typeof userPic !== 'string') {userPic = "";}
-                if (user.settings.colors) {var colors = user.settings.colors;}
-                else {var colors = defaultColors;}
-                res.render('layout', {
-                  pagename:'post',
-                  authorName:req.params.username,
-                  body: postBody,
-                  date: author.postList[i].date,
-                  authorPic: authorPic,
-                  username: user.username,
-                  userPic: userPic,
-                  colors: colors,
-                });
-              }
-            });
-          } else {
-            res.render('layout', {
-              pagename:'post',
-              authorName:req.params.username,
-              body: postBody,
-              date: author.postList[i].date,
-              authorPic: authorPic,
-            });
-          }
-        } else {res.render('layout', {pagename:'404', type:'post'});}
-      } else {res.render('layout', {pagename:'404', type:'user'});}
+          var date = author.postList[i].date;
+        } else {
+          var postBody = "<c>not even a single thing</c>";
+          var date = null;
+        }
+        var authorPic = getUserPic(author);
+        var showPostToNonUser = function () {
+          res.render('layout', {
+            pagename:'post',
+            authorName:req.params.username,
+            body: postBody,
+            date: date,
+            authorPic: authorPic,
+          });
+        }
+        if (req.session.user) {
+          getUser(req.session.user, function (user) {
+            if (user) {
+              res.render('layout', {
+                pagename:'post',
+                authorName:req.params.username,
+                body: postBody,
+                date: date,
+                authorPic: authorPic,
+                username: user.username,
+                userPic: user.pic,
+                colors: user.colors,
+              });
+            } else {showPostToNonUser();}
+          });  // doubled like this because asynch
+        } else {showPostToNonUser();}
+      } else {serve404(res, req.session.user);}
     }
   });
 });
-
 
 
 

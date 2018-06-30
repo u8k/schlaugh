@@ -3,7 +3,7 @@ services:
   app:
     container_name: app
     restart: always
-    command: nodemon -L -e js,ejs,css server.js
+    command: nodemon -L --watch server.js server.js
     build: .
     ports:
       - "3000:3000"

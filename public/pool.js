@@ -10,6 +10,9 @@
         results.push(tests[i]);
       }
     }
+    if (results.length === 0) {
+      results = "all "+tests.length+" tests are passing!"
+    }
     return results;
   }
 

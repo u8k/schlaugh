@@ -7,8 +7,8 @@ var tests = [ //array of arrays, each inner array contains two statements that a
 ]
 
 var displayTests = function (results) {
-  if (results.length === 0) {
-    $('test-title').innerHTML = "all "+tests.length+" tests are passing!"
+  if (typeof results === "string") {
+    $('test-title').innerHTML = results;
   } else {
     $('test-title').innerHTML = "failing tests:";
     var bucket = document.createElement("ul");
@@ -19,4 +19,10 @@ var displayTests = function (results) {
     }
     $('test-results').appendChild(bucket);
   }
+}
+
+var getUsers = function () {
+  ajaxCall('/admin/users', 'GET', {}, function(json) {
+    console.log(JSON.parse(json));
+  });
 }

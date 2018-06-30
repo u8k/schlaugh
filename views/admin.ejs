@@ -39,8 +39,8 @@
       displayTests(pool.runTests(tests));
     </script>
     <h3>backEnd tests:</h3>
-    <% if (results.length === 0) { %>
-      <h4>all tests passing!</h4>
+    <% if (typeof results === "string") { %>
+      <h4> <%= results %> </h4>
     <% } else { %>
       <h4>failing tests:</h4>
       <ul>
@@ -50,5 +50,8 @@
           </li>
       <% } %>
     <% } %>
-  </ul>
+      </ul>
+    <button type="button" name="button" onclick="getUsers()">log users</button>
+    <button type="button" name="button" onclick="getUsers()">populate DB</button>
+    <button type="button" name="button" onclick="getUsers()">purge</button>
   </body>

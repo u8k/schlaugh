@@ -6,9 +6,11 @@
 <% } %>
 
 <div class="post">
-  <div class="meta-text">
-    <%= date %>
-  </div>
+  <% if (date) { %>
+    <div class="meta-text">
+      <%= date %>
+    </div>
+  <% } %>
   <text class="body-text">
     <%- body %>
   </text>
