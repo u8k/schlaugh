@@ -6,6 +6,18 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [pool.userNameValidate('6as5df4'), false, "pool.userNameValidate(0)"],
 ]
 
+/* this is a test of the cryption stuff, but it's asynch,
+                            so figure out how to put it in the tester...
+makeKeys('password', function (key) {
+  encrypt("mmeessssaaggee", key.pubKey, function (crypt) {
+    decrypt(crypt, decryptPrivKey('password', key.privKey), function (text) {
+      console.log(text);
+    });
+  });
+});
+*/
+
+
 var displayTests = function (results) {
   if (typeof results === "string") {
     $('test-title').innerHTML = results;
@@ -24,5 +36,23 @@ var displayTests = function (results) {
 var getUsers = function () {
   ajaxCall('/admin/users', 'GET', {}, function(json) {
     console.log(JSON.parse(json));
+  });
+}
+
+var purge = function () {
+  ajaxCall('/admin/purge', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var resetTest = function () {
+  ajaxCall('/admin/resetTest', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var removeUser = function () {
+  ajaxCall('/admin/removeUser', 'POST', {name: $("name-to-be-removed").value}, function(json) {
+    console.log(json);
   });
 }

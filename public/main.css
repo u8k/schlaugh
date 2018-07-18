@@ -92,6 +92,8 @@ clicky, .clicky {
   margin: auto;
 }
 
+.thread-name {font-size: 1.8em}
+
 .post, .message, #account-settings {
   width: 75%;
   margin: auto;
@@ -114,8 +116,13 @@ img {
 
 #pending-message {width: 65%}
 
+.author {
+  font-size: 1.3em;
+}
+
 .author-pic {
   width: 50px;
+  height: 50px;
   position: absolute;
   left: -55px;
   top: 10px;
@@ -138,8 +145,8 @@ img {
   .meta-text {position: relative; top: -55px;}
 }
 
-.outgoing {margin-right: 0}
-.incoming {margin-left: 0}
+.outbound {margin-right: 0}
+.inbound {margin-left: 0}
 
 #user-pic {
   width: 50px;
@@ -177,7 +184,7 @@ input:-webkit-autofill {
   font-weight: bold;
 }
 
-a, a.visited {
+a, a.visited, .special {
   color: #BFA5FF;
   text-decoration: none;
 }
@@ -186,7 +193,7 @@ body, h1, input {
   color: #D8D8D8;
   background-color: #324144;
 }
-.post, .message, .editor, #account-settings {
+.post, .message, .editor, #account-settings, #prompt {
   color: #D8D8D8;
   background-color: #32363F;
 }
@@ -210,6 +217,25 @@ arrow {
 
 #up {
   margin-top: 5vh;
+}
+
+#prompt {
+  padding: 15px;
+  position: fixed;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%,-50%);
+  border-radius: 4px;
+  box-shadow: 0px 0px 4px 2px;
+}
+#prompt-input {width: 200px;}
+#prompt-backing {
+  background-color: rgba(0, 0, 0, 0.20);
+  position: fixed;
+  height: 100vh;
+  width: 100vw;
+  left: 0;
+  top: 0;
 }
 
 l {text-align: left;}

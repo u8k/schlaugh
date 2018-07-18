@@ -8,6 +8,7 @@
     <style media="screen">
       * {background-color: dimGrey; color: ghostwhite;}
     </style>
+    <script src="openpgp.min.js"></script>
     <script src="/layout.js"></script>
     <script src="/pool.js"></script>
     <script src="/main.js"></script>
@@ -29,7 +30,7 @@
     <br><br>
     <form action="/admin" method="post">
       <input type="text" name="code" placeholder="name">
-      <input type="submit" value="submit">
+      <input type="submit" value="addCode">
     </form>
     <br><br><br>
     <h3>frontEnd tests:</h3>
@@ -52,6 +53,9 @@
     <% } %>
       </ul>
     <button type="button" name="button" onclick="getUsers()">log users</button>
-    <button type="button" name="button" onclick="getUsers()">populate DB</button>
-    <button type="button" name="button" onclick="getUsers()">purge</button>
+    <button type="button" name="button" onclick="resetTest()">reset test DB</button>
+    <button type="button" name="button" onclick="purge()">removeOldThreadsFromDB</button>
+    <br>
+    <input id="name-to-be-removed" type="text" name="name" placeholder="name">
+    <button type="button" name="button" onclick="removeUser()">removeUser</button>
   </body>

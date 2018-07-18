@@ -2,7 +2,7 @@
 
 var $ = function (id) {return document.getElementById(id);}
 
-var accountSettings = function (x) {
+var accountSettings = function (x) { // open/close
   if (x) {
     $('account-settings').classList.remove('removed');
     $('user-name').onclick = function(){accountSettings(false);}
@@ -34,11 +34,11 @@ var changeColor = function (jscolor, type) {
   var sheet = document.styleSheets[1];
   switch (type) {
     case 0:                 //post background
-      var selector = ".post, .message, .editor, #account-settings, button";
+      var selector = ".post, .message, .editor, #account-settings, button, #prompt";
       var attribute = "background-color";
       break;
     case 1:                 //text
-      var selector = "body, h1, #pic-url, .post, .message, .editor, #account-settings, button";
+      var selector = "body, h1, input, .post, .message, .editor, #account-settings, button";
       var attribute = "color";
       for (var i = sheet.cssRules.length-1; i > -1; i--) {
         if (sheet.cssRules[i].selectorText === 'button') {
@@ -53,7 +53,7 @@ var changeColor = function (jscolor, type) {
       var attribute = "color";
       break;
     case 3:                 //background
-      var selector = "body, h1, #pic-url";
+      var selector = "body, h1, input";
       var attribute = "background-color";
       break;
   }
@@ -87,7 +87,7 @@ var signOut = function() {
     if (json === 'success') {
       location.reload();
     } else {
-      console.log(json);
+      alert("something has gone wrong... please screenshot this and show staff", json);
     }
   });
 }

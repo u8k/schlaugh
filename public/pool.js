@@ -51,6 +51,7 @@
   }
 
   exports.checkForCuts = function (string, id) {
+    // changes cut tags into functional cuts, needs id so that every cut has a unique id tag on the front end, this will need alteration if multiple posts per user are allowed
     var recurse = function (pos, count) {
       var next = string.substr(pos).search(/<cut>/);
       if (next === -1) {return string;}
@@ -78,5 +79,131 @@
     }
     return recurse(0,0);
   }
+
+  exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
+    string = string.replace(/\r?\n|\r/g, '<br>');
+
+    var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList) {
+      if (aOpen) {string += "</a>"}
+      if (bOpen) {string += "</b>"}
+      if (iOpen) {string += "</i>"}
+      if (uOpen) {string += "</u>"}
+      if (sOpen) {string += "</s>"}
+      if (lOpen) {string += "</l>"}
+      if (cOpen) {string += "</c>"}
+      if (rOpen) {string += "</r>"}
+      if (cutOpen) {string += "</cut>"}
+      return [imgList, string];
+    }
+    var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList) {
+      var next = string.substr(pos).search(/</);
+      if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);}
+      else {
+        pos += next;
+        if (string.substr(pos+1,2) === "b>" && !bOpen) {
+          bOpen = true;
+          pos += 2;
+        } else if (string.substr(pos+1,2) === "i>" && !iOpen) {
+          iOpen = true;
+          pos += 2;
+        } else if (string.substr(pos+1,2) === "u>" && !uOpen) {
+          uOpen = true;
+          pos += 2;
+        } else if (string.substr(pos+1,2) === "s>" && !sOpen) {
+          sOpen = true;
+          pos += 2;
+        } else if (string.substr(pos+1,2) === "l>" && !lOpen) {
+          lOpen = true;
+          pos += 2;
+        } else if (string.substr(pos+1,2) === "c>" && !cOpen) {
+          cOpen = true;
+          pos += 2;
+        } else if (string.substr(pos+1,2) === "r>" && !rOpen) {
+          rOpen = true;
+          pos += 2;
+        } else if (string.substr(pos+1,4) === "cut>" && !cutOpen) {
+          cutOpen = true;
+          pos += 4;
+        } else if (string.substr(pos+1,3) === "li>") {
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "ul>") {
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "ol>") {
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "/b>") {
+          bOpen = false;
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "/i>") {
+          iOpen = false;
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "/u>") {
+          uOpen = false;
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "/s>") {
+          sOpen = false;
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "/l>") {
+          lOpen = false;
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "/c>") {
+          cOpen = false;
+          pos += 3;
+        } else if (string.substr(pos+1,3) === "/r>") {
+          rOpen = false;
+          pos += 3;
+        } else if (string.substr(pos+1,5) === "/cut>") {
+          cutOpen = false;
+          pos += 5;
+        } else if (string.substr(pos+1,4) === "/li>") {
+          pos += 4;
+        } else if (string.substr(pos+1,4) === "/ul>") {
+          pos += 4;
+        } else if (string.substr(pos+1,4) === "/ol>") {
+          pos += 4;
+        } else if (string.substr(pos+1,3) === "br>") {
+          pos += 3;
+        } else if (string.substr(pos+1,4) === "br/>") {
+          pos += 4;
+        } else if (string.substr(pos+1,8) === 'a href="') {
+          aOpen = true;
+          pos += 8;
+          var qPos = string.substr(pos+1).search(/"/);
+          if (qPos === -1) {
+            string += '">';
+            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
+          }
+          else {pos += qPos;}
+          if (string[pos+2] !== ">") {
+            string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
+          }
+          else {pos += 1;}
+        } else if (string.substr(pos+1,3) === "/a>") {
+          aOpen = false;
+          pos += 3;
+        } else if (string.substr(pos+1,9) === 'img src="') {
+          pos += 9;
+          var qPos = string.substr(pos+1).search(/"/);
+          if (qPos === -1) {
+            imgList.push(string.substr(pos+1))
+            string += '">';
+            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
+          }
+          else {
+            imgList.push(string.substr(pos+1,qPos))
+            pos += qPos;
+          }
+          if (string[pos+2] !== ">") {
+            string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
+          }
+          else {pos += 1;}
+        } else {  // the found tag is not on the sanctioned list, so replace it
+          string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
+        }
+        return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
+      }
+    }
+    return recurse(0, false, false, false, false, false, false, false, false, false, []);
+  }
+
 
 }(typeof exports === 'undefined' ? this.pool = {} : exports));

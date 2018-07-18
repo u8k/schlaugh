@@ -13,6 +13,20 @@ var back = function () {
   $('loginError').innerHTML = "";
 }
 
+var makeKeys = function (pass, callback) {
+  openpgp.initWorker({ path:'openpgp.worker.min.js' });
+  openpgp.generateKey({
+    userIds: [{ name:'bob', email:'bob@example.com' }],
+    curve: "curve25519",
+    passphrase: pass,
+  }).then(function(key) {
+    callback({
+      privKey: key.privateKeyArmored,
+      pubKey: key.publicKeyArmored,
+    });
+  });
+}
+
 var sign = function(inOrUp) {
   if (inOrUp === 'in') {
     var data = {
@@ -48,10 +62,28 @@ var sign = function(inOrUp) {
     }
   }
   ajaxCall(url, 'POST', data, function(json) {
-    if (json === 'success') {
-      location.reload();
+    json = JSON.parse(json);
+    if (json[0]) {    //password is good, do they need keys?
+      if (json[1]) {  // (no)
+
+        //        MODIFY HERE
+
+        location.reload();
+      } else {        //they need keys
+        makeKeys(data.password, function (keys) {
+          ajaxCall('keys', 'POST', keys, function(json) {
+
+            // check for 'success'? what kind of error could happen, and what
+            // would we do about it?
+
+            //    MODIFY HERE
+
+            location.reload();
+          });
+        });
+      }
     } else {
-      $('loginError').innerHTML = json;
+      $('loginError').innerHTML = json[1];
     }
   });
   return false;

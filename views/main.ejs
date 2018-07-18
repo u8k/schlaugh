@@ -3,9 +3,7 @@
   <nav>
     <text class="highlight">write</text>
     <clicky onclick="switchPanel('posts-panel')">read</clicky>
-    <!--
-    <clicky onclick="switchPanel('inbox-panel')">messages</clicky>
-    -->
+    <clicky class="message-panel-title" onclick="switchPanel('inbox-panel')">messages</clicky>
     <br><br>
   </nav>
 
@@ -29,19 +27,19 @@
     <postNav><clicky onclick="hideWriter('post')">◀</clicky></postNav>
     <br>
     <div id="editor-options">
-      <button class="" onclick="styleText('b')"><b>B</b></button>
-      <button class="" onclick="styleText('i')"><i>I</i></button>
-      <button class="" onclick="styleText('u')"><u>U</u></button>
-      <button class="" onclick="styleText('s')"><s>S</s></button>
-      <button class="" onclick="styleText('li')">li</button>
-      <button class="" onclick="styleText('ul')">ul</button>
-      <button class="" onclick="styleText('ol')">ol</button>
-      <button class="" onclick="styleText('l')">L</button>
-      <button class="" onclick="styleText('c')">C</button>
-      <button class="" onclick="styleText('r')">R</button>
-      <button class="" onclick="hyperlink()">link</button>
-      <button class="" onclick="image()">img</button>
-      <button class="" onclick="insertCut()">cut</button>
+      <button class="" onclick="styleText('b', 'post')"><b>B</b></button>
+      <button class="" onclick="styleText('i', 'post')"><i>I</i></button>
+      <button class="" onclick="styleText('u', 'post')"><u>U</u></button>
+      <button class="" onclick="styleText('s', 'post')"><s>S</s></button>
+      <button class="" onclick="styleText('li', 'post')">li</button>
+      <button class="" onclick="styleText('ul', 'post')">ul</button>
+      <button class="" onclick="styleText('ol', 'post')">ol</button>
+      <button class="" onclick="styleText('l', 'post')">L</button>
+      <button class="" onclick="styleText('c', 'post')">C</button>
+      <button class="" onclick="styleText('r', 'post')">R</button>
+      <button class="" onclick="hyperlink('post')">link</button>
+      <button class="" onclick="image('post')">img</button>
+      <button class="" onclick="insertCut('post')">cut</button>
     </div>
     <textarea id="postEditor" class="editor"><% if (pending) { %><%- pendingWriter %><% } %></textarea>
       <!-- that^ HAS to be all on one line like that...*grumbles* -->
@@ -59,9 +57,7 @@
   <nav>
     <clicky onclick="switchPanel('write-panel')">write</clicky>
     <text class="highlight">read</text>
-    <!--
-    <clicky onclick="switchPanel('inbox-panel')">messages</clicky>
-    -->
+    <clicky class="message-panel-title" onclick="switchPanel('inbox-panel')">messages</clicky>
     <br><br>
   </nav>
 
@@ -76,20 +72,21 @@
   </div>
 </div>
 
-<!--
 <div id="inbox-panel" class="removed">
   <nav>
     <clicky onclick="switchPanel('write-panel')">write</clicky>
-    <clicky onclick="switchPanel('posts-panel')">posts</clicky>
-    <text class="highlight">messages</text>
+    <clicky onclick="switchPanel('posts-panel')">read</clicky>
+    <text class="message-panel-title highlight">messages</text>
   </nav>
   <br>
   <br>
   <postNav>
     <clicky id="back-arrow" class="removed" onclick="closeThread()">◀</clicky>
     <br>
-    <text id="thread-title">threads</text>
+    <text id="thread-title"></text>
   </postNav>
+  <br>
+  <clicky id="mark-unread" class="special removed" onclick="markUnread()">(mark unread)</clicky>
   <div id="thread-list"></div>
   <br>
   <div id="thread-box"></div>
@@ -99,18 +96,51 @@
     <div id="pending-message" class="message removed"></div>
     <button type="button" id='write-message-button' onclick="showWriter('message')" ></button>
   </div>
-  <div id="message-writer" class="removed">
-    <textarea id="messageEditor" ></textarea>
-    <script>CKEDITOR.replace( 'messageEditor' );</script>
-    <button type="button" onclick="submitMessage()">submit</button>
-    <button type="button" id='delete-message' onclick="submitMessage(true)">delete</button>
-  </div>
-</div>
--->
 
+  <div id="message-writer" class="removed">
+    <div id="editor-options">
+      <button class="" onclick="styleText('b', 'message')"><b>B</b></button>
+      <button class="" onclick="styleText('i', 'message')"><i>I</i></button>
+      <button class="" onclick="styleText('u', 'message')"><u>U</u></button>
+      <button class="" onclick="styleText('s', 'message')"><s>S</s></button>
+      <button class="" onclick="styleText('li', 'message')">li</button>
+      <button class="" onclick="styleText('ul', 'message')">ul</button>
+      <button class="" onclick="styleText('ol', 'message')">ol</button>
+      <button class="" onclick="styleText('l', 'message')">L</button>
+      <button class="" onclick="styleText('c', 'message')">C</button>
+      <button class="" onclick="styleText('r', 'message')">R</button>
+      <button class="" onclick="hyperlink('message')">link</button>
+      <button class="" onclick="image('message')">img</button>
+      <button class="" onclick="insertCut('message')">cut</button>
+    </div>
+    <textarea id="messageEditor" class="editor"></textarea>
+    <br>
+    <button onclick="submitMessage()">schend</button>
+    <button id='delete-message' onclick="submitMessage(true)">delete</button>
+  </div>
+
+</div>
+
+<div id="prompt-backing" class="hidden"></div>
+
+<div id="prompt" class="hidden">
+  <form action="javascript:void(0);" >
+    <text id="prompt-label"></text>
+    <br><br>
+    <input id="prompt-input">
+    <br><br>
+    <button id="prompt-submit" type="submit">submit</button>
+  </form>
+  <br>
+  <button id="prompt-close">x</button>
+</div>
+
+
+<script src="openpgp.min.js"></script>
 <script src="pool.js"></script>
 <script src="main.js"></script>
 <script type="text/javascript">
   changeDay(1);
+  fetchData();
   $('pending-post').innerHTML = pool.checkForCuts($('pending-post').innerHTML, 'pending');
 </script>
