@@ -39,19 +39,15 @@ var getUsers = function () {
   });
 }
 
-var purge = function () {
-  ajaxCall('/admin/purge', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
 var resetTest = function () {
+  if (!confirm("ARE YOU SURE!? You aren't doing this on production, ARE YOU?!?")) {return;}
   ajaxCall('/admin/resetTest', 'POST', {}, function(json) {
     console.log(json);
   });
 }
 
 var removeUser = function () {
+  if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
   ajaxCall('/admin/removeUser', 'POST', {name: $("name-to-be-removed").value}, function(json) {
     console.log(json);
   });

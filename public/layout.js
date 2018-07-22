@@ -49,7 +49,7 @@ var changeColor = function (jscolor, type) {
       sheet.insertRule("button {border-color: #"+jscolor+";}", sheet.cssRules.length);
       break;
     case 2:                 //link text
-      var selector = "a, a.visited";
+      var selector = "a, a.visited, .special";
       var attribute = "color";
       break;
     case 3:                 //background

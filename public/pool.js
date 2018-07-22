@@ -1,5 +1,7 @@
 "use strict";
 
+// a file for functions that are used on both front and back end
+
 (function(exports){
 
   exports.runTests = function (tests) {

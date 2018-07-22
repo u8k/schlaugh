@@ -327,6 +327,7 @@ var closeThread = function () { // returns true for threadClosed, false for NO
   glo.activeThreadIndex = undefined;
   $("back-arrow").classList.add('removed');
   $(i+"-thread").classList.add('removed');
+  if ($(i+"-thread-pic")) {$(i+"-thread-pic").classList.add('removed');}
   $("message-writer").classList.add('removed');
   $("message-preview").classList.add('removed');
   $("thread-title").classList.add('removed');
@@ -354,6 +355,7 @@ var openThread = function (i) {
       $("thread-list").classList.add('removed');
       $("mark-unread").classList.remove('removed');
       $(i+"-thread").classList.remove('removed');
+      if ($(i+"-thread-pic")) {$(i+"-thread-pic").classList.remove('removed');}
       $("message-preview").classList.remove('removed');
       $("back-arrow").classList.remove('removed');
       $("thread-title").innerHTML = glo.threads[i].name;
@@ -523,11 +525,22 @@ var createThread = function (i, top) {
     $(i+'-thread-name').classList.add("special");
     glo.unread++;
   }
-  //thread for each name
+  //the object that holds messages
   var thread = document.createElement("div");
   thread.setAttribute('class', 'thread removed');
   thread.setAttribute('id', i+'-thread');
   $('thread-box').appendChild(thread);
+  // pic
+  if (glo.threads[i].image !== "") {
+    var authorPic = document.createElement("img");
+    authorPic.setAttribute('src', glo.threads[i].image);
+    authorPic.setAttribute('class', 'user-pic removed');
+    authorPic.setAttribute('id', i+'-thread-pic');
+    var authorPicBox = document.createElement("a");
+    authorPicBox.setAttribute('href', '/'+glo.threads[i].name);
+    authorPicBox.appendChild(authorPic);
+    $("thread-title-area").insertBefore(authorPicBox, $("thread-title"));
+  }
   //
   populateThread(i);
 }
@@ -609,7 +622,7 @@ var decrypt = function (text, key, callback) {
 
 var unlock = function (callback) {
   prompt({
-    label:"Please re-enter your password to decrypt your messages",
+    label:"<i>please</i> re-enter your password to decrypt your messages",
     placeholder:"mimbulus mimbletonia",
     password:true,
     callback: function(password) {

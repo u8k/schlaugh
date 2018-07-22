@@ -41,7 +41,7 @@
       <button class="" onclick="image('post')">img</button>
       <button class="" onclick="insertCut('post')">cut</button>
     </div>
-    <textarea id="postEditor" class="editor"><% if (pending) { %><%- pendingWriter %><% } %></textarea>
+    <textarea id="postEditor" class="editor" autocomplete="off"><% if (pending) { %><%- pendingWriter %><% } %></textarea>
       <!-- that^ HAS to be all on one line like that...*grumbles* -->
     <br>
     <button onclick="submitPost()" >schlaubmit</button>
@@ -80,23 +80,20 @@
   </nav>
   <br>
   <br>
-  <postNav>
+  <postNav id="thread-title-area">
     <clicky id="back-arrow" class="removed" onclick="closeThread()">◀</clicky>
-    <br>
+    <br><br>
     <text id="thread-title"></text>
   </postNav>
   <br>
   <clicky id="mark-unread" class="special removed" onclick="markUnread()">(mark unread)</clicky>
   <div id="thread-list"></div>
-  <br>
-  <div id="thread-box"></div>
-  <br>
+  <br><br>
   <div id="message-preview" class="removed">
     <p id="pending-message-status"></p>
     <div id="pending-message" class="message removed"></div>
     <button type="button" id='write-message-button' onclick="showWriter('message')" ></button>
   </div>
-
   <div id="message-writer" class="removed">
     <div id="editor-options">
       <button class="" onclick="styleText('b', 'message')"><b>B</b></button>
@@ -113,16 +110,17 @@
       <button class="" onclick="image('message')">img</button>
       <button class="" onclick="insertCut('message')">cut</button>
     </div>
-    <textarea id="messageEditor" class="editor"></textarea>
+    <textarea id="messageEditor" autocomplete="off" class="editor"></textarea>
     <br>
     <button onclick="submitMessage()">schend</button>
     <button id='delete-message' onclick="submitMessage(true)">delete</button>
   </div>
+  <br>
+  <div id="thread-box"></div>
 
 </div>
 
 <div id="prompt-backing" class="hidden"></div>
-
 <div id="prompt" class="hidden">
   <form action="javascript:void(0);" >
     <text id="prompt-label"></text>
