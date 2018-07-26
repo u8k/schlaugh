@@ -635,7 +635,7 @@ app.post('/register', function(req, res) {
 
 // log in
 app.post('/login', function(req, res) {
-  if (!req.body.username || !req.body.password) {return res.send([false, "ERROR! SORRY! your message is not saved, please copy all of your text if you want to keep it, please screenshot everything/note all details of the situation and show this to staff, logging in and out might fix this? SORRY   "+req.body.username+"    "+req.body.password])}
+  if (!req.body.username || !req.body.password) {return res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY   "+req.body.username+"    "+req.body.password])}
   var username = req.body.username;
 	var password = req.body.password;
   // validate
@@ -655,10 +655,18 @@ app.post('/login', function(req, res) {
         bcrypt.compare(password, user.password, function(err, isMatch){
           if (err) {throw err;}
           else if (isMatch) {
-            req.session.user = { _id: ObjectId(user._id) };
-            // check if user already has keys, send privKey if so
-            if (user.keys) {return res.send([true, user.keys.privKey]);}
-            else {return res.send([true, false]);}
+            if (req.session.user && String(req.session.user._id) !== String(user._id)) {
+              // valid username and pass, but for a different user than currently logged in
+              req.session.user = { _id: ObjectId(user._id) };
+              // check if user already has keys, send privKey if so
+              if (user.keys) {return res.send([true, user.keys.privKey, true]);}
+              else {return res.send([true, false, true]);}
+            } else {
+              req.session.user = { _id: ObjectId(user._id) };
+              // check if user already has keys, send privKey if so
+              if (user.keys) {return res.send([true, user.keys.privKey]);}
+              else {return res.send([true, false]);}
+            }
           } else {
             return res.send([false, nope]);
           }

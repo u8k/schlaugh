@@ -193,7 +193,7 @@ body, h1, input {
   color: #D8D8D8;
   background-color: #324144;
 }
-.post, .message, .editor, #account-settings, #prompt {
+.post, .message, .editor, #account-settings, .prompt {
   color: #D8D8D8;
   background-color: #32363F;
 }
@@ -219,7 +219,7 @@ arrow {
   margin-top: 5vh;
 }
 
-#prompt {
+.prompt {
   padding: 15px;
   position: fixed;
   left: 50%;

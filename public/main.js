@@ -1,19 +1,123 @@
 "use strict";
 
-var glo = {
-  dateOffset: -1, //negative into the future
+var $ = function (id) {return document.getElementById(id);}
+
+var accountSettings = function (x) { // open/close
+  if (x) {
+    $('account-settings').classList.remove('removed');
+    $('user-name').onclick = function(){accountSettings(false);}
+  }
+  else {
+    $('account-settings').classList.add('removed');
+    $('user-name').onclick = function(){accountSettings(true);}
+  }
 }
 
-var switchPanel = function (panelName) {
-  $('inbox-panel').classList.add('removed');
-  $('posts-panel').classList.add('removed');
-  $('write-panel').classList.add('removed');
-  $(panelName).classList.remove('removed');
+var submitPic = function (remove) {
+  if (remove) {
+    $('pic-url').value = "";
+    $("remove-pic").classList.add('removed');
+  }
+  var picURL = $('pic-url').value;
+  ajaxCall('/changePic', 'POST', {url:picURL}, function(json) {
+    if (json === 'success') {
+      $("user-pic").setAttribute('src', picURL);
+      $("user-pic").classList.remove('removed');
+      $("remove-pic").classList.remove('removed');
+    } else {
+      alert(json);
+    }
+  });
+}
+
+var changeColor = function (jscolor, type) {
+  var sheet = document.styleSheets[1];
+  switch (type) {
+    case 0:                 //post background
+      var selector = ".post, .message, .editor, #account-settings, button, #prompt";
+      var attribute = "background-color";
+      break;
+    case 1:                 //text
+      var selector = "body, h1, input, .post, .message, .editor, #account-settings, button";
+      var attribute = "color";
+      for (var i = sheet.cssRules.length-1; i > -1; i--) {
+        if (sheet.cssRules[i].selectorText === 'button') {
+          sheet.deleteRule(i);
+          i = -1;
+        }
+      }
+      sheet.insertRule("button {border-color: #"+jscolor+";}", sheet.cssRules.length);
+      break;
+    case 2:                 //link text
+      var selector = "a, a.visited, .special";
+      var attribute = "color";
+      break;
+    case 3:                 //background
+      var selector = "body, h1, input";
+      var attribute = "background-color";
+      break;
+  }
+  for (var i = sheet.cssRules.length-1; i > -1; i--) {
+    if (sheet.cssRules[i].selectorText === selector) {
+      sheet.deleteRule(i);
+      i = -1;
+    }
+  }
+  sheet.insertRule(selector+" {"+attribute+": #"+jscolor+";}", sheet.cssRules.length);
+  $('save-colors').classList.remove('hidden');
+}
+
+var saveColors = function () {
+  var data = {};
+  data.postBackground = $('post-background-color').style.backgroundColor;
+  data.text = $('text-color').style.backgroundColor;
+  data.linkText = $('link-text-color').style.backgroundColor;
+  data.background = $('background-color').style.backgroundColor;
+  ajaxCall('/saveColors', 'POST', data, function(json) {
+    if (json === 'success') {
+      $('save-colors').classList.add('hidden');
+    } else {
+      alert(json);
+    }
+  });
+}
+
+var getCursorPosition = function (elem) {
+	// IE < 9 Support
+	if (document.selection) {
+		elem.focus();
+		var range = document.selection.createRange();
+		var rangelen = range.text.length;
+		range.moveStart ('character', -elem.value.length);
+		var start = range.text.length - rangelen;
+		return {'start': start, 'end': start + rangelen };
+	}
+	// IE >=9 and other browsers
+	else if (elem.selectionStart || elem.selectionStart === 0) {
+		return {'start': elem.selectionStart, 'end': elem.selectionEnd };
+	} else {
+		return {'start': 0, 'end': 0};
+	}
+}
+var setCursorPosition = function (elem, start, end) {
+	// IE >= 9 and other browsers
+	if (elem.setSelectionRange) {
+		elem.focus();
+		elem.setSelectionRange(start, end);
+	}
+	// IE < 9
+	else if (elem.createTextRange) {
+		var range = elem.createTextRange();
+		range.collapse(true);
+		range.moveEnd('character', end);
+		range.moveStart('character', start);
+		range.select();
+	}
 }
 
 var prompt = function (options) {
   // options is an object that can include props for
-  //  'label', 'placeholder', 'value', 'password'(boolean), 'callback'(function)
+  //      'label', 'placeholder', 'value', 'callback'(function)
   if (!options) {  //close the prompt
     $("prompt").classList.add("hidden");
     $("prompt-backing").classList.add("hidden");
@@ -25,9 +129,8 @@ var prompt = function (options) {
     if (options.placeholder) {$("prompt-input").placeholder = options.placeholder;}
     if (options.value) {$("prompt-input").value = options.value;}
     else {$("prompt-input").value = "";}
-    if (options.password) {$("prompt-input").type = "password";}
-    else {$("prompt-input").type = "";}
-    setCursorPosition($("prompt-input"), 0, $("prompt-input").value.length)
+    $("prompt-input").type = "";
+    setCursorPosition($("prompt-input"), 0, $("prompt-input").value.length);
     //
     $("prompt-submit").onclick = function(){
       prompt(false);
@@ -40,6 +143,81 @@ var prompt = function (options) {
     $("prompt-close").onclick = exit;
     $("prompt-backing").onclick = exit;
   }
+}
+
+var passPrompt = function (options) {
+  // options is an object that can include props for
+  //      'label', 'username', 'callback'(function)
+  if (!options) {  //close the prompt
+    $("password-prompt").classList.add("hidden");
+    $("prompt-backing").classList.add("hidden");
+  } else {
+    $("password-prompt").classList.remove("hidden");
+    $("prompt-backing").classList.remove("hidden");
+    //
+    $("password-prompt-label").innerHTML = options.label;
+    if (typeof glo !== undefined && glo.username) {
+      $("prompt-username").value = glo.username;
+      setCursorPosition($("prompt-password"), 0, 0);
+    } else {
+      setCursorPosition($("prompt-username"), 0, 0);
+    }
+    //
+    $("password-prompt-submit").onclick = function(){
+      passPrompt(false);
+      options.callback({
+        username: $('prompt-username').value,
+        password: $('prompt-password').value,
+      });
+    }
+    var exit = function(){
+      options.callback(null);
+      passPrompt(false);
+    }
+    $("password-prompt-close").onclick = exit;
+    $("prompt-backing").onclick = exit;
+  }
+}
+
+var signIn = function () {
+  passPrompt({
+    label:"log in",
+    callback: function(data) {
+      console.log(data);
+    }
+  });
+}
+
+var signOut = function() {
+  ajaxCall('/logout', 'GET', {}, function(json) {
+    if (json === 'success') {
+      location.reload();
+    } else {
+      alert("something has gone wrong... please screenshot this and show staff", json);
+    }
+  });
+}
+
+var ajaxCall = function(url, method, data, callback) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.open(method, url, true);
+  xhttp.setRequestHeader('Content-Type', 'application/json');
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      var json = (xhttp.responseText);
+      callback(json);
+    }
+  }
+  xhttp.send(JSON.stringify(data));
+}
+
+var glo = {dateOffset: -1,};
+
+var switchPanel = function (panelName) {
+  $('inbox-panel').classList.add('removed');
+  $('posts-panel').classList.add('removed');
+  $('write-panel').classList.add('removed');
+  $(panelName).classList.remove('removed');
 }
 
 var changeDay = function (dir) { // load and display all posts for a given day
@@ -148,15 +326,6 @@ var changeDay = function (dir) { // load and display all posts for a given day
   }
 }
 
-var showWriter = function (kind) {
-  $(kind+'-writer').classList.remove('removed');
-  $(kind+'-preview').classList.add('removed');
-}
-var hideWriter = function (kind) {
-  $(kind+'-writer').classList.add('removed');
-  $(kind+'-preview').classList.remove('removed');
-}
-
 var submitPost = function (remove) {  //also handles editing and deleting
   if (remove) {
     if (!confirm("you sure you want me should delete it?")) {return;}
@@ -193,37 +362,14 @@ var submitPost = function (remove) {  //also handles editing and deleting
   });
 }
 
-var getCursorPosition = function (elem) {
-	// IE < 9 Support
-	if (document.selection) {
-		elem.focus();
-		var range = document.selection.createRange();
-		var rangelen = range.text.length;
-		range.moveStart ('character', -elem.value.length);
-		var start = range.text.length - rangelen;
-		return {'start': start, 'end': start + rangelen };
-	}
-	// IE >=9 and other browsers
-	else if (elem.selectionStart || elem.selectionStart === 0) {
-		return {'start': elem.selectionStart, 'end': elem.selectionEnd };
-	} else {
-		return {'start': 0, 'end': 0};
-	}
+// editor stuff
+var showWriter = function (kind) {
+  $(kind+'-writer').classList.remove('removed');
+  $(kind+'-preview').classList.add('removed');
 }
-var setCursorPosition = function (elem, start, end) {
-	// IE >= 9 and other browsers
-	if (elem.setSelectionRange) {
-		elem.focus();
-		elem.setSelectionRange(start, end);
-	}
-	// IE < 9
-	else if (elem.createTextRange) {
-		var range = elem.createTextRange();
-		range.collapse(true);
-		range.moveEnd('character', end);
-		range.moveStart('character', start);
-		range.select();
-	}
+var hideWriter = function (kind) {
+  $(kind+'-writer').classList.add('removed');
+  $(kind+'-preview').classList.remove('removed');
 }
 
 var styleText = function (s, src) {
@@ -306,7 +452,7 @@ var insertCut = function (src) {
   });
 }
 
-
+// thread stuff
 var closeThread = function () { // returns true for threadClosed, false for NO
   if (glo.activeThreadIndex === undefined) {return true;}
   var i = glo.activeThreadIndex;
@@ -583,7 +729,7 @@ var fetchData = function () {
   });
 }
 
-
+// encryption stuff
 openpgp.initWorker({ path:'openpgp.worker.min.js' });
 
 var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
@@ -621,55 +767,147 @@ var decrypt = function (text, key, callback) {
 }
 
 var unlock = function (callback) {
-  prompt({
+  passPrompt({
     label:"<i>please</i> re-enter your password to decrypt your messages",
-    placeholder:"mimbulus mimbletonia",
-    password:true,
-    callback: function(password) {
-      if (password === null) {return;}
-      var data = {
-        username: glo.username,
-        password: password,
-      }
+    callback: function(data) {
+      if (data === null) {return;}
       ajaxCall('login', 'POST', data, function(json) {
         json = JSON.parse(json);
-        if (json[0]) {      //password is good, do they need keys?
-          if (json[1]) {  // (no)
-            var key = decryptPrivKey(data.password, glo.keys.privKey);
-            // each thread
-            var threadCount = glo.threads.length;
-            var msgCount = {};
-            for (var i = 0; i < glo.threads.length; i++) {
-              if (!glo.threads[i].locked) {threadCount--;}
-              else {
-                // each message
-                msgCount[i] = glo.threads[i].thread.length;
-                for (var j = 0; j < glo.threads[i].thread.length; j++) {
-                  (function (i,j) {
-                    decrypt(glo.threads[i].thread[j].body, key, function (text) {
-                      glo.threads[i].thread[j].body = text;
-                      msgCount[i]--;
-                      if (msgCount[i] === 0) {
-                        glo.threads[i].locked = false;
-                        populateThread(i);
-                        threadCount--;
-                        if (threadCount === 0) {
-                          callback();
+        if (json[0]) {      //password is good
+          if (json[2]) {  // are they trying to log in as a Different user?
+            alert("switcheroo!");
+            return location.reload();
+          } else {
+            if (json[1]) {  // they have keys
+              var key = decryptPrivKey(data.password, glo.keys.privKey);
+              // each thread
+              var threadCount = glo.threads.length;
+              var msgCount = {};
+              for (var i = 0; i < glo.threads.length; i++) {
+                if (!glo.threads[i].locked) {threadCount--;}
+                else {
+                  // each message
+                  msgCount[i] = glo.threads[i].thread.length;
+                  for (var j = 0; j < glo.threads[i].thread.length; j++) {
+                    (function (i,j) {
+                      decrypt(glo.threads[i].thread[j].body, key, function (text) {
+                        glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
+                        // image validation
+                        //(goes here)
+
+                        msgCount[i]--;
+                        if (msgCount[i] === 0) {
+                          glo.threads[i].locked = false;
+                          populateThread(i);
+                          threadCount--;
+                          if (threadCount === 0) {
+                            callback();
+                          }
                         }
-                      }
-                    })
-                  })(i,j)
+                      })
+                    })(i,j)
+                  }
                 }
               }
+            } else {     //they don't have keys... somehow???
+              alert("HMM the thing that is occurring should not be possible, and yet here we are. SORRY! We're gonna log you out and hope that when you sign back in everything is all better")
             }
-          } else {     //they don't have keys... somehow???
-          alert("HMM the thing that is occurring should not be possible, and yet here we are. SORRY! We're gonna log you out and hope that when you sign back in everything is all better")
+          }
+        } else {  // bad username/password
+          alert(json[1]);
+          signOut();
         }
-      } else {
-        alert(json[1]);
-        signOut();
-      }
-    });
+      });
     }
   });
+}
+
+// login page stuff
+var chooseInOrUp = function (up) {
+  if (up === true) {$('up').classList.remove('removed');}
+  else {$('in').classList.remove('removed');}
+  $('inOrUp').classList.add('removed');
+}
+
+var backToLogInMenu = function () {
+  $('up').classList.add('removed');
+  $('in').classList.add('removed');
+  $('inOrUp').classList.remove('removed');
+  $('loginError').innerHTML = "";
+}
+
+var makeKeys = function (pass, callback) {
+  openpgp.initWorker({ path:'openpgp.worker.min.js' });
+  openpgp.generateKey({
+    userIds: [{ name:'bob', email:'bob@example.com' }],
+    curve: "curve25519",
+    passphrase: pass,
+  }).then(function(key) {
+    callback({
+      privKey: key.privateKeyArmored,
+      pubKey: key.publicKeyArmored,
+    });
+  });
+}
+
+var logInPageSubmit = function(inOrUp) {
+  if (inOrUp === 'in') {
+    var data = {
+      username: $('in-name-input').value.toLowerCase(),
+      password: $('in-pass-input').value,
+    }
+  } else {
+    var data = {
+      username: $('name-input').value,
+      password: $('pass-input').value,
+    }
+  }
+  // validate
+  var x = pool.userNameValidate(data.username);
+  if (x) {
+    $('loginError').innerHTML = x;
+    return false;
+  }
+  var y = pool.passwordValidate(data.password);
+  if (y) {
+    $('loginError').innerHTML = y;
+    return false;
+  }
+  if (inOrUp === 'in') {
+    var url = 'login';
+  } else {
+    var url = 'register';
+    data.email = $('email-input').value;
+    //data.secretCode = $('secret-code').value;
+    if (data.password !== $('pass-input-two').value) {
+      $('loginError').innerHTML = 'passwords are not the same';
+      return false;
+    }
+  }
+  ajaxCall(url, 'POST', data, function(json) {
+    json = JSON.parse(json);
+    if (json[0]) {    //password is good, do they need keys?
+      if (json[1]) {  // (no)
+
+        //        MODIFY HERE
+
+        location.reload();
+      } else {        //they need keys
+        makeKeys(data.password, function (keys) {
+          ajaxCall('keys', 'POST', keys, function(json) {
+
+            // check for 'success'? what kind of error could happen, and what
+            // would we do about it?
+
+            //    MODIFY HERE
+
+            location.reload();
+          });
+        });
+      }
+    } else {
+      $('loginError').innerHTML = json[1];
+    }
+  });
+  return false;
 }

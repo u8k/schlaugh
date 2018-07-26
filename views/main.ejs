@@ -26,21 +26,7 @@
   <div id="post-writer" class="removed">
     <postNav><clicky onclick="hideWriter('post')">◀</clicky></postNav>
     <br>
-    <div id="editor-options">
-      <button class="" onclick="styleText('b', 'post')"><b>B</b></button>
-      <button class="" onclick="styleText('i', 'post')"><i>I</i></button>
-      <button class="" onclick="styleText('u', 'post')"><u>U</u></button>
-      <button class="" onclick="styleText('s', 'post')"><s>S</s></button>
-      <button class="" onclick="styleText('li', 'post')">li</button>
-      <button class="" onclick="styleText('ul', 'post')">ul</button>
-      <button class="" onclick="styleText('ol', 'post')">ol</button>
-      <button class="" onclick="styleText('l', 'post')">L</button>
-      <button class="" onclick="styleText('c', 'post')">C</button>
-      <button class="" onclick="styleText('r', 'post')">R</button>
-      <button class="" onclick="hyperlink('post')">link</button>
-      <button class="" onclick="image('post')">img</button>
-      <button class="" onclick="insertCut('post')">cut</button>
-    </div>
+    <%- include("editorButtons", {kind: "post"}) %>
     <textarea id="postEditor" class="editor" autocomplete="off"><% if (pending) { %><%- pendingWriter %><% } %></textarea>
       <!-- that^ HAS to be all on one line like that...*grumbles* -->
     <br>
@@ -95,21 +81,7 @@
     <button type="button" id='write-message-button' onclick="showWriter('message')" ></button>
   </div>
   <div id="message-writer" class="removed">
-    <div id="editor-options">
-      <button class="" onclick="styleText('b', 'message')"><b>B</b></button>
-      <button class="" onclick="styleText('i', 'message')"><i>I</i></button>
-      <button class="" onclick="styleText('u', 'message')"><u>U</u></button>
-      <button class="" onclick="styleText('s', 'message')"><s>S</s></button>
-      <button class="" onclick="styleText('li', 'message')">li</button>
-      <button class="" onclick="styleText('ul', 'message')">ul</button>
-      <button class="" onclick="styleText('ol', 'message')">ol</button>
-      <button class="" onclick="styleText('l', 'message')">L</button>
-      <button class="" onclick="styleText('c', 'message')">C</button>
-      <button class="" onclick="styleText('r', 'message')">R</button>
-      <button class="" onclick="hyperlink('message')">link</button>
-      <button class="" onclick="image('message')">img</button>
-      <button class="" onclick="insertCut('message')">cut</button>
-    </div>
+    <%- include("editorButtons", {kind: "message"}) %>
     <textarea id="messageEditor" autocomplete="off" class="editor"></textarea>
     <br>
     <button onclick="submitMessage()">schend</button>
@@ -120,23 +92,7 @@
 
 </div>
 
-<div id="prompt-backing" class="hidden"></div>
-<div id="prompt" class="hidden">
-  <form action="javascript:void(0);" >
-    <text id="prompt-label"></text>
-    <br><br>
-    <input id="prompt-input">
-    <br><br>
-    <button id="prompt-submit" type="submit">submit</button>
-  </form>
-  <br>
-  <button id="prompt-close">x</button>
-</div>
 
-
-<script src="openpgp.min.js"></script>
-<script src="pool.js"></script>
-<script src="main.js"></script>
 <script type="text/javascript">
   changeDay(1);
   fetchData();

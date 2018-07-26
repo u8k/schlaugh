@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>s c h l a u g h</title>
     <link rel="stylesheet" href="/main.css">
-    <script src="/layout.js"></script>
-    <script src="/jscolor.js"></script>
+    <script src="openpgp.min.js"></script>
+    <script src="jscolor.js"></script>
+    <script src="pool.js"></script>
+    <script src="main.js"></script>
 	  <link rel="icon" type="image/png" href="/favicon.png">
     <% if (typeof colors !== "undefined") { %>
       <style media="screen">
-        .post, .message, .editor, #account-settings, button, #prompt {
+        .post, .message, .editor, #account-settings, button, .prompt {
           background-color: <%= colors.postBackground %>;
         }
 
@@ -40,6 +42,12 @@
         <nav class="user-info">
           <a id="user-name" class="clicky" onclick="accountSettings(true)"><%- username %></a>
         </nav>
+      <% } else if (pagename !== "login") { %>
+      <!--
+        <nav class="user-info">
+          <a class="clicky" onclick="signIn()">schlaugh in</a>
+        </nav>
+      -->
       <% } %>
     </header>
 
@@ -82,6 +90,32 @@
     <main>
       <%- include(pagename) %>
     </main>
+
+    <div id="prompt-backing" class="hidden"></div>
+    <div id="prompt" class="prompt hidden">
+      <form action="javascript:void(0);">
+        <text id="prompt-label"></text>
+        <br><br>
+        <input id="prompt-input">
+        <br><br>
+        <button id="prompt-submit" type="submit">submit</button>
+      </form>
+      <br>
+      <button id="prompt-close">x</button>
+    </div>
+    <div id="password-prompt" class="prompt hidden">
+      <form action="javascript:void(0);">
+        <text id="password-prompt-label"></text>
+        <br><br>
+        <input id="prompt-username" type="text" name="username" placeholder="username">
+        <br><br>
+        <input id="prompt-password" type="password" name="password" placeholder="password">
+        <br><br>
+        <button id="password-prompt-submit" type="submit">submit</button>
+      </form>
+      <br>
+      <button id="password-prompt-close">x</button>
+    </div>
 
     <footer>
       <%

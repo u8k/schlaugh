@@ -1,13 +1,13 @@
 <div id="inOrUp">
-  <button onclick="show(false)">schlaugh in</button>
+  <button onclick="chooseInOrUp(false)">schlaugh in</button>
   <h4>or</h4>
-  <button onclick="show(true)">schlaugh up</button>
+  <button onclick="chooseInOrUp(true)">schlaugh up</button>
 </div>
 
 <div id="up" class="removed">
-  <arrow onclick="back()">◀</arrow>
+  <arrow onclick="backToLogInMenu()">◀</arrow>
   <br><br>
-  <form action="javascript:void(0);" onsubmit="return sign('up')">
+  <form action="javascript:void(0);" onsubmit="return logInPageSubmit('up')">
     <input id="name-input" type="text" name="username" placeholder="name">
     <br>
     <input id="email-input" type="text" name="email" placeholder="email address">
@@ -15,17 +15,19 @@
     <input id="pass-input" type="password" name="password" placeholder="password">
     <br>
     <input id="pass-input-two" type="password" name="password" placeholder="password">
+    <!--
     <br>
     <input id="secret-code" type="password" name="secretCode" placeholder="secret code">
+    -->
     <br><br>
     <input class="button" type="submit" value="schlaugh up">
   </form>
 </div>
 
 <div id="in" class="removed">
-  <arrow onclick="back()">◀</arrow>
+  <arrow onclick="backToLogInMenu()">◀</arrow>
   <br><br>
-  <form action="javascript:void(0);" onsubmit="return sign('in')">
+  <form action="javascript:void(0);" onsubmit="return logInPageSubmit('in')">
     <input id="in-name-input" type="text" name="username" placeholder="username">
     <br>
     <input id="in-pass-input" type="password" name="password" placeholder="password">
@@ -35,7 +37,3 @@
 </div>
 
 <h3 id="loginError"></h3>
-
-<script src="openpgp.min.js"></script>
-<script src="pool.js"></script>
-<script src="login.js"></script>
