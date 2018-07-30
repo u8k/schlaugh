@@ -8,6 +8,7 @@ var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
 var request = require('request');
 var pool = require('./public/pool.js');
+//var adminB = require('./public/adminB.js');
 
 //connect and check mongoDB
 var db;
@@ -130,21 +131,6 @@ var getUser = function (user, callback) {
   });
 }
 
-var serve404 = function (res, user) {
-  if (user) {
-    getUser(user, function (user) {
-      if (user) {
-        res.render('layout', {
-          pagename:'404',
-          username: user.username,
-          userPic: user.pic,
-          colors: user.colors,
-        });
-      } else {res.render('layout', {pagename:'404'});}
-    });  // doubled like this because asynch
-  } else {res.render('layout', {pagename:'404'});}
-}
-
 var checkObjForProp = function (obj, prop, value) { //and add the prop if it doesn't exist
   if (obj[prop]) {return false}     //note: returns FALSE to indicate no action taken
   else {
@@ -219,29 +205,229 @@ var removeListRefIfRemovingOnlyMessage = function (box, id, b, tmrw) {
   } return false;
 }
 
-//*******//ROUTING//*******//
-
-// main page
-app.get('/', function(req, res) {
-  if (!req.session.user) {res.render('layout', {pagename:'login'});}
+var getPayload = function (req, res, callback) {
+  if (!req.session.user) {return res.render('layout', {user:false});}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, posts:1, iconURI:1, settings:1}
+    , {_id:0, username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1}
     , function (err, user) {
       if (err) {throw err;}
-      else if (!user) {res.render('layout', {pagename:'login'});}
+      else if (!user) {return res.render('layout', {user:false});}
       else {
         var pending;
         var pendingWriter;
         var tmrw = pool.getCurDate(-1)
         if (user.posts[tmrw]) {
           pending = user.posts[tmrw][0].body;
-          pendingWriter = pending.replace(/<br>/g, '\n');
+          //pendingWriter = pending.replace(/<br>/g, '\n');
         }
-        var userPic = getUserPic(user);
-        var colors = getUserColors(user);
-        res.render('layout', {pagename:'main', username:user.username, pending:pending, pendingWriter:pendingWriter, userPic:userPic, colors:colors});
+        // check if user needs keys
+        if (!user.keys) {return res.send([true, false]);}
+        var payload = {
+          keys: user.keys,
+          username: user.username,
+          pending: pending,
+          //pendingWriter: pendingWriter,
+          userPic: getUserPic(user),
+          colors: getUserColors(user)
+        }
+        var threads = [];
+        if (user.inbox) {
+          var tmrw = pool.getCurDate(-1);
+          bumpThreadList(user.inbox);
+          writeToDB(ObjectId(req.session.user._id), user, function () {});
+          var list = user.inbox.list;
+          //reverse thread order so as to send a list ordered newest to oldest
+          for (var i = list.length-1; i > -1; i--) {
+            //check the last two messages of each thread, see if they are allowed
+            var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, tmrw, true);
+            if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
+            //
+            if (user.inbox.threads[list[i]].thread.length !== 0) {
+              // add in the authorID for the FE
+              user.inbox.threads[list[i]]._id = list[i];
+              user.inbox.threads[list[i]].locked = true;
+              threads.push(user.inbox.threads[list[i]]);
+            }
+          }
+        }
+        payload.threads = threads;
+        return callback(payload);
       }
+    });
+  }
+}
+
+//*******//ROUTING//*******//
+
+// admin
+var devFlag = false;
+  // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
+var adminGate = function (req, res, callback) {
+  if (devFlag) {return callback(res);}
+  if (!req.session.user) {
+    res.render('layout', {
+      author:"admin",
+      user:false,
+      post:false,
+    });
+  } else {
+    db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+    , {_id:0, username:1, codes:1 }
+    , function (err, user) {
+      if (err) {throw err;}
+      else if (user && user.username === "admin") {callback(res, user);} //no need to pass 'user' once we take out the code nonsense
+      else {
+        res.render('layout', {
+          author:"admin",
+          user:true,
+          post:false,
+        });
+      }
+    });
+  }
+}
+
+app.get('/admin', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var results = pool.runTests(
+      [ //array of arrays, each inner array contains two statements that are supposed to be equal
+        [devFlag, false, "IN DEV MODE"],
+        [pool.userNameValidate(), "need a name!", "pool.userNameValidate()"],
+        [pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
+        //
+        [checkObjForProp({a: 23}, 'a', 23), false],
+        [checkObjForProp({b: 12}, 'a', 23).a, 23],
+        [checkObjForProp({b: 12}, 'a', 23).b, 12],
+        //
+        [checkLastTwoForPending([], false, "farts", 5, false), false],
+        [checkLastTwoForPending([{date:2, inbound:true},{date:2, inbound:true},{date:2, inbound:true}], false, "farts", 5, false), false],
+        [checkLastTwoForPending([{date:5, inbound:true},{date:2, inbound:true},{date:2, inbound:true}], false, "farts", 5, false), false],
+        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:true},{date:5, inbound:true}], false, "farts", 5, false), false],
+        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:true},{date:5, inbound:false}], false, "farts", 5, false)[2].body, "farts"],
+        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:true},{date:5, inbound:false}], false, "farts", 5, false)[1].body, undefined],
+        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:false},{date:5, inbound:true}], false, "farts", 5, false)[2].body, undefined],
+        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:false},{date:5, inbound:true}], false, "farts", 5, false)[1].body, "farts"],
+        //
+        [bumpThreadList({updatedOn: pool.getCurDate(), pending:{5454:true, 1234:true, 9876:true}, list:[5454, 1234, 9876]}), false],
+        [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[5454, 1234, 9876]}).list.length, 3],
+        [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[]}).list.length, 3],
+        [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[54545, 12345, 9876]}).list.length, 5],
+        //
+        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3).length, 2],
+        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[7,7,7,7]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3), false],
+        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:8}]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3), false],
+        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:3}]},3:{}}, list:[8,6,1,2,3]}, 2, {remove:true}, 3).length, 4],
+        //
+      ]
+    );
+    if (!devFlag) {return res.render('admin', { codes:user.codes, results:results });}
+    else {res.render('admin', { results:results });}
+  });
+});
+
+app.get('/admin/users', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('users').find({},{_id:0, username:1, inbox:1}).toArray(function(err, users) {
+      if (err) {throw err;}
+      else {
+        return res.send(users);
+      }
+    });
+  });
+});
+
+app.post('/admin/resetTest', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var testers = getTesters();
+    var count = testers.length;
+    for (var i = 0; i < testers.length; i++) {
+      db.collection('users').updateOne({username: testers[i].username},
+        {$set: testers[i]},
+        {upsert: true},
+        function(err, user) {
+          if (err) {throw err;}
+          else {
+            count--;
+            if (count === 0) {
+              res.send("success");
+            }
+          }
+        }
+      );
+    }
+  });
+});
+
+app.post('/admin/removeUser', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('users').remove({username: req.body.name},
+      function(err, user) {
+        if (err) {throw err;}
+        else {
+          res.send("success");
+        }
+      }
+    );
+  });
+});
+
+app.get('/admin/:num', function(req, res) {
+  if (!req.session.user) {
+    res.render('layout', {
+      author:"admin",
+      user:false,
+      post:req.params.num,
+    });
+  } else {
+    res.render('layout', {
+      author:"admin",
+      user:true,
+      post:req.params.num,
+    });
+  }
+});
+
+/*app.post('/admin', function(req, res) {       // add new codes
+  if (req.session.user) {
+    var userID = ObjectId(req.session.user._id)
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, username:1, codes:1}
+      , function (err, admin) {
+        if (err) {throw err;}
+        else if (!admin || admin.username !== "admin") {
+          res.render('layout', {pagename:'404', type:'user'});
+        } else {
+          if (!admin.codes) {admin.codes = {};}
+          admin.codes[req.body.code] = true;
+          db.collection('users').updateOne({_id: userID},
+            {$set: admin },
+            function(err, user) {
+              if (err) {throw err;}
+              else {res.render('admin', { codes: admin.codes });}
+            }
+          );
+        }
+      }
+    );
+  } else {
+    res.render('layout', {pagename:'404', type:'user'});
+  }
+});*/
+
+
+// main page
+app.get('/', function(req, res) {
+  if (!req.session.user) {res.render('layout', {user:false});}
+  else {res.render('layout', {user:true});}
+});
+
+// payload
+app.get('/~payload', function(req, res) {
+  if (!req.session.user) {res.send([false]);}
+  else {
+    getPayload(req, res, function (payload) {
+      return res.send([true, payload]);
     });
   }
 });
@@ -319,43 +505,6 @@ app.post('/posts', function(req, res) {
         }
       }
       return res.send(posts);
-    }
-  });
-});
-
-// get all messages
-app.get('/inbox', function(req, res) {
-  if (!req.session.user) {return res.send('you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please');}
-  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-  , {_id:0, inbox:1, keys:1}
-  , function (err, user) {
-    if (err) {throw err;}
-    else {
-      var payload = {
-        keys: user.keys,
-      }
-      var threads = [];
-      if (user.inbox) {
-        var tmrw = pool.getCurDate(-1);
-        bumpThreadList(user.inbox);
-        writeToDB(ObjectId(req.session.user._id), user, function () {});
-        var list = user.inbox.list;
-        //reverse thread order so as to send a list ordered newest to oldest
-        for (var i = list.length-1; i > -1; i--) {
-          //check the last two messages of each thread, see if they are allowed
-          var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, tmrw, true);
-          if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
-          //
-          if (user.inbox.threads[list[i]].thread.length !== 0) {
-            // add in the authorID for the FE
-            user.inbox.threads[list[i]]._id = list[i];
-            user.inbox.threads[list[i]].locked = true;
-            threads.push(user.inbox.threads[list[i]]);
-          }
-        }
-      }
-      payload.threads = threads;
-      return res.send(payload);
     }
   });
 });
@@ -496,7 +645,8 @@ app.post('/unread', function(req, res) {
 // change user picture URL
 app.post('/changePic', function(req, res) {
   if (!req.session.user) {return res.send('you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please');}
-  var userID = ObjectId(req.session.user._id)
+  var userID = ObjectId(req.session.user._id);
+
   var updateUrl = function (url) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, iconURI:1}
@@ -633,7 +783,7 @@ app.post('/register', function(req, res) {
   */
 });
 
-// log in
+// log in (aslo password verify)
 app.post('/login', function(req, res) {
   if (!req.body.username || !req.body.password) {return res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY   "+req.body.username+"    "+req.body.password])}
   var username = req.body.username;
@@ -646,7 +796,7 @@ app.post('/login', function(req, res) {
       // is that ^ neccesary????
   var nope = "invalid username/password";
   db.collection('users').findOne({username: username}
-    , { password:1, keys:1 }
+    , { password:1 }
     , function (err, user) {
       //check if username is registered
       if (!user) {return res.send([false, nope]);}
@@ -655,17 +805,21 @@ app.post('/login', function(req, res) {
         bcrypt.compare(password, user.password, function(err, isMatch){
           if (err) {throw err;}
           else if (isMatch) {
-            if (req.session.user && String(req.session.user._id) !== String(user._id)) {
-              // valid username and pass, but for a different user than currently logged in
+            if (req.session.user) { // is there already a logged in user? (via cookie)
+              // this is a password check to unlock an inbox
+              if (String(req.session.user._id) !== String(user._id)) {
+                // valid username and pass, but for a different user than currently logged in
+                req.session.user = { _id: ObjectId(user._id) };
+                // switcheroo
+                return res.send([true, true]);
+              } else {
+                return res.send([true, false]);
+              }
+            } else { // this is an actual login
               req.session.user = { _id: ObjectId(user._id) };
-              // check if user already has keys, send privKey if so
-              if (user.keys) {return res.send([true, user.keys.privKey, true]);}
-              else {return res.send([true, false, true]);}
-            } else {
-              req.session.user = { _id: ObjectId(user._id) };
-              // check if user already has keys, send privKey if so
-              if (user.keys) {return res.send([true, user.keys.privKey]);}
-              else {return res.send([true, false]);}
+              getPayload(req, res, function (payload) {
+                return res.send([true, true, payload]);
+              });
             }
           } else {
             return res.send([false, nope]);
@@ -682,171 +836,33 @@ app.post('/keys', function(req, res) {
   db.collection('users').findOne({_id: userID}
   , {_id:0, inbox:1, keys:1}
   , function (err, user) {
-    if (err) {res.send(err); throw err;}
+    if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
     else {
       if (req.body.privKey && req.body.pubKey) {
         user.keys = req.body;
-        writeToDB(userID, user, function () {res.send("success");})
-      } else {res.send("nahh");}
+        writeToDB(userID, user, function () {
+          getPayload(req, res, function (payload) {
+            return res.send([true, payload]);
+          });
+        });
+      } else {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY"]);}
     }
   });
 });
 
 // logout
-app.get('/logout', function(req, res) {
+app.get('/~logout', function(req, res) {
   req.session.user = null;
   res.send("success");
 });
 
-
-// admin
-var devFlag = false;
-  // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
-var adminGate = function (req, res, callback) {
-  if (devFlag) {return callback(res);}
-  if (req.session.user) {
-    db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, codes:1, iconURI:1, settings:1}
-    , function (err, user) {
-      if (err) {throw err;}
-      else if (user && user.username === "admin") {callback(res, user);} //no need to pass 'user' once we take out the code nonsense
-      else if (!user) {res.render('layout', {pagename:'404'});}
-      else {
-        res.render('layout', {
-          pagename:'404',
-          username: user.username,
-          userPic: getUserPic(user),
-          colors: getUserColors(user),
-        });
-      }
-    });
-  } else {res.render('layout', {pagename:'404'});}
-}
-
-app.get('/admin', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    var results = pool.runTests(
-      [ //array of arrays, each inner array contains two statements that are supposed to be equal
-        [devFlag, false, "IN DEV MODE"],
-        [pool.userNameValidate(), "need a name!", "pool.userNameValidate()"],
-        [pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
-        //
-        [checkObjForProp({a: 23}, 'a', 23), false],
-        [checkObjForProp({b: 12}, 'a', 23).a, 23],
-        [checkObjForProp({b: 12}, 'a', 23).b, 12],
-        //
-        [checkLastTwoForPending([], false, "farts", 5, false), false],
-        [checkLastTwoForPending([{date:2, inbound:true},{date:2, inbound:true},{date:2, inbound:true}], false, "farts", 5, false), false],
-        [checkLastTwoForPending([{date:5, inbound:true},{date:2, inbound:true},{date:2, inbound:true}], false, "farts", 5, false), false],
-        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:true},{date:5, inbound:true}], false, "farts", 5, false), false],
-        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:true},{date:5, inbound:false}], false, "farts", 5, false)[2].body, "farts"],
-        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:true},{date:5, inbound:false}], false, "farts", 5, false)[1].body, undefined],
-        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:false},{date:5, inbound:true}], false, "farts", 5, false)[2].body, undefined],
-        [checkLastTwoForPending([{date:5, inbound:true},{date:5, inbound:false},{date:5, inbound:true}], false, "farts", 5, false)[1].body, "farts"],
-        //
-        [bumpThreadList({updatedOn: pool.getCurDate(), pending:{5454:true, 1234:true, 9876:true}, list:[5454, 1234, 9876]}), false],
-        [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[5454, 1234, 9876]}).list.length, 3],
-        [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[]}).list.length, 3],
-        [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[54545, 12345, 9876]}).list.length, 5],
-        //
-        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3).length, 2],
-        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[7,7,7,7]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3), false],
-        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:8}]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3), false],
-        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:3}]},3:{}}, list:[8,6,1,2,3]}, 2, {remove:true}, 3).length, 4],
-        //
-      ]
-    );
-    if (!devFlag) {return res.render('admin', { codes:user.codes, results:results });}
-    else {res.render('admin', { results:results });}
-  });
-});
-
-app.get('/admin/users', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('users').find({},{_id:0, username:1, inbox:1}).toArray(function(err, users) {
-      if (err) {throw err;}
-      else {
-        return res.send(users);
-      }
-    });
-  });
-});
-
-app.post('/admin/resetTest', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    var testers = adminB.getTesters();
-    var count = testers.length;
-    for (var i = 0; i < testers.length; i++) {
-      db.collection('users').updateOne({username: testers[i].username},
-        {$set: testers[i]},
-        {upsert: true},
-        function(err, user) {
-          if (err) {throw err;}
-          else {
-            count--;
-            if (count === 0) {
-              res.send("success");
-            }
-          }
-        }
-      );
-    }
-  });
-});
-
-app.post('/admin/removeUser', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('users').remove({username: req.body.name},
-      function(err, user) {
-        if (err) {throw err;}
-        else {
-          res.send("success");
-        }
-      }
-    );
-  });
-});
-
-app.get('/admin/:num', function(req, res) {
-  serve404(res, req.session.user);
-});
-
-app.post('/admin', function(req, res) {
-  if (req.session.user) {
-    var userID = ObjectId(req.session.user._id)
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, username:1, codes:1}
-      , function (err, admin) {
-        if (err) {throw err;}
-        else if (!admin || admin.username !== "admin") {
-          res.render('layout', {pagename:'404', type:'user'});
-        } else {
-          if (!admin.codes) {admin.codes = {};}
-          admin.codes[req.body.code] = true;
-          db.collection('users').updateOne({_id: userID},
-            {$set: admin },
-            function(err, user) {
-              if (err) {throw err;}
-              else {res.render('admin', { codes: admin.codes });}
-            }
-          );
-        }
-      }
-    );
-  } else {
-    res.render('layout', {pagename:'404', type:'user'});
-  }
-});
-
-
-// user routes must be placed last
-// view all of a users posts
-app.get('/:username', function(req, res) {
+// get all of a posts
+app.get('/~get/:username', function(req, res) {
+  if (req.params.username === "admin") {return res.send([false, true]);}     //404
   db.collection('users').findOne({username: req.params.username}
-  , { posts:1, postList:1, postListPending:1, iconURI:1}
-  //TODO: later make that^ also return "settings" to check post visibility permissions
+  , { posts:1, postList:1, postListPending:1, iconURI:1, keys:1}
   , function (err, author) {
-    if (err) {throw err; res.send(err);}
+    if (err) {res.send([false, false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
     else {
       if (author) {
         checkFreshness(author);
@@ -861,82 +877,56 @@ app.get('/:username', function(req, res) {
             });
           }
         }
+        var key = null;
+        if (author.keys) {key = author.keys.pubKey}
         var authorPic = getUserPic(author);
-        var showAuthorToNonUser = function () {
-          res.render('layout', {
-            pagename:'user',
-            authorName:req.params.username,
-            posts:posts,
-            authorPic: authorPic
-          });
-        }
-        if (req.session.user) {
-          getUser(req.session.user, function (user) {
-            if (user) {
-              res.render('layout', {
-                pagename:'user',
-                authorName:req.params.username,
-                posts:posts,
-                authorPic: authorPic,
-                username: user.username,
-                userPic: user.pic,
-                colors: user.colors,
-              });
-            } else {showAuthorToNonUser();}
-          }); // doubled like this because asynch
-        } else {showAuthorToNonUser();}
-      } else {serve404(res, req.session.user);}
+        res.send([true, {
+          author: req.params.username,
+          posts: posts,
+          authorPic: authorPic,
+          _id: author._id,
+          key: key,
+        }]);
+      } else {
+        res.send([false, true]);      //404
+      }
     }
   });
 });
 
+// user routes must be placed last
+// view all of a users posts
+app.get('/:author', function(req, res) {
+  if (!req.session.user) {
+    res.render('layout', {
+      author:req.params.author,
+      user:false,
+      post:false,
+    });
+  } else {
+    res.render('layout', {
+      author:req.params.author,
+      user:true,
+      post:false,
+    });
+  }
+});
+
 // view a single post
-app.get('/:username/:num', function(req, res) {
-  db.collection('users').findOne({username: req.params.username}
-  , { posts:1, postList:1, postListPending:1, iconURI:1}
-  //TODO: later make that^ also return "settings" to check post visibility permissions
-  , function (err, author) {
-    if (err) {throw err; res.send(err);}
-    else {
-      if (author) {
-        checkFreshness(author);
-        var i = req.params.num;
-        if (author.postList[i] && author.postList[i].date !== pool.getCurDate(-1)) {
-          var postBody = pool.checkForCuts(author.posts[author.postList[i].date][author.postList[i].num].body, author._id+"-"+author.postList[i].date+"-"+author.postList[i].num)
-          var date = author.postList[i].date;
-        } else {
-          var postBody = "<c>not even a single thing</c>";
-          var date = null;
-        }
-        var authorPic = getUserPic(author);
-        var showPostToNonUser = function () {
-          res.render('layout', {
-            pagename:'post',
-            authorName:req.params.username,
-            body: postBody,
-            date: date,
-            authorPic: authorPic,
-          });
-        }
-        if (req.session.user) {
-          getUser(req.session.user, function (user) {
-            if (user) {
-              res.render('layout', {
-                pagename:'post',
-                authorName:req.params.username,
-                body: postBody,
-                date: date,
-                authorPic: authorPic,
-                username: user.username,
-                userPic: user.pic,
-                colors: user.colors,
-              });
-            } else {showPostToNonUser();}
-          });  // doubled like this because asynch
-        } else {showPostToNonUser();}
-      } else {serve404(res, req.session.user);}
-    }
-  });
+app.get('/:author/:num', function(req, res) {
+  if (!req.session.user) {
+    res.render('layout', {
+      author:req.params.author,
+      user:false,
+      post:req.params.num,
+    });
+  } else {
+    res.render('layout', {
+      author:req.params.author,
+      user:true,
+      post:req.params.num,
+    });
+  }
 });
 
 

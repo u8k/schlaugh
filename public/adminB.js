@@ -1,6 +1,7 @@
-"use strict";
-
 // a file for some of the uglier stuff in the admin/tests that was cluttering up the server.js
+
+"use strict";
+var pool = require('./public/pool.js');
 
 (function(exports){
 

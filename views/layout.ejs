@@ -5,117 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>s c h l a u g h</title>
     <link rel="stylesheet" href="/main.css">
-    <script src="openpgp.min.js"></script>
-    <script src="jscolor.js"></script>
-    <script src="pool.js"></script>
-    <script src="main.js"></script>
+    <script src="/openpgp.min.js"></script>
+    <script src="/jscolor.js"></script>
+    <script src="/pool.js"></script>
+    <script src="/main.js"></script>
 	  <link rel="icon" type="image/png" href="/favicon.png">
+    <!-- currently(maybe permanently?) non operational
     <% if (typeof colors !== "undefined") { %>
       <style media="screen">
-        .post, .message, .editor, #account-settings, button, .prompt {
+        .post, .message, .editor, #settings-panel, #thread-list, button, .prompt {
           background-color: <%= colors.postBackground %>;
         }
-
-        body, h1, input, .post, .message, .editor, #account-settings, button {
+        body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button {
           color: <%= colors.text %>;
         }
         button {border-color: <%= colors.text %>;}
-
         a, a.visited, .special {
           color: <%= colors.linkText %>;
         }
-
         body, h1, input {
           background-color: <%= colors.background %>;
         }
-
-
       </style>
     <% } %>
+    -->
   </head>
   <body>
+    <% if (user) { %>
+      <script type="text/javascript">fetchData();</script>
+    <% } %>
 
     <header>
       <a href="/"><h1>schlaugh</h1></a>
+      <!-- <clicky onclick="homeButton()"><h1>schlaugh</h1></clicky> -->
 
-      <% if (typeof username !== "undefined") { %>
-        <nav class="user-info">
-          <a id="user-name" class="clicky" onclick="accountSettings(true)"><%- username %></a>
-        </nav>
-      <% } else if (pagename !== "login") { %>
-      <!--
-        <nav class="user-info">
-          <a class="clicky" onclick="signIn()">schlaugh in</a>
-        </nav>
-      -->
-      <% } %>
+      <nav class="user-info">
+        <ul>
+          <li><text id="username" class="removed"></text></li>
+          <li id="sign-in" class="clicky" onclick="passPromptSubmit()">schlaugh in</li>
+          <li id="sign-out" class="clicky removed" onclick="signOut()">schlaugh out</li>
+        </ul>
+      </nav>
     </header>
 
-    <% if (typeof username !== "undefined") { %>
-      <div id="account-settings" class="removed">
-        <h2>accschlaugnt schlettings</h2>
-        <% if ( userPic !== "") { %>
-          <img id="user-pic" class="user-pic" src= <%= userPic %> >
-        <% } else { %>
-          <img id="user-pic" class="removed user-pic" src="">
-        <% } %>
-        <br>
-        <label for="pic-url">picURL</label><br>
-        <% if ( userPic !== "") { %>
-          <input id="pic-url" type="text" name="pic-url" value=<%= userPic %>><br>
-        <% } else { %>
-          <input id="pic-url" type="text" name="pic-url" value=""><br>
-        <% } %>
-        <button onclick="submitPic()">schlaubmit</button>
-        <% if ( userPic !== "") { %>
-          <button id="remove-pic" onclick="submitPic(true)">remove</button>
-        <% } else { %>
-          <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
-        <% } %>
-        <br><br><br>
-        <h2>colors</h2>
-        <button id="post-background-color" class="color-button jscolor {valueElement:null, value:'<%= colors.postBackground %>', onFineChange:'changeColor(this, 0)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">post background</button><br>
-        <button id="text-color" class="color-button jscolor {valueElement:null, value:'<%= colors.text %>', onFineChange:'changeColor(this, 1)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">text</button><br>
-        <button id="link-text-color" class="color-button jscolor {valueElement:null, value:'<%= colors.linkText %>', onFineChange:'changeColor(this, 2)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">link text</button><br>
-        <button id="background-color" class="color-button jscolor {valueElement:null, value:'<%= colors.background %>', onFineChange:'changeColor(this, 3)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">background</button><br>
-        <button id="save-colors" type="button" class="hidden" onclick="saveColors()">save</button>
-        <br><br><br>
-        <a class="clicky" onclick="signOut()">schlaugh out</a>
-        <br><br><br>
-        <button onclick="accountSettings(false)" >x</button>
-        <br><br><br>
-      </div>
-    <% } %>
-
-    <main>
-      <%- include(pagename) %>
+    <main id="main">
+      <%- include("main") %>
     </main>
 
-    <div id="prompt-backing" class="hidden"></div>
-    <div id="prompt" class="prompt hidden">
-      <form action="javascript:void(0);">
-        <text id="prompt-label"></text>
-        <br><br>
-        <input id="prompt-input">
-        <br><br>
-        <button id="prompt-submit" type="submit">submit</button>
-      </form>
-      <br>
-      <button id="prompt-close">x</button>
-    </div>
-    <div id="password-prompt" class="prompt hidden">
-      <form action="javascript:void(0);">
-        <text id="password-prompt-label"></text>
-        <br><br>
-        <input id="prompt-username" type="text" name="username" placeholder="username">
-        <br><br>
-        <input id="prompt-password" type="password" name="password" placeholder="password">
-        <br><br>
-        <button id="password-prompt-submit" type="submit">submit</button>
-      </form>
-      <br>
-      <button id="password-prompt-close">x</button>
-    </div>
+    <% if (typeof author !== "undefined") { %>
+      <% if (!post) { %>
+        <script type="text/javascript">openAuthorPanel(<%- JSON.stringify(author) %>);</script>
+      <% } else { %>
+        <script type="text/javascript">
+          var author = <%- JSON.stringify(author) %>;
+          var post = <%- JSON.stringify(post) %>;
+          openPost(author, post);
+        </script>
+      <% } %>
+    <% } else if (user) { %>
+      <script type="text/javascript">switchPanel("posts-panel");</script>
+    <% } else { %>
+      <script type="text/javascript">switchPanel("login-panel");</script>
+    <% } %>
 
     <footer>
       <%

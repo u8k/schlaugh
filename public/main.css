@@ -24,16 +24,20 @@ h2 {
   margin-bottom: 10px;
 }
 
-#author-pic {
-  margin-bottom: 15px;
-  width: 80px;
+.author-panel-pic {
+  width: 100px;
+}
+
+.author-page-title {
+  font-size: 3em;
+  margin-top: 0;
 }
 
 nav {
   font-size: 2.4em
 }
 
-nav.user-info {
+.user-info {
   float: right;
   text-align: right;
   font-size: 1.1em;
@@ -94,7 +98,7 @@ clicky, .clicky {
 
 .thread-name {font-size: 1.8em}
 
-.post, .message, #account-settings {
+.post, .message, #settings-panel, #thread-list {
   width: 75%;
   margin: auto;
   margin-top: 10px;
@@ -105,7 +109,7 @@ clicky, .clicky {
   position: relative;
 }
 .message {width: 85%;}
-#account-settings {text-align: center;}
+#settings-panel, #thread-list {text-align: center;}
 
 img {
   max-width: 100%;
@@ -129,14 +133,14 @@ img {
   border-radius: 4px;
 }
 
-.meta-text {
+.meta-text, .date-stamp {
   text-align: right;
   margin-bottom: 10px;
   display: block;
 }
 
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .post, #account-settings {width: 98%;}
+  .post, #settings-panel {width: 98%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
   #post-writer{width: 95%;}
@@ -193,7 +197,7 @@ body, h1, input {
   color: #D8D8D8;
   background-color: #324144;
 }
-.post, .message, .editor, #account-settings, .prompt {
+.post, .message, .editor, #settings-panel, #thread-list, .prompt {
   color: #D8D8D8;
   background-color: #32363F;
 }
@@ -227,6 +231,7 @@ arrow {
   transform: translate(-50%,-50%);
   border-radius: 4px;
   box-shadow: 0px 0px 4px 2px;
+  z-index: 11;
 }
 #prompt-input {width: 200px;}
 #prompt-backing {
@@ -236,6 +241,7 @@ arrow {
   width: 100vw;
   left: 0;
   top: 0;
+  z-index: 10;
 }
 
 l {text-align: left;}

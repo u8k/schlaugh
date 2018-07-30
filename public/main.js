@@ -1,44 +1,53 @@
 "use strict";
 
+var glo = {dateOffset: -1,};
+
 var $ = function (id) {return document.getElementById(id);}
 
-var accountSettings = function (x) { // open/close
-  if (x) {
-    $('account-settings').classList.remove('removed');
-    $('user-name').onclick = function(){accountSettings(false);}
+/*var homeButton = function () {
+  if (glo.username) {
+    switchPanel('posts-panel');
+  } else {
+    window.location.href = "/";
   }
-  else {
-    $('account-settings').classList.add('removed');
-    $('user-name').onclick = function(){accountSettings(true);}
-  }
-}
+}*/
 
 var submitPic = function (remove) {
-  if (remove) {
-    $('pic-url').value = "";
-    $("remove-pic").classList.add('removed');
-  }
+  if (remove) {$('pic-url').value = "";}
   var picURL = $('pic-url').value;
   ajaxCall('/changePic', 'POST', {url:picURL}, function(json) {
     if (json === 'success') {
-      $("user-pic").setAttribute('src', picURL);
-      $("user-pic").classList.remove('removed');
-      $("remove-pic").classList.remove('removed');
+      updateUserPic(remove, picURL);
     } else {
       alert(json);
     }
   });
 }
 
-var changeColor = function (jscolor, type) {
-  var sheet = document.styleSheets[1];
+var updateUserPic = function (remove, picURL) {
+  if (remove) {
+    $("remove-pic").classList.add('removed');
+    $("user-pic").classList.add('removed');
+  } else {
+    $("user-pic").setAttribute('src', picURL);
+    $("user-pic").classList.remove('removed');
+    $("remove-pic").classList.remove('removed');
+  }
+}
+
+var changeColor = function (colorCode, type) {
+  colorCode = String(colorCode);
+  if (colorCode.slice(0,3) !== "rgb" && colorCode.slice(0,1) !== "#") {
+    colorCode = "#"+colorCode;
+  }
+  var sheet = document.styleSheets[0];
   switch (type) {
-    case 0:                 //post background
-      var selector = ".post, .message, .editor, #account-settings, button, #prompt";
+    case "postBackground":                 //post background
+      var selector = ".post, .message, .editor, #settings-panel, #thread-list, button, .prompt";
       var attribute = "background-color";
       break;
-    case 1:                 //text
-      var selector = "body, h1, input, .post, .message, .editor, #account-settings, button";
+    case "text":                        //text
+      var selector = "body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button";
       var attribute = "color";
       for (var i = sheet.cssRules.length-1; i > -1; i--) {
         if (sheet.cssRules[i].selectorText === 'button') {
@@ -46,13 +55,13 @@ var changeColor = function (jscolor, type) {
           i = -1;
         }
       }
-      sheet.insertRule("button {border-color: #"+jscolor+";}", sheet.cssRules.length);
+      sheet.insertRule("button {border-color: "+colorCode+";}", sheet.cssRules.length);
       break;
-    case 2:                 //link text
+    case "linkText":                 //link text
       var selector = "a, a.visited, .special";
       var attribute = "color";
       break;
-    case 3:                 //background
+    case "background":                 //background
       var selector = "body, h1, input";
       var attribute = "background-color";
       break;
@@ -63,17 +72,13 @@ var changeColor = function (jscolor, type) {
       i = -1;
     }
   }
-  sheet.insertRule(selector+" {"+attribute+": #"+jscolor+";}", sheet.cssRules.length);
+  glo.colors[type] = colorCode;
+  sheet.insertRule(selector+" {"+attribute+": "+colorCode+";}", sheet.cssRules.length);
   $('save-colors').classList.remove('hidden');
 }
 
 var saveColors = function () {
-  var data = {};
-  data.postBackground = $('post-background-color').style.backgroundColor;
-  data.text = $('text-color').style.backgroundColor;
-  data.linkText = $('link-text-color').style.backgroundColor;
-  data.background = $('background-color').style.backgroundColor;
-  ajaxCall('/saveColors', 'POST', data, function(json) {
+  ajaxCall('/saveColors', 'POST', glo.colors, function(json) {
     if (json === 'success') {
       $('save-colors').classList.add('hidden');
     } else {
@@ -115,6 +120,10 @@ var setCursorPosition = function (elem, start, end) {
 	}
 }
 
+var isNumeric = function (n) {
+  return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
 var prompt = function (options) {
   // options is an object that can include props for
   //      'label', 'placeholder', 'value', 'callback'(function)
@@ -147,7 +156,7 @@ var prompt = function (options) {
 
 var passPrompt = function (options) {
   // options is an object that can include props for
-  //      'label', 'username', 'callback'(function)
+  //      'label', 'username', 'orUp'(boolean), 'callback'(function)
   if (!options) {  //close the prompt
     $("password-prompt").classList.add("hidden");
     $("prompt-backing").classList.add("hidden");
@@ -162,6 +171,8 @@ var passPrompt = function (options) {
     } else {
       setCursorPosition($("prompt-username"), 0, 0);
     }
+    if (options.orUp) {$("or-schlaugh-up").classList.remove("removed");}
+    else {$("or-schlaugh-up").classList.add("removed");}
     //
     $("password-prompt-submit").onclick = function(){
       passPrompt(false);
@@ -179,23 +190,41 @@ var passPrompt = function (options) {
   }
 }
 
-var signIn = function () {
+var orSchlaughUp = function () {
+  switchPanel("login-panel");
+  passPrompt(false);
+  chooseInOrUp(true);
+}
+
+var passPromptSubmit = function () {  // from the prompt box an a user/post page
   passPrompt({
-    label:"log in",
+    label:"schlaugh in",
+    orUp:true,
     callback: function(data) {
-      console.log(data);
+      if (data === null) {return;}
+      else {
+        signIn('/login', data, function () {
+          createMessageButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
+        });
+      }
     }
   });
 }
 
 var signOut = function() {
-  ajaxCall('/logout', 'GET', {}, function(json) {
+  ajaxCall('/~logout', 'GET', {}, function(json) {
     if (json === 'success') {
       location.reload();
     } else {
       alert("something has gone wrong... please screenshot this and show staff", json);
     }
   });
+}
+
+var updatePath = function (newPath) {
+  if (newPath !== window.location.pathname) {
+    history.pushState(null, null, newPath);
+  }
 }
 
 var ajaxCall = function(url, method, data, callback) {
@@ -211,13 +240,18 @@ var ajaxCall = function(url, method, data, callback) {
   xhttp.send(JSON.stringify(data));
 }
 
-var glo = {dateOffset: -1,};
-
 var switchPanel = function (panelName) {
-  $('inbox-panel').classList.add('removed');
-  $('posts-panel').classList.add('removed');
-  $('write-panel').classList.add('removed');
+  if (glo.openPanel) {
+    $(glo.openPanel).classList.add('removed');
+    if ($(glo.openPanel+"-button")) {$(glo.openPanel+"-button").classList.remove('highlight');}
+  }
+  if ($(panelName+"-button")) {
+    updatePath("/")
+    $(panelName+"-button").classList.add('highlight');
+  }
+  if (panelName === "login-panel") {$("sign-in").classList.add('removed');}
   $(panelName).classList.remove('removed');
+  glo.openPanel = panelName;
 }
 
 var changeDay = function (dir) { // load and display all posts for a given day
@@ -245,7 +279,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
   } else {
     // we don't, so make the ajax call
     $('loading').classList.remove('removed');
-    ajaxCall('posts', 'POST', {date: date}, function(json) {
+    ajaxCall('/posts', 'POST', {date: date}, function(json) {
       var bucket = document.createElement("div");
       bucket.setAttribute('class', 'post-bucket');
       bucket.setAttribute('id', 'posts-for-'+date);
@@ -274,7 +308,11 @@ var changeDay = function (dir) { // load and display all posts for a given day
             var authorPic = document.createElement("div");
           }
           var authorPicBox = document.createElement("a");
-          authorPicBox.setAttribute('href', '/'+json[rando[i]].author);
+          (function (name) {
+            authorPicBox.onclick = function(){
+              openAuthorPanel(name);
+            }
+          })(json[rando[i]].author);
           post.appendChild(authorPicBox);
           authorPic.setAttribute('class', 'author-pic');
           authorPicBox.appendChild(authorPic);
@@ -282,32 +320,16 @@ var changeDay = function (dir) { // load and display all posts for a given day
           var authorBox = document.createElement("div");
           authorBox.setAttribute('class', 'meta-text');
           var author = document.createElement("a");
-          author.setAttribute('href', '/'+json[rando[i]].author);
+          (function (name) {
+            author.onclick = function(){
+              openAuthorPanel(name);
+            }
+          })(json[rando[i]].author);
           author.setAttribute('class', 'author');
           author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
           authorBox.appendChild(author);
           authorBox.appendChild(document.createElement("br"));
-          // message button, if user !== author
-          if (json[rando[i]].author !== glo.username) {
-            // and only if the author has a public key
-            if (json[rando[i]].key) {
-              var message = document.createElement("clicky");
-              //message.setAttribute('class', 'meta-text');
-              message.innerHTML = "message";
-              (function (index) {
-                message.onclick = function(){
-                  //look for a thread btwn the author and logged in user
-                  checkForThread({
-                    name: json[index].author,
-                    _id: json[index]._id,
-                    key: json[index].key,
-                    image: json[index].authorPic,
-                  });
-                }
-              })(rando[i]);
-              authorBox.appendChild(message);
-            }
-          }
+          createMessageButton(authorBox, json[rando[i]]);
           post.appendChild(authorBox);
           // actual post body
           var text = document.createElement("text");
@@ -326,7 +348,164 @@ var changeDay = function (dir) { // load and display all posts for a given day
   }
 }
 
-var submitPost = function (remove) {  //also handles editing and deleting
+var createMessageButton = function (parent, author, insert) {
+  // OPTIONAL 'insert' is the element before which the button is to be inserted
+  if (glo.username && author.author !== glo.username && author.key) {
+    var message = document.createElement("clicky");
+    message.innerHTML = "message";
+    message.onclick = function(){
+      //look for a thread btwn the author and logged in user
+      checkForThread({
+        name: author.author,
+        _id: author._id,
+        key: author.key,
+        image: author.authorPic,
+      });
+    }
+    if (insert) {
+      parent.insertBefore(message, insert);
+    } else {
+      parent.appendChild(message);
+    }
+  } else if (!glo.username) { // not logged in, store the info in case they log in
+    glo.currentAuthor = author;
+  }
+}
+
+/* userAndPostLinkHandler, not connected to anything
+var userAndPostLinkHandler = function (author, post) { // not connected to anything
+  if (glo.username) {
+    if (post !== null) {
+      openPost(author, post);
+    } else {
+      openAuthorPanel(author);
+    }
+  } else {
+    if (post !== null) {
+      window.location.href = "/"+author+"/"+post;
+    } else {
+      window.location.href = "/"+author;
+    }
+  }
+}
+*/
+
+var openAuthorPanel = function (author, callback) {
+  // see if a panel for that author already exists
+  if ($(author+"-panel")) {
+    switchPanel(author+"-panel");
+    var children = $(author+'-panel-all').childNodes;
+    for (var i = 0; i < children.length; i++) {
+      children[i].classList.remove('removed');
+    }
+    if ($(author+'-panel-404')) {$(author+'-panel-404').classList.add('removed');}
+    $(author+'-panel-title').onclick = "";
+    $(author+'-panel-title').classList.remove("clicky");
+    $(author+'-panel-title').classList.remove("special");
+    if (callback) {callback();}
+    else {updatePath("/"+author);}
+  } else {
+    // call for data and render a new panel
+    ajaxCall('/~get/'+author, 'GET', "", function(json) {
+      json = JSON.parse(json);
+      if (!json[0]) {
+        if (!json[1]) {alert(json[2])}
+        else {              //404
+          if ($('404-panel')) {switchPanel("404-panel");}
+          else {
+            // panel
+            var panel = document.createElement("div");
+            panel.setAttribute('id', '404-panel');
+            $("main").appendChild(panel);
+            // title
+            var title = document.createElement("h2");
+            title.setAttribute('class', 'author-page-title');
+            title.innerHTML = "but there was nobody home";
+            panel.appendChild(title);
+            switchPanel("404-panel");
+          }
+        }
+      } else {
+        json = json[1];
+        // panel
+        var panel = document.createElement("div");
+        panel.setAttribute('id', json.author+'-panel');
+        $("main").appendChild(panel);
+        // pic
+        if (json.authorPic !== "") {
+          var authorPic = document.createElement("img");
+          authorPic.setAttribute('src', json.authorPic);
+          authorPic.setAttribute('class', 'author-panel-pic');
+          panel.appendChild(authorPic);
+        }
+        // title
+        var title = document.createElement("h2")
+        title.setAttribute('id', json.author+'-panel-title');
+        title.setAttribute('class', 'author-page-title');
+        title.innerHTML = json.author;
+        panel.appendChild(title);
+        // message button
+        createMessageButton(panel, json);
+        // post bucket
+        var bucket = document.createElement("div");
+        bucket.setAttribute('id', json.author+'-panel-all');
+        panel.appendChild(bucket);
+        // posts
+        for(var i=json.posts.length-1; i > -1; i--) {
+          var post = document.createElement("div");
+          post.setAttribute('class', 'post');
+          bucket.appendChild(post);
+          // date
+          var date = document.createElement("a");
+          (function (index) {
+            date.onclick = function(){
+              openPost(json.author, index);
+            }
+          })(i);
+          date.innerHTML = json.posts[i].date;
+          date.setAttribute('class', 'date-stamp clicky');
+          post.appendChild(date);
+          // body
+          var text = document.createElement("text");
+          text.setAttribute('class', 'body-text');
+          text.innerHTML = json.posts[i].body;
+          post.appendChild(text);
+        }
+        switchPanel(json.author+"-panel");
+        if (callback) {callback();}
+        else {updatePath("/"+json.author);}
+      }
+    });
+  }
+}
+
+var openPost = function (author, index) {
+  openAuthorPanel(author, function () {
+    updatePath("/"+author+"/"+index);
+    var children = $(author+'-panel-all').childNodes;
+    for (var i = 0; i < children.length; i++) {
+      children[i].classList.add('removed');
+    }
+    if (!isNumeric(index) || index >= children.length || index<0) {    //404 and Heartbreak
+      if ($(author+'-panel-404')) {$(author+'-panel-404').classList.remove('removed');}
+      else {
+        var e404 = document.createElement("h2")
+        e404.setAttribute('id', author+'-panel-404');
+        e404.innerHTML = "<c>not even a single thing</c>";
+        $(author+'-panel').appendChild(e404);
+      }
+    } else {
+      children[children.length -1 - index].classList.remove('removed');
+    }
+    $(author+'-panel-title').onclick = function () {
+      openAuthorPanel(author);
+    }
+    $(author+'-panel-title').classList.add("clicky");
+    $(author+'-panel-title').classList.add("special");
+  });
+}
+
+var submitPost = function (remove) { //also handles editing and deleting
   if (remove) {
     if (!confirm("you sure you want me should delete it?")) {return;}
     var text = null;
@@ -339,27 +518,28 @@ var submitPost = function (remove) {  //also handles editing and deleting
   var data = {text:text, remove:remove}
   ajaxCall("/", 'POST', data, function(json) {
     json = JSON.parse(json)
-    if (!json[0]) {
-      alert(json[1]);
-      return;
-    }
-    if (remove) {
-      $('pending-status').innerHTML = "no pending post";
-      $('delete-pending-post').classList.add("removed");
-      $('pending-post').classList.add("removed");
-      $('write-post-button').innerHTML = "new post";
-    } else {
-      $('pending-status').innerHTML = "your pending post for tomorrow:";
-      $('delete-pending-post').classList.remove("removed");
-      $('pending-post').classList.remove("removed");
-      $('write-post-button').innerHTML = "edit post";
-    }
-    $('pending-post').innerHTML = pool.checkForCuts(json[1], 'pending');
-    var x = json[1].replace(/<br>/g, '\n');
-    $('postEditor').innerHTML = x;
-    $('postEditor').value = x;
-    hideWriter('post');
+    if (!json[0]) {alert(json[1]);}
+    else {updatePendingPost(remove, json[1])}
   });
+}
+
+var updatePendingPost = function (remove, newText) {
+  if (remove) {
+    $('pending-status').innerHTML = "no pending post";
+    $('delete-pending-post').classList.add("removed");
+    $('pending-post').classList.add("removed");
+    $('write-post-button').innerHTML = "new post";
+  } else {
+    $('pending-status').innerHTML = "your pending post for tomorrow:";
+    $('delete-pending-post').classList.remove("removed");
+    $('pending-post').classList.remove("removed");
+    $('write-post-button').innerHTML = "edit post";
+  }
+  $('pending-post').innerHTML = pool.checkForCuts(newText, 'pending');
+  var x = newText.replace(/<br>/g, '\n');
+  $('postEditor').innerHTML = x;
+  $('postEditor').value = x;
+  hideWriter('post');
 }
 
 // editor stuff
@@ -478,6 +658,7 @@ var closeThread = function () { // returns true for threadClosed, false for NO
   $("message-preview").classList.add('removed');
   $("thread-title").classList.add('removed');
   $("mark-unread").classList.add('removed');
+  $("thread-title-area").classList.add('removed');
   $("thread-list").classList.remove('removed');
   return true;
 }
@@ -488,13 +669,12 @@ var openThread = function (i) {
     var actuallyOpenTheThread = function (i) {
       updatePendingMessage(i);
       if (glo.threads[i].unread) {
-        ajaxCall('unread', 'POST', {_id:glo.threads[i]._id, bool:false}, function(json) {})
+        ajaxCall('/unread', 'POST', {_id:glo.threads[i]._id, bool:false}, function(json) {})
         glo.threads[i].unread = false;
         $(i+'-thread-name').classList.remove("special");
         glo.unread--;
         if (glo.unread === 0) {
-          var elems = document.getElementsByClassName('message-panel-title');
-          for (var j = 0; j < elems.length; j++) {elems[j].classList.remove("special");}
+          $("inbox-panel-button").classList.remove("special");
         }
       }
       glo.activeThreadIndex = i;
@@ -506,10 +686,11 @@ var openThread = function (i) {
       $("back-arrow").classList.remove('removed');
       $("thread-title").innerHTML = glo.threads[i].name;
       $("thread-title").classList.remove('removed');
+      $("thread-title-area").classList.remove('removed');
     }
     //
     if (glo.threads[i].locked) {
-      unlock( function () {
+      verifyPass( function () {
         actuallyOpenTheThread(i);
       });
     } else {actuallyOpenTheThread(i);}
@@ -522,9 +703,8 @@ var markUnread = function () {
   $(i+'-thread-name').classList.add("special");
   closeThread();
   glo.unread++;
-  ajaxCall('unread', 'POST', {_id:glo.threads[i]._id, bool:true}, function(json) {})
-  var elems = document.getElementsByClassName('message-panel-title');
-  for (var j = 0; j < elems.length; j++) {elems[j].classList.add("special");}
+  ajaxCall('/unread', 'POST', {_id:glo.threads[i]._id, bool:true}, function(json) {})
+  $("inbox-panel-button").classList.add("special");
 }
 
 var updatePendingMessage = function (index) {
@@ -565,7 +745,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
         encRecText: encRecText,
         remove: remove,
       };
-      ajaxCall('inbox', 'POST', data, function(json) {
+      ajaxCall('/inbox', 'POST', data, function(json) {
         json = JSON.parse(json)
         if (!json[0]) {
           alert(json[1]);
@@ -593,7 +773,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
   var x = pool.cleanseInputText(text);
   text = x[1];
   if (x[0].length !== 0) {
-    ajaxCall('image', 'POST', x[0], function(json) {
+    ajaxCall('/image', 'POST', x[0], function(json) {
       json = JSON.parse(json);
       if (!json[0]) {
         alert(json[1]);
@@ -639,7 +819,7 @@ var createMessage = function (i, j) {
     //message.setAttribute('id', i+"-"+j+"-message");
     $(i+"-thread").appendChild(message);
     var dateStamp = document.createElement("div");
-    dateStamp.setAttribute('class', 'meta-text');
+    dateStamp.setAttribute('class', 'date-stamp');
     dateStamp.innerHTML = x.date;
     message.appendChild(dateStamp);
     var body = document.createElement("div");
@@ -677,13 +857,17 @@ var createThread = function (i, top) {
   thread.setAttribute('id', i+'-thread');
   $('thread-box').appendChild(thread);
   // pic
-  if (glo.threads[i].image !== "") {
+  if (glo.threads[i].image && glo.threads[i].image !== "") {
     var authorPic = document.createElement("img");
     authorPic.setAttribute('src', glo.threads[i].image);
-    authorPic.setAttribute('class', 'user-pic removed');
+    authorPic.setAttribute('class', 'user-pic removed clicky');
     authorPic.setAttribute('id', i+'-thread-pic');
     var authorPicBox = document.createElement("a");
-    authorPicBox.setAttribute('href', '/'+glo.threads[i].name);
+    (function (name) {
+      authorPicBox.onclick = function(){
+        openAuthorPanel(name);
+      }
+    })(glo.threads[i].name);
     authorPicBox.appendChild(authorPic);
     $("thread-title-area").insertBefore(authorPicBox, $("thread-title"));
   }
@@ -700,37 +884,24 @@ var populateThread = function (i) {
   }
 }
 
-var fetchData = function () {
-  glo.username = $("user-name").innerHTML;
-  glo.unread = 0;
-  ajaxCall('inbox', 'GET', "", function(json) {
-    //keys are created at sign in, this will force out people who are already in
-    // ,with a persistent login cookie, such that they will have to sign in and make keys
-    json = JSON.parse(json);
-    if (!json.keys) {return signOut();}
-    glo.threads = json.threads;
-    glo.keys = json.keys;
-    glo.threadRef = {};
-    //
-    var parent = $("thread-list");
-    if (json.threads.length === 0) {
-      var name = document.createElement("div");
-      name.innerHTML = "no threads!";
-      parent.appendChild(name);
-    } else {
-      for (var i = 0; i < json.threads.length; i++) {
-        createThread(i);
-      }
-      if (glo.unread > 0) {
-        var elems = document.getElementsByClassName('message-panel-title');
-        for (var i = 0; i < elems.length; i++) {elems[i].classList.add("special");}
-      }
+var populateThreadlist = function () {
+  var parent = $("thread-list");
+  if (glo.threads.length === 0) {
+    var name = document.createElement("div");
+    name.innerHTML = "no threads!";
+    parent.appendChild(name);
+  } else {
+    for (var i = 0; i < glo.threads.length; i++) {
+      createThread(i);
     }
-  });
+    if (glo.unread > 0) {
+      $("inbox-panel-button").classList.add("special");
+    }
+  }
 }
 
 // encryption stuff
-openpgp.initWorker({ path:'openpgp.worker.min.js' });
+openpgp.initWorker({ path:'/openpgp.worker.min.js' });
 
 var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
   openpgp.encrypt({
@@ -766,52 +937,19 @@ var decrypt = function (text, key, callback) {
   });
 }
 
-var unlock = function (callback) {
+var verifyPass = function (callback) {      // for decryption
   passPrompt({
     label:"<i>please</i> re-enter your password to decrypt your messages",
     callback: function(data) {
       if (data === null) {return;}
-      ajaxCall('login', 'POST', data, function(json) {
+      ajaxCall('/login', 'POST', data, function(json) {
         json = JSON.parse(json);
-        if (json[0]) {      //password is good
-          if (json[2]) {  // are they trying to log in as a Different user?
+        if (json[0]) { //password is good
+          if (json[1]) {  // are they trying to log in as a Different user?
             alert("switcheroo!");
             return location.reload();
           } else {
-            if (json[1]) {  // they have keys
-              var key = decryptPrivKey(data.password, glo.keys.privKey);
-              // each thread
-              var threadCount = glo.threads.length;
-              var msgCount = {};
-              for (var i = 0; i < glo.threads.length; i++) {
-                if (!glo.threads[i].locked) {threadCount--;}
-                else {
-                  // each message
-                  msgCount[i] = glo.threads[i].thread.length;
-                  for (var j = 0; j < glo.threads[i].thread.length; j++) {
-                    (function (i,j) {
-                      decrypt(glo.threads[i].thread[j].body, key, function (text) {
-                        glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
-                        // image validation
-                        //(goes here)
-
-                        msgCount[i]--;
-                        if (msgCount[i] === 0) {
-                          glo.threads[i].locked = false;
-                          populateThread(i);
-                          threadCount--;
-                          if (threadCount === 0) {
-                            callback();
-                          }
-                        }
-                      })
-                    })(i,j)
-                  }
-                }
-              }
-            } else {     //they don't have keys... somehow???
-              alert("HMM the thing that is occurring should not be possible, and yet here we are. SORRY! We're gonna log you out and hope that when you sign back in everything is all better")
-            }
+            unlockInbox(data.password, callback);
           }
         } else {  // bad username/password
           alert(json[1]);
@@ -820,6 +958,40 @@ var unlock = function (callback) {
       });
     }
   });
+}
+
+var unlockInbox = function (pass, callback) {     // decrypts all messages
+        // assumes password has already been validated
+  var key = decryptPrivKey(pass, glo.keys.privKey);
+  // each thread
+  var threadCount = glo.threads.length;
+  var msgCount = {};
+  for (var i = 0; i < glo.threads.length; i++) {
+    if (!glo.threads[i].locked) {threadCount--;}
+    else {
+      // each message
+      msgCount[i] = glo.threads[i].thread.length;
+      for (var j = 0; j < glo.threads[i].thread.length; j++) {
+        (function (i,j) {
+          decrypt(glo.threads[i].thread[j].body, key, function (text) {
+            glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
+            // image validation
+            //(goes here)
+
+            msgCount[i]--;
+            if (msgCount[i] === 0) {
+              glo.threads[i].locked = false;
+              populateThread(i);
+              threadCount--;
+              if (threadCount === 0) {
+                if (callback) {callback();}
+              }
+            }
+          })
+        })(i,j)
+      }
+    }
+  }
 }
 
 // login page stuff
@@ -833,7 +1005,6 @@ var backToLogInMenu = function () {
   $('up').classList.add('removed');
   $('in').classList.add('removed');
   $('inOrUp').classList.remove('removed');
-  $('loginError').innerHTML = "";
 }
 
 var makeKeys = function (pass, callback) {
@@ -865,49 +1036,101 @@ var logInPageSubmit = function(inOrUp) {
   // validate
   var x = pool.userNameValidate(data.username);
   if (x) {
-    $('loginError').innerHTML = x;
+    alert(x);
     return false;
   }
   var y = pool.passwordValidate(data.password);
   if (y) {
-    $('loginError').innerHTML = y;
+    alert(y);
     return false;
   }
   if (inOrUp === 'in') {
-    var url = 'login';
+    var url = '/login';
   } else {
-    var url = 'register';
+    var url = '/register';
     data.email = $('email-input').value;
     //data.secretCode = $('secret-code').value;
     if (data.password !== $('pass-input-two').value) {
-      $('loginError').innerHTML = 'passwords are not the same';
+      alert('passwords are not the same');
       return false;
     }
   }
+  signIn(url, data, function () {
+    switchPanel('posts-panel');
+  })
+  return false;
+}
+
+var signIn = function (url, data, callback) {
   ajaxCall(url, 'POST', data, function(json) {
     json = JSON.parse(json);
     if (json[0]) {    //password is good, do they need keys?
       if (json[1]) {  // (no)
-
-        //        MODIFY HERE
-
-        location.reload();
+        parseUserData(json[2]);
+        unlockInbox(data.password);
+        if (callback) {callback();}
       } else {        //they need keys
         makeKeys(data.password, function (keys) {
-          ajaxCall('keys', 'POST', keys, function(json) {
-
-            // check for 'success'? what kind of error could happen, and what
-            // would we do about it?
-
-            //    MODIFY HERE
-
-            location.reload();
+          ajaxCall('/keys', 'POST', keys, function(json) {
+            if (json[0]) {
+              json = JSON.parse(json);
+              parseUserData(json[1]);
+              if (callback) {callback();}
+            } else {
+              alert(json[1]);
+            }
           });
         });
       }
-    } else {
-      $('loginError').innerHTML = json[1];
+    } else {  // bad login
+      alert(json[1]);
     }
   });
-  return false;
+}
+
+var parseUserData = function (data) {
+  glo.username = data.username;
+  glo.unread = 0;
+  glo.threads = data.threads;
+  glo.keys = data.keys;
+  glo.threadRef = {};
+  glo.colors = data.colors;
+  glo.pending = data.pending;
+  glo.userPic = data.userPic;
+  // init stuff
+  changeDay(1);
+  setColors(data.colors);
+  if (glo.pending) {updatePendingPost(false, glo.pending);}
+  populateThreadlist();
+  //
+  if (glo.username) {
+    $("username").innerHTML = glo.username;
+    $("username").classList.remove("removed");
+    $("sign-out").classList.remove("removed");
+    $("sign-in").classList.add("removed");
+    //
+    $("nav").classList.remove("removed");
+  }
+  //
+  if (glo.userPic) {updateUserPic(false, glo.userPic);}
+}
+
+var setColors = function (savedColors) {
+  for (var prop in savedColors) {
+    if (savedColors.hasOwnProperty(prop)) {
+      changeColor(savedColors[prop], prop);
+      $(prop+'-color-button').jscolor.fromString(String(savedColors[prop]).slice(1));
+    }
+  }
+}
+
+var fetchData = function () {
+  ajaxCall('/~payload', 'GET', "", function(json) {
+    json = JSON.parse(json);
+    //keys are created at sign in, this^ will force out people who are already in
+    // ,with a persistent login cookie, such that they will have to sign in and make keys
+    if (json[0] === false || !json[1].keys) {return signOut();}
+    else {parseUserData(json[1]);
+    }
+  });
 }

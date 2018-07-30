@@ -1,52 +1,33 @@
+<nav id="nav" class="removed">
+  <text id="write-panel-button" class="clicky" onclick="switchPanel('write-panel')">w</text>
+  <text id="posts-panel-button" class="clicky" onclick="switchPanel('posts-panel')">r</text>
+  <text id="inbox-panel-button" class="clicky" onclick="switchPanel('inbox-panel')">m</text>
+  <text id="settings-panel-button" class="clicky" onclick="switchPanel('settings-panel')">s</text>
+  <br><br>
+</nav>
 
 <div id="write-panel" class="removed">
-  <nav>
-    <text class="highlight">write</text>
-    <clicky onclick="switchPanel('posts-panel')">read</clicky>
-    <clicky class="message-panel-title" onclick="switchPanel('inbox-panel')">messages</clicky>
-    <br><br>
-  </nav>
 
   <div id="post-preview">
-    <% if (pending) { %>
-      <text id="pending-status">your pending post for tomorrow:</text>
-      <br>
-      <div id="pending-post" class="post">
-        <%- pending %>
-      </div>
-      <button type="button" id='write-post-button' onclick="showWriter('post')" >edit post</button>
-      <% } else { %>
-        <text id="pending-status">no pending post</text>
-        <br>
-        <div id="pending-post" class="post removed"></div>
-        <button type="button" id='write-post-button' onclick="showWriter('post')">new post</button>
-    <% } %>
+    <text id="pending-status">no pending post</text>
+    <br>
+    <div id="pending-post" class="post removed"></div>
+    <button type="button" id='write-post-button' onclick="showWriter('post')">new post</button>
   </div>
 
   <div id="post-writer" class="removed">
     <postNav><clicky onclick="hideWriter('post')">◀</clicky></postNav>
     <br>
     <%- include("editorButtons", {kind: "post"}) %>
-    <textarea id="postEditor" class="editor" autocomplete="off"><% if (pending) { %><%- pendingWriter %><% } %></textarea>
-      <!-- that^ HAS to be all on one line like that...*grumbles* -->
+    <textarea id="postEditor" class="editor" autocomplete="off"></textarea>
     <br>
-    <button onclick="submitPost()" >schlaubmit</button>
-    <% if (pending) { %>
-      <button id='delete-pending-post' onclick="submitPost(true)" >delete</button>
-    <% } else { %>
-      <button id='delete-pending-post' class="removed" onclick="submitPost(true)" >delete</button>
-    <% } %>
+    <button onclick="submitPost()">schlaubmit</button>
+    <button id='delete-pending-post' class="removed" onclick="submitPost(true)">delete</button>
+
   </div>
 </div>
 
-<div id="posts-panel">
-  <nav>
-    <clicky onclick="switchPanel('write-panel')">write</clicky>
-    <text class="highlight">read</text>
-    <clicky class="message-panel-title" onclick="switchPanel('inbox-panel')">messages</clicky>
-    <br><br>
-  </nav>
-
+<div id="posts-panel" class="removed">
   <postNav>
     <text id="date-display"></text>
     <br>
@@ -59,14 +40,8 @@
 </div>
 
 <div id="inbox-panel" class="removed">
-  <nav>
-    <clicky onclick="switchPanel('write-panel')">write</clicky>
-    <clicky onclick="switchPanel('posts-panel')">read</clicky>
-    <text class="message-panel-title highlight">messages</text>
-  </nav>
-  <br>
-  <br>
-  <postNav id="thread-title-area">
+  <h2>meshages</h2>
+  <postNav id="thread-title-area" class="removed">
     <clicky id="back-arrow" class="removed" onclick="closeThread()">◀</clicky>
     <br><br>
     <text id="thread-title"></text>
@@ -74,7 +49,7 @@
   <br>
   <clicky id="mark-unread" class="special removed" onclick="markUnread()">(mark unread)</clicky>
   <div id="thread-list"></div>
-  <br><br>
+  <br>
   <div id="message-preview" class="removed">
     <p id="pending-message-status"></p>
     <div id="pending-message" class="message removed"></div>
@@ -89,12 +64,96 @@
   </div>
   <br>
   <div id="thread-box"></div>
-
 </div>
 
+<div id="settings-panel" class="removed">
+  <h2>schlettings</h2>
+  <br><br>
+  <img id="user-pic" class="removed user-pic" src="">
+  <br>
+  <label for="pic-url">picURL</label><br>
+  <input id="pic-url" type="text" name="pic-url" value=""><br>
+  <button onclick="submitPic()">schlaubmit</button>
+  <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
+  <br><br><br>
+  <h2>colors</h2>
+  <button id="postBackground-color-button" class="color-button jscolor {valueElement:null, onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">post background</button><br>
+  <button id="text-color-button" class="color-button jscolor {valueElement:null, onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">text</button><br>
+  <button id="linkText-color-button" class="color-button jscolor {valueElement:null, onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">link text</button><br>
+  <button id="background-color-button" class="color-button jscolor {valueElement:null, onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">background</button><br>
+  <button id="save-colors" type="button" class="hidden" onclick="saveColors()">save</button>
+  <br><br><br>
+  <a class="clicky" onclick="signOut()">schlaugh out</a>
+  <br><br><br>
+</div>
 
-<script type="text/javascript">
-  changeDay(1);
-  fetchData();
-  $('pending-post').innerHTML = pool.checkForCuts($('pending-post').innerHTML, 'pending');
-</script>
+<div id="login-panel" class="removed">
+
+  <div id="inOrUp">
+    <button onclick="chooseInOrUp(false)">schlaugh in</button>
+    <h4>or</h4>
+    <button onclick="chooseInOrUp(true)">schlaugh up</button>
+  </div>
+
+  <div id="up" class="removed">
+    <arrow onclick="backToLogInMenu()">◀</arrow>
+    <br><br>
+    <form action="javascript:void(0);" onsubmit="return logInPageSubmit('up')">
+      <input id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
+      <br>
+      <input id="email-input" type="text" name="email" autocomplete="email" placeholder="email address">
+      <br>
+      <input id="pass-input" type="password" name="password" autocomplete="new-password" placeholder="password">
+      <br>
+      <input id="pass-input-two" type="password" name="password" autocomplete="new-password" placeholder="password">
+      <!--
+      <br>
+      <input id="secret-code" type="password" name="secretCode" placeholder="secret code">
+      -->
+      <br><br>
+      <input class="button" type="submit" value="schlaugh up">
+    </form>
+  </div>
+
+  <div id="in" class="removed">
+    <arrow onclick="backToLogInMenu()">◀</arrow>
+    <br><br>
+    <form action="javascript:void(0);" onsubmit="return logInPageSubmit('in')">
+      <input id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
+      <br>
+      <input id="in-pass-input" type="password" name="password" autocomplete=“current-password” placeholder="password">
+      <br><br>
+      <input class="button" type="submit" value="schlaugh in">
+    </form>
+  </div>
+</div>
+
+<div id="prompt-backing" class="hidden"></div>
+<div id="prompt" class="prompt hidden">
+  <form action="javascript:void(0);">
+    <text id="prompt-label"></text>
+    <br><br>
+    <input id="prompt-input">
+    <br><br>
+    <button id="prompt-submit" type="submit">submit</button>
+  </form>
+  <br>
+  <button id="prompt-close">x</button>
+</div>
+<div id="password-prompt" class="prompt hidden">
+  <form action="javascript:void(0);">
+    <text id="password-prompt-label"></text>
+    <br><br>
+    <input id="prompt-username" type="text" name="username" autocomplete="username" placeholder="username">
+    <br>
+    <input id="prompt-password" type="password" name="password" autocomplete=“current-password” placeholder="password">
+    <br><br>
+    <button id="password-prompt-submit" type="submit">submit</button>
+  </form>
+  <div id="or-schlaugh-up" class="removed">
+    <br>
+    <a class="clicky" onclick="orSchlaughUp()">or schlaugh up</a>
+  </div>
+  <br>
+  <button id="password-prompt-close">x</button>
+</div>
