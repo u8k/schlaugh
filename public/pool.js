@@ -84,6 +84,7 @@
 
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
     string = string.replace(/\r?\n|\r/g, '<br>');
+    string = string.replace(/  /g, ' &nbsp;');
 
     var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList) {
       if (aOpen) {string += "</a>"}

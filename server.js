@@ -219,7 +219,6 @@ var getPayload = function (req, res, callback) {
         var tmrw = pool.getCurDate(-1)
         if (user.posts[tmrw]) {
           pending = user.posts[tmrw][0].body;
-          //pendingWriter = pending.replace(/<br>/g, '\n');
         }
         // check if user needs keys
         if (!user.keys) {return res.send([true, false]);}
@@ -856,7 +855,7 @@ app.get('/~logout', function(req, res) {
   res.send("success");
 });
 
-// get all of a posts
+// get all of a users posts
 app.get('/~get/:username', function(req, res) {
   if (req.params.username === "admin") {return res.send([false, true]);}     //404
   db.collection('users').findOne({username: req.params.username}

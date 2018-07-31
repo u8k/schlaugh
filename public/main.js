@@ -194,6 +194,8 @@ var orSchlaughUp = function () {
   switchPanel("login-panel");
   passPrompt(false);
   chooseInOrUp(true);
+  updatePath("/");
+  changeBrowserTitle();
 }
 
 var passPromptSubmit = function () {  // from the prompt box an a user/post page
@@ -222,8 +224,15 @@ var signOut = function() {
 }
 
 var updatePath = function (newPath) {
-  if (newPath !== window.location.pathname) {
+  if (newPath && newPath !== window.location.pathname) {
     history.pushState(null, null, newPath);
+  }
+}
+
+var changeBrowserTitle = function (newTitle) { // defaults if no arg given
+  if (!newTitle) {newTitle = "s c h l a u g h"}
+  if (newTitle !== document.title) {
+    document.title = newTitle;
   }
 }
 
@@ -246,7 +255,8 @@ var switchPanel = function (panelName) {
     if ($(glo.openPanel+"-button")) {$(glo.openPanel+"-button").classList.remove('highlight');}
   }
   if ($(panelName+"-button")) {
-    updatePath("/")
+    updatePath("/");
+    changeBrowserTitle();
     $(panelName+"-button").classList.add('highlight');
   }
   if (panelName === "login-panel") {$("sign-in").classList.add('removed');}
@@ -403,7 +413,10 @@ var openAuthorPanel = function (author, callback) {
     $(author+'-panel-title').classList.remove("clicky");
     $(author+'-panel-title').classList.remove("special");
     if (callback) {callback();}
-    else {updatePath("/"+author);}
+    else {
+      updatePath("/"+author);
+      changeBrowserTitle(author);
+    }
   } else {
     // call for data and render a new panel
     ajaxCall('/~get/'+author, 'GET', "", function(json) {
@@ -473,7 +486,10 @@ var openAuthorPanel = function (author, callback) {
         }
         switchPanel(json.author+"-panel");
         if (callback) {callback();}
-        else {updatePath("/"+json.author);}
+        else {
+          updatePath("/"+json.author);
+          changeBrowserTitle(json.author);
+        }
       }
     });
   }
@@ -482,6 +498,7 @@ var openAuthorPanel = function (author, callback) {
 var openPost = function (author, index) {
   openAuthorPanel(author, function () {
     updatePath("/"+author+"/"+index);
+    changeBrowserTitle(author);
     var children = $(author+'-panel-all').childNodes;
     for (var i = 0; i < children.length; i++) {
       children[i].classList.add('removed');
@@ -537,7 +554,7 @@ var updatePendingPost = function (remove, newText) {
   }
   $('pending-post').innerHTML = pool.checkForCuts(newText, 'pending');
   var x = newText.replace(/<br>/g, '\n');
-  $('postEditor').innerHTML = x;
+  x = x.replace(/&nbsp;/g, ' ');
   $('postEditor').value = x;
   hideWriter('post');
 }
@@ -640,7 +657,9 @@ var closeThread = function () { // returns true for threadClosed, false for NO
   var text = $('messageEditor').value;
   if (text !== "") {
     var last = glo.threads[i].thread[glo.threads[i].thread.length-1];
-    if (!last || last.date !== pool.getCurDate(-1) || text !== last.body.replace(/<br>/g, '\n')) {
+    var oldText = last.body.replace(/<br>/g, '\n');
+    oldText = oldText.replace(/&nbsp;/g, ' ');
+    if (!last || last.date !== pool.getCurDate(-1) || text !== oldText) {
       //is it okay to lose that unsaved text?
       if (!confirm("lose current unsaved message text?")) {
         //and then take to the thread?
@@ -725,8 +744,9 @@ var updatePendingMessage = function (index) {
     $('pending-message-status').innerHTML = "no pending message";
     $('pending-message').innerHTML = "";
   }
-  $('messageEditor').value = pending.replace(/<br>/g, '\n');
-  //$('messageEditor').value = pending;
+  var x = pending.replace(/<br>/g, '\n');
+  x = x.replace(/&nbsp;/g, ' ');
+  $('messageEditor').value = x;
   hideWriter('message');
 }
 
@@ -825,7 +845,6 @@ var createMessage = function (i, j) {
     var body = document.createElement("div");
     body.setAttribute('class', 'message-body');
     body.innerHTML = pool.checkForCuts(x.body, glo.threads[i]._id+'-'+x.date+orri);
-    //body.innerHTML = pool.checkForCuts(x.body, glo.threads[i]._id+'-'+x.date);
     message.appendChild(body);
   }
 }
