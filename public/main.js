@@ -224,6 +224,9 @@ var signOut = function() {
 }
 
 var updatePath = function (newPath) {
+  // simulates a page load, basically
+  // scrolls to top, updates the url, and the browser/tab title
+  scroll(0, 0);
   if (newPath && newPath !== window.location.pathname) {
     history.pushState(null, null, newPath);
   }
@@ -324,7 +327,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
             }
           })(json[rando[i]].author);
           post.appendChild(authorPicBox);
-          authorPic.setAttribute('class', 'author-pic');
+          authorPic.setAttribute('class', 'author-pic clicky');
           authorPicBox.appendChild(authorPic);
           // author/meta text
           var authorBox = document.createElement("div");
@@ -423,7 +426,7 @@ var openAuthorPanel = function (author, callback) {
       json = JSON.parse(json);
       if (!json[0]) {
         if (!json[1]) {alert(json[2])}
-        else {              //404
+        else {                                          //404
           if ($('404-panel')) {switchPanel("404-panel");}
           else {
             // panel
@@ -469,6 +472,8 @@ var openAuthorPanel = function (author, callback) {
           post.setAttribute('class', 'post');
           bucket.appendChild(post);
           // date
+          var dateBox = document.createElement("div");
+          dateBox.setAttribute('class', 'date-stamp-box');
           var date = document.createElement("a");
           (function (index) {
             date.onclick = function(){
@@ -476,8 +481,9 @@ var openAuthorPanel = function (author, callback) {
             }
           })(i);
           date.innerHTML = json.posts[i].date;
-          date.setAttribute('class', 'date-stamp clicky');
-          post.appendChild(date);
+          date.setAttribute('class', 'clicky');
+          dateBox.appendChild(date);
+          post.appendChild(dateBox);
           // body
           var text = document.createElement("text");
           text.setAttribute('class', 'body-text');
@@ -495,7 +501,7 @@ var openAuthorPanel = function (author, callback) {
   }
 }
 
-var openPost = function (author, index) {
+var openPost = function (author, index) { //individual post on an author page
   openAuthorPanel(author, function () {
     updatePath("/"+author+"/"+index);
     changeBrowserTitle(author);
@@ -553,10 +559,15 @@ var updatePendingPost = function (remove, newText) {
     $('write-post-button').innerHTML = "edit post";
   }
   $('pending-post').innerHTML = pool.checkForCuts(newText, 'pending');
-  var x = newText.replace(/<br>/g, '\n');
-  x = x.replace(/&nbsp;/g, ' ');
-  $('postEditor').value = x;
+  $('postEditor').value = prepTextForEditor(newText);
   hideWriter('post');
+}
+
+var prepTextForEditor = function (text) {
+  // we usually want br tags and nbsp codes in the text, so we save it that way
+  // and convert it for the one place we don't want that, editors
+  text = text.replace(/<br>/g, '\n');
+  return text.replace(/&nbsp;/g, ' ');
 }
 
 // editor stuff
@@ -657,9 +668,7 @@ var closeThread = function () { // returns true for threadClosed, false for NO
   var text = $('messageEditor').value;
   if (text !== "") {
     var last = glo.threads[i].thread[glo.threads[i].thread.length-1];
-    var oldText = last.body.replace(/<br>/g, '\n');
-    oldText = oldText.replace(/&nbsp;/g, ' ');
-    if (!last || last.date !== pool.getCurDate(-1) || text !== oldText) {
+    if (!last || last.date !== pool.getCurDate(-1) || text !== prepTextForEditor(last.body)) {
       //is it okay to lose that unsaved text?
       if (!confirm("lose current unsaved message text?")) {
         //and then take to the thread?
@@ -744,9 +753,7 @@ var updatePendingMessage = function (index) {
     $('pending-message-status').innerHTML = "no pending message";
     $('pending-message').innerHTML = "";
   }
-  var x = pending.replace(/<br>/g, '\n');
-  x = x.replace(/&nbsp;/g, ' ');
-  $('messageEditor').value = x;
+  $('messageEditor').value = prepTextForEditor(pending);
   hideWriter('message');
 }
 
@@ -839,7 +846,7 @@ var createMessage = function (i, j) {
     //message.setAttribute('id', i+"-"+j+"-message");
     $(i+"-thread").appendChild(message);
     var dateStamp = document.createElement("div");
-    dateStamp.setAttribute('class', 'date-stamp');
+    dateStamp.setAttribute('class', 'date-stamp-box');
     dateStamp.innerHTML = x.date;
     message.appendChild(dateStamp);
     var body = document.createElement("div");
