@@ -460,6 +460,7 @@ var openAuthorPanel = function (author, callback) {
         title.setAttribute('class', 'author-page-title');
         title.innerHTML = json.author;
         panel.appendChild(title);
+        panel.appendChild(document.createElement("br"));
         // message button
         createMessageButton(panel, json);
         // post bucket
