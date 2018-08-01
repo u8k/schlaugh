@@ -31,6 +31,7 @@ h2 {
 .author-page-title {
   font-size: 3em;
   margin-top: 0;
+  display: inline;
 }
 
 nav {
@@ -101,8 +102,8 @@ clicky, .clicky {
 .post, .message, #settings-panel, #thread-list {
   width: 75%;
   margin: auto;
-  margin-top: 10px;
-  margin-bottom: 10px;
+  margin-top: 16px;
+  margin-bottom: 16px;
   border-radius: 4px;
   padding: 15px;
   text-align: left;
@@ -133,7 +134,7 @@ img {
   border-radius: 4px;
 }
 
-.meta-text, .date-stamp {
+.meta-text, .date-stamp-box {
   text-align: right;
   margin-bottom: 10px;
   display: block;
