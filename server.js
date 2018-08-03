@@ -117,20 +117,6 @@ var getUserColors = function (user) {
   };}
 }
 
-var getUser = function (user, callback) {
-  db.collection('users').findOne({_id: ObjectId(user._id)}
-  , {_id:0, username:1, iconURI:1, settings:1}
-  , function (err, user) {
-    if (err) {throw err;}
-    if (!user) {return null;}
-    else {
-      user.pic = getUserPic(user);
-      user.colors = getUserColors(user);
-      return callback(user);
-    }
-  });
-}
-
 var checkObjForProp = function (obj, prop, value) { //and add the prop if it doesn't exist
   if (obj[prop]) {return false}     //note: returns FALSE to indicate no action taken
   else {
@@ -211,7 +197,7 @@ var getPayload = function (req, res, callback) {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {_id:0, username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1}
     , function (err, user) {
-      if (err) {throw err;}
+      if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
       else if (!user) {return res.render('layout', {user:false});}
       else {
         var pending;
@@ -423,7 +409,8 @@ app.get('/', function(req, res) {
 
 // payload
 app.get('/~payload', function(req, res) {
-  if (!req.session.user) {res.send([false]);}
+  // for the "cookieless" version this should be a POST
+  if (!req.session.user) {res.send([false, false]);}
   else {
     getPayload(req, res, function (payload) {
       return res.send([true, payload]);
@@ -476,26 +463,23 @@ app.post('/', function(req, res) {
   });
 });
 
-// get posts-(should maybe be a "GET"? ehhhh(following list?))
-app.post('/posts', function(req, res) {
-  if (req.body.date === pool.getCurDate(-1)) {
+// get ALL posts
+app.get('/~posts/:date', function(req, res) {
+  if (req.params.date > pool.getCurDate()) {
     return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
   }
-  //later make this▼ only check "following" instead of all users
   db.collection('users').find({},{ posts:1, username:1, iconURI:1, inbox:1, keys:1 }).toArray(function(err, users) {
-    //can i make that^ only return the post for the date i want instead of all posts?
-    //TODO: later make that^ also return "settings" and then check post visibility permissions
-    if (err) {throw err;}
+    if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
     else {
       var posts = [];
       for (var i = 0; i < users.length; i++) {
-        if (users[i].posts[req.body.date]) {
+        if (users[i].posts[req.params.date]) {
           var authorPic = users[i].iconURI;
           if (typeof authorPic !== 'string') {authorPic = "";}
           var key = null;
           if (users[i].keys) {key = users[i].keys.pubKey}
           posts.push({
-            body: pool.checkForCuts(users[i].posts[req.body.date][0].body, users[i]._id+'-'+req.body.date),
+            body: users[i].posts[req.params.date][0].body,
             author: users[i].username,
             authorPic: authorPic,
             _id: users[i]._id,
@@ -504,6 +488,47 @@ app.post('/posts', function(req, res) {
         }
       }
       return res.send(posts);
+    }
+  });
+});
+
+// get posts of following
+app.post('/~posts/:date', function(req, res) {
+  if (req.params.date > pool.getCurDate()) {
+    return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
+  }
+  if (!req.session.user) {return res.send([false, 'you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please']);}
+  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+  , {_id:0, following:1,}
+  , function (err, user) {
+    if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
+    else if (!user) {return res.send([false, 'you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please']);}
+    else {
+
+        //this is where we filter by the following collection
+
+      db.collection('users').find({},{ posts:1, username:1, iconURI:1, inbox:1, keys:1 }).toArray(function(err, users) {
+        if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
+        else {
+          var posts = [];
+          for (var i = 0; i < users.length; i++) {
+            if (users[i].posts[req.params.date]) {
+              var authorPic = users[i].iconURI;
+              if (typeof authorPic !== 'string') {authorPic = "";}
+              var key = null;
+              if (users[i].keys) {key = users[i].keys.pubKey}
+              posts.push({
+                body: users[i].posts[req.params.date][0].body,
+                author: users[i].username,
+                authorPic: authorPic,
+                _id: users[i]._id,
+                key: key,
+              });
+            }
+          }
+          return res.send([true, posts]);
+        }
+      });
     }
   });
 });
@@ -871,7 +896,7 @@ app.get('/~get/:username', function(req, res) {
         for (var i = 0; i < pL.length; i++) {
           if (pL[i].date !== tmrw) {
             posts.push({
-              body: pool.checkForCuts(author.posts[pL[i].date][pL[i].num].body, author._id+"-"+pL[i].date+"-"+pL[i].num),
+              body: author.posts[pL[i].date][pL[i].num].body,
               date: pL[i].date,
             });
           }

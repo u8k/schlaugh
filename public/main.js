@@ -194,8 +194,7 @@ var orSchlaughUp = function () {
   switchPanel("login-panel");
   passPrompt(false);
   chooseInOrUp(true);
-  updatePath("/");
-  changeBrowserTitle();
+  simulatePageLoad();
 }
 
 var passPromptSubmit = function () {  // from the prompt box an a user/post page
@@ -223,18 +222,17 @@ var signOut = function() {
   });
 }
 
-var updatePath = function (newPath) {
-  // simulates a page load, basically
+var simulatePageLoad = function (newPath, newTitle) {
   // scrolls to top, updates the url, and the browser/tab title
+  // defaults to home if no args given, second arg defaults to first if not given
   scroll(0, 0);
-  if (newPath && newPath !== window.location.pathname) {
-    history.pushState(null, null, newPath);
+  if (!newPath) {
+    newPath = "";
+    newTitle = "s c h l a u g h";
   }
-}
-
-var changeBrowserTitle = function (newTitle) { // defaults if no arg given
-  if (!newTitle) {newTitle = "s c h l a u g h"}
-  if (newTitle !== document.title) {
+  if (newPath !== window.location.pathname) {
+    history.pushState(null, null, "/"+newPath);
+    if (!newTitle) {newTitle = newPath;}
     document.title = newTitle;
   }
 }
@@ -252,14 +250,44 @@ var ajaxCall = function(url, method, data, callback) {
   xhttp.send(JSON.stringify(data));
 }
 
+var convertCuts = function (string, id) {
+  // changes cut tags into functional cuts, needs id so that every cut has a unique id tag on the front end,
+  // this will need alteration if multiple posts per user are allowed
+  var recurse = function (pos, count) {
+    var next = string.substr(pos).search(/<cut>/);
+    if (next === -1) {return string;}
+    else {
+      pos += next;
+      var gap = string.substr(pos).search('</cut>');
+      if (gap === -1) { //this is ONLY for backwards compat w/ the one/first day this worked differently
+        var offset = 5;
+        if (string[pos+4] !== '>') {offset = 6;}
+        string = string.substr(0,pos)
+          +"<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("
+          +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'
+          +");'>more</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
+          +string.substr(pos+offset)+"</div>";
+      } else {
+      string = string.substr(0,pos)
+        +"<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("
+        +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+");'>"
+        +string.substr(pos+5, gap-5)
+        +"</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
+        +string.substr(pos+gap)+"</div>";
+      }
+    }
+    return recurse(pos+1, count+1);
+  }
+  return recurse(0,0);
+}
+
 var switchPanel = function (panelName) {
   if (glo.openPanel) {
     $(glo.openPanel).classList.add('removed');
     if ($(glo.openPanel+"-button")) {$(glo.openPanel+"-button").classList.remove('highlight');}
   }
   if ($(panelName+"-button")) {
-    updatePath("/");
-    changeBrowserTitle();
+    simulatePageLoad();
     $(panelName+"-button").classList.add('highlight');
   }
   if (panelName === "login-panel") {$("sign-in").classList.add('removed');}
@@ -292,7 +320,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
   } else {
     // we don't, so make the ajax call
     $('loading').classList.remove('removed');
-    ajaxCall('/posts', 'POST', {date: date}, function(json) {
+    ajaxCall('/~posts/'+date, 'GET', "", function(json) {
       var bucket = document.createElement("div");
       bucket.setAttribute('class', 'post-bucket');
       bucket.setAttribute('id', 'posts-for-'+date);
@@ -347,7 +375,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
           // actual post body
           var text = document.createElement("text");
           text.setAttribute('class', 'body-text');
-          text.innerHTML = json[rando[i]].body;
+          text.innerHTML = convertCuts(json[rando[i]].body, json[rando[i]]._id+"-"+date+"-feed");
           post.appendChild(text);
           bucket.appendChild(post);
           //remove the current index refference from the randomizing helper array
@@ -417,8 +445,7 @@ var openAuthorPanel = function (author, callback) {
     $(author+'-panel-title').classList.remove("special");
     if (callback) {callback();}
     else {
-      updatePath("/"+author);
-      changeBrowserTitle(author);
+      simulatePageLoad(author);
     }
   } else {
     // call for data and render a new panel
@@ -488,14 +515,13 @@ var openAuthorPanel = function (author, callback) {
           // body
           var text = document.createElement("text");
           text.setAttribute('class', 'body-text');
-          text.innerHTML = json.posts[i].body;
+          text.innerHTML = convertCuts(json.posts[i].body, json._id+"-"+json.posts[i].date+"-panel");
           post.appendChild(text);
         }
         switchPanel(json.author+"-panel");
         if (callback) {callback();}
         else {
-          updatePath("/"+json.author);
-          changeBrowserTitle(json.author);
+          simulatePageLoad(json.author);
         }
       }
     });
@@ -504,8 +530,7 @@ var openAuthorPanel = function (author, callback) {
 
 var openPost = function (author, index) { //individual post on an author page
   openAuthorPanel(author, function () {
-    updatePath("/"+author+"/"+index);
-    changeBrowserTitle(author);
+    simulatePageLoad(author+"/"+index, author);
     var children = $(author+'-panel-all').childNodes;
     for (var i = 0; i < children.length; i++) {
       children[i].classList.add('removed');
@@ -559,7 +584,7 @@ var updatePendingPost = function (remove, newText) {
     $('pending-post').classList.remove("removed");
     $('write-post-button').innerHTML = "edit post";
   }
-  $('pending-post').innerHTML = pool.checkForCuts(newText, 'pending');
+  $('pending-post').innerHTML = convertCuts(newText, 'pending');
   $('postEditor').value = prepTextForEditor(newText);
   hideWriter('post');
 }
@@ -746,7 +771,7 @@ var updatePendingMessage = function (index) {
     $('pending-message').classList.remove('removed');
     $('write-message-button').innerHTML = "edit message";
     $('pending-message-status').innerHTML = "pending:";
-    $('pending-message').innerHTML = pool.checkForCuts(pending, 'pending'+glo.threads[index]._id);
+    $('pending-message').innerHTML = convertCuts(pending, 'pending'+glo.threads[index]._id);
   } else {
     $('delete-message').classList.add('removed');
     $('pending-message').classList.add('removed');
@@ -852,7 +877,7 @@ var createMessage = function (i, j) {
     message.appendChild(dateStamp);
     var body = document.createElement("div");
     body.setAttribute('class', 'message-body');
-    body.innerHTML = pool.checkForCuts(x.body, glo.threads[i]._id+'-'+x.date+orri);
+    body.innerHTML = convertCuts(x.body, glo.threads[i]._id+'-'+x.date+orri);
     message.appendChild(body);
   }
 }
@@ -1156,7 +1181,8 @@ var fetchData = function () {
     json = JSON.parse(json);
     //keys are created at sign in, this^ will force out people who are already in
     // ,with a persistent login cookie, such that they will have to sign in and make keys
-    if (json[0] === false || !json[1].keys) {return signOut();}
+    if ((json[0] === false && json[1] === false) || !json[1].keys) {return signOut();}
+    else if (json[0] === false) {return alert(json[1]);}
     else {parseUserData(json[1]);
     }
   });
