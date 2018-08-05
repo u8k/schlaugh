@@ -377,6 +377,39 @@ app.post('/admin/removeUser', function(req, res) {
   });
 });
 
+app.post('/admin/staffCheat', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var userID = ObjectId("5a0ea8429adb2100146f7568");
+    db.collection('users').findOne({_id: userID}
+    , {_id:0, posts:1, postList:1, postListPending:1}
+    , function (err, user) {
+      if (err) {throw err;}
+      else {
+        checkFreshness(user);
+        var today = pool.getCurDate();
+
+        var updateUserPost = function (text) {
+          user.posts[today] = [{
+            body: text,
+            tags: {}
+          }];
+          var num = user.posts[today].length-1;
+          user.postList.push({
+            date: today,
+            num: num
+          });
+        }
+
+        var x = pool.cleanseInputText(req.body.text);
+        imageValidate(x[0], res, function (res) {
+          updateUserPost(x[1]);
+          return writeToDB(userID, user, function () {res.send([true, x[1]]);});
+        });
+      }
+    });
+  });
+});
+
 app.get('/admin/:num', function(req, res) {
   if (!req.session.user) {
     res.render('layout', {

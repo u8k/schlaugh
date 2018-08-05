@@ -53,6 +53,13 @@ var allFollowStaff = function () {
   });
 }
 
+var letStaffCheat = function () {
+  if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
+  ajaxCall('/admin/staffCheat', 'POST', {text:$('staffCheatText').value}, function(json) {
+    console.log(json);
+  });
+}
+
 var removeUser = function () {
   if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
   ajaxCall('/admin/removeUser', 'POST', {name: $("name-to-be-removed").value}, function(json) {
