@@ -311,9 +311,11 @@ app.get('/admin', function(req, res) {
   });
 });
 
-app.get('/admin/users', function(req, res) {
+app.post('/admin/users', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('users').find({},{_id:0, username:1, postList:1, following:1}).toArray(function(err, users) {
+    var fields = {_id:0, username:1};
+    fields[req.body.text] = 1;
+    db.collection('users').find({}, fields).toArray(function(err, users) {
       if (err) {throw err;}
       else {
         return res.send(users);

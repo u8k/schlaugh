@@ -31,10 +31,6 @@
     -->
   </head>
   <body>
-    <% if (user) { %>
-      <script type="text/javascript">fetchData();</script>
-    <% } %>
-
     <header>
       <a href="/"><h1>schlaugh</h1></a>
       <!-- <clicky onclick="homeButton()"><h1>schlaugh</h1></clicky> -->
@@ -52,20 +48,37 @@
       <%- include("main") %>
     </main>
 
-    <% if (typeof author !== "undefined") { %>
-      <% if (!post) { %>
-        <script type="text/javascript">openAuthorPanel(<%- JSON.stringify(author) %>);</script>
-      <% } else { %>
-        <script type="text/javascript">
+
+    <% if (user) { %>
+      <% if (typeof author !== "undefined") { %>
+        <% if (!post) { %>
+          <script type="text/javascript">
+          fetchData(function () {openAuthorPanel(<%- JSON.stringify(author) %>)});
+          </script>
+        <% } else { %>
+          <script type="text/javascript">
           var author = <%- JSON.stringify(author) %>;
           var post = <%- JSON.stringify(post) %>;
-          openPost(author, post);
-        </script>
+            fetchData(function () {openPost(author, post)});
+          </script>
+        <% } %>
+      <% } else { %>
+        <script type="text/javascript">fetchData(function () {switchPanel("posts-panel")});</script>
       <% } %>
-    <% } else if (user) { %>
-      <script type="text/javascript">switchPanel("posts-panel");</script>
     <% } else { %>
-      <script type="text/javascript">switchPanel("login-panel");</script>
+      <% if (typeof author !== "undefined") { %>
+        <% if (!post) { %>
+          <script type="text/javascript">openAuthorPanel(<%- JSON.stringify(author) %>);</script>
+        <% } else { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var post = <%- JSON.stringify(post) %>;
+            openPost(author, post);
+          </script>
+        <% } %>
+      <% } else { %>
+        <script type="text/javascript">switchPanel("login-panel");</script>
+      <% } %>
     <% } %>
 
     <footer>

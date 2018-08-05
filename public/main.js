@@ -1222,14 +1222,16 @@ var setColors = function (savedColors) {
   }
 }
 
-var fetchData = function () {
+var fetchData = function (callback) {
   ajaxCall('/~payload', 'GET', "", function(json) {
     json = JSON.parse(json);
     //keys are created at sign in, this^ will force out people who are already in
     // ,with a persistent login cookie, such that they will have to sign in and make keys
     if ((json[0] === false && json[1] === false) || !json[1].keys) {return signOut();}
     else if (json[0] === false) {return alert(json[1]);}
-    else {parseUserData(json[1]);
+    else {
+      parseUserData(json[1]);
+      if (callback) {callback();}
     }
   });
 }

@@ -34,7 +34,7 @@ var displayTests = function (results) {
 }
 
 var getUsers = function () {
-  ajaxCall('/admin/users', 'GET', {}, function(json) {
+  ajaxCall('/admin/users', 'POST', {text:$('data-field').value}, function(json) {
     console.log(JSON.parse(json));
   });
 }
