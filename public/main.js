@@ -205,6 +205,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
       if (data === null) {return;}
       else {
         signIn('/login', data, function () {
+          createFollowButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
           createMessageButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
         });
       }
@@ -320,71 +321,76 @@ var changeDay = function (dir) { // load and display all posts for a given day
   } else {
     // we don't, so make the ajax call
     $('loading').classList.remove('removed');
-    ajaxCall('/~posts/'+date, 'GET', "", function(json) {
-      var bucket = document.createElement("div");
-      bucket.setAttribute('class', 'post-bucket');
-      bucket.setAttribute('id', 'posts-for-'+date);
+    ajaxCall('/posts/'+date, 'POST', {}, function(json) {
       json = JSON.parse(json)
-      // if there are no posts for the day
-      if (json.length === 0) {
-        var post = document.createElement("div");
-        post.innerHTML = "Not Schlaugh!";
-        bucket.appendChild(post);
-      } else {
-        // create temporary randomizing helper array
-        var rando = [];
-        for (var i = 0; i < json.length; i++) {
-          rando.push(i);
-        }
-        // create posts
-        while(rando.length !== 0) {
-          var i = Math.floor(Math.random() * (rando.length));
+      if (!json[0]) {return alert(json[1]);}
+      else {
+        json = json[1];
+        var bucket = document.createElement("div");
+        bucket.setAttribute('class', 'post-bucket');
+        bucket.setAttribute('id', 'posts-for-'+date);
+        // if there are no posts for the day
+        if (json.length === 0) {
           var post = document.createElement("div");
-          post.setAttribute('class', 'post');
-          // pic
-          if (json[rando[i]].authorPic !== "") {
-            var authorPic = document.createElement("img");
-            authorPic.setAttribute('src', json[rando[i]].authorPic);
-          } else {
-            var authorPic = document.createElement("div");
-          }
-          var authorPicBox = document.createElement("a");
-          (function (name) {
-            authorPicBox.onclick = function(){
-              openAuthorPanel(name);
-            }
-          })(json[rando[i]].author);
-          post.appendChild(authorPicBox);
-          authorPic.setAttribute('class', 'author-pic clicky');
-          authorPicBox.appendChild(authorPic);
-          // author/meta text
-          var authorBox = document.createElement("div");
-          authorBox.setAttribute('class', 'meta-text');
-          var author = document.createElement("a");
-          (function (name) {
-            author.onclick = function(){
-              openAuthorPanel(name);
-            }
-          })(json[rando[i]].author);
-          author.setAttribute('class', 'author');
-          author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
-          authorBox.appendChild(author);
-          authorBox.appendChild(document.createElement("br"));
-          createMessageButton(authorBox, json[rando[i]]);
-          post.appendChild(authorBox);
-          // actual post body
-          var text = document.createElement("text");
-          text.setAttribute('class', 'body-text');
-          text.innerHTML = convertCuts(json[rando[i]].body, json[rando[i]]._id+"-"+date+"-feed");
-          post.appendChild(text);
+          post.innerHTML = "Not Schlaugh!";
           bucket.appendChild(post);
-          //remove the current index refference from the randomizing helper array
-          rando.splice(i,1);
+        } else {
+          // create temporary randomizing helper array
+          var rando = [];
+          for (var i = 0; i < json.length; i++) {
+            rando.push(i);
+          }
+          // create posts
+          while(rando.length !== 0) {
+            var i = Math.floor(Math.random() * (rando.length));
+            var post = document.createElement("div");
+            post.setAttribute('class', 'post');
+            // pic
+            if (json[rando[i]].authorPic !== "") {
+              var authorPic = document.createElement("img");
+              authorPic.setAttribute('src', json[rando[i]].authorPic);
+            } else {
+              var authorPic = document.createElement("div");
+            }
+            var authorPicBox = document.createElement("a");
+            (function (name) {
+              authorPicBox.onclick = function(){
+                openAuthorPanel(name);
+              }
+            })(json[rando[i]].author);
+            post.appendChild(authorPicBox);
+            authorPic.setAttribute('class', 'author-pic clicky');
+            authorPicBox.appendChild(authorPic);
+            // author/meta text
+            var authorBox = document.createElement("div");
+            authorBox.setAttribute('class', 'meta-text');
+            var author = document.createElement("a");
+            (function (name) {
+              author.onclick = function(){
+                openAuthorPanel(name);
+              }
+            })(json[rando[i]].author);
+            author.setAttribute('class', 'author');
+            author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
+            authorBox.appendChild(author);
+            authorBox.appendChild(document.createElement("br"));
+            createFollowButton(authorBox, json[rando[i]]);
+            createMessageButton(authorBox, json[rando[i]]);
+            post.appendChild(authorBox);
+            // actual post body
+            var text = document.createElement("text");
+            text.setAttribute('class', 'body-text');
+            text.innerHTML = convertCuts(json[rando[i]].body, json[rando[i]]._id+"-"+date+"-feed");
+            post.appendChild(text);
+            bucket.appendChild(post);
+            //remove the current index refference from the randomizing helper array
+            rando.splice(i,1);
+          }
         }
+        $('loading').classList.add('removed');
+        $('posts').appendChild(bucket);
+        glo.loading = false;
       }
-      $('loading').classList.add('removed');
-      $('posts').appendChild(bucket);
-      glo.loading = false;
     });
   }
 }
@@ -404,12 +410,47 @@ var createMessageButton = function (parent, author, insert) {
       });
     }
     if (insert) {
+      parent.insertBefore(document.createElement("br"), insert);
       parent.insertBefore(message, insert);
     } else {
+      parent.appendChild(document.createElement("br"));
       parent.appendChild(message);
     }
   } else if (!glo.username) { // not logged in, store the info in case they log in
     glo.currentAuthor = author;
+  }
+}
+
+var createFollowButton = function (parent, author, insert) {
+  // OPTIONAL 'insert' is the element before which the button is to be inserted
+  if (glo.username) {
+    var follow = document.createElement("clicky");
+    // is the user already following the author?
+    if (glo.following[author._id]) {
+      follow.innerHTML = "defollow";
+      var remove = true;
+    } else {
+      follow.innerHTML = "follow";
+      var remove = false;
+    }
+    follow.onclick = function(){
+      ajaxCall('/follow', 'POST', {id:author._id, remove:remove}, function(json) {
+        json = JSON.parse(json)
+        if (!json[0]) {return alert(json[1]);}
+        else {
+          if (remove) {glo.following[author._id] = false;}
+          else {glo.following[author._id] = true;}
+          // refresh button(by hiding and creating new)
+          follow.classList.add('removed');
+          createFollowButton(parent, author, follow);
+        }
+      });
+    }
+    if (insert) {
+      parent.insertBefore(follow, insert);
+    } else {
+      parent.appendChild(follow);
+    }
   }
 }
 
@@ -488,7 +529,8 @@ var openAuthorPanel = function (author, callback) {
         title.innerHTML = json.author;
         panel.appendChild(title);
         panel.appendChild(document.createElement("br"));
-        // message button
+        // follow and message buttons
+        createFollowButton(panel, json);
         createMessageButton(panel, json);
         // post bucket
         var bucket = document.createElement("div");
@@ -1149,6 +1191,10 @@ var parseUserData = function (data) {
   glo.colors = data.colors;
   glo.pending = data.pending;
   glo.userPic = data.userPic;
+  glo.following = {};
+  for (var i = 0; i < data.following.length; i++) {
+    glo.following[data.following[i]] = true;
+  }
   // init stuff
   changeDay(1);
   setColors(data.colors);

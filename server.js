@@ -195,7 +195,7 @@ var getPayload = function (req, res, callback) {
   if (!req.session.user) {return res.render('layout', {user:false});}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1}
+    , {_id:0, username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1}
     , function (err, user) {
       if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
       else if (!user) {return res.render('layout', {user:false});}
@@ -212,9 +212,9 @@ var getPayload = function (req, res, callback) {
           keys: user.keys,
           username: user.username,
           pending: pending,
-          //pendingWriter: pendingWriter,
           userPic: getUserPic(user),
-          colors: getUserColors(user)
+          colors: getUserColors(user),
+          following: user.following,
         }
         var threads = [];
         if (user.inbox) {
@@ -313,10 +313,30 @@ app.get('/admin', function(req, res) {
 
 app.get('/admin/users', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('users').find({},{_id:0, username:1, inbox:1}).toArray(function(err, users) {
+    db.collection('users').find({},{_id:0, username:1, postList:1, following:1}).toArray(function(err, users) {
       if (err) {throw err;}
       else {
         return res.send(users);
+      }
+    });
+  });
+});
+
+app.post('/admin/followStaff', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('users').find({},{_id:1, following:1}).toArray(function(err, users) {
+      if (err) {throw err;}
+      else {
+        var count = users.length;
+        for (var i = 0; i < users.length; i++) {
+          users[i].following = [ObjectId("5a0ea8429adb2100146f7568")];
+          writeToDB(users[i]._id, users[i], function () {
+            count--;
+            if (count === 0) {
+              res.send("success");
+            }
+          });
+        }
       }
     });
   });
@@ -463,39 +483,10 @@ app.post('/', function(req, res) {
   });
 });
 
-// get ALL posts
-app.get('/~posts/:date', function(req, res) {
-  if (req.params.date > pool.getCurDate()) {
-    return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
-  }
-  db.collection('users').find({},{ posts:1, username:1, iconURI:1, inbox:1, keys:1 }).toArray(function(err, users) {
-    if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
-    else {
-      var posts = [];
-      for (var i = 0; i < users.length; i++) {
-        if (users[i].posts[req.params.date]) {
-          var authorPic = users[i].iconURI;
-          if (typeof authorPic !== 'string') {authorPic = "";}
-          var key = null;
-          if (users[i].keys) {key = users[i].keys.pubKey}
-          posts.push({
-            body: users[i].posts[req.params.date][0].body,
-            author: users[i].username,
-            authorPic: authorPic,
-            _id: users[i]._id,
-            key: key,
-          });
-        }
-      }
-      return res.send(posts);
-    }
-  });
-});
-
 // get posts of following
-app.post('/~posts/:date', function(req, res) {
+app.post('/posts/:date', function(req, res) {
   if (req.params.date > pool.getCurDate()) {
-    return res.send([{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]);
+    return res.send([true, [{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]]);
   }
   if (!req.session.user) {return res.send([false, 'you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please']);}
   db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
@@ -504,10 +495,8 @@ app.post('/~posts/:date', function(req, res) {
     if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
     else if (!user) {return res.send([false, 'you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please']);}
     else {
-
-        //this is where we filter by the following collection
-
-      db.collection('users').find({},{ posts:1, username:1, iconURI:1, inbox:1, keys:1 }).toArray(function(err, users) {
+      if (user.following.length === undefined) {user.following = [];}
+      db.collection('users').find({_id: {$in: user.following}},{ posts:1, username:1, iconURI:1, inbox:1, keys:1 }).toArray(function(err, users) {
         if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
         else {
           var posts = [];
@@ -529,6 +518,33 @@ app.post('/~posts/:date', function(req, res) {
           return res.send([true, posts]);
         }
       });
+    }
+  });
+});
+
+// follow/unfollow
+app.post('/follow', function(req, res) {
+  if (!req.session.user) {return res.send([false, 'you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please']);}
+  var userID = ObjectId(req.session.user._id);
+  db.collection('users').findOne({_id: userID}
+  , {_id:0, following:1}
+  , function (err, user) {
+    if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
+    else {
+      if (!req.body || !req.body.id) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY"]);}
+      // make sure they even have a following array
+      if (user.following.length === undefined) {user.following = [];}
+      if (req.body.remove) {
+        for (var i = 0; i < user.following.length; i++) {
+          if (String(user.following[i]) === String(req.body.id)) {
+            user.following.splice(i, 1);
+            i--;
+          }
+        }
+      } else {
+        user.following.push(ObjectId(req.body.id));
+      }
+      writeToDB(userID, user, function () {res.send([true]);})
     }
   });
 });
@@ -758,8 +774,7 @@ app.post('/register', function(req, res) {
               updatedOn: today,
               pending: {},
             },
-            following: {},
-            followers: {},
+            following: [],
             about: {
               oldText: "",
               newText: "",

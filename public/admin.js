@@ -46,6 +46,13 @@ var resetTest = function () {
   });
 }
 
+var allFollowStaff = function () {
+  if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
+  ajaxCall('/admin/followStaff', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
 var removeUser = function () {
   if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
   ajaxCall('/admin/removeUser', 'POST', {name: $("name-to-be-removed").value}, function(json) {
