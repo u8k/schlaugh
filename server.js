@@ -624,6 +624,10 @@ app.post('/inbox', function(req, res) {
               overwrite = true;
               removeListRefIfRemovingOnlyMessage(sender.inbox, recipientID, req.body, tmrw);
             }
+            // check/update the key
+            if (sender.inbox.threads[recipientID].key !== recipient.keys.pubKey) {
+              sender.inbox.threads[recipientID].key = recipient.keys.pubKey;
+            }
             // check/update the thread "name"
             if (sender.inbox.threads[recipientID].name !== recipient.username) {
               sender.inbox.threads[recipientID].name = recipient.username;
@@ -658,6 +662,10 @@ app.post('/inbox', function(req, res) {
               if (req.body.remove) {
                 delete recipient.inbox.pending[senderID];
               }
+            }
+            // check/update the key
+            if (recipient.inbox.threads[senderID].key !== sender.keys.pubKey) {
+              recipient.inbox.threads[senderID].key = sender.keys.pubKey;
             }
             // check/update the thread "name"
             if (recipient.inbox.threads[senderID].name !== sender.username) {
@@ -913,7 +921,10 @@ app.post('/keys', function(req, res) {
     if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
     else {
       if (req.body.privKey && req.body.pubKey) {
-        user.keys = req.body;
+        // do not overwrite existing keys!
+        if (user.keys === undefined) {
+          user.keys = req.body;
+        }
         writeToDB(userID, user, function () {
           getPayload(req, res, function (payload) {
             return res.send([true, payload]);
