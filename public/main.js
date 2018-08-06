@@ -129,10 +129,10 @@ var prompt = function (options) {
   //      'label', 'placeholder', 'value', 'callback'(function)
   if (!options) {  //close the prompt
     $("prompt").classList.add("hidden");
-    $("prompt-backing").classList.add("hidden");
+    $("pop-up-backing").classList.add("hidden");
   } else {
     $("prompt").classList.remove("hidden");
-    $("prompt-backing").classList.remove("hidden");
+    $("pop-up-backing").classList.remove("hidden");
     //
     $("prompt-label").innerHTML = options.label;
     if (options.placeholder) {$("prompt-input").placeholder = options.placeholder;}
@@ -150,7 +150,7 @@ var prompt = function (options) {
       prompt(false);
     }
     $("prompt-close").onclick = exit;
-    $("prompt-backing").onclick = exit;
+    $("pop-up-backing").onclick = exit;
   }
 }
 
@@ -159,10 +159,10 @@ var passPrompt = function (options) {
   //      'label', 'username', 'orUp'(boolean), 'callback'(function)
   if (!options) {  //close the prompt
     $("password-prompt").classList.add("hidden");
-    $("prompt-backing").classList.add("hidden");
+    $("pop-up-backing").classList.add("hidden");
   } else {
     $("password-prompt").classList.remove("hidden");
-    $("prompt-backing").classList.remove("hidden");
+    $("pop-up-backing").classList.remove("hidden");
     //
     $("password-prompt-label").innerHTML = options.label;
     if (typeof glo !== undefined && glo.username) {
@@ -186,7 +186,7 @@ var passPrompt = function (options) {
       passPrompt(false);
     }
     $("password-prompt-close").onclick = exit;
-    $("prompt-backing").onclick = exit;
+    $("pop-up-backing").onclick = exit;
   }
 }
 
@@ -211,6 +211,44 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
       }
     }
   });
+}
+
+var alert = function (message, callback) {
+  if (!message) {  //close the alert
+    $("alert").classList.add("hidden");
+    $("pop-up-backing").classList.add("hidden");
+  } else {
+    $("alert").classList.remove("hidden");
+    $("pop-up-backing").classList.remove("hidden");
+    $("alert-text").innerHTML = message;
+    var exit = function(){
+      if (callback) {callback();}
+      alert(false);
+    }
+    $("alert-submit").onclick = exit;
+    $("pop-up-backing").onclick = exit;
+  }
+}
+
+var confirm = function (message, callback) {
+  if (!message) {  //close the confirm
+    $("confirm").classList.add("hidden");
+    $("pop-up-backing").classList.add("hidden");
+  } else {
+    $("confirm").classList.remove("hidden");
+    $("pop-up-backing").classList.remove("hidden");
+    $("confirm-text").innerHTML = message;
+    $("confirm-yes").onclick = function () {
+      if (callback) {callback(true);}
+      confirm(false);
+    }
+    var exit = function(){
+      if (callback) {callback(false);}
+      confirm(false);
+    }
+    $("confirm-no").onclick = exit;
+    $("pop-up-backing").onclick = exit;
+  }
 }
 
 var signOut = function() {
@@ -296,23 +334,56 @@ var switchPanel = function (panelName) {
   glo.openPanel = panelName;
 }
 
+var openDateJump = function (close) {
+  if (close) {
+    $('jump-open').classList.remove('removed');
+    $('date-arrow-box').classList.remove('removed');
+    $('date-jump').classList.add('removed');
+  } else {
+    $('date-jump').classList.remove('removed');
+    $('date-arrow-box').classList.add('removed');
+    $('jump-open').classList.add('removed');
+  }
+}
+
+var dateJump = function () {
+  var target = $("date-picker").value;
+  if (!target) { target = pool.getCurDate();}
+  if (target.length !== 10 || target[4] !== "-" || target[7] !== "-" || !isNumeric(target.slice(0,4)) || !isNumeric(target.slice(5,7)) || !isNumeric(target.slice(8,10))) {
+    return alert("date must be formatted YYYY-MM-DD");
+  } else {
+    target = getEpochSeconds(target);
+    if (target > getEpochSeconds(pool.getCurDate())) {
+      return alert("and no future vision either!");
+    } else {
+      changeDay(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)));
+    }
+  }
+}
+
+var getEpochSeconds = function (dateStamp) {
+  if (typeof dateStamp === 'string' && dateStamp.length === 10) {
+    var year = dateStamp.slice(0,4);
+    var month = dateStamp.slice(5,7)-1;
+    var day = dateStamp.slice(8,10);
+    return new Date(year,month,day).getTime();
+  }
+}
+
 var changeDay = function (dir) { // load and display all posts for a given day
   //don't allow changing day if currently loading
   if (glo.loading) {return;}
-  else {glo.loading = true;}
+  else {
+    glo.loading = true;
+  }
   var date = pool.getCurDate(glo.dateOffset);
   // hide the previously displayed day
-  if ($('posts-for-'+ date)) {
-    $('posts-for-'+ date).classList.add('removed');
-  }
+  if ($('posts-for-'+ date)) {$('posts-for-'+ date).classList.add('removed');}
   glo.dateOffset += dir;
   date = pool.getCurDate(glo.dateOffset);
   // hide/unhide nextDay button as needed
-  if (glo.dateOffset === 0) {
-    $("day-forward").classList.add("hidden");
-  } else if (glo.dateOffset === 1 && dir === 1) {
-    $("day-forward").classList.remove("hidden");
-  }
+  if (glo.dateOffset === 0) {$("day-forward").classList.add("hidden");}
+  else {$("day-forward").classList.remove("hidden");}
   $('date-display').innerHTML = date;
   // check if we already have the post data for that day
   if ($('posts-for-'+date)) {
@@ -333,6 +404,8 @@ var changeDay = function (dir) { // load and display all posts for a given day
         if (json.length === 0) {
           var post = document.createElement("div");
           post.innerHTML = "Not Schlaugh!";
+          bucket.appendChild(document.createElement("br"));
+          bucket.appendChild(document.createElement("br"));
           bucket.appendChild(post);
         } else {
           // create temporary randomizing helper array
@@ -493,7 +566,7 @@ var openAuthorPanel = function (author, callback) {
     ajaxCall('/~get/'+author, 'GET', "", function(json) {
       json = JSON.parse(json);
       if (!json[0]) {
-        if (!json[1]) {alert(json[2])}
+        if (!json[1]) {return alert(json[2])}
         else {                                          //404
           if ($('404-panel')) {switchPanel("404-panel");}
           else {
@@ -598,20 +671,30 @@ var openPost = function (author, index) { //individual post on an author page
 
 var submitPost = function (remove) { //also handles editing and deleting
   if (remove) {
-    if (!confirm("you sure you want me should delete it?")) {return;}
-    var text = null;
-  }
-  else {var text = $('postEditor').value;}
-  if (text === "") {
-    hideWriter('post');
-    return;
+    confirm("you sure you want me should delete it?", function (result) {
+      if (!result) {return;}
+      else {
+        var data = {text:null, remove:remove}
+        ajaxCall("/", 'POST', data, function(json) {
+          json = JSON.parse(json)
+          if (!json[0]) {alert(json[1]);}
+          else {updatePendingPost(remove, json[1])}
+        });
+      }
+    });
+  } else {
+    var text = $('postEditor').value;
+    if (text === "") {
+      hideWriter('post');
+      return;
     }
-  var data = {text:text, remove:remove}
-  ajaxCall("/", 'POST', data, function(json) {
-    json = JSON.parse(json)
-    if (!json[0]) {alert(json[1]);}
-    else {updatePendingPost(remove, json[1])}
-  });
+    var data = {text:text, remove:remove}
+    ajaxCall("/", 'POST', data, function(json) {
+      json = JSON.parse(json)
+      if (!json[0]) {alert(json[1]);}
+      else {updatePendingPost(remove, json[1])}
+    });
+  }
 }
 
 var updatePendingPost = function (remove, newText) {
@@ -676,9 +759,6 @@ var hyperlink = function (src) {
           label: "link text:",
           callback: function(linkText) {
             if (linkText !== null) {
-              if (target.substr(0,4) !== "http") {
-                target = "http://" + target;
-              }
               area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
               var bump = a+target.length+linkText.length+15;
               setCursorPosition(area, bump, bump);
@@ -738,14 +818,16 @@ var closeThread = function () { // returns true for threadClosed, false for NO
     var last = glo.threads[i].thread[glo.threads[i].thread.length-1];
     if (!last || last.date !== pool.getCurDate(-1) || text !== prepTextForEditor(last.body)) {
       //is it okay to lose that unsaved text?
-      if (!confirm("lose current unsaved message text?")) {
+      confirm("lose current unsaved message text?", function (result) {
+        if (!result) {return;}
         //and then take to the thread?
+        else {return hideCurrentThread(i);}
+      })
+    } else {return hideCurrentThread(i);}
+  } else {return hideCurrentThread(i);}
+}
 
-        return false;
-      }
-    }
-  }
-  //hide current thread
+var hideCurrentThread = function (i) {
   glo.activeThreadIndex = undefined;
   $("back-arrow").classList.add('removed');
   $(i+"-thread").classList.add('removed');
@@ -826,56 +908,71 @@ var updatePendingMessage = function (index) {
 }
 
 var submitMessage = function (remove) {  //also handles editing and deleting
-  if (remove && !confirm("you sure you want me should delete it?")) {return;}
-  var text = $('messageEditor').value;
-  if (text === "") {return;}
   var i = glo.activeThreadIndex;
-  if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option, sorry this is a bug please note all details and tell staff sorry");}
-  //
-  var encryptAndSend = function () {
-    encrypt(text, glo.keys.pubKey, glo.threads[i].key, function (encSenderText, encRecText) {
-      var data = {
-        recipient: glo.threads[i]._id,
-        encSenderText: encSenderText,
-        encRecText: encRecText,
-        remove: remove,
-      };
-      ajaxCall('/inbox', 'POST', data, function(json) {
-        json = JSON.parse(json)
-        if (!json[0]) {
-          alert(json[1]);
-          return;
-        }
-        var len = glo.threads[i].thread.length-1;
-        var last = glo.threads[i].thread[len];
-        // is the thread's last message already a pending message?
-        if (last && last.date === pool.getCurDate(-1)) {
-          if (remove) {glo.threads[i].thread.splice(len,1);}
-          else {last.body = text;}    //overwrite
-        } else {
-          glo.threads[i].thread.push({
-            inbound: false,
-            date: pool.getCurDate(-1),
-            body: text,
-          });
-        }
-        updatePendingMessage(i);
+  if (remove) {
+    confirm("you sure you want me should delete it?", function (result) {
+      if (!result) {return;}
+      else {
+        var data = {
+          recipient: glo.threads[i]._id,
+          encSenderText: '',
+          encRecText: '',
+          remove: remove,
+        };
+        ajaxCall('/inbox', 'POST', data, function(json) {
+          json = JSON.parse(json)
+          if (!json[0]) {return alert(json[1]);}
+          var len = glo.threads[i].thread.length-1;
+          var last = glo.threads[i].thread[len];
+          glo.threads[i].thread.splice(len,1);
+          updatePendingMessage(i);
+        });
+      }
+    });
+  } else {
+    var text = $('messageEditor').value;
+    if (text === "") {return;}
+    if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option, sorry this is a bug please note all details and tell staff sorry");}
+    //
+    var encryptAndSend = function () {
+      encrypt(text, glo.keys.pubKey, glo.threads[i].key, function (encSenderText, encRecText) {
+        var data = {
+          recipient: glo.threads[i]._id,
+          encSenderText: encSenderText,
+          encRecText: encRecText,
+          remove: remove,
+        };
+        ajaxCall('/inbox', 'POST', data, function(json) {
+          json = JSON.parse(json)
+          if (!json[0]) {return alert(json[1]);}
+          var len = glo.threads[i].thread.length-1;
+          var last = glo.threads[i].thread[len];
+          // is the thread's last message already a pending message?
+          if (last && last.date === pool.getCurDate(-1)) {
+            last.body = text;         //overwrite
+          } else {
+            glo.threads[i].thread.push({
+              inbound: false,
+              date: pool.getCurDate(-1),
+              body: text,
+            });
+          }
+          updatePendingMessage(i);
+        });
       });
-    });
-  }
+    }
 
-  // cleanse and image validate
-  var x = pool.cleanseInputText(text);
-  text = x[1];
-  if (x[0].length !== 0) {
-    ajaxCall('/image', 'POST', x[0], function(json) {
-      json = JSON.parse(json);
-      if (!json[0]) {
-        alert(json[1]);
-        return;
-      } else {encryptAndSend();}
-    });
-  } else {encryptAndSend();}
+    // cleanse and image validate
+    var x = pool.cleanseInputText(text);
+    text = x[1];
+    if (x[0].length !== 0) {
+      ajaxCall('/image', 'POST', x[0], function(json) {
+        json = JSON.parse(json);
+        if (!json[0]) {return alert(json[1]);}
+        else {encryptAndSend();}
+      });
+    } else {encryptAndSend();}
+  }
 }
 
 var checkForThread = function (user) {
@@ -1040,14 +1137,12 @@ var verifyPass = function (callback) {      // for decryption
         json = JSON.parse(json);
         if (json[0]) { //password is good
           if (json[1]) {  // are they trying to log in as a Different user?
-            alert("switcheroo!");
-            return location.reload();
+            return alert("switcheroo!", function () {location.reload();});
           } else {
             unlockInbox(data.password, callback);
           }
         } else {  // bad username/password
-          alert(json[1]);
-          signOut();
+          return alert(json[1], function () {signOut();});
         }
       });
     }

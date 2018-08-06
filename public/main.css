@@ -67,14 +67,20 @@ postNav {
   font-size: 2em;
 }
 
+#date-picker {
+  width: 90px;
+  text-align: center;
+}
+
 clicky, .clicky {
   cursor: pointer;
-  /*
+}
+
+.no-select {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  */
 }
 
 #post-writer{width: 75%; margin: auto;}
@@ -198,7 +204,7 @@ body, h1, input {
   color: #D8D8D8;
   background-color: #324144;
 }
-.post, .message, .editor, #settings-panel, #thread-list, .prompt {
+.post, .message, .editor, #settings-panel, #thread-list, .pop-up {
   color: #D8D8D8;
   background-color: #32363F;
 }
@@ -224,7 +230,7 @@ arrow {
   margin-top: 5vh;
 }
 
-.prompt {
+.pop-up {
   padding: 15px;
   position: fixed;
   left: 50%;
@@ -235,7 +241,7 @@ arrow {
   z-index: 11;
 }
 #prompt-input {width: 200px;}
-#prompt-backing {
+#pop-up-backing {
   background-color: rgba(0, 0, 0, 0.20);
   position: fixed;
   height: 100vh;

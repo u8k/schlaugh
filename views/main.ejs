@@ -32,9 +32,24 @@
   <postNav>
     <text id="date-display"></text>
     <br>
-    <clicky onclick="changeDay(1)">◀</clicky>
-    <clicky id="day-forward" class="hidden" onclick="changeDay(-1)">▶</clicky>
+    <box id="date-arrow-box" class="no-select">
+      <clicky onclick="changeDay(1)">◀</clicky>
+      <clicky id="day-forward" class="hidden" onclick="changeDay(-1)">▶</clicky>
+    </box>
   </postNav>
+  <br>
+  <button id="jump-open" onclick="openDateJump()">jump</button>
+  <form id="date-jump" class="removed" action="javascript:void(0);">
+    <input id="date-picker" type="text" placeholder="date">
+    <script type="text/javascript">
+      $('date-picker').value = pool.getCurDate();
+    </script>
+    <br>
+    <button type="submit" onclick="dateJump()">go</button>
+    <button onclick="openDateJump(true)">x</button>
+  </form>
+
+
   <div id="posts">
     <text id="loading" class="removed">***loading the day***</text>
   </div>
@@ -133,8 +148,8 @@
   <img src="http://4.bp.blogspot.com/-MnXNalSoejY/TjCsbTAMSVI/AAAAAAAAzL8/iFnKrx9iVm4/s1600/Cute_Ostriches.jpg" alt="ostrich">
 </div>
 
-<div id="prompt-backing" class="hidden"></div>
-<div id="prompt" class="prompt hidden">
+<div id="pop-up-backing" class="hidden"></div>
+<div id="prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
     <text id="prompt-label"></text>
     <br><br>
@@ -145,7 +160,7 @@
   <br>
   <button id="prompt-close">x</button>
 </div>
-<div id="password-prompt" class="prompt hidden">
+<div id="password-prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
     <text id="password-prompt-label"></text>
     <br><br>
@@ -161,4 +176,19 @@
   </div>
   <br>
   <button id="password-prompt-close">x</button>
+</div>
+<div id="alert" class="pop-up hidden">
+  <form action="javascript:void(0);">
+    <text id="alert-text"></text>
+    <br><br>
+    <button id="alert-submit" type="submit">'kay</button>
+  </form>
+</div>
+<div id="confirm" class="pop-up hidden">
+  <form action="javascript:void(0);">
+    <text id="confirm-text"></text>
+    <br><br>
+    <button id="confirm-yes">yeah</button>
+    <button id="confirm-no" type="submit">nope</button>
+  </form>
 </div>

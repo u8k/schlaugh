@@ -521,7 +521,7 @@ app.post('/', function(req, res) {
 // get posts of following
 app.post('/posts/:date', function(req, res) {
   if (req.params.date > pool.getCurDate()) {
-    return res.send([true, [{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author: "APWBD"}]]);
+    return res.send([true, [{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:""}]]);
   }
   if (!req.session.user) {return res.send([false, 'you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please']);}
   db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
@@ -588,7 +588,7 @@ app.post('/follow', function(req, res) {
 app.post('/inbox', function(req, res) {
   if (!req.session.user) {return res.send([false, "we've encountered an unexpected complication while submitting your message, your message might not be saved, please copy all of your text to be safe, refresh the page and try again"]);}
   // the incoming text is encrypted, so we can not cleanse it
-  if (!req.body.encSenderText || !req.body.encRecText) {return res.send([false, "ERROR! SORRY! your message is not saved, please copy all of your text if you want to keep it, please screenshot everything/note all details of the situation and show this to staff, logging in and out might fix this? SORRY   "+req.body.encSenderText+"    "+req.body.encRecText]);}
+  if (typeof req.body.encSenderText === undefined || typeof req.body.encRecText === undefined) {return res.send([false, "ERROR! SORRY! your message is not saved, please copy all of your text if you want to keep it, please screenshot everything/note all details of the situation and show this to staff, SORRY   "+req.body.encSenderText+"    "+req.body.encRecText]);}
   var recipientID = String(req.body.recipient);
   var senderID = String(req.session.user._id);
   if (recipientID === senderID) {return res.send([false, "you want to message yourself??? freak."]);}
@@ -739,7 +739,7 @@ app.post('/changePic', function(req, res) {
   else {
     request.head(url, function (error, resp) {
       if (error || resp.statusCode !== 200) {
-        return res.send('your url seems to be invalid');
+        return res.send('your image url seems to be invalid');
       } else if (resp.headers['content-type'].substr(0,5) !== "image") {
         return res.send('i have seen an image\n\nand that is no image');
       } else if (resp.headers['content-length'] > 10485760) {
