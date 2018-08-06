@@ -43,7 +43,7 @@ var changeColor = function (colorCode, type) {
   var sheet = document.styleSheets[0];
   switch (type) {
     case "postBackground":                 //post background
-      var selector = ".post, .message, .editor, #settings-panel, #thread-list, button, .prompt";
+      var selector = ".post, .message, .editor, #settings-panel, #thread-list, button, .pop-up";
       var attribute = "background-color";
       break;
     case "text":                        //text
