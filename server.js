@@ -346,23 +346,21 @@ app.post('/admin/followStaff', function(req, res) {
 
 app.post('/admin/resetTest', function(req, res) {
   adminGate(req, res, function (res, user) {
-    var testers = getTesters();
-    var count = testers.length;
-    for (var i = 0; i < testers.length; i++) {
-      db.collection('users').updateOne({username: testers[i].username},
-        {$set: testers[i]},
-        {upsert: true},
-        function(err, user) {
-          if (err) {throw err;}
-          else {
-            count--;
-            if (count === 0) {
-              res.send("success");
-            }
-          }
-        }
-      );
-    }
+    /*
+    var today = pool.getCurDate();
+    var tmrw = pool.getCurDate(-1);
+    var ystr = pool.getCurDate(1);
+    */
+    var mrah = adminB.getdumbData();
+    mrah._id = ObjectId('000000000000000000000003');
+    db.collection('users').updateOne({username: mrah.username},
+      {$set: mrah},
+      {upsert: true},
+      function(err, user) {
+        if (err) {throw err;}
+        else { res.send("success"); }
+      }
+    );
   });
 });
 
@@ -586,25 +584,25 @@ app.post('/follow', function(req, res) {
 
 // new/edit/delete message
 app.post('/inbox', function(req, res) {
-  if (!req.session.user) {return res.send([false, "we've encountered an unexpected complication while submitting your message, your message might not be saved, please copy all of your text to be safe, refresh the page and try again"]);}
+  if (!req.session.user) {return res.send({error:"we've encountered an unexpected complication while submitting your message, your message might not be saved, please copy all of your text to be safe, refresh the page and try again"});}
   // the incoming text is encrypted, so we can not cleanse it
-  if (typeof req.body.encSenderText === undefined || typeof req.body.encRecText === undefined) {return res.send([false, "ERROR! SORRY! your message is not saved, please copy all of your text if you want to keep it, please screenshot everything/note all details of the situation and show this to staff, SORRY   "+req.body.encSenderText+"    "+req.body.encRecText]);}
+  if (typeof req.body.encSenderText === undefined || typeof req.body.encRecText === undefined) {return res.send({error:"ERROR! SORRY! your message is not saved, please copy all of your text if you want to keep it, please screenshot everything/note all details of the situation and show this to staff, SORRY   "+req.body.encSenderText+"    "+req.body.encRecText});}
   var recipientID = String(req.body.recipient);
   var senderID = String(req.session.user._id);
-  if (recipientID === senderID) {return res.send([false, "you want to message yourself??? freak."]);}
+  if (recipientID === senderID) {return res.send({error:"you want to message yourself??? freak."});}
   // make both sender and recipient DB calls first
   db.collection('users').findOne({_id: ObjectId(senderID)}
   , {_id:0, inbox:1, username:1, keys:1, iconURI:1}
   , function (err, sender) {
     if (err) {throw err;}
     else {
-      if (!sender.keys) {return res.send([false, "you don't have keys yet? how are you here? this is odd. your message is not saved, please copy all of your text if you want to keep it, please screenshot everything and show this to staff, logging in and out might fix this? "+sender.keys]);}
+      if (!sender.keys) {return res.send({error:"you don't have keys yet? how are you here? this is odd. your message is not saved, please copy all of your text if you want to keep it, please screenshot everything and show this to staff, logging in and out might fix this? "+sender.keys});}
       db.collection('users').findOne({_id: ObjectId(recipientID)}
       , {_id:0, inbox:1, username:1, keys:1, iconURI:1}
       , function (err, recipient) {
         if (err) {throw err;}
         else {
-          if (!recipient.keys) {return res.send([false, "the person you are trying to message has no keys? how are you here? this is odd. your message is not saved, please copy all of your text if you want to keep it, please screenshot everything and show this to staff, logging in and out might fix this? "+recipient.keys]);}
+          if (!recipient.keys) {return res.send({error:"the person you are trying to message has no keys? how are you here? this is odd. your message is not saved, please copy all of your text if you want to keep it, please screenshot everything and show this to staff, logging in and out might fix this? "+recipient.keys});}
           var tmrw = pool.getCurDate(-1);
           var overwrite = false;
           // update the sender's end first
@@ -619,14 +617,18 @@ app.post('/inbox', function(req, res) {
             sender.inbox.list.push(recipientID);
           } else {
             // there is an extant thread, so
+            // check/update the key
+            if (sender.inbox.threads[recipientID].key !== recipient.keys.pubKey) {
+              // key is OLD AND BAD, head back to FE w/ new Key to re-encrypt
+              sender.inbox.threads[recipientID].key = recipient.keys.pubKey;
+              writeToDB(senderID, sender, function () {
+                res.send({error:false, reKey:recipient.keys.pubKey});
+              });
+            }
             // check the last two items, overwrite if there is already a pending message
             if (checkLastTwoForPending(sender.inbox.threads[recipientID].thread, req.body.remove, req.body.encSenderText, tmrw, false)) {
               overwrite = true;
               removeListRefIfRemovingOnlyMessage(sender.inbox, recipientID, req.body, tmrw);
-            }
-            // check/update the key
-            if (sender.inbox.threads[recipientID].key !== recipient.keys.pubKey) {
-              sender.inbox.threads[recipientID].key = recipient.keys.pubKey;
             }
             // check/update the thread "name"
             if (sender.inbox.threads[recipientID].name !== recipient.username) {
@@ -689,7 +691,7 @@ app.post('/inbox', function(req, res) {
           if (!recipient.inbox.threads[senderID].thread[0]) {delete recipient.inbox.threads[senderID];}
           writeToDB(senderID, sender, function () {
             writeToDB(recipientID, recipient, function () {
-              res.send([true]);
+              res.send({error:false, reKey:false});
             });
           });
         }

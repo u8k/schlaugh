@@ -1,14 +1,12 @@
 // a file for some of the uglier stuff in the admin/tests that was cluttering up the server.js
 
 "use strict";
-var pool = require('./public/pool.js');
 
 (function(exports){
 
-  exports.getTesters = function () {
-    var today = pool.getCurDate();
-    var tmrw = pool.getCurDate(-1);
-    var ystr = pool.getCurDate(1);
+  exports.getdumbData = function () {
+    var dumbData = {};
+
     var smeeKeys = {pubKey:`-----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: OpenPGP.js v3.0.13
 Comment: https://openpgpjs.org
@@ -144,6 +142,13 @@ svhUtw==
 -----END PGP MESSAGE-----
 `;
     var testPost1 = `<b>Lorem ipsum dolor sit amet, consectetur adipiscing elit. In tristique congue aliquet. Phasellus rutrum sit amet nisi sed lacinia. </b>Maecenas porta pulvinar vestibulum. Integer quis elit quam. <c>Etiam quis urna id lacus pulvinar tincidunt.</c> Quisque semper risus eget elit ornare, eu finibus lectus vulputate. Ut tortor leo, rutrum et facilisis et, imperdiet ut metus. Maecenas accumsan <i>fringilla lorem, vitae pretium ligula varius at.</i> Proin ex tellus, venenatis vehicula venenatis in, pulvinar eget ex.<br><br><img src="https://68.media.tumblr.com/708a562ba83f035812b6363558a79947/tumblr_o9h0kjFeB51vymizko1_1280.jpg"><br><br><u>Proin imperdiet libero turpis, sit amet iaculis</u> diam mattis vitae. Quisque ac nisl eget nibh euismod feugiat in ut erat. Nulla leo ligula, tristique vitae est ac, auctor efficitur sem. <ol><li>Maecenas pellentesque</li><li> sapien et maximus laoreet,</li></ol> magna nulla viverra <s>dui, ac ultrices velit nisi ut ligula. Integer pellentesque </s>nec nunc vel accumsan. Fusce vel eleifend arcu, vitae dignissim massa. Morbi vel interdum massa, quis consectetur nisi. Nullam mollis sed mi non accumsan.<br><br><a href="http://www.butts.cash/">butts.cash</a><br><br><ul><li>Phasellus</li><li> non turpis</li> <li>non libero</li> </ul>faucibus molestie non sit amet velit. Sed ornare commodo facilisis. Nullam ornare aliquet ultricies. Cras in maximus erat. Interdum et malesuada fames ac ante ipsum primis in faucibus. Donec lobortis turpis et mauris ullamcorper viverra.<br><cut>more</cut><br><r>Nullam pharetra suscipit nibh eget lacinia. Integer venenatis est et rhoncus ullamcorper. Sed sit amet enim velit. In tellus massa, iaculis ac libero in, sagittis mollis erat. Donec porttitor nunc at efficitur faucibus. Donec ut aliquet mauris. Etiam est justo, molestie lacinia congue at, fringilla sit amet ex.</r>`
+
+    var mrah = {username:'mrah', password:password123, keys:smeeKeys, inbox:{
+      threads:{
+        '000000000000000000000002':{name:'droo', unread:true, key:drooKeys.pubKey, thread:[{inbound: false, date: "2018-07-09", body:smeeMsg},{inbound: false, date: "2018-07-10", body:drooMsg},{inbound: false, date: "2018-07-11", body:smeeMsg},{inbound: false, date: "2018-07-11", body:drooMsg}]},
+      }, list:['000000000000000000000002'], updatedOn:'2018-08-06', pending:{}
+    }}
+    /*
     var posts = {};
     posts[tmrw] = [{body: testPost1}];
     posts[today] = [{body: testPost1}];
@@ -171,7 +176,9 @@ svhUtw==
         }, list:['000000000000000000000002'], updatedOn:today, pending:{}
       }, posts:posts, postList:postList, postListPending:postListPending, postListUpdatedOn:today, settings:{}}
     ];
-    return testers;
+    */
+
+    return mrah;
   }
 
 }(typeof exports === 'undefined' ? this.adminB = {} : exports));

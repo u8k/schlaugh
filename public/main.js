@@ -230,7 +230,7 @@ var alert = function (message, callback) {
   }
 }
 
-var confirm = function (message, callback) {
+var verify = function (message, callback) {
   if (!message) {  //close the confirm
     $("confirm").classList.add("hidden");
     $("pop-up-backing").classList.add("hidden");
@@ -240,11 +240,11 @@ var confirm = function (message, callback) {
     $("confirm-text").innerHTML = message;
     $("confirm-yes").onclick = function () {
       if (callback) {callback(true);}
-      confirm(false);
+      verify(false);
     }
     var exit = function(){
       if (callback) {callback(false);}
-      confirm(false);
+      verify(false);
     }
     $("confirm-no").onclick = exit;
     $("pop-up-backing").onclick = exit;
@@ -610,28 +610,35 @@ var openAuthorPanel = function (author, callback) {
         bucket.setAttribute('id', json.author+'-panel-all');
         panel.appendChild(bucket);
         // posts
-        for(var i=json.posts.length-1; i > -1; i--) {
-          var post = document.createElement("div");
-          post.setAttribute('class', 'post');
-          bucket.appendChild(post);
-          // date
-          var dateBox = document.createElement("div");
-          dateBox.setAttribute('class', 'date-stamp-box');
-          var date = document.createElement("a");
-          (function (index) {
-            date.onclick = function(){
-              openPost(json.author, index);
-            }
-          })(i);
-          date.innerHTML = json.posts[i].date;
-          date.setAttribute('class', 'clicky');
-          dateBox.appendChild(date);
-          post.appendChild(dateBox);
-          // body
-          var text = document.createElement("text");
-          text.setAttribute('class', 'body-text');
-          text.innerHTML = convertCuts(json.posts[i].body, json._id+"-"+json.posts[i].date+"-panel");
-          post.appendChild(text);
+        if (json.posts.length === 0) {
+          bucket.appendChild(document.createElement("br"));
+          var text = document.createElement("h2");
+          text.innerHTML = "no posts!";
+          bucket.appendChild(text);
+        } else {
+          for(var i=json.posts.length-1; i > -1; i--) {
+            var post = document.createElement("div");
+            post.setAttribute('class', 'post');
+            bucket.appendChild(post);
+            // date
+            var dateBox = document.createElement("div");
+            dateBox.setAttribute('class', 'date-stamp-box');
+            var date = document.createElement("a");
+            (function (index) {
+              date.onclick = function(){
+                openPost(json.author, index);
+              }
+            })(i);
+            date.innerHTML = json.posts[i].date;
+            date.setAttribute('class', 'clicky');
+            dateBox.appendChild(date);
+            post.appendChild(dateBox);
+            // body
+            var text = document.createElement("text");
+            text.setAttribute('class', 'body-text');
+            text.innerHTML = convertCuts(json.posts[i].body, json._id+"-"+json.posts[i].date+"-panel");
+            post.appendChild(text);
+          }
         }
         switchPanel(json.author+"-panel");
         if (callback) {callback();}
@@ -671,7 +678,7 @@ var openPost = function (author, index) { //individual post on an author page
 
 var submitPost = function (remove) { //also handles editing and deleting
   if (remove) {
-    confirm("you sure you want me should delete it?", function (result) {
+    verify("you sure you want me should delete it?", function (result) {
       if (!result) {return;}
       else {
         var data = {text:null, remove:remove}
@@ -818,7 +825,7 @@ var closeThread = function () { // returns true for threadClosed, false for NO
     var last = glo.threads[i].thread[glo.threads[i].thread.length-1];
     if (!last || last.date !== pool.getCurDate(-1) || text !== prepTextForEditor(last.body)) {
       //is it okay to lose that unsaved text?
-      confirm("lose current unsaved message text?", function (result) {
+      verify("lose current unsaved message text?", function (result) {
         if (!result) {return;}
         //and then take to the thread?
         else {return hideCurrentThread(i);}
@@ -910,7 +917,7 @@ var updatePendingMessage = function (index) {
 var submitMessage = function (remove) {  //also handles editing and deleting
   var i = glo.activeThreadIndex;
   if (remove) {
-    confirm("you sure you want me should delete it?", function (result) {
+    verify("you sure you want me should delete it?", function (result) {
       if (!result) {return;}
       else {
         var data = {
@@ -921,11 +928,16 @@ var submitMessage = function (remove) {  //also handles editing and deleting
         };
         ajaxCall('/inbox', 'POST', data, function(json) {
           json = JSON.parse(json)
-          if (!json[0]) {return alert(json[1]);}
-          var len = glo.threads[i].thread.length-1;
-          var last = glo.threads[i].thread[len];
-          glo.threads[i].thread.splice(len,1);
-          updatePendingMessage(i);
+          if (json.error) {return alert(json.error);}
+          else if (json.reKey) {
+            glo.threads[i].key = json.reKey;
+            return submitMessage(true);
+          } else {
+            var len = glo.threads[i].thread.length-1;
+            var last = glo.threads[i].thread[len];
+            glo.threads[i].thread.splice(len,1);
+            updatePendingMessage(i);
+          }
         });
       }
     });
@@ -944,20 +956,25 @@ var submitMessage = function (remove) {  //also handles editing and deleting
         };
         ajaxCall('/inbox', 'POST', data, function(json) {
           json = JSON.parse(json)
-          if (!json[0]) {return alert(json[1]);}
-          var len = glo.threads[i].thread.length-1;
-          var last = glo.threads[i].thread[len];
-          // is the thread's last message already a pending message?
-          if (last && last.date === pool.getCurDate(-1)) {
-            last.body = text;         //overwrite
+          if (json.error) {return alert(json.error);}
+          else if (json.reKey) {
+            glo.threads[i].key = json.reKey;
+            return submitMessage();
           } else {
-            glo.threads[i].thread.push({
-              inbound: false,
-              date: pool.getCurDate(-1),
-              body: text,
-            });
+            var len = glo.threads[i].thread.length-1;
+            var last = glo.threads[i].thread[len];
+            // is the thread's last message already a pending message?
+            if (last && last.date === pool.getCurDate(-1)) {
+              last.body = text;         //overwrite
+            } else {
+              glo.threads[i].thread.push({
+                inbound: false,
+                date: pool.getCurDate(-1),
+                body: text,
+              });
+            }
+            updatePendingMessage(i);
           }
-          updatePendingMessage(i);
         });
       });
     }
@@ -1123,8 +1140,10 @@ var decrypt = function (text, key, callback) {
     message: openpgp.message.readArmored(text),
     privateKeys: [key]
   };
-  openpgp.decrypt(options).then(decryptedMessage => {
+  openpgp.decrypt(options).then(function (decryptedMessage) {
     callback(decryptedMessage.data);
+  }, function () {                // callback for failed decryption
+    callback("<c>***encryption/decryption error! SORRY! Tell staff about this!***</c>");
   });
 }
 
@@ -1176,8 +1195,8 @@ var unlockInbox = function (pass, callback) {     // decrypts all messages
                 if (callback) {callback();}
               }
             }
-          })
-        })(i,j)
+          });
+        })(i,j);
       }
     }
   }
