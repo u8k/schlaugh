@@ -710,6 +710,21 @@ app.post('/image', function(req, res) {
   } else {res.send([false, "boy i hope no one ever sees this error message!"]);}
 });
 
+// validate links
+app.post('/link', function(req, res) {
+  // cant do this on the FE cause CORS
+  if (req.body && req.body.url) {
+    var url = req.body.url;
+    request.head(url, function (error, resp) {
+      if (error || resp.statusCode !== 200) {
+        return res.send({error:'your url: "'+url+'" does not seem to be valid.<br>you sure you want to link to "'+url+'"?'});
+      } else {
+        res.send({error:false});
+      }
+    });
+  } else {res.send({error:"boy i hope no one ever sees this error message!"});}
+});
+
 // toggle unread status of threads
 app.post('/unread', function(req, res) {
   if (!req.session.user) {return res.send('you seem to not be logged in?\nwhy/how are you even here then?\nplease screenshot everything and tell staff about this please');}

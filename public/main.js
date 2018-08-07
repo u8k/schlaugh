@@ -766,6 +766,17 @@ var hyperlink = function (src) {
           label: "link text:",
           callback: function(linkText) {
             if (linkText !== null) {
+              ajaxCall('/link', 'POST', {url:target}, function(json) {
+                json = JSON.parse(json);
+                if (json.error) {
+                  verify(json.error, function (res) {
+                    if (!res) {
+                      area.value = y;
+                      setCursorPosition(area, a, b);
+                    }
+                  });
+                }
+              });
               area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
               var bump = a+target.length+linkText.length+15;
               setCursorPosition(area, bump, bump);
