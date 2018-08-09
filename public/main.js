@@ -429,8 +429,8 @@ var changeDay = function (dir) { // load and display all posts for a given day
             var authorPicBox = document.createElement("a");
             authorPicBox.setAttribute('href', "/"+json[rando[i]].author);
             (function (name) {
-              authorPicBox.onclick = function(){
-                event.preventDefault(event);
+              authorPicBox.onclick = function(event){
+                event.preventDefault();
                 openAuthorPanel(name);
               }
             })(json[rando[i]].author);
@@ -442,8 +442,8 @@ var changeDay = function (dir) { // load and display all posts for a given day
             authorBox.setAttribute('class', 'meta-text');
             var author = document.createElement("a");
             (function (name) {
-              author.onclick = function(){
-                event.preventDefault(event);
+              author.onclick = function(event){
+                event.preventDefault();
                 openAuthorPanel(name);
               }
             })(json[rando[i]].author);
