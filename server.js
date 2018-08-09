@@ -107,16 +107,6 @@ var getUserPic = function (user) {
   return userPic;
 }
 
-var getUserColors = function (user) {
-  if (user.settings.colors) {return user.settings.colors;}
-  else {return {
-    postBackground: '#32363F',
-    text: '#D8D8D8',
-    linkText: '#BFA5FF',
-    background: '#324144',
-  };}
-}
-
 var checkObjForProp = function (obj, prop, value) { //and add the prop if it doesn't exist
   if (obj[prop]) {return false}     //note: returns FALSE to indicate no action taken
   else {
@@ -213,7 +203,7 @@ var getPayload = function (req, res, callback) {
           username: user.username,
           pending: pending,
           userPic: getUserPic(user),
-          colors: getUserColors(user),
+          settings: user.settings,
           following: user.following,
         }
         var threads = [];
@@ -241,6 +231,18 @@ var getPayload = function (req, res, callback) {
       }
     });
   }
+}
+
+var getSettings = function (req, res, callback) {
+  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
+  , {_id:0, settings:1}
+  , function (err, user) {
+    if (err) {res.send([false, "ERROR! SORRY! please screenshot this and note all details of the situation and tell staff. SORRY\n\n"+err]); throw err;}
+    else if (!user) {return res.render('layout', {user:false});}
+    else {
+      return callback(user.settings);
+    }
+  });
 }
 
 //*******//ROUTING//*******//
@@ -457,7 +459,11 @@ app.get('/admin/:num', function(req, res) {
 // main page
 app.get('/', function(req, res) {
   if (!req.session.user) {res.render('layout', {user:false});}
-  else {res.render('layout', {user:true});}
+  else {
+    getSettings(req, res, function (settings) {
+      res.render('layout', {user:true, settings:settings});
+    });
+  }
 });
 
 // payload
@@ -834,7 +840,7 @@ app.post('/register', function(req, res) {
               updatedOn: today,
               pending: {},
             },
-            following: [],
+            following: [ObjectId("5a0ea8429adb2100146f7568")],
             about: {
               oldText: "",
               newText: "",
@@ -1006,10 +1012,13 @@ app.get('/:author', function(req, res) {
       post:false,
     });
   } else {
-    res.render('layout', {
-      author:req.params.author,
-      user:true,
-      post:false,
+    getSettings(req, res, function (settings) {
+      res.render('layout', {
+        author:req.params.author,
+        user:true,
+        settings:settings,
+        post:false,
+      });
     });
   }
 });
@@ -1023,10 +1032,13 @@ app.get('/:author/:num', function(req, res) {
       post:req.params.num,
     });
   } else {
-    res.render('layout', {
-      author:req.params.author,
-      user:true,
-      post:req.params.num,
+    getSettings(req, res, function (settings) {
+      res.render('layout', {
+        author:req.params.author,
+        user:true,
+        settings:settings,
+        post:req.params.num,
+      });
     });
   }
 });

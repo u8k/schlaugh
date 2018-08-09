@@ -4,6 +4,10 @@
 
 (function(exports){
 
+  exports.staffInitiation = function () {
+
+  }
+
   exports.getdumbData = function () {
     var dumbData = {};
 

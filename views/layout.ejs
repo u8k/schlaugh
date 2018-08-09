@@ -10,25 +10,24 @@
     <script src="/pool.js"></script>
     <script src="/main.js"></script>
 	  <link rel="icon" type="image/png" href="/favicon.png">
-    <!-- currently(maybe permanently?) non operational
-    <% if (typeof colors !== "undefined") { %>
+
+    <% if (user && typeof settings !== "undefined" && typeof settings.colors !== "undefined") { %>
       <style media="screen">
         .post, .message, .editor, #settings-panel, #thread-list, button, .prompt {
-          background-color: <%= colors.postBackground %>;
+          background-color: <%= settings.colors.postBackground %>;
         }
-        body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button {
-          color: <%= colors.text %>;
+        body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button, .not-special {
+          color: <%= settings.colors.text %>;
         }
-        button {border-color: <%= colors.text %>;}
-        a, a.visited, .special {
-          color: <%= colors.linkText %>;
+        button {border-color: <%= settings.colors.text %>;}
+        a, a.visited, a.hover, .special {
+          color: <%= settings.colors.linkText %>;
         }
         body, h1, input {
-          background-color: <%= colors.background %>;
+          background-color: <%= settings.colors.background %>;
         }
       </style>
     <% } %>
-    -->
   </head>
   <body>
     <header>

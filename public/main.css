@@ -29,6 +29,7 @@ h2 {
 }
 
 .author-page-title {
+  font-weight: bold;
   font-size: 3em;
   margin-top: 0;
   display: inline;
@@ -196,8 +197,12 @@ input:-webkit-autofill {
 }
 
 a, a.visited, .special {
-  color: #BFA5FF;
   text-decoration: none;
+  color: #BFA5FF;
+}
+
+.not-special {
+  color: #D8D8D8;
 }
 
 body, h1, input {

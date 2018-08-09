@@ -47,7 +47,7 @@ var changeColor = function (colorCode, type) {
       var attribute = "background-color";
       break;
     case "text":                        //text
-      var selector = "body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button";
+      var selector = "body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button, .not-special";
       var attribute = "color";
       for (var i = sheet.cssRules.length-1; i > -1; i--) {
         if (sheet.cssRules[i].selectorText === 'button') {
@@ -58,7 +58,7 @@ var changeColor = function (colorCode, type) {
       sheet.insertRule("button {border-color: "+colorCode+";}", sheet.cssRules.length);
       break;
     case "linkText":                 //link text
-      var selector = "a, a.visited, .special";
+      var selector = ".special, a, a.visited, a.hover";
       var attribute = "color";
       break;
     case "background":                 //background
@@ -72,13 +72,13 @@ var changeColor = function (colorCode, type) {
       i = -1;
     }
   }
-  glo.colors[type] = colorCode;
+  glo.settings.colors[type] = colorCode;
   sheet.insertRule(selector+" {"+attribute+": "+colorCode+";}", sheet.cssRules.length);
   $('save-colors').classList.remove('hidden');
 }
 
 var saveColors = function () {
-  ajaxCall('/saveColors', 'POST', glo.colors, function(json) {
+  ajaxCall('/saveColors', 'POST', glo.settings.colors, function(json) {
     if (json === 'success') {
       $('save-colors').classList.add('hidden');
     } else {
@@ -190,7 +190,8 @@ var passPrompt = function (options) {
   }
 }
 
-var orSchlaughUp = function () {
+var orSchlaughUp = function (e) {
+  e.preventDefault();
   switchPanel("login-panel");
   passPrompt(false);
   chooseInOrUp(true);
@@ -426,8 +427,10 @@ var changeDay = function (dir) { // load and display all posts for a given day
               var authorPic = document.createElement("div");
             }
             var authorPicBox = document.createElement("a");
+            authorPicBox.setAttribute('href', "/"+json[rando[i]].author);
             (function (name) {
               authorPicBox.onclick = function(){
+                event.preventDefault(event);
                 openAuthorPanel(name);
               }
             })(json[rando[i]].author);
@@ -440,10 +443,12 @@ var changeDay = function (dir) { // load and display all posts for a given day
             var author = document.createElement("a");
             (function (name) {
               author.onclick = function(){
+                event.preventDefault(event);
                 openAuthorPanel(name);
               }
             })(json[rando[i]].author);
-            author.setAttribute('class', 'author');
+            author.setAttribute('class', 'author special');
+            author.setAttribute('href', "/"+json[rando[i]].author);
             author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
             authorBox.appendChild(author);
             authorBox.appendChild(document.createElement("br"));
@@ -555,8 +560,9 @@ var openAuthorPanel = function (author, callback) {
     }
     if ($(author+'-panel-404')) {$(author+'-panel-404').classList.add('removed');}
     $(author+'-panel-title').onclick = "";
+    $(author+'-panel-title').removeAttribute('href');
     $(author+'-panel-title').classList.remove("clicky");
-    $(author+'-panel-title').classList.remove("special");
+    $(author+'-panel-title').classList.add("not-special");
     if (callback) {callback();}
     else {
       simulatePageLoad(author);
@@ -596,9 +602,9 @@ var openAuthorPanel = function (author, callback) {
           panel.appendChild(authorPic);
         }
         // title
-        var title = document.createElement("h2")
+        var title = document.createElement("a")
         title.setAttribute('id', json.author+'-panel-title');
-        title.setAttribute('class', 'author-page-title');
+        title.setAttribute('class', 'author-page-title not-special');
         title.innerHTML = json.author;
         panel.appendChild(title);
         panel.appendChild(document.createElement("br"));
@@ -624,13 +630,15 @@ var openAuthorPanel = function (author, callback) {
             var dateBox = document.createElement("div");
             dateBox.setAttribute('class', 'date-stamp-box');
             var date = document.createElement("a");
+            date.setAttribute('href', "/"+author+"/"+i);
             (function (index) {
-              date.onclick = function(){
+              date.onclick = function(event){
+                event.preventDefault();
                 openPost(json.author, index);
               }
             })(i);
             date.innerHTML = json.posts[i].date;
-            date.setAttribute('class', 'clicky');
+            date.setAttribute('class', 'clicky special');
             dateBox.appendChild(date);
             post.appendChild(dateBox);
             // body
@@ -668,11 +676,13 @@ var openPost = function (author, index) { //individual post on an author page
     } else {
       children[children.length -1 - index].classList.remove('removed');
     }
-    $(author+'-panel-title').onclick = function () {
+    $(author+'-panel-title').onclick = function (event) {
+      event.preventDefault();
       openAuthorPanel(author);
     }
+    $(author+'-panel-title').setAttribute('href', "/"+author);
     $(author+'-panel-title').classList.add("clicky");
-    $(author+'-panel-title').classList.add("special");
+    $(author+'-panel-title').classList.remove("not-special");
   });
 }
 
@@ -1083,10 +1093,12 @@ var createThread = function (i, top) {
     authorPic.setAttribute('id', i+'-thread-pic');
     var authorPicBox = document.createElement("a");
     (function (name) {
-      authorPicBox.onclick = function(){
+      authorPicBox.onclick = function(event){
+        event.preventDefault();
         openAuthorPanel(name);
       }
     })(glo.threads[i].name);
+    authorPicBox.setAttribute('href', "/"+glo.threads[i].name);
     authorPicBox.appendChild(authorPic);
     $("thread-title-area").insertBefore(authorPicBox, $("thread-title"));
   }
@@ -1313,7 +1325,7 @@ var parseUserData = function (data) {
   glo.threads = data.threads;
   glo.keys = data.keys;
   glo.threadRef = {};
-  glo.colors = data.colors;
+  glo.settings = data.settings;
   glo.pending = data.pending;
   glo.userPic = data.userPic;
   glo.following = {};
@@ -1322,9 +1334,9 @@ var parseUserData = function (data) {
   }
   // init stuff
   changeDay(1);
-  setColors(data.colors);
   if (glo.pending) {updatePendingPost(false, glo.pending);}
   populateThreadlist();
+  setColors();
   //
   if (glo.username) {
     $("username").innerHTML = glo.username;
@@ -1338,11 +1350,29 @@ var parseUserData = function (data) {
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
 }
 
-var setColors = function (savedColors) {
+var setColors = function () {
+  if (glo.settings && glo.settings.colors) {
+    var savedColors = glo.settings.colors;
+  } else {
+    if (!glo.settings) {glo.settings = {};}
+    var savedColors = {
+      postBackground: '#32363F',
+      text: '#D8D8D8',
+      linkText: '#BFA5FF',
+      background: '#324144',
+    }
+    glo.settings.colors = savedColors;
+  }
   for (var prop in savedColors) {
     if (savedColors.hasOwnProperty(prop)) {
       changeColor(savedColors[prop], prop);
-      $(prop+'-color-button').jscolor.fromString(String(savedColors[prop]).slice(1));
+      // set button
+      if (savedColors[prop][0] === '#') {
+        $(prop+'-color-button').jscolor.fromString(String(savedColors[prop]).slice(1));
+      } else {
+        var arr = savedColors[prop].slice(4,-1).replace(/ /g, '').split(",");
+        $(prop+'-color-button').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
+      }
     }
   }
 }
