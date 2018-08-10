@@ -4,14 +4,6 @@ var glo = {dateOffset: -1,};
 
 var $ = function (id) {return document.getElementById(id);}
 
-/*var homeButton = function () {
-  if (glo.username) {
-    switchPanel('posts-panel');
-  } else {
-    window.location.href = "/";
-  }
-}*/
-
 var submitPic = function (remove) {
   if (remove) {$('pic-url').value = "";}
   var picURL = $('pic-url').value;
@@ -891,6 +883,7 @@ var hideCurrentThread = function (i) {
   $("message-writer").classList.add('removed');
   $("message-preview").classList.add('removed');
   $("thread-title").classList.add('removed');
+  $("thread-title").removeAttribute('href');
   $("mark-unread").classList.add('removed');
   $("thread-title-area").classList.add('removed');
   $("thread-list").classList.remove('removed');
@@ -919,6 +912,13 @@ var openThread = function (i) {
       $("message-preview").classList.remove('removed');
       $("back-arrow").classList.remove('removed');
       $("thread-title").innerHTML = glo.threads[i].name;
+      $("thread-title").setAttribute('href', "/"+glo.threads[i].name);
+      (function (name) {
+        $("thread-title").onclick = function(event){
+          event.preventDefault();
+          openAuthorPanel(name);
+        }
+      })(glo.threads[i].name);
       $("thread-title").classList.remove('removed');
       $("thread-title-area").classList.remove('removed');
     }
