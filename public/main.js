@@ -321,6 +321,34 @@ var convertCuts = function (string, id) {
   return recurse(0,0);
 }
 
+var convertLinks = function (string) {
+  // adds the " target="_blank" " property to links in user posts/messages
+  //        (so that they open in new tabs automatically)
+  if (typeof string !== "string") {return;}
+  var b = ' target="_blank"';
+  var recurse = function (pos) {
+    var next = string.substr(pos).search(/a href="/);
+    if (next === -1) {
+      return string;}
+    else {
+      pos += next+8;
+      var qPos = string.substr(pos).search(/"/);
+      if (qPos === -1) { // 'should' never be the case since "cleanse" has alread ran
+        string += '">';
+      } else {
+        pos += qPos+1;
+        string = string.substr(0,pos)+ b +string.substr(pos);
+      }
+      return recurse(pos+1);
+    }
+  }
+  return recurse(0);
+}
+
+var convertText = function (string, id) {
+  return convertLinks(convertCuts(string, id));
+}
+
 var switchPanel = function (panelName) {
   if (glo.openPanel) {
     $(glo.openPanel).classList.add('removed');
@@ -458,7 +486,7 @@ var changeDay = function (dir) { // load and display all posts for a given day
             // actual post body
             var text = document.createElement("text");
             text.setAttribute('class', 'body-text');
-            text.innerHTML = convertCuts(json[rando[i]].body, json[rando[i]]._id+"-"+date+"-feed");
+            text.innerHTML = convertText(json[rando[i]].body, json[rando[i]]._id+"-"+date+"-feed");
             post.appendChild(text);
             bucket.appendChild(post);
             //remove the current index refference from the randomizing helper array
@@ -644,7 +672,7 @@ var openAuthorPanel = function (author, callback) {
             // body
             var text = document.createElement("text");
             text.setAttribute('class', 'body-text');
-            text.innerHTML = convertCuts(json.posts[i].body, json._id+"-"+json.posts[i].date+"-panel");
+            text.innerHTML = convertText(json.posts[i].body, json._id+"-"+json.posts[i].date+"-panel");
             post.appendChild(text);
           }
         }
@@ -726,7 +754,7 @@ var updatePendingPost = function (remove, newText) {
     $('pending-post').classList.remove("removed");
     $('write-post-button').innerHTML = "edit post";
   }
-  $('pending-post').innerHTML = convertCuts(newText, 'pending');
+  $('pending-post').innerHTML = convertText(newText, 'pending');
   $('postEditor').value = prepTextForEditor(newText);
   hideWriter('post');
 }
@@ -923,7 +951,7 @@ var updatePendingMessage = function (index) {
     $('pending-message').classList.remove('removed');
     $('write-message-button').innerHTML = "edit message";
     $('pending-message-status').innerHTML = "pending:";
-    $('pending-message').innerHTML = convertCuts(pending, 'pending'+glo.threads[index]._id);
+    $('pending-message').innerHTML = convertText(pending, 'pending'+glo.threads[index]._id);
   } else {
     $('delete-message').classList.add('removed');
     $('pending-message').classList.add('removed');
@@ -1054,7 +1082,7 @@ var createMessage = function (i, j) {
     message.appendChild(dateStamp);
     var body = document.createElement("div");
     body.setAttribute('class', 'message-body');
-    body.innerHTML = convertCuts(x.body, glo.threads[i]._id+'-'+x.date+orri);
+    body.innerHTML = convertText(x.body, glo.threads[i]._id+'-'+x.date+orri);
     message.appendChild(body);
   }
 }

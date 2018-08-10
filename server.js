@@ -719,7 +719,7 @@ app.post('/image', function(req, res) {
 // validate links
 app.post('/link', function(req, res) {
   // cant do this on the FE cause CORS
-  if (req.body && req.body.url) {
+  if (req.body && typeof req.body.url === "string") {
     var url = req.body.url;
     request.head(url, function (error, resp) {
       if (error || resp.statusCode !== 200) {
