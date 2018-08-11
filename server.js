@@ -840,7 +840,7 @@ app.post('/register', function(req, res) {
               updatedOn: today,
               pending: {},
             },
-            following: [ObjectId("5a0ea8429adb2100146f7568")],
+            following: [],
             about: {
               oldText: "",
               newText: "",
@@ -850,14 +850,21 @@ app.post('/register', function(req, res) {
             settings: {},
           }, {}, function (err, result) {
             if (err) {throw err;}
-            newID = ObjectId(result.insertedId);
+            var newID = ObjectId(result.insertedId);
             bcrypt.hash(password, 10, function(err, passHash){
               if (err) {throw err;}
               else {
                 bcrypt.hash(email, 10, function(err, emailHash){
                   if (err) {throw err;}
                   else {
-                    var setValue = {password: passHash, email: emailHash};
+                    var setValue = {
+                      password: passHash,
+                      email: emailHash,
+                      following: [
+                        ObjectId("5a0ea8429adb2100146f7568"), //staff
+                        newID, //self
+                    ],
+                    };
                     db.collection('users').updateOne({_id: newID},
                       {$set: setValue }, {},
                       function(err, r) {

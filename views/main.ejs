@@ -114,7 +114,7 @@
   <div id="up" class="removed">
     <arrow onclick="backToLogInMenu()">◀</arrow>
     <br><br>
-    <form action="javascript:void(0);" onsubmit="return logInPageSubmit('up')">
+    <form action="javascript:void(0);">
       <input id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
       <br>
       <input id="email-input" type="text" name="email" autocomplete="email" placeholder="email address">
@@ -126,26 +126,30 @@
       <br>
       <input id="secret-code" type="password" name="secretCode" placeholder="secret code">
       -->
+      <br>
+      <button type="button" onclick="togglePassTextVisibility(this, ['pass-input', 'pass-input-two'])">show password</button>
       <br><br>
-      <input class="button" type="submit" value="schlaugh up">
+      <button type="submit" onclick="logInPageSubmit('up')">schlaugh up</button>
     </form>
   </div>
 
   <div id="in" class="removed">
     <arrow onclick="backToLogInMenu()">◀</arrow>
     <br><br>
-    <form action="javascript:void(0);" onsubmit="return logInPageSubmit('in')">
+    <form action="javascript:void(0);">
       <input id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
       <br>
       <input id="in-pass-input" type="password" name="password" autocomplete=“current-password” placeholder="password">
+      <br>
+      <button type="button" onclick="togglePassTextVisibility(this, ['in-pass-input'])">show password</button>
       <br><br>
-      <input class="button" type="submit" value="schlaugh in">
+      <button type="submit" onclick="logInPageSubmit('in')">schlaugh in</button>
     </form>
   </div>
 </div>
 
 <div id="o-panel" class="removed">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/b/bb/Orville_Redenbacher_1979.jpg" alt="ostrich">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/b/bb/Orville_Redenbacher_1979.jpg" class="c" alt="rickenbacher">
 </div>
 
 <div id="pop-up-backing" class="hidden"></div>
@@ -167,6 +171,8 @@
     <input id="prompt-username" type="text" name="username" autocomplete="username" placeholder="username">
     <br>
     <input id="prompt-password" type="password" name="password" autocomplete=“current-password” placeholder="password">
+    <br>
+    <button type="button" onclick="togglePassTextVisibility(this, ['prompt-password'])">show password</button>
     <br><br>
     <button id="password-prompt-submit" type="submit">submit</button>
   </form>

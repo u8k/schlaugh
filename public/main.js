@@ -159,9 +159,9 @@ var passPrompt = function (options) {
     $("password-prompt-label").innerHTML = options.label;
     if (typeof glo !== undefined && glo.username) {
       $("prompt-username").value = glo.username;
-      setCursorPosition($("prompt-password"), 0, 0);
+      setCursorPosition($("prompt-password"), 0, $("prompt-password").value.length);
     } else {
-      setCursorPosition($("prompt-username"), 0, 0);
+      setCursorPosition($("prompt-username"), 0, $("prompt-username").value.length);
     }
     if (options.orUp) {$("or-schlaugh-up").classList.remove("removed");}
     else {$("or-schlaugh-up").classList.add("removed");}
@@ -1128,6 +1128,7 @@ var createThread = function (i, top) {
     })(glo.threads[i].name);
     authorPicBox.setAttribute('href', "/"+glo.threads[i].name);
     authorPicBox.appendChild(authorPic);
+    //authorPicBox.appendChild(document.createElement("br"));
     $("thread-title-area").insertBefore(authorPicBox, $("thread-title"));
   }
   //
@@ -1255,8 +1256,14 @@ var unlockInbox = function (pass, callback) {     // decrypts all messages
 
 // login page stuff
 var chooseInOrUp = function (up) {
-  if (up === true) {$('up').classList.remove('removed');}
-  else {$('in').classList.remove('removed');}
+  if (up === true) {
+    $('up').classList.remove('removed');
+    setCursorPosition($("name-input"), 0, $("name-input").value.length);
+  }
+  else {
+    $('in').classList.remove('removed');
+    setCursorPosition($("in-name-input"), 0, $("in-name-input").value.length);
+  }
   $('inOrUp').classList.add('removed');
 }
 
@@ -1294,30 +1301,25 @@ var logInPageSubmit = function(inOrUp) {
   }
   // validate
   var x = pool.userNameValidate(data.username);
-  if (x) {
-    alert(x);
-    return false;
-  }
   var y = pool.passwordValidate(data.password);
-  if (y) {
-    alert(y);
-    return false;
-  }
-  if (inOrUp === 'in') {
-    var url = '/login';
-  } else {
-    var url = '/register';
-    data.email = $('email-input').value;
-    //data.secretCode = $('secret-code').value;
-    if (data.password !== $('pass-input-two').value) {
-      alert('passwords are not the same');
-      return false;
+  if (x) {alert(x);}
+  else if (y) {alert(y);}
+  else {
+    if (inOrUp === 'in') {
+      var url = '/login';
+    } else {
+      var url = '/register';
+      data.email = $('email-input').value;
+      //data.secretCode = $('secret-code').value;
+      if (data.password !== $('pass-input-two').value) {
+        alert('passwords are not the same');
+        return;
+      }
     }
+    signIn(url, data, function () {
+      switchPanel('posts-panel');
+    })
   }
-  signIn(url, data, function () {
-    switchPanel('posts-panel');
-  })
-  return false;
 }
 
 var signIn = function (url, data, callback) {
@@ -1417,4 +1419,14 @@ var fetchData = function (callback) {
       if (callback) {callback();}
     }
   });
+}
+
+var togglePassTextVisibility = function (btn, elemArr) {
+  if (btn.innerHTML === 'show password') {
+    btn.innerHTML = 'hide password';
+    for (var i = 0; i < elemArr.length; i++) {$(elemArr[i]).type = 'text';}
+  } else {
+    btn.innerHTML = 'show password'
+    for (var i = 0; i < elemArr.length; i++) {$(elemArr[i]).type = 'password';}
+  }
 }
