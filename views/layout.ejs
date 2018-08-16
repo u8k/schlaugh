@@ -49,31 +49,57 @@
 
     <% if (user) { %>
       <% if (typeof author !== "undefined") { %>
-        <% if (!post) { %>
+        <% if (post_id) { %>
           <script type="text/javascript">
-          fetchData(function () {openAuthorPanel(<%- JSON.stringify(author) %>)});
+            var author = <%- JSON.stringify(author) %>;
+            var post_id = <%- JSON.stringify(post_id) %>;
+            fetchData(function () {openPost(author, post_id)});
+          </script>
+        <% } else if (post_index) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var post_index = <%- JSON.stringify(post_index) %>;
+            fetchData(function () {openPost(author, null, post_index)});
           </script>
         <% } else { %>
           <script type="text/javascript">
-          var author = <%- JSON.stringify(author) %>;
-          var post = <%- JSON.stringify(post) %>;
-            fetchData(function () {openPost(author, post)});
+            fetchData(function () {openAuthorPanel(<%- JSON.stringify(author) %>)});
           </script>
         <% } %>
+      <% } else if (typeof post_id !== "undefined") { %>
+        <script type="text/javascript">
+          fetchData(function () {
+            simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
+            open404author();
+          });
+        </script>
       <% } else { %>
         <script type="text/javascript">fetchData(function () {switchPanel("posts-panel")});</script>
       <% } %>
     <% } else { %>
       <% if (typeof author !== "undefined") { %>
-        <% if (!post) { %>
-          <script type="text/javascript">openAuthorPanel(<%- JSON.stringify(author) %>);</script>
-        <% } else { %>
+        <% if (post_id) { %>
           <script type="text/javascript">
             var author = <%- JSON.stringify(author) %>;
-            var post = <%- JSON.stringify(post) %>;
-            openPost(author, post);
+            var post_id = <%- JSON.stringify(post_id) %>;
+            openPost(author, post_id);
+          </script>
+        <% } else if (post_index) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var post_index = <%- JSON.stringify(post_index) %>;
+            openPost(author, null, post_index);
+          </script>
+        <% } else { %>
+          <script type="text/javascript">
+            openAuthorPanel(<%- JSON.stringify(author) %>);
           </script>
         <% } %>
+      <% } else if (typeof post_id !== "undefined") { %>
+        <script type="text/javascript">
+          simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
+          open404author();
+        </script>
       <% } else { %>
         <script type="text/javascript">switchPanel("login-panel");</script>
       <% } %>

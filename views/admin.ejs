@@ -7,6 +7,10 @@
     <link rel="icon" type="image/png" href="/favicon.png">
     <style media="screen">
       * {background-color: dimGrey; color: ghostwhite;}
+      ::placeholder {
+        color: ghostwhite;
+        opacity: 1;
+      }
     </style>
     <script src="openpgp.min.js"></script>
     <script src="/pool.js"></script>
@@ -52,17 +56,24 @@
       <% } %>
     <% } %>
       </ul>
+    <br><br>
+    <button onclick="makePostIDs()">makePostIDs</button>
+    <!--<button onclick="resetTest()">reset test DB</button>-->
+    <br><br>
     <input id="data-field" type="text" placeholder="data field">
     <button type="button" name="button" onclick="getUsers()">log users</button>
-    <br><br>
-    <button type="button" name="button" onclick="resetTest()">reset test DB</button>
-    <button type="button" name="button" onclick="allFollowStaff()">ALLfollowStaff</button>
     <br>
-    <input id="name-to-be-removed" type="text" name="name" placeholder="name">
-    <button type="button" name="button" onclick="removeUser()">removeUser</button>
+    <input id="name-to-be-removed" type="text" placeholder="name">
+    <button onclick="removeUser()">removeUser</button>
     <br><br><br>
+    <button type="button" name="button" onclick="getPosts()">log posts</button>
+    <br>
+    <input id="post-to-be-removed" type="text" placeholder="post_id">
+    <button onclick="removePost()">removePost</button>
+    <br><br><br>
+    <!--
     <textarea id="staffCheatText" class="editor" autocomplete="off"></textarea>
     <br>
     <button onclick="letStaffCheat()">staff cheat post</button>
-
+    -->
   </body>

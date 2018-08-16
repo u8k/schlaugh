@@ -8,11 +8,7 @@ var submitPic = function (remove) {
   if (remove) {$('pic-url').value = "";}
   var picURL = $('pic-url').value;
   ajaxCall('/changePic', 'POST', {url:picURL}, function(json) {
-    if (json === 'success') {
-      updateUserPic(remove, picURL);
-    } else {
-      alert(json);
-    }
+    updateUserPic(remove, picURL);
   });
 }
 
@@ -71,11 +67,7 @@ var changeColor = function (colorCode, type) {
 
 var saveColors = function () {
   ajaxCall('/saveColors', 'POST', glo.settings.colors, function(json) {
-    if (json === 'success') {
-      $('save-colors').classList.add('hidden');
-    } else {
-      alert(json);
-    }
+    $('save-colors').classList.add('hidden');
   });
 }
 
@@ -207,6 +199,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
 }
 
 var alert = function (message, callback) {
+  if (!$("alert")) {return console.log(message);}
   if (!message) {  //close the alert
     $("alert").classList.add("hidden");
     $("pop-up-backing").classList.add("hidden");
@@ -246,11 +239,7 @@ var verify = function (message, callback) {
 
 var signOut = function() {
   ajaxCall('/~logout', 'GET', {}, function(json) {
-    if (json === 'success') {
-      location.reload();
-    } else {
-      alert("something has gone wrong... please screenshot this and show staff", json);
-    }
+    location.reload();
   });
 }
 
@@ -276,7 +265,9 @@ var ajaxCall = function(url, method, data, callback) {
   xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
       var json = (xhttp.responseText);
-      callback(json);
+      json = JSON.parse(json);
+      if (json.error) {alert(json.error);}
+      else {callback(json);}
     }
   }
   xhttp.send(JSON.stringify(data));
@@ -394,9 +385,7 @@ var getEpochSeconds = function (dateStamp) {
 var changeDay = function (dir) { // load and display all posts for a given day
   //don't allow changing day if currently loading
   if (glo.loading) {return;}
-  else {
-    glo.loading = true;
-  }
+  else {glo.loading = true;}
   var date = pool.getCurDate(glo.dateOffset);
   // hide the previously displayed day
   if ($('posts-for-'+ date)) {$('posts-for-'+ date).classList.add('removed');}
@@ -414,81 +403,77 @@ var changeDay = function (dir) { // load and display all posts for a given day
     // we don't, so make the ajax call
     $('loading').classList.remove('removed');
     ajaxCall('/posts/'+date, 'POST', {}, function(json) {
-      json = JSON.parse(json)
-      if (!json[0]) {return alert(json[1]);}
-      else {
-        json = json[1];
-        var bucket = document.createElement("div");
-        bucket.setAttribute('class', 'post-bucket');
-        bucket.setAttribute('id', 'posts-for-'+date);
-        // if there are no posts for the day
-        if (json.length === 0) {
-          var post = document.createElement("div");
-          post.innerHTML = "Not Schlaugh!";
-          bucket.appendChild(document.createElement("br"));
-          bucket.appendChild(document.createElement("br"));
-          bucket.appendChild(post);
-        } else {
-          // create temporary randomizing helper array
-          var rando = [];
-          for (var i = 0; i < json.length; i++) {
-            rando.push(i);
-          }
-          // create posts
-          while(rando.length !== 0) {
-            var i = Math.floor(Math.random() * (rando.length));
-            var post = document.createElement("div");
-            post.setAttribute('class', 'post');
-            // pic
-            if (json[rando[i]].authorPic !== "") {
-              var authorPic = document.createElement("img");
-              authorPic.setAttribute('src', json[rando[i]].authorPic);
-            } else {
-              var authorPic = document.createElement("div");
-            }
-            var authorPicBox = document.createElement("a");
-            authorPicBox.setAttribute('href', "/"+json[rando[i]].author);
-            (function (name) {
-              authorPicBox.onclick = function(event){
-                event.preventDefault();
-                openAuthorPanel(name);
-              }
-            })(json[rando[i]].author);
-            post.appendChild(authorPicBox);
-            authorPic.setAttribute('class', 'author-pic clicky');
-            authorPicBox.appendChild(authorPic);
-            // author/meta text
-            var authorBox = document.createElement("div");
-            authorBox.setAttribute('class', 'meta-text');
-            var author = document.createElement("a");
-            (function (name) {
-              author.onclick = function(event){
-                event.preventDefault();
-                openAuthorPanel(name);
-              }
-            })(json[rando[i]].author);
-            author.setAttribute('class', 'author special');
-            author.setAttribute('href', "/"+json[rando[i]].author);
-            author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
-            authorBox.appendChild(author);
-            authorBox.appendChild(document.createElement("br"));
-            createFollowButton(authorBox, json[rando[i]]);
-            createMessageButton(authorBox, json[rando[i]]);
-            post.appendChild(authorBox);
-            // actual post body
-            var text = document.createElement("text");
-            text.setAttribute('class', 'body-text');
-            text.innerHTML = convertText(json[rando[i]].body, json[rando[i]]._id+"-"+date+"-feed");
-            post.appendChild(text);
-            bucket.appendChild(post);
-            //remove the current index refference from the randomizing helper array
-            rando.splice(i,1);
-          }
+      json = json.posts;
+      var bucket = document.createElement("div");
+      bucket.setAttribute('class', 'post-bucket');
+      bucket.setAttribute('id', 'posts-for-'+date);
+      // if there are no posts for the day
+      if (json.length === 0) {
+        var post = document.createElement("div");
+        post.innerHTML = "Not Schlaugh!";
+        bucket.appendChild(document.createElement("br"));
+        bucket.appendChild(document.createElement("br"));
+        bucket.appendChild(post);
+      } else {
+        // create temporary randomizing helper array
+        var rando = [];
+        for (var i = 0; i < json.length; i++) {
+          rando.push(i);
         }
-        $('loading').classList.add('removed');
-        $('posts').appendChild(bucket);
-        glo.loading = false;
+        // create posts
+        while(rando.length !== 0) {
+          var i = Math.floor(Math.random() * (rando.length));
+          var post = document.createElement("div");
+          post.setAttribute('class', 'post');
+          // pic
+          if (json[rando[i]].authorPic !== "") {
+            var authorPic = document.createElement("img");
+            authorPic.setAttribute('src', json[rando[i]].authorPic);
+          } else {
+            var authorPic = document.createElement("div");
+          }
+          var authorPicBox = document.createElement("a");
+          authorPicBox.setAttribute('href', "/"+json[rando[i]].author);
+          (function (name) {
+            authorPicBox.onclick = function(event){
+              event.preventDefault();
+              openAuthorPanel(name);
+            }
+          })(json[rando[i]].author);
+          post.appendChild(authorPicBox);
+          authorPic.setAttribute('class', 'author-pic clicky');
+          authorPicBox.appendChild(authorPic);
+          // author/meta text
+          var authorBox = document.createElement("div");
+          authorBox.setAttribute('class', 'meta-text');
+          var author = document.createElement("a");
+          (function (name) {
+            author.onclick = function(event){
+              event.preventDefault();
+              openAuthorPanel(name);
+            }
+          })(json[rando[i]].author);
+          author.setAttribute('class', 'author special');
+          author.setAttribute('href', "/"+json[rando[i]].author);
+          author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
+          authorBox.appendChild(author);
+          authorBox.appendChild(document.createElement("br"));
+          createFollowButton(authorBox, json[rando[i]]);
+          createMessageButton(authorBox, json[rando[i]]);
+          post.appendChild(authorBox);
+          // actual post body
+          var text = document.createElement("text");
+          text.setAttribute('class', 'body-text');
+          text.innerHTML = convertText(json[rando[i]].body, json[rando[i]]._id+"-"+date+"-feed");
+          post.appendChild(text);
+          bucket.appendChild(post);
+          //remove the current index refference from the randomizing helper array
+          rando.splice(i,1);
+        }
       }
+      $('loading').classList.add('removed');
+      $('posts').appendChild(bucket);
+      glo.loading = false;
     });
   }
 }
@@ -533,15 +518,11 @@ var createFollowButton = function (parent, author, insert) {
     }
     follow.onclick = function(){
       ajaxCall('/follow', 'POST', {id:author._id, remove:remove}, function(json) {
-        json = JSON.parse(json)
-        if (!json[0]) {return alert(json[1]);}
-        else {
-          if (remove) {glo.following[author._id] = false;}
-          else {glo.following[author._id] = true;}
-          // refresh button(by hiding and creating new)
-          follow.classList.add('removed');
-          createFollowButton(parent, author, follow);
-        }
+        if (remove) {glo.following[author._id] = false;}
+        else {glo.following[author._id] = true;}
+        // refresh button(by hiding and creating new)
+        follow.classList.add('removed');
+        createFollowButton(parent, author, follow);
       });
     }
     if (insert) {
@@ -589,27 +570,12 @@ var openAuthorPanel = function (author, callback) {
     }
   } else {
     // call for data and render a new panel
-    ajaxCall('/~get/'+author, 'GET', "", function(json) {
-      json = JSON.parse(json);
-      if (!json[0]) {
-        if (!json[1]) {return alert(json[2])}
-        else {                                          //404
-          if ($('404-panel')) {switchPanel("404-panel");}
-          else {
-            // panel
-            var panel = document.createElement("div");
-            panel.setAttribute('id', '404-panel');
-            $("main").appendChild(panel);
-            // title
-            var title = document.createElement("h2");
-            title.setAttribute('class', 'author-page-title');
-            title.innerHTML = "but there was nobody home";
-            panel.appendChild(title);
-            switchPanel("404-panel");
-          }
-        }
+    ajaxCall('/~getAuthor/'+author, 'GET', "", function(json) {
+      if (json.four04) {
+        simulatePageLoad(author, "404s & Heartbreak");
+        open404author();
       } else {
-        json = json[1];
+        json = json.data;
         // panel
         var panel = document.createElement("div");
         panel.setAttribute('id', json.author+'-panel');
@@ -645,18 +611,19 @@ var openAuthorPanel = function (author, callback) {
           for(var i=json.posts.length-1; i > -1; i--) {
             var post = document.createElement("div");
             post.setAttribute('class', 'post');
+            post.setAttribute('id', 'post-'+json.posts[i].post_id);
             bucket.appendChild(post);
             // date
             var dateBox = document.createElement("div");
             dateBox.setAttribute('class', 'date-stamp-box');
             var date = document.createElement("a");
-            date.setAttribute('href', "/"+author+"/"+i);
-            (function (index) {
+            date.setAttribute('href', "/~/"+json.posts[i].post_id);
+            (function (author, post_id) {
               date.onclick = function(event){
                 event.preventDefault();
-                openPost(json.author, index);
+                openPost(author, post_id);
               }
-            })(i);
+            })(json.author, json.posts[i].post_id);
             date.innerHTML = json.posts[i].date;
             date.setAttribute('class', 'clicky special');
             dateBox.appendChild(date);
@@ -678,24 +645,56 @@ var openAuthorPanel = function (author, callback) {
   }
 }
 
-var openPost = function (author, index) { //individual post on an author page
+var open404author = function () {
+  if ($('404-panel')) {switchPanel("404-panel");}
+  else {
+    // panel
+    var panel = document.createElement("div");
+    panel.setAttribute('id', '404-panel');
+    $("main").appendChild(panel);
+    // title
+    var title = document.createElement("h2");
+    title.setAttribute('class', 'author-page-title');
+    title.innerHTML = "but there was nobody home";
+    panel.appendChild(title);
+    switchPanel("404-panel");
+  }
+}
+
+/*var postLookup = function () { //open post when we don't know the author
+  ajaxCall('/~getPost/'+post_id, 'GET', "", function(json) {
+    if (json.four04) {
+      simulatePageLoad("~/"+post_id, "404s & Heartbreak");
+      open404author();
+    }
+    else {openPost(json.author, post_id);}
+  });
+} can we avoid ever actually having to do this???*/
+
+var openPost = function (author, post_id, index) { //individual post on an author page
   openAuthorPanel(author, function () {
-    simulatePageLoad(author+"/"+index, author);
+    // hide all posts
     var children = $(author+'-panel-all').childNodes;
     for (var i = 0; i < children.length; i++) {
       children[i].classList.add('removed');
     }
-    if (!isNumeric(index) || index >= children.length || index<0) {    //404 and Heartbreak
-      if ($(author+'-panel-404')) {$(author+'-panel-404').classList.remove('removed');}
-      else {
-        var e404 = document.createElement("h2")
-        e404.setAttribute('id', author+'-panel-404');
-        e404.innerHTML = "<c>not even a single thing</c>";
-        $(author+'-panel').appendChild(e404);
+    // open the One
+    if (post_id) {                                // by ID
+      simulatePageLoad("~/"+post_id, author);
+      if ($('post-'+post_id)) {
+        $('post-'+post_id).classList.remove('removed');
+      } else {
+        open404post(author);
       }
-    } else {
-      children[children.length -1 - index].classList.remove('removed');
+    } else if (index) {                          // by index
+      simulatePageLoad(author+"/"+index, author);
+      if (!isNumeric(index) || index >= children.length || index<0) {
+        open404post(author);
+      } else {
+        children[children.length -1 - index].classList.remove('removed');
+      }
     }
+    // set title
     $(author+'-panel-title').onclick = function (event) {
       event.preventDefault();
       openAuthorPanel(author);
@@ -706,6 +705,16 @@ var openPost = function (author, index) { //individual post on an author page
   });
 }
 
+var open404post = function (author) {
+  if ($(author+'-panel-404')) {$(author+'-panel-404').classList.remove('removed');}
+  else {
+    var e404 = document.createElement("h2")
+    e404.setAttribute('id', author+'-panel-404');
+    e404.innerHTML = "<c>not even a single thing</c>";
+    $(author+'-panel').appendChild(e404);
+  }
+}
+
 var submitPost = function (remove) { //also handles editing and deleting
   if (remove) {
     verify("you sure you want me should delete it?", function (result) {
@@ -713,9 +722,7 @@ var submitPost = function (remove) { //also handles editing and deleting
       else {
         var data = {text:null, remove:remove}
         ajaxCall("/", 'POST', data, function(json) {
-          json = JSON.parse(json)
-          if (!json[0]) {alert(json[1]);}
-          else {updatePendingPost(remove, json[1])}
+          updatePendingPost(remove, "");
         });
       }
     });
@@ -727,9 +734,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     }
     var data = {text:text, remove:remove}
     ajaxCall("/", 'POST', data, function(json) {
-      json = JSON.parse(json)
-      if (!json[0]) {alert(json[1]);}
-      else {updatePendingPost(remove, json[1])}
+        updatePendingPost(remove, json.text)
     });
   }
 }
@@ -797,9 +802,8 @@ var hyperlink = function (src) {
           callback: function(linkText) {
             if (linkText !== null) {
               ajaxCall('/link', 'POST', {url:target}, function(json) {
-                json = JSON.parse(json);
-                if (json.error) {
-                  verify(json.error, function (res) {
+                if (json.issue) {
+                  verify(json.issue, function (res) {
                     if (!res) {
                       area.value = y;
                       setCursorPosition(area, a, b);
@@ -976,9 +980,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
           remove: remove,
         };
         ajaxCall('/inbox', 'POST', data, function(json) {
-          json = JSON.parse(json)
-          if (json.error) {return alert(json.error);}
-          else if (json.reKey) {
+          if (json.reKey) {
             glo.threads[i].key = json.reKey;
             return submitMessage(true);
           } else {
@@ -1004,9 +1006,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
           remove: remove,
         };
         ajaxCall('/inbox', 'POST', data, function(json) {
-          json = JSON.parse(json)
-          if (json.error) {return alert(json.error);}
-          else if (json.reKey) {
+          if (json.reKey) {
             glo.threads[i].key = json.reKey;
             return submitMessage();
           } else {
@@ -1033,9 +1033,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     text = x[1];
     if (x[0].length !== 0) {
       ajaxCall('/image', 'POST', x[0], function(json) {
-        json = JSON.parse(json);
-        if (!json[0]) {return alert(json[1]);}
-        else {encryptAndSend();}
+        encryptAndSend();
       });
     } else {encryptAndSend();}
   }
@@ -1205,15 +1203,10 @@ var verifyPass = function (callback) {      // for decryption
     callback: function(data) {
       if (data === null) {return;}
       ajaxCall('/login', 'POST', data, function(json) {
-        json = JSON.parse(json);
-        if (json[0]) { //password is good
-          if (json[1]) {  // are they trying to log in as a Different user?
-            return alert("switcheroo!", function () {location.reload();});
-          } else {
-            unlockInbox(data.password, callback);
-          }
-        } else {  // bad username/password
-          return alert(json[1], function () {signOut();});
+        if (json.switcheroo) {
+          return alert("switcheroo!", function () {location.reload();});
+        } else {
+          unlockInbox(data.password, callback);
         }
       });
     }
@@ -1324,27 +1317,17 @@ var logInPageSubmit = function(inOrUp) {
 
 var signIn = function (url, data, callback) {
   ajaxCall(url, 'POST', data, function(json) {
-    json = JSON.parse(json);
-    if (json[0]) {    //password is good, do they need keys?
-      if (json[1]) {  // (no)
-        parseUserData(json[2]);
-        unlockInbox(data.password);
-        if (callback) {callback();}
-      } else {        //they need keys
-        makeKeys(data.password, function (keys) {
-          ajaxCall('/keys', 'POST', keys, function(json) {
-            if (json[0]) {
-              json = JSON.parse(json);
-              parseUserData(json[1]);
-              if (callback) {callback();}
-            } else {
-              alert(json[1]);
-            }
-          });
+    if (json.needKeys) {
+      makeKeys(data.password, function (keys) {
+        ajaxCall('/keys', 'POST', keys, function(json) {
+          parseUserData(json.payload);
+          if (callback) {callback();}
         });
-      }
-    } else {  // bad login
-      alert(json[1]);
+      });
+    } else {
+      parseUserData(json.payload);
+      unlockInbox(data.password);
+      if (callback) {callback();}
     }
   });
 }
@@ -1364,7 +1347,7 @@ var parseUserData = function (data) {
   }
   // init stuff
   changeDay(1);
-  if (glo.pending) {updatePendingPost(false, glo.pending);}
+  if (glo.pending) {updatePendingPost(false, glo.pending.body);}
   populateThreadlist();
   setColors();
   //
@@ -1409,13 +1392,11 @@ var setColors = function () {
 
 var fetchData = function (callback) {
   ajaxCall('/~payload', 'GET', "", function(json) {
-    json = JSON.parse(json);
-    //keys are created at sign in, this^ will force out people who are already in
-    // ,with a persistent login cookie, such that they will have to sign in and make keys
-    if ((json[0] === false && json[1] === false) || !json[1].keys) {return signOut();}
-    else if (json[0] === false) {return alert(json[1]);}
+    //keys are created at sign in, this, force out people who are already in
+    //  with a persistent login cookie, such that they will have to sign in and make keys
+    if (json.needKeys) {return signOut();}
     else {
-      parseUserData(json[1]);
+      parseUserData(json.payload);
       if (callback) {callback();}
     }
   });

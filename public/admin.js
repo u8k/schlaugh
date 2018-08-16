@@ -35,13 +35,27 @@ var displayTests = function (results) {
 
 var getUsers = function () {
   ajaxCall('/admin/users', 'POST', {text:$('data-field').value}, function(json) {
-    console.log(JSON.parse(json));
+    console.log(json);
   });
 }
+
+var getPosts = function () {
+  ajaxCall('/admin/posts', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
 
 var resetTest = function () {
   if (!confirm("ARE YOU SURE!? You aren't doing this on production, ARE YOU?!?")) {return;}
   ajaxCall('/admin/resetTest', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var makePostIDs = function () {
+  if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
+  ajaxCall('/admin/makePostIDs', 'POST', {}, function(json) {
     console.log(json);
   });
 }
@@ -53,16 +67,29 @@ var allFollowStaff = function () {
   });
 }
 
-var letStaffCheat = function () {
+/*var letStaffCheat = function () {
   if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
   ajaxCall('/admin/staffCheat', 'POST', {text:$('staffCheatText').value}, function(json) {
     console.log(json);
   });
-}
+}*/
 
 var removeUser = function () {
   if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
   ajaxCall('/admin/removeUser', 'POST', {name: $("name-to-be-removed").value}, function(json) {
+    console.log(json);
+  });
+}
+
+var removePost = function () {
+  //if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
+  ajaxCall('/admin/removePost', 'POST', {_id: $("post-to-be-removed").value}, function(json) {
+    console.log(json);
+  });
+}
+var getPost = function () {
+  //if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
+  ajaxCall('/admin/getPost', 'POST', {_id: $("post-to-get").value}, function(json) {
     console.log(json);
   });
 }
