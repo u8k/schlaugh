@@ -1,9 +1,11 @@
 <nav id="nav" class="removed">
-  <text id="write-panel-button" class="clicky" onclick="switchPanel('write-panel')">w</text>
-  <text id="o-panel-button" class="clicky" onclick="switchPanel('o-panel')">o</text>
-  <text id="posts-panel-button" class="clicky" onclick="switchPanel('posts-panel')">r</text>
-  <text id="inbox-panel-button" class="clicky" onclick="switchPanel('inbox-panel')">m</text>
-  <text id="settings-panel-button" class="clicky" onclick="switchPanel('settings-panel')">s</text>
+  <icon id="write-panel-button" class="clicky fas fa-pencil-alt" onclick="switchPanel('write-panel')"></icon>
+  &nbsp;
+  <icon id="posts-panel-button" class="clicky fas fa-book" onclick="switchPanel('posts-panel')"></icon>
+  &nbsp;
+  <icon id="inbox-panel-button" class="clicky fas fa-envelope" onclick="switchPanel('inbox-panel')"></icon>
+  &nbsp;
+  <icon id="settings-panel-button" class="clicky fas fa-cog" onclick="switchPanel('settings-panel')"></icon>
   <br><br>
 </nav>
 
@@ -17,7 +19,7 @@
   </div>
 
   <div id="post-writer" class="removed">
-    <postNav><clicky onclick="hideWriter('post')">◀</clicky></postNav>
+    <icon class="clicky arrow fas fa-caret-left" onclick="hideWriter('post')"></icon>
     <br>
     <%- include("editorButtons", {kind: "post"}) %>
     <textarea id="postEditor" class="editor" autocomplete="off"></textarea>
@@ -30,14 +32,12 @@
 
 <div id="posts-panel" class="removed">
   <postNav>
-    <text id="date-display"></text>
-    <br>
+    <text id="date-display"></text><br>
     <box id="date-arrow-box" class="no-select">
-      <clicky onclick="changeDay(1)">◀</clicky>
-      <clicky id="day-forward" class="hidden" onclick="changeDay(-1)">▶</clicky>
-    </box>
+      <icon class="clicky fas fa-caret-left" onclick="changeDay(1)"></icon>
+      <icon id="day-forward" class="clicky hidden fas fa-caret-right" onclick="changeDay(-1)"></icon></box>
   </postNav>
-  <br><br>
+  <br>
   <button id="jump-open" onclick="openDateJump()">jump</button>
   <form id="date-jump" class="removed" action="javascript:void(0);">
     <input id="date-picker" type="text" placeholder="date">
@@ -57,11 +57,11 @@
 
 <div id="inbox-panel" class="removed">
   <h2>meshages</h2>
-  <postNav id="thread-title-area" class="removed">
-    <clicky id="back-arrow" class="removed" onclick="closeThread()">◀</clicky>
-    <br><br>
+  <div id="thread-title-area" class="removed">
+    <icon id="back-arrow" class="removed clicky fas fa-caret-left" onclick="closeThread()"></icon>
+    <br>
     <a id="thread-title" class="not-special"></a>
-  </postNav>
+  </div>
   <br>
   <clicky id="mark-unread" class="special removed" onclick="markUnread()">(mark unread)</clicky>
   <div id="thread-list"></div>
@@ -92,7 +92,7 @@
   <button onclick="submitPic()">schlaubmit</button>
   <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
   <br><br><br>
-  <h2>colors</h2>
+  <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
   <button id="postBackground-color-button" class="color-button jscolor {valueElement:null, onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">post background</button><br>
   <button id="text-color-button" class="color-button jscolor {valueElement:null, onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">text</button><br>
   <button id="linkText-color-button" class="color-button jscolor {valueElement:null, onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}">link text</button><br>
@@ -112,7 +112,7 @@
   </div>
 
   <div id="up" class="removed">
-    <arrow onclick="backToLogInMenu()">◀</arrow>
+    <icon class="no-select clicky arrow fas fa-caret-left" onclick="backToLogInMenu()"></icon>
     <br><br>
     <form action="javascript:void(0);">
       <input id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
@@ -134,7 +134,7 @@
   </div>
 
   <div id="in" class="removed">
-    <arrow onclick="backToLogInMenu()">◀</arrow>
+    <icon class="no-select clicky arrow fas fa-caret-left" onclick="backToLogInMenu()"></icon>
     <br><br>
     <form action="javascript:void(0);">
       <input id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
@@ -149,7 +149,7 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/b/bb/Orville_Redenbacher_1979.jpg" class="c" alt="rickenbacher">
+  <img src="https://muppetmindset.files.wordpress.com/2009/11/oscar-angry.png" class="c" alt="rickenbacher">
 </div>
 
 <div id="pop-up-backing" class="hidden"></div>

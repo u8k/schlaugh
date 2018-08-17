@@ -68,6 +68,10 @@ postNav {
   font-size: 2em;
 }
 
+#date-arrow-box {
+  font-size: 1.5em;
+}
+
 #date-picker {
   width: 90px;
   text-align: center;
@@ -192,7 +196,7 @@ input:-webkit-autofill {
 }
 
 .highlight {
-  font-size: 1.4em;
+  font-size: 1.6em;
   font-weight: bold;
 }
 
@@ -214,13 +218,8 @@ body, h1, input {
   background-color: #32363F;
 }
 
-arrow {
-  font-size: 1.8em;
-  cursor: pointer;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+.arrow, #thread-title-area {
+  font-size: 3em;
 }
 
 #inOrUp {

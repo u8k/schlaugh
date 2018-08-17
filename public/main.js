@@ -28,7 +28,7 @@ var changeColor = function (colorCode, type) {
   if (colorCode.slice(0,3) !== "rgb" && colorCode.slice(0,1) !== "#") {
     colorCode = "#"+colorCode;
   }
-  var sheet = document.styleSheets[0];
+  var sheet = document.styleSheets[document.styleSheets.length-1];
   switch (type) {
     case "postBackground":                 //post background
       var selector = ".post, .message, .editor, #settings-panel, #thread-list, button, .pop-up";
