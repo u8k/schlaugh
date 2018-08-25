@@ -546,7 +546,7 @@ var createPostFooter = function (postElem, authorID, date, postID, authorName) {
     btn.innerHTML = "quote";
     btn.onclick = function() {
       ajaxCall('/~getPost/'+authorID+"/"+date, 'GET', "", function(json) {
-        var text = "<quote><i>"+json.post.body+
+        var text = "<quote>"+json.post.body+
           '<r><a href="/~/'+postID+'">-'+authorName+"</a></r></quote>"
         if ($('postEditor').value !== "") {text = '<br>'+text;}
         $('postEditor').value += prepTextForEditor(text);
