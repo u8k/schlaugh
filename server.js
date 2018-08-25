@@ -449,15 +449,16 @@ app.post('/admin/resetTest', function(req, res) {
   adminGate(req, res, function (res, user) {
 
     var today = pool.getCurDate();
-    var tmrw = pool.getCurDate(-1);
     var ystr = pool.getCurDate(1);
+    var ystr2 = pool.getCurDate(2);
+    //var tmrw = pool.getCurDate(-1);
 
     var posts = {};
-    posts[tmrw] = [{body: "testPost1"}];
-    posts[today] = [{body: "testPost2"}];
-    posts[ystr] = [{body: "testPost3"}];
-    var postList = [{date: ystr, num: 0},{date: today, num: 0}];
-    var postListPending = [{date: tmrw, num: 0}];
+    posts[today] = [{body: "<r><r><r>a"}];
+    posts[ystr] = [{body: "testPost2"}];
+    posts[ystr2] = [{body: "<b>Lorem ipsum dolor sit amet, consectetur adipiscing elit. In tristique congue aliquet. Phasellus rutrum sit amet nisi sed lacinia. </b>Maecenas porta pulvinar vestibulum. Integer quis elit quam. <c>Etiam quis urna id lacus pulvinar tincidunt.</c> Quisque semper risus eget elit ornare, eu finibus lectus vulputate. Ut tortor leo, rutrum et facilisis et, imperdiet ut metus. Maecenas accumsan &lt;i>fringilla lorem, vitae pretium ligula varius at.</i> Proin ex tellus, venenatis vehicula venenatis in, pulvinar eget ex."}];
+    var postList = [{date: ystr2, num: 0},{date: ystr, num: 0},{date: today, num: 0}];
+    var postListPending = [];
 
     var mrah = {
       posts: posts,
@@ -1191,6 +1192,24 @@ app.get('/~getAuthor/:username', function(req, res) {
   });
 });
 
+// get single post, from author/date
+app.get('/~getPost/:id/:date', function (req, res) {
+  var authorID = req.params.id;
+  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
+  db.collection('users').findOne({_id: authorID}
+  , { posts:1, }
+  , function (err, author) {
+    if (err) {return sendError(res, err);}
+    else {
+      if (author && author.posts[req.params.date]) {
+        res.send({error: false, post: author.posts[req.params.date][0]})
+      } else {
+        res.send({error: false, four04: true,});      //404
+      }
+    }
+  })
+});
+
 var authorFromPostID = function (post_id, callback) {
   if (ObjectId.isValid(post_id)) {post_id = ObjectId(post_id);}
   db.collection('posts').findOne({_id: post_id}
@@ -1220,12 +1239,12 @@ var authorFromPostID = function (post_id, callback) {
   });
 }
 // get a post, by id
-app.get('/~getPost/:post_id', function (req, res) {
+/*app.get('/~getPost/:post_id', function (req, res) {
   authorFromPostID(req.params.post_id, function (resp) {
     if (resp.error) {sendError(res, resp.error);}
     else {res.send(resp);}
   })
-});
+});*/
 
 var renderLayout = function (author, post_id, post_index, req, res) {
   if (!req.session.user) {
@@ -1258,7 +1277,6 @@ app.get('/~/:post_id', function (req, res) {
   })
 });
 
-// user routes must be placed last(do they? still?)
 // view all of a users posts
 app.get('/:author', function(req, res) {
   renderLayout(req.params.author, false, false, req, res);

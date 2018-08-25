@@ -151,6 +151,11 @@ img {
   display: block;
 }
 
+.post-footer {
+  text-align: right;
+  margin-top: 10px;
+}
+
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
   .post, #settings-panel {width: 98%;}
   #thread-box {width: 100%;}
@@ -253,6 +258,15 @@ body, h1, input {
   left: 0;
   top: 0;
   z-index: 10;
+}
+
+quote {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  display: block;
+  margin: 15px;
+  padding: 15px;
+  font-style: italic;
 }
 
 l {text-align: left;}

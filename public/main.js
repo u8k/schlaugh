@@ -291,12 +291,12 @@ var convertCuts = function (string, id) {
           +");'>more</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
           +string.substr(pos+offset)+"</div>";
       } else {
-      string = string.substr(0,pos)
-        +"<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("
-        +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+");'>"
-        +string.substr(pos+5, gap-5)
-        +"</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
-        +string.substr(pos+gap)+"</div>";
+        string = string.substr(0,pos)
+          +"<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("
+          +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+");'>"
+          +string.substr(pos+5, gap-5)
+          +"</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
+          +string.substr(pos+gap)+"</div>";
       }
     }
     return recurse(pos+1, count+1);
@@ -447,14 +447,14 @@ var changeDay = function (dir) { // load and display all posts for a given day
           var authorBox = document.createElement("div");
           authorBox.setAttribute('class', 'meta-text');
           var author = document.createElement("a");
-          (function (name) {
+          (function (post) {
             author.onclick = function(event){
               event.preventDefault();
-              openAuthorPanel(name);
+              openPost(post.author, post.post_id);
             }
-          })(json[rando[i]].author);
+          })(json[rando[i]]);
           author.setAttribute('class', 'author special');
-          author.setAttribute('href', "/"+json[rando[i]].author);
+          author.setAttribute('href', "~/"+json[rando[i]].post_id);
           author.innerHTML = "<clicky>"+json[rando[i]].author+"</clicky>";
           authorBox.appendChild(author);
           authorBox.appendChild(document.createElement("br"));
@@ -466,6 +466,8 @@ var changeDay = function (dir) { // load and display all posts for a given day
           text.setAttribute('class', 'body-text');
           text.innerHTML = convertText(json[rando[i]].body, json[rando[i]]._id+"-"+date+"-feed");
           post.appendChild(text);
+          //
+          createPostFooter(post, json[rando[i]]._id, date, json[rando[i]].post_id, json[rando[i]].author);
           bucket.appendChild(post);
           //remove the current index refference from the randomizing helper array
           rando.splice(i,1);
@@ -530,6 +532,29 @@ var createFollowButton = function (parent, author, insert) {
     } else {
       parent.appendChild(follow);
     }
+  }
+}
+
+var createPostFooter = function (postElem, authorID, date, postID, authorName) {
+  if (glo.username) {
+    // post-footer
+    var footer = document.createElement("div");
+    footer.setAttribute('class', 'post-footer');
+    postElem.appendChild(footer);
+    // quote button
+    var btn = document.createElement("button");
+    btn.innerHTML = "quote";
+    btn.onclick = function() {
+      ajaxCall('/~getPost/'+authorID+"/"+date, 'GET', "", function(json) {
+        var text = "<quote><i>"+json.post.body+
+          '<r><a href="/~/'+postID+'">-'+authorName+"</a></r></quote>"
+        if ($('postEditor').value !== "") {text = '<br>'+text;}
+        $('postEditor').value += prepTextForEditor(text);
+        showWriter('post');
+        switchPanel('write-panel');
+      });
+    }
+    footer.appendChild(btn);
   }
 }
 
@@ -633,6 +658,8 @@ var openAuthorPanel = function (author, callback) {
             text.setAttribute('class', 'body-text');
             text.innerHTML = convertText(json.posts[i].body, json._id+"-"+json.posts[i].date+"-panel");
             post.appendChild(text);
+            //
+            createPostFooter(post, json._id, json.posts[i].date, json.posts[i].post_id, json.author);
           }
         }
         switchPanel(json.author+"-panel");
@@ -722,7 +749,7 @@ var submitPost = function (remove) { //also handles editing and deleting
       else {
         var data = {text:null, remove:remove}
         ajaxCall("/", 'POST', data, function(json) {
-          updatePendingPost(remove, "");
+          updatePendingPost("", remove);
         });
       }
     });
@@ -734,12 +761,12 @@ var submitPost = function (remove) { //also handles editing and deleting
     }
     var data = {text:text, remove:remove}
     ajaxCall("/", 'POST', data, function(json) {
-        updatePendingPost(remove, json.text)
+        updatePendingPost(json.text, remove)
     });
   }
 }
 
-var updatePendingPost = function (remove, newText) {
+var updatePendingPost = function (newText, remove) {
   if (remove) {
     $('pending-status').innerHTML = "no pending post";
     $('delete-pending-post').classList.add("removed");
@@ -821,7 +848,7 @@ var hyperlink = function (src) {
     }
   });
 }
-var image = function (src) {
+var insertImage = function (src) {
   var area = $(src+'Editor');
   var x = getCursorPosition(area);
   var a = x.start;
@@ -855,6 +882,58 @@ var insertCut = function (src) {
         area.value = y.slice(0, a)+'<cut>'+cutText+'</cut>'+y.slice(b);
         var bump = a+cutText.length+11;
         setCursorPosition(area, bump, bump);
+      }
+    }
+  });
+}
+var insertQuote = function (src) {
+  var area = $(src+'Editor');
+  var x = getCursorPosition(area);
+  var a = x.start;
+  var b = x.end;
+  var y = area.value;
+  var quoteText;
+  if (a !== b) {quoteText = y.substr(a,b-a)}
+  prompt({
+    label:"quote text:",
+    value:quoteText,
+    callback: function(quoteText) {
+      if (quoteText !== null) {
+        prompt({
+          label: "source text(optional):",
+          callback: function(sourceText) {
+            if (sourceText !== null) {
+              prompt({
+                label: "source link(optional):",
+                callback: function(sourceLink) {
+                  if (sourceLink !== null) {
+                    ajaxCall('/link', 'POST', {url:sourceLink}, function(json) {
+                      if (json.issue) {
+                        verify(json.issue, function (res) {
+                          if (!res) {
+                            area.value = y;
+                            setCursorPosition(area, a, b);
+                          }
+                        });
+                      }
+                    });
+                    area.value = y.slice(0, a)+'<quote>'+quoteText+'<r><a href="'+sourceLink+'">-'+sourceText+'</a></r></quote>'+y.slice(b);
+                    var bump = a+quoteText.length+sourceLink.length+sourceText.length+38;
+                    setCursorPosition(area, bump, bump);
+                  } else {
+                    area.value = y.slice(0, a)+'<quote>'+quoteText+'<r>-'+sourceText+'</r></quote>'+y.slice(b);
+                    var bump = a+quoteText.length+sourceText.length+23;
+                    setCursorPosition(area, bump, bump);
+                  }
+                }
+              });
+            } else {
+              area.value = y.slice(0, a)+'<quote>'+quoteText+'</quote>'+y.slice(b);
+              var bump = a+quoteText.length+15;
+              setCursorPosition(area, bump, bump);
+            }
+          }
+        });
       }
     }
   });
@@ -1347,7 +1426,7 @@ var parseUserData = function (data) {
   }
   // init stuff
   changeDay(1);
-  if (glo.pending) {updatePendingPost(false, glo.pending.body);}
+  if (glo.pending) {updatePendingPost(glo.pending.body);}
   populateThreadlist();
   setColors();
   //

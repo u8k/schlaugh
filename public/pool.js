@@ -56,21 +56,18 @@
     string = string.replace(/\r?\n|\r/g, '<br>');
     string = string.replace(/  /g, ' &nbsp;');
 
-    var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList) {
+    var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList) {
       if (aOpen) {string += "</a>"}
       if (bOpen) {string += "</b>"}
       if (iOpen) {string += "</i>"}
       if (uOpen) {string += "</u>"}
       if (sOpen) {string += "</s>"}
-      if (lOpen) {string += "</l>"}
-      if (cOpen) {string += "</c>"}
-      if (rOpen) {string += "</r>"}
       if (cutOpen) {string += "</cut>"}
       return [imgList, string];
     }
-    var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList) {
+    var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList) {
       var next = string.substr(pos).search(/</);
-      if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);}
+      if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);}
       else {
         pos += next;
         if (string.substr(pos+1,2) === "b>" && !bOpen) {
@@ -85,18 +82,17 @@
         } else if (string.substr(pos+1,2) === "s>" && !sOpen) {
           sOpen = true;
           pos += 2;
-        } else if (string.substr(pos+1,2) === "l>" && !lOpen) {
-          lOpen = true;
+        } else if (string.substr(pos+1,2) === "l>") {
           pos += 2;
-        } else if (string.substr(pos+1,2) === "c>" && !cOpen) {
-          cOpen = true;
+        } else if (string.substr(pos+1,2) === "c>") {
           pos += 2;
-        } else if (string.substr(pos+1,2) === "r>" && !rOpen) {
-          rOpen = true;
+        } else if (string.substr(pos+1,2) === "r>") {
           pos += 2;
         } else if (string.substr(pos+1,4) === "cut>" && !cutOpen) {
           cutOpen = true;
           pos += 4;
+        } else if (string.substr(pos+1,6) === "quote>") {
+          pos += 6;
         } else if (string.substr(pos+1,3) === "li>") {
           pos += 3;
         } else if (string.substr(pos+1,3) === "ul>") {
@@ -116,17 +112,16 @@
           sOpen = false;
           pos += 3;
         } else if (string.substr(pos+1,3) === "/l>") {
-          lOpen = false;
           pos += 3;
         } else if (string.substr(pos+1,3) === "/c>") {
-          cOpen = false;
           pos += 3;
         } else if (string.substr(pos+1,3) === "/r>") {
-          rOpen = false;
           pos += 3;
         } else if (string.substr(pos+1,5) === "/cut>") {
           cutOpen = false;
           pos += 5;
+        } else if (string.substr(pos+1,7) === "/quote>") {
+          pos += 7;
         } else if (string.substr(pos+1,4) === "/li>") {
           pos += 4;
         } else if (string.substr(pos+1,4) === "/ul>") {
@@ -143,7 +138,7 @@
           var qPos = string.substr(pos+1).search(/"/);
           if (qPos === -1) {
             string += '">';
-            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
+            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);
           }
           else {pos += qPos;}
           if (string[pos+2] !== ">") {
@@ -159,7 +154,7 @@
           if (qPos === -1) {
             imgList.push(string.substr(pos+1))
             string += '">';
-            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
+            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);
           }
           else {
             imgList.push(string.substr(pos+1,qPos))
@@ -172,10 +167,10 @@
         } else {  // the found tag is not on the sanctioned list, so replace it
           string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
         }
-        return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, lOpen, cOpen, rOpen, cutOpen, imgList);
+        return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);
       }
     }
-    return recurse(0, false, false, false, false, false, false, false, false, false, []);
+    return recurse(0, false, false, false, false, false, false, []);
   }
 
 
