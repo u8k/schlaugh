@@ -111,10 +111,11 @@ clicky, .clicky {
 .thread-name {font-size: 1.8em}
 
 .post, .message, #settings-panel, #thread-list {
+  box-shadow: 0px 0px 1px 2px rgba(0, 0, 0, .1);
   width: 75%;
   margin: auto;
-  margin-top: 16px;
-  margin-bottom: 16px;
+  margin-top:16px;
+  margin-bottom: 24px;
   border-radius: 4px;
   padding: 15px;
   text-align: left;
@@ -258,6 +259,10 @@ body, h1, input {
   left: 0;
   top: 0;
   z-index: 10;
+}
+
+.one-off {
+  border-radius: 35%;
 }
 
 quote {

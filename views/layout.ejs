@@ -14,10 +14,10 @@
 
     <% if (user && typeof settings !== "undefined" && typeof settings.colors !== "undefined") { %>
       <style media="screen">
-        .post, .message, .editor, #settings-panel, #thread-list, button, .prompt {
+        .post, .message, .editor, #settings-panel, #thread-list, button, .pop-up {
           background-color: <%= settings.colors.postBackground %>;
         }
-        body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button, .not-special {
+        body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button, .not-special, .pop-up {
           color: <%= settings.colors.text %>;
         }
         button {border-color: <%= settings.colors.text %>;}
@@ -63,6 +63,12 @@
             var post_index = <%- JSON.stringify(post_index) %>;
             fetchData(function () {openPost(author, null, post_index)});
           </script>
+        <% } else if (tag) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var tag = <%- JSON.stringify(tag) %>;
+            fetchData(function () {filterAuthorByTag(author, tag)});
+          </script>
         <% } else { %>
           <script type="text/javascript">
             fetchData(function () {openAuthorPanel(<%- JSON.stringify(author) %>)});
@@ -74,6 +80,10 @@
             simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
             open404author();
           });
+        </script>
+      <% } else if (typeof tag !== "undefined") { %>
+        <script type="text/javascript">
+          fetchData(function () {loadPosts(0, <%- JSON.stringify(tag) %>)});
         </script>
       <% } else { %>
         <script type="text/javascript">fetchData(function () {switchPanel("posts-panel")});</script>
@@ -92,6 +102,12 @@
             var post_index = <%- JSON.stringify(post_index) %>;
             openPost(author, null, post_index);
           </script>
+        <% } else if (tag) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var tag = <%- JSON.stringify(tag) %>;
+            filterAuthorByTag(author, tag);
+          </script>
         <% } else { %>
           <script type="text/javascript">
             openAuthorPanel(<%- JSON.stringify(author) %>);
@@ -101,6 +117,10 @@
         <script type="text/javascript">
           simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
           open404author();
+        </script>
+      <% } else if (typeof tag !== "undefined") { %>
+        <script type="text/javascript">
+          loadPosts(0, <%- JSON.stringify(tag) %>);
         </script>
       <% } else { %>
         <script type="text/javascript">switchPanel("login-panel");</script>

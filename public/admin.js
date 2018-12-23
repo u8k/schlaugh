@@ -45,6 +45,17 @@ var getPosts = function () {
   });
 }
 
+var getTags = function () {
+  ajaxCall('/admin/tags', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var getTopTags = function () {
+  ajaxCall('/admin/toptags', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
 
 var resetTest = function () {
   if (!confirm("ARE YOU SURE!? You aren't doing this on production, ARE YOU?!?")) {return;}

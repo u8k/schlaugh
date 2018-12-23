@@ -24,21 +24,26 @@
     <%- include("editorButtons", {kind: "post"}) %>
     <textarea id="postEditor" class="editor" autocomplete="off"></textarea>
     <br>
+    <label for="">tags</label><br>
+    <input id="tag-input" type="text" placeholder="separated by spaces">
+    <br><br>
     <button onclick="submitPost()">schlaubmit</button>
     <button id='delete-pending-post' class="removed" onclick="submitPost(true)">delete</button>
-
   </div>
 </div>
 
 <div id="posts-panel" class="removed">
   <postNav>
+    <text id="tag-display" class="removed"></text><br>
     <text id="date-display"></text><br>
     <box id="date-arrow-box" class="no-select">
-      <icon class="clicky fas fa-caret-left" onclick="changeDay(1)"></icon>
-      <icon id="day-forward" class="clicky hidden fas fa-caret-right" onclick="changeDay(-1)"></icon></box>
+      <icon class="clicky fas fa-caret-left" onclick="loadPosts(1)"></icon>
+      <icon id="day-forward" class="clicky hidden fas fa-caret-right" onclick="loadPosts(-1)"></icon></box>
   </postNav>
   <br>
   <button id="jump-open" onclick="openDateJump()">jump</button>
+  <button id="tag-menu-open" onclick="openTagMenu()">tags</button>
+  <button id="clear-tag" onclick="loadPosts(0, false);" class="removed">clear tag</button>
   <form id="date-jump" class="removed" action="javascript:void(0);">
     <input id="date-picker" type="text" placeholder="date">
     <script type="text/javascript">
@@ -48,6 +53,17 @@
     <button type="submit" onclick="dateJump()">go</button>
     <button onclick="openDateJump(true)">x</button>
   </form>
+  <div id="tag-menu" class="removed">
+    <div id="top-tags">
+      <!-- generate stuff here on "loadPosts" -->
+    </div>
+    <form id="tag-search" action="javascript:void(0);">
+      <input id="tag-picker" type="text" placeholder="tag">
+      <br>
+      <button type="submit" onclick="tagSearch()">search</button>
+      <button onclick="openTagMenu(true)">x</button>
+    </form>
+  </div>
 
 
   <div id="posts">
@@ -149,7 +165,9 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img src="http://pngimg.com/uploads/orange/orange_PNG791.png" class="c" alt="rickenbacher">
+  <img src="http://media.safebee.com/assets/images/2016/11/ThinkstockPhotos-498741260.jpg.838x0_q67_crop-smart.jpg" class="one-off" alt="ornaments">
+  <!--<img src="https://images2.wikia.nocookie.net/__cb20090803052143/heyarnold/images/e/e6/Oskar.jpg" alt="oscar">
+    -->
 </div>
 
 <div id="pop-up-backing" class="hidden"></div>

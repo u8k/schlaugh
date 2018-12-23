@@ -256,7 +256,8 @@ var genID = function (clctn, callback) {
 }
 
 var createPost = function (authorID, callback, date) {
-  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid ID format"});}
+  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+  authorID = ObjectId(authorID);
   if (!date) {date = pool.getCurDate(-1)}
   genID('posts', function (resp) {
     if (resp.error) {return callback({error:resp.error});}
@@ -274,46 +275,167 @@ var createPost = function (authorID, callback, date) {
   });
 }
 
-/*var editPost = function (body, postID, callback) {
-  if (typeof body !== "string") {return callback({error:"text not string?"});}
-  if (!ObjectId.isValid(postID)) {return callback({error:"invalid ID format"});}
-  db.collection('posts').updateOne({_id: postID},
-    {$set: {body: body}},
-    function(err, post) {
-      if (err) {return callback({error:err});}
-      else if (!post) {return callback({error:"post not found"});}
-      else {return callback({error:false});}
-    }
-  );
-}*/
-
 var deletePost = function (postID, callback) {
   db.collection('posts').remove({_id: postID},
     function(err, post) {
       if (err) {return callback({error:err});}
-      else {return callback({error:false});}}
+      else {return callback({error:false});}
+    }
   );
 }
 
-var updateUserPost = function (text, userID, user, res, callback) {
+var updateUserPost = function (text, newTags, userID, user, res, errMsg, callback) {
   var tmrw = pool.getCurDate(-1);
-  if (user.posts[tmrw]) {                   //edit existing
-    user.posts[tmrw][0].body = text;
-    callback();
+  if (user.posts[tmrw]) {                               //edit existing
+
+    var checkNewTags = function () {
+      var newTagArr = [];
+      for (var tag in newTags) {
+        if (newTags.hasOwnProperty(tag)) {
+          if (!user.posts[tmrw][0].tags[tag]) { // if the new tag is NOT an old tag too
+            newTagArr.push(tag);
+          }
+        }
+      }
+      if (newTagArr.length === 0) {wrapIt();}
+      else {
+        createTagRefs(newTagArr, tmrw, userID, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          else {wrapIt();}
+        });
+      }
+    }
+
+    var wrapIt = function () {
+      user.posts[tmrw][0].body = text;
+      user.posts[tmrw][0].tags = newTags;
+      return callback();
+    }
+
+    // check existing tags
+    var badTagArr = [];
+    for (var tag in user.posts[tmrw][0].tags) {
+      if (user.posts[tmrw][0].tags.hasOwnProperty(tag)) {
+        if (!newTags[tag]) {          // if the old tag is NOT a new tag too
+          badTagArr.push(tag);
+        }
+      }
+    }
+    if (badTagArr.length === 0) {checkNewTags();}
+    else {
+      deleteTagRefs(badTagArr, tmrw, userID, function (resp) {
+        if (resp.error) {return sendError(res, errMsg+resp.error);}
+        else {checkNewTags();}
+      });
+    }
   } else {                                  //create new
     createPost(userID, function (resp) {
-      if (resp.error) {sendError(res, resp.error);}
+      if (resp.error) {return sendError(res, errMsg+resp.error);}
       else {
         user.posts[tmrw] = [{
             body: text,
-            tags: {},
+            tags: newTags,
             post_id: resp.postID,
           }];
         user.postListPending.push({date:tmrw, num:0});
-        callback();
+        //
+        var tagArr = [];
+        for (var tag in newTags) {    // add a ref in the tag db for each tag
+          if (newTags.hasOwnProperty(tag)) {tagArr.push(tag)}
+        }
+        if (tagArr.length !== 0) {
+          createTagRefs(tagArr, tmrw, userID, function (resp) {
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            else {return callback();}
+          });
+        }
       }
     });
   }
+}
+
+var createTagRefs = function (tagArr, date, authorID, callback) {
+  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+  authorID = ObjectId(authorID);
+  // check if dateBucket is extant
+  db.collection('tags').findOne({date: date}, {ref:1}
+  , function (err, dateBucket) {
+    if (err) {return callback({error:err});}
+    else if (!dateBucket) {  // dateBucket does not exist, make it
+      var newDateBucket = {date: date,};
+      newDateBucket.ref = {};
+      for (var i = 0; i < tagArr.length; i++) {
+        newDateBucket.ref[tagArr[i]] = [authorID];
+      }
+      db.collection('tags').insertOne(newDateBucket, {}, function (err, result) {
+        if (err) {return callback({error:err});}
+        else {return callback({error:false});}
+      });
+    } else {  // dateBucket exists, add to it
+      var tagObject = [authorID];
+      for (var i = 0; i < tagArr.length; i++) {
+        if (!checkObjForProp(dateBucket.ref, tagArr[i], tagObject)) { // is tag extant?
+          dateBucket.ref[tagArr[i]].push(authorID);
+        }
+      }
+      db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
+        {$set: dateBucket},
+        function(err, user) {
+          if (err) {return callback({error:err});}
+          else {return callback({error:false});}
+        }
+      );
+    }
+  });
+}
+
+var deleteTagRefs = function (tagArr, date, authorID, callback) {
+  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+  authorID = ObjectId(authorID);
+  db.collection('tags').findOne({date: date}, {ref:1}
+  , function (err, dateBucket) {
+    if (err) {return callback({error:err});}
+    else if (!dateBucket) {
+      return callback({error:"the to be trimmed dateBucket does not seem to exist, sir"});
+    } else {
+      for (var i = 0; i < tagArr.length; i++) {
+        if (dateBucket.ref[tagArr[i]]) {
+          var array = dateBucket.ref[tagArr[i]];
+          var notFound = true;
+          for (var j = 0; j < array.length; j++) {
+            if (String(array[j]) === String(authorID)) {
+              array.splice(j, 1);
+              notFound = false;
+              break;
+            }
+          }
+          if (notFound) {return callback({error:'the to be deleted author refference for the tag "'+tagArr[i]+'" does not seem to exist, sir'});}
+        }
+        else {return callback({error:'the to be deleted tag "'+tagArr[i]+'" does not seem to exist, sir'});}
+      }
+      db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
+        {$set: dateBucket},
+        function(err, resp) {
+          if (err) {return callback({error:err});}
+          else {return callback({error:false});}
+        }
+      );
+    }
+  });
+}
+
+var parseInboundTags = function (tagString) {
+  var tags = {};
+  tagString = tagString.replace(/[^ a-zA-Z0-9-_!@&*:;=~]/g, '');
+  var arr = tagString.match(/[a-zA-Z0-9-_!@&*:;=~]+/g);
+  if (arr) {
+    if (arr.length > 20) {return "this is not actually an 'error', this is just me preventing you from using this many tags. Do you really need this many tags? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of LOTR as tags in an attempt to crash the server.<br><br>enjoy your breakfast"}
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].length > 50) {return "this is not actually an 'error', it's just one of your tags is very long and I'm preventing you from submitting it. Do you <i>really</i> need that many characters in one tag? Tell staff about this if you have legitimate reason for the limit to be higher. I might have drawn the line too low, i dunno, i had to draw it somewhere.<br><br>beep boop"}
+      tags[arr[i]] = true;
+    }
+  }
+  return tags;
 }
 
 var sendError = function (res, msg) {
@@ -321,6 +443,46 @@ var sendError = function (res, msg) {
 
   msg = "ERROR! SORRY! Please screenshot this and note all details of the situation and tell staff. SORRY<br><br>" + msg;
   res.send({error: msg});
+}
+
+var postsFromAuthorListAndDate = function (authorList, date, callback) {
+  db.collection('users').find({_id: {$in: authorList}}
+    ,{posts:1, username:1, iconURI:1, keys:1}).toArray(function(err, users) {
+    if (err) {return callback({error:err});}
+    else {
+      var posts = [];
+      for (var i = 0; i < users.length; i++) {
+        if (users[i].posts[date]) {
+          var authorPic = users[i].iconURI;
+          if (typeof authorPic !== 'string') {authorPic = "";}
+          var key = null;
+          if (users[i].keys) {key = users[i].keys.pubKey}
+          var post_id = null;
+          if (users[i].posts[date][0].post_id) {post_id = users[i].posts[date][0].post_id}
+          posts.push({
+            body: users[i].posts[date][0].body,
+            tags: users[i].posts[date][0].tags,
+            post_id: post_id,
+            author: users[i].username,
+            authorPic: authorPic,
+            _id: users[i]._id,
+            key: key,
+          });
+        }
+      }
+      callback({error:false, posts:posts});
+    }
+  });
+}
+
+var getTopTags = function (ref) { //input ref of a date of tags
+  //console.log(" ");
+  for (var tag in ref) {
+    if (ref.hasOwnProperty(tag)) {
+      //console.log(tag, ref[tag].length);
+    }
+  }
+  //console.log(" ");
 }
 
 //*******//ROUTING//*******//
@@ -331,11 +493,7 @@ var devFlag = false;
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
   if (!req.session.user) {
-    res.render('layout', {
-      author:"admin",
-      user:false,
-      post:false,
-    });
+    renderLayout(req, res, {author:'admin'});
   } else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {_id:0, username:1, codes:1 }
@@ -343,11 +501,7 @@ var adminGate = function (req, res, callback) {
       if (err) {return sendError(res, err);}
       else if (user && user.username === "admin") {callback(res, user);} //no need to pass 'user' once we take out the code nonsense
       else {
-        res.render('layout', {
-          author:"admin",
-          user:true,
-          post:false,
-        });
+        renderLayout(req, res, {author:'admin'});
       }
     });
   }
@@ -395,10 +549,34 @@ app.post('/admin/posts', function(req, res) {
   adminGate(req, res, function (res, user) {
     //var fields = {_id:1, body:1, date:1, authorID:1, tags:1};
     //fields[req.body.text] = 1;
-    db.collection('posts').find({},{}).toArray(function(err, users) {
+    db.collection('posts').find({},{}).toArray(function(err, posts) {
       if (err) {return sendError(res, err);}
       else {
-        return res.send(users);
+        return res.send(posts);
+      }
+    });
+  });
+});
+
+app.post('/admin/tags', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('tags').find({},{_id:0}).toArray(function(err, tags) {
+      if (err) {return sendError(res, err);}
+      else {
+        return res.send(tags);
+      }
+    });
+  });
+});
+
+app.post('/admin/toptags', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('tags').findOne({date: '2018-12-23'}, {_id:0, ref:1}
+    , function (err, dateBucket) {
+      if (err) {return callback({error:err});}
+      else {
+        getTopTags(dateBucket.ref);
+        return res.send({hi:'hi'});
       }
     });
   });
@@ -569,22 +747,6 @@ app.post('/admin/makePostIDs', function(req, res) {
   });
 });*/
 
-app.get('/admin/:num', function(req, res) {
-  if (!req.session.user) {
-    res.render('layout', {
-      author:"admin",
-      user:false,
-      post:req.params.num,
-    });
-  } else {
-    res.render('layout', {
-      author:"admin",
-      user:true,
-      post:req.params.num,
-    });
-  }
-});
-
 /*app.post('/admin', function(req, res) {       // add new codes
   if (req.session.user) {
     var userID = ObjectId(req.session.user._id)
@@ -611,6 +773,7 @@ app.get('/admin/:num', function(req, res) {
     res.render('layout', {pagename:'404', type:'user'});
   }
 });*/
+
 
 
 // main page
@@ -648,24 +811,43 @@ app.post('/', function(req, res) {
       checkFreshness(user);
       var tmrw = pool.getCurDate(-1);
       if (req.body.remove) {                     //remove pending post, do not replace
+
+        var wrapIt = function () {
+          delete user.posts[tmrw];
+          user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
+          return writeToDB(userID, user, function (resp) {
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            else {res.send({error: false});}
+          });
+        }
+
         deletePost(user.posts[tmrw][0].post_id, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
           else {
-            delete user.posts[tmrw];
-            user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
-            return writeToDB(userID, user, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
-              else {res.send({error: false});}
-            });
+            var deadTags = [];
+            for (var tag in user.posts[tmrw][0].tags) {
+              if (user.posts[tmrw][0].tags.hasOwnProperty(tag)) {
+                deadTags.push(tag);
+              }
+            }
+            if (deadTags.length === 0) {wrapIt();}
+            else {
+              deleteTagRefs(deadTags, tmrw, userID, function (resp) {
+                if (resp.error) {return sendError(res, errMsg+resp.error);}
+                else {wrapIt();}
+              });
+            }
           }
         });
       } else {
         var x = pool.cleanseInputText(req.body.text);
+        var tags = parseInboundTags(req.body.tags);
+        if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
         imageValidate(x[0], res, function (res) {
-          updateUserPost(x[1], userID, user, res, function () {
+          updateUserPost(x[1], tags, userID, user, res, errMsg, function () {
             return writeToDB(userID, user, function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
-              else {res.send({error:false, text:x[1]});}
+              else {return res.send({error:false, text:x[1], tags:tags});}
             });
           });
         });
@@ -685,32 +867,9 @@ app.post('/posts/:date', function(req, res) {
     else if (!user) {return sendError(res, "user not found");}
     else {
       if (user.following.length === undefined) {user.following = [];}
-      db.collection('users').find({_id: {$in: user.following}}
-        ,{posts:1, username:1, iconURI:1, inbox:1, keys:1}).toArray(function(err, users) {
-        if (err) {return sendError(res, err);}
-        else {
-          var posts = [];
-          for (var i = 0; i < users.length; i++) {
-            if (users[i].posts[req.params.date]) {
-              var authorPic = users[i].iconURI;
-              if (typeof authorPic !== 'string') {authorPic = "";}
-              var key = null;
-              if (users[i].keys) {key = users[i].keys.pubKey}
-              var post_id = null;
-              if (users[i].posts[req.params.date][0].post_id) {post_id = users[i].posts[req.params.date][0].post_id}
-              posts.push({
-                body: users[i].posts[req.params.date][0].body,
-                tags: users[i].posts[req.params.date][0].tags,
-                post_id: post_id,
-                author: users[i].username,
-                authorPic: authorPic,
-                _id: users[i]._id,
-                key: key,
-              });
-            }
-          }
-          return res.send({error:false, posts:posts});
-        }
+      postsFromAuthorListAndDate(user.following, req.params.date, function (resp) {
+        if (resp.error) {return sendError(res, resp.error);}
+        else {return res.send({error:false, posts:resp.posts});}
       });
     }
   });
@@ -1210,6 +1369,31 @@ app.get('/~getPost/:id/:date', function (req, res) {
   })
 });
 
+// get all posts with tag on date
+app.get('/~getTag/:tag/:date', function (req, res) {
+  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:""}]});}
+  db.collection('tags').findOne({date: req.params.date}, {_id:0, ref:1}
+  , function (err, dateBucket) {
+    if (err) {return sendError(res, err);}
+    else {
+      if (!dateBucket) {
+        return res.send({error: false, posts: [],});
+      } else if (!dateBucket.ref[req.params.tag]) {
+        return res.send({error: false, posts: [],});
+      } else {
+        if (dateBucket.ref[req.params.tag].length === 0) {
+          return res.send({error: false, posts: [],});
+        } else {
+          postsFromAuthorListAndDate(dateBucket.ref[req.params.tag], req.params.date, function (resp) {
+            if (resp.error) {return sendError(res, resp.error);}
+            else {return res.send({error:false, posts:resp.posts});}
+          });
+        }
+      }
+    }
+  })
+});
+
 var authorFromPostID = function (post_id, callback) {
   if (ObjectId.isValid(post_id)) {post_id = ObjectId(post_id);}
   db.collection('posts').findOne({_id: post_id}
@@ -1246,22 +1430,24 @@ var authorFromPostID = function (post_id, callback) {
   })
 });*/
 
-var renderLayout = function (author, post_id, post_index, req, res) {
+var renderLayout = function (req, res, data) {
   if (!req.session.user) {
     res.render('layout', {
-      author:author,
       user:false,
-      post_index:post_index,
-      post_id:post_id,
+      author:data.author,
+      post_index:data.post_index,
+      post_id:data.post_id,
+      tag:data.tag
     });
   } else {
     getSettings(req, res, function (settings) {
       res.render('layout', {
-        author:author,
         user:true,
         settings:settings,
-        post_index:post_index,
-        post_id:post_id,
+        author:data.author,
+        post_index:data.post_index,
+        post_id:data.post_id,
+        tag:data.tag,
       });
     });
   }
@@ -1272,19 +1458,29 @@ app.get('/~/:post_id', function (req, res) {
   authorFromPostID(req.params.post_id, function (resp) {
     if (resp.error) {sendError(res, resp.error);}
     else {
-      renderLayout(resp.author, req.params.post_id, false, req, res);
+      renderLayout(req, res, {author:resp.author, post_id:req.params.post_id});
     }
   })
 });
 
+// view a tag page
+app.get('/~tagged/:tag', function(req, res) {
+  renderLayout(req, res, {tag:req.params.tag});
+});
+
+// view a users posts, filtered by tag
+app.get('/:author/~tagged/:tag', function(req, res) {
+  renderLayout(req, res, {author:req.params.author, tag:req.params.tag});
+});
+
 // view all of a users posts
 app.get('/:author', function(req, res) {
-  renderLayout(req.params.author, false, false, req, res);
+  renderLayout(req, res, {author:req.params.author});
 });
 
 // view a single post, by index
 app.get('/:author/:num', function(req, res) {
-  renderLayout(req.params.author, false, req.params.num, req, res);
+  renderLayout(req, res, {author:req.params.author, post_index: req.params.num});
 });
 
 
