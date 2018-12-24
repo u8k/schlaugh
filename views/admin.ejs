@@ -70,7 +70,12 @@
     <br>
     <button type="button" name="button" onclick="getTags()">log tags</button>
     <br>
-    <button type="button" name="button" onclick="getTopTags()">log top tags</button>
+    <input id="id-of-post-to-get" type="text" placeholder="post_id">
+    <button onclick="getPost()">getPost</button>
+    <br>
+    <input id="editor-input" type="textArea" placeholder="input">
+    <input id="id-of-post-to-edit" type="text" placeholder="post_id">
+    <button onclick="editPost()">editPost</button>
     <br>
     <input id="post-to-be-removed" type="text" placeholder="post_id">
     <button onclick="removePost()">removePost</button>

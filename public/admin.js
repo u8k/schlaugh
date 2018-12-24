@@ -57,6 +57,18 @@ var getTopTags = function () {
   });
 }
 
+var getPost = function () {
+  ajaxCall('/admin/getPost', 'POST', {_id: $("id-of-post-to-get").value}, function(json) {
+    console.log(json);
+  });
+}
+
+var editPost = function () {
+  ajaxCall('/admin/editPost', 'POST', {_id: $("id-of-post-to-edit").value, input:$("editor-input").value}, function(json) {
+    console.log(json);
+  });
+}
+
 var resetTest = function () {
   if (!confirm("ARE YOU SURE!? You aren't doing this on production, ARE YOU?!?")) {return;}
   ajaxCall('/admin/resetTest', 'POST', {}, function(json) {
@@ -95,12 +107,6 @@ var removeUser = function () {
 var removePost = function () {
   //if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
   ajaxCall('/admin/removePost', 'POST', {_id: $("post-to-be-removed").value}, function(json) {
-    console.log(json);
-  });
-}
-var getPost = function () {
-  //if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
-  ajaxCall('/admin/getPost', 'POST', {_id: $("post-to-get").value}, function(json) {
     console.log(json);
   });
 }

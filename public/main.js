@@ -402,6 +402,8 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
     glo.tag = null;
     $("tag-display").classList.add("removed");
     $("clear-tag").classList.add("removed");
+    $("tag-menu-open").classList.remove("removed");
+    $("jump-open").classList.remove("removed");
   } else if (!tag) {
     tag = glo.tag;
   }
@@ -414,6 +416,8 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
   if (tag) {
     glo.tag = tag;
     $("tag-display").innerHTML = 'all posts tagged "'+tag+'" on';
+    $("tag-menu").classList.add("removed");
+    $("tag-menu-open").classList.add("removed");
     $("clear-tag").classList.remove("removed");
     $("tag-display").classList.remove("removed");
     // check if we already have the data
@@ -434,8 +438,12 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
     // check if we already have the data
     if ($('posts-for-'+date)) {
       $('posts-for-'+date).classList.remove('removed');
-
-      //$('top-tags-for-'+date).classList.remove('removed');
+      if ($('top-tags-for-'+date)) {
+        $('top-tags-for-'+date).classList.remove('removed');
+        $("top-tag-bucket").classList.remove('removed');
+      } else {
+        $("top-tag-bucket").classList.add('removed');
+      }
       loadManage();
     } else {
       // we don't, so make the ajax call
@@ -444,10 +452,28 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
         renderPostFeed(json.posts, date);
         $('loading').classList.add('removed');
         // render top tags for the day
-
-
-
-
+        var tagArr = json.topTags;
+        if (tagArr.length === 0) {
+          $("top-tag-bucket").classList.add('removed');
+        } else {
+          var bucket = document.createElement("div");
+          bucket.setAttribute('id', 'top-tags-for-'+date);
+          for (var i = 0; i < tagArr.length; i++) {
+            var tagShell = document.createElement("div");
+            var tag = document.createElement("text");
+            tag.setAttribute('class', 'clicky');
+            tag.innerHTML = tagArr[i];
+            (function (tagName) {
+              tag.onclick = function(){
+                loadPosts(0, tagName);
+              }
+            })(tagArr[i]);
+            tagShell.appendChild(tag);
+            bucket.appendChild(tagShell);
+          }
+          $("top-tags").appendChild(bucket);
+          $("top-tag-bucket").classList.remove('removed');
+        }
         loadManage();
       });
     }

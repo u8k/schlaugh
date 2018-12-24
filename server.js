@@ -275,7 +275,7 @@ var createPost = function (authorID, callback, date) {
   });
 }
 
-var deletePost = function (postID, callback) {
+var deletePost = function (postID, callback) {  // only from the POST DB, most info is with the user
   db.collection('posts').remove({_id: postID},
     function(err, post) {
       if (err) {return callback({error:err});}
@@ -475,14 +475,91 @@ var postsFromAuthorListAndDate = function (authorList, date, callback) {
   });
 }
 
-var getTopTags = function (ref) { //input ref of a date of tags
-  //console.log(" ");
-  for (var tag in ref) {
-    if (ref.hasOwnProperty(tag)) {
-      //console.log(tag, ref[tag].length);
+var insertIntoArray = function (array, index, item) {
+  var before = array.slice(0,index);
+  before.push(item);
+  var after = array.slice(index);
+  return before.concat(after);
+}
+
+var trimTail = function (array) {
+  if (array.length > 7) {
+    var value = array[array.length-1].count;
+    for (var i = array.length-2; i > -1 ; i--) {
+      if (array[i].count !== value) {
+        if (i > 7) {return array.slice(0,i);}
+        else {break;}
+      }
     }
   }
-  //console.log(" ");
+  return array;
+}
+
+var getTopTags = function (ref) { //input ref of a date of tags
+  var arr = [];
+  for (var tag in ref) {
+    if (ref.hasOwnProperty(tag)) {
+      if (ref[tag] && ref[tag].length) {
+        if (arr.length === 0) {
+          arr[0] = {tag: tag, count: ref[tag].length};
+        } else {
+          var matched = false;
+          for (var i = arr.length-1; i > -1 ; i--) {
+            if (ref[tag].length > arr[i].count) {
+              if (i === 0) {
+                arr = insertIntoArray(arr, 0, {tag: tag, count: ref[tag].length});
+                arr = trimTail(arr);
+              }
+            } else if (ref[tag].length === arr[i].count) {
+              matched = true;
+              if (i === 0) {
+                arr = insertIntoArray(arr, 0, {tag: tag, count: ref[tag].length});
+                arr = trimTail(arr);
+              }
+            } else {    // less than
+              if (matched) {
+                arr = insertIntoArray(arr, i+1, {tag: tag, count: ref[tag].length});
+                arr = trimTail(arr);
+                break;
+              } else {
+                if (i < 7) {
+                  arr = insertIntoArray(arr, i+1, {tag: tag, count: ref[tag].length});
+                  arr = trimTail(arr);
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // final trim
+  if (arr.length > 7) {
+    var value = arr[arr.length-1].count;
+    for (var i = arr.length-2; i > -1 ; i--) {
+      if (arr[i].count !== value) {
+        var newArr = arr.slice(0,i+1);
+        var arr = arr.slice(i+1);
+        var choose = (7 - newArr.length);
+        for (var j = 0; j < choose; j++) {
+          var x = (Math.floor(Math.random() * (arr.length)));
+          newArr.push(arr[x]);
+          arr.splice(x,1);
+        }
+        break;
+      }
+    }
+  } else {newArr = arr}
+  // randomize order
+  var randArr = [];
+  var len = newArr.length;
+  for (var i = 0; i < len; i++) {
+    var x = Math.floor(Math.random() * (newArr.length));
+    randArr.push(newArr[x].tag)
+    newArr.splice(x,1);
+  }
+  return randArr;
 }
 
 //*******//ROUTING//*******//
@@ -569,26 +646,19 @@ app.post('/admin/tags', function(req, res) {
   });
 });
 
-app.post('/admin/toptags', function(req, res) {
+/*app.post('/admin/toptags', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('tags').findOne({date: '2018-12-23'}, {_id:0, ref:1}
     , function (err, dateBucket) {
       if (err) {return callback({error:err});}
       else {
-        getTopTags(dateBucket.ref);
-        return res.send({hi:'hi'});
+        if (!dateBucket) {return [];}
+        else {return res.send(getTopTags(dateBucket.ref));}
       }
     });
   });
 });
-
-/*app.post('/admin/getPost', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    getPost(req.body._id, function (resp) {
-      return res.send(resp);
-    });
-  });
-});*/
+*/
 
 app.post('/admin/users', function(req, res) {
   adminGate(req, res, function (res, user) {
@@ -713,6 +783,64 @@ app.post('/admin/makePostIDs', function(req, res) {
     });
   });
 });
+
+app.post('/admin/getPost', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('posts').findOne({_id: req.body._id},
+      function(err, post) {
+        if (err) {return res.send({error:err});}
+        if (!post) {return res.send({error:"post not found"});}
+        var userID = ObjectId(post.authorID);
+        db.collection('users').findOne({_id: userID}
+        , {_id:0, posts:1,}
+        , function (err, user) {
+          if (err) {return sendError(res, err);}
+          else if (!user) {return sendError(res, "user not found");}
+          else {return res.send({error:false, post:user.posts[post.date][0]});}
+        });
+      }
+    );
+  });
+});
+
+app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT TAGS
+  adminGate(req, res, function (res, user) {
+    db.collection('posts').findOne({_id: req.body._id},
+      function(err, post) {
+        if (err) {return res.send({error:err});}
+        if (!post) {return res.send({error:"post not found"});}
+        var userID = ObjectId(post.authorID);
+        db.collection('users').findOne({_id: userID}
+          , {_id:0, posts:1,}
+          , function (err, user) {
+            if (err) {return sendError(res, err);}
+            else if (!user) {return sendError(res, "user not found");}
+            else {
+              var tags = parseInboundTags(req.body.input);
+              if (typeof tags === 'string') {return res.send({error:tags});}
+              var tagArr = [];
+              for (var tag in tags) {
+                if (tags.hasOwnProperty(tag)) {tagArr.push(tag)}
+              }
+              createTagRefs(tagArr, post.date, userID, function (resp) {
+                if (resp.error) {return res.send({error:resp.error});}
+                else {
+
+                  user.posts[post.date][0].tags = tags;
+
+                  writeToDB(userID, user, function (resp) {
+                    if (resp.error) {return res.send({error:resp.error});}
+                    else {return res.send({error:false, post:user.posts[post.date][0]});}
+                  });
+                }
+              });
+            }
+        });
+      }
+    );
+  });
+});
+
 
 /*app.post('/admin/staffCheat', function(req, res) {
   adminGate(req, res, function (res, user) {
@@ -866,10 +994,41 @@ app.post('/posts/:date', function(req, res) {
     if (err) {return sendError(res, err);}
     else if (!user) {return sendError(res, "user not found");}
     else {
-      if (user.following.length === undefined) {user.following = [];}
-      postsFromAuthorListAndDate(user.following, req.params.date, function (resp) {
-        if (resp.error) {return sendError(res, resp.error);}
-        else {return res.send({error:false, posts:resp.posts});}
+      //fetch top tags
+      db.collection('tags').findOne({date: req.params.date}, {ref:1, top:1}
+      , function (err, dateBucket) {
+        if (err) {return sendError(res, err);}
+        else {
+          var freshTops = false;
+          var topTags = [];
+          if (dateBucket) {
+            if (dateBucket.top && dateBucket.top.length) { //check for extant top tags
+              topTags = dateBucket.top;
+            } else if (dateBucket.ref) {
+              topTags = getTopTags(dateBucket.ref);
+              freshTops = true;
+            }
+          }
+          //
+          if (user.following.length === undefined) {user.following = [];}
+          postsFromAuthorListAndDate(user.following, req.params.date, function (resp) {
+            if (resp.error) {return sendError(res, resp.error);}
+            else {
+              if (freshTops) {
+                dateBucket.top = topTags;
+                db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
+                  {$set: dateBucket},
+                  function(err, user) {
+                    if (err) {return sendError(res, err);}
+                    else {return res.send({error:false, posts:resp.posts, topTags:topTags});}
+                  }
+                );
+              } else {
+                return res.send({error:false, posts:resp.posts, topTags:topTags});
+              }
+            }
+          });
+        }
       });
     }
   });
