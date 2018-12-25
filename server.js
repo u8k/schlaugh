@@ -348,7 +348,7 @@ var updateUserPost = function (text, newTags, userID, user, res, errMsg, callbac
             if (resp.error) {return sendError(res, errMsg+resp.error);}
             else {return callback();}
           });
-        }
+        } else {return callback();}
       }
     });
   }
@@ -637,28 +637,19 @@ app.post('/admin/posts', function(req, res) {
 
 app.post('/admin/tags', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('tags').find({},{_id:0}).toArray(function(err, tags) {
-      if (err) {return sendError(res, err);}
-      else {
-        return res.send(tags);
-      }
-    });
-  });
-});
-
-/*app.post('/admin/toptags', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('tags').findOne({date: '2018-12-23'}, {_id:0, ref:1}
+    db.collection('tags').findOne({date: req.body.date}, {_id:0,}
     , function (err, dateBucket) {
-      if (err) {return callback({error:err});}
+      if (err) {return res.send({error:err});}
       else {
-        if (!dateBucket) {return [];}
-        else {return res.send(getTopTags(dateBucket.ref));}
+        if (!dateBucket) {return res.send({error:"not found"});}
+        if (!dateBucket.top) {
+          dateBucket.genndTop = getTopTags(dateBucket.ref);
+        }
+        return res.send(dateBucket);
       }
     });
   });
 });
-*/
 
 app.post('/admin/users', function(req, res) {
   adminGate(req, res, function (res, user) {

@@ -46,13 +46,7 @@ var getPosts = function () {
 }
 
 var getTags = function () {
-  ajaxCall('/admin/tags', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
-var getTopTags = function () {
-  ajaxCall('/admin/toptags', 'POST', {}, function(json) {
+  ajaxCall('/admin/tags', 'POST', {date: $('date-of-tags').value}, function(json) {
     console.log(json);
   });
 }
