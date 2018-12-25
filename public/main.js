@@ -564,7 +564,6 @@ var renderPostFeed = function (postList, date, tag) {
 }
 
 var createMessageButton = function (parent, author, insert) {
-  //console.log(author);
   // OPTIONAL 'insert' is the element before which the button is to be inserted
   if (glo.username && author.author !== glo.username && author.key) {
     var message = document.createElement("clicky");

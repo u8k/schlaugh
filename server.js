@@ -8,7 +8,7 @@ var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
 var request = require('request');
 var pool = require('./public/pool.js');
-//var adminB = require('./public/adminB.js');
+var adminB = require('./public/adminB.js');
 
 //connect and check mongoDB
 var db;
@@ -535,12 +535,11 @@ var getTopTags = function (ref) { //input ref of a date of tags
     }
   }
   // final trim
-  var newArr = arr;
   if (arr.length > 7) {
     var value = arr[arr.length-1].count;
     for (var i = arr.length-2; i > -1 ; i--) {
       if (arr[i].count !== value) {
-        newArr = arr.slice(0,i+1);
+        var newArr = arr.slice(0,i+1);
         var arr = arr.slice(i+1);
         var choose = (7 - newArr.length);
         for (var j = 0; j < choose; j++) {
@@ -549,7 +548,19 @@ var getTopTags = function (ref) { //input ref of a date of tags
           arr.splice(x,1);
         }
         break;
+      } else if (i === 0) {
+        var newArr = [];
+        for (var j = 0; j < 7; j++) {
+          var x = (Math.floor(Math.random() * (arr.length)));
+          newArr.push(arr[x]);
+          arr.splice(x,1);
+        }
       }
+    }
+  } else {
+    var newArr = [];
+    for (var i = 0; i < arr.length; i++) {
+      newArr.push(arr[i]);
     }
   }
   // randomize order
@@ -566,7 +577,7 @@ var getTopTags = function (ref) { //input ref of a date of tags
 //*******//ROUTING//*******//
 
 // admin
-var devFlag = true;
+var devFlag = false;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
@@ -965,7 +976,7 @@ app.post('/', function(req, res) {
 // get posts of following
 app.post('/posts/:date', function(req, res) {
   if (!req.session.user) {return sendError(res, "no user session");}
-  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:""}]});}
+  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
   db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
   , {_id:0, following:1,}
   , function (err, user) {
@@ -1508,7 +1519,7 @@ app.get('/~getPost/:id/:date', function (req, res) {
 
 // get all posts with tag on date
 app.get('/~getTag/:tag/:date', function (req, res) {
-  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"", _id:1}]});}
+  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
   db.collection('tags').findOne({date: req.params.date}, {_id:0, ref:1}
   , function (err, dateBucket) {
     if (err) {return sendError(res, err);}
