@@ -54,6 +54,7 @@
 
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
     string = string.replace(/\r?\n|\r/g, '<br>');
+
     string = string.replace(/  /g, ' &nbsp;');
 
     var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList) {
@@ -65,6 +66,13 @@
       if (cutOpen) {string += "</cut>"}
       return [imgList, string];
     }
+
+    var removeExtraBreak = function (pos) {
+      if (string.substr(pos+1,4) === "<br>") {
+        string = string.substr(0,pos)+string.substr(pos+4);
+      }
+    }
+
     var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList) {
       var next = string.substr(pos).search(/</);
       if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);}
@@ -113,21 +121,29 @@
           pos += 3;
         } else if (string.substr(pos+1,3) === "/l>") {
           pos += 3;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,3) === "/c>") {
           pos += 3;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,3) === "/r>") {
           pos += 3;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,5) === "/cut>") {
           cutOpen = false;
           pos += 5;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,7) === "/quote>") {
           pos += 7;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,4) === "/li>") {
           pos += 4;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,4) === "/ul>") {
           pos += 4;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,4) === "/ol>") {
           pos += 4;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,3) === "br>") {
           pos += 3;
         } else if (string.substr(pos+1,4) === "br/>") {
@@ -163,7 +179,8 @@
           if (string[pos+2] !== ">") {
             string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
           }
-          else {pos += 1;}
+          else {pos += 2;}
+          removeExtraBreak(pos);
         } else {  // the found tag is not on the sanctioned list, so replace it
           string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
         }

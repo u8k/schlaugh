@@ -958,6 +958,33 @@ var prepTextForEditor = function (text) {
   // we usually want br tags and nbsp codes in the text, so we save it that way
   // and convert it for the one place we don't want that, editors
   text = text.replace(/<br>/g, '\n');
+  text = text.replace(/\/li>/g, '/li>\n');
+  text = text.replace(/\/cut>/g, '/cut>\n');
+  text = text.replace(/\/quote>/g, '/quote>\n');
+  text = text.replace(/\/r>/g, '/r>\n');
+  text = text.replace(/\/c>/g, '/c>\n');
+  text = text.replace(/\/l>/g, '/l>\n');
+  text = text.replace(/\/ol>/g, '/ol>\n');
+  text = text.replace(/\/ul>/g, '/ul>\n');
+
+  var recurse = function (pos) {
+    var next = text.substr(pos).search(/<img src="/);
+    if (next !== -1) {
+      pos = pos+next+9;
+      var qPos = text.substr(pos+1).search(/"/)+2;
+      if (qPos === -1) {
+        text += '">';
+        return;
+      }
+      else {
+        pos += qPos;
+        text = text.substr(0,pos+1) + '\n' + text.substr(pos+1);
+      }
+      recurse(pos+1);
+    }
+  }
+  recurse(0);
+
   return text.replace(/&nbsp;/g, ' ');
 }
 
