@@ -535,11 +535,12 @@ var getTopTags = function (ref) { //input ref of a date of tags
     }
   }
   // final trim
+  var newArr = arr;
   if (arr.length > 7) {
     var value = arr[arr.length-1].count;
     for (var i = arr.length-2; i > -1 ; i--) {
       if (arr[i].count !== value) {
-        var newArr = arr.slice(0,i+1);
+        newArr = arr.slice(0,i+1);
         var arr = arr.slice(i+1);
         var choose = (7 - newArr.length);
         for (var j = 0; j < choose; j++) {
@@ -550,7 +551,7 @@ var getTopTags = function (ref) { //input ref of a date of tags
         break;
       }
     }
-  } else {newArr = arr}
+  }
   // randomize order
   var randArr = [];
   var len = newArr.length;
@@ -565,7 +566,7 @@ var getTopTags = function (ref) { //input ref of a date of tags
 //*******//ROUTING//*******//
 
 // admin
-var devFlag = false;
+var devFlag = true;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
@@ -794,7 +795,7 @@ app.post('/admin/getPost', function(req, res) {
   });
 });
 
-app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT TAGS
+app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT POSTS(body)
   adminGate(req, res, function (res, user) {
     db.collection('posts').findOne({_id: req.body._id},
       function(err, post) {
@@ -807,23 +808,10 @@ app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT TAGS
             if (err) {return sendError(res, err);}
             else if (!user) {return sendError(res, "user not found");}
             else {
-              var tags = parseInboundTags(req.body.input);
-              if (typeof tags === 'string') {return res.send({error:tags});}
-              var tagArr = [];
-              for (var tag in tags) {
-                if (tags.hasOwnProperty(tag)) {tagArr.push(tag)}
-              }
-              createTagRefs(tagArr, post.date, userID, function (resp) {
+              user.posts[post.date][0].body = req.body.input;
+              writeToDB(userID, user, function (resp) {
                 if (resp.error) {return res.send({error:resp.error});}
-                else {
-
-                  user.posts[post.date][0].tags = tags;
-
-                  writeToDB(userID, user, function (resp) {
-                    if (resp.error) {return res.send({error:resp.error});}
-                    else {return res.send({error:false, post:user.posts[post.date][0]});}
-                  });
-                }
+                else {return res.send({error:false, post:user.posts[post.date][0]});}
               });
             }
         });
@@ -831,7 +819,6 @@ app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT TAGS
     );
   });
 });
-
 
 /*app.post('/admin/staffCheat', function(req, res) {
   adminGate(req, res, function (res, user) {
@@ -1035,7 +1022,7 @@ app.post('/follow', function(req, res) {
     if (err) {return sendError(res, err);}
     else if (!user) {return sendError(res, "user not found");}
     else {
-      if (!req.body || !req.body.id) {return sendError(res, "malformed request");}
+      if (!req.body || !req.body.id) {return sendError(res, "malformed request 283");}
       // make sure they even have a following array
       if (user.following.length === undefined) {user.following = [];}
       if (req.body.remove) {
@@ -1061,7 +1048,7 @@ app.post('/inbox', function(req, res) {
   var errMsg = "your message may not be saved, please copy your text if you want to keep it<br><br>";
   if (!req.session.user) {return sendError(res, errMsg+"no user session");}
   // the incoming text is encrypted, so we can not cleanse it
-  if (typeof req.body.encSenderText === undefined || typeof req.body.encRecText === undefined) {return sendError(res, errMsg+"malformed request<br><br>"+req.body.encSenderText+"<br><br>"+req.body.encRecText);}
+  if (typeof req.body.encSenderText === undefined || typeof req.body.encRecText === undefined) {return sendError(res, errMsg+"malformed request 188<br><br>"+req.body.encSenderText+"<br><br>"+req.body.encRecText);}
   var recipientID = String(req.body.recipient);
   var senderID = String(req.session.user._id);
   if (recipientID === senderID) {return sendError(res, errMsg+"you want to message yourself??? freak.");}
@@ -1223,7 +1210,7 @@ app.post('/unread', function(req, res) {
           if (resp.error) {sendError(res, resp.error);}
           else {res.send({error: false});}
         });
-      } else {sendError(res,"malformed request");}
+      } else {sendError(res,"malformed request 72");}
     }
   });
 });
@@ -1384,7 +1371,7 @@ app.post('/register', function(req, res) {
 
 // log in (aslo password verify)
 app.post('/login', function(req, res) {
-  if (!req.body.username || !req.body.password) {return sendError(res, "malformed request")}
+  if (!req.body.username || !req.body.password) {return sendError(res, "malformed request 147")}
   var username = req.body.username;
 	var password = req.body.password;
   // validate
@@ -1446,7 +1433,7 @@ app.post('/keys', function(req, res) {
             });
           }
         });
-      } else {return sendError(res, "malformed request");}
+      } else {return sendError(res, "malformed request 303");}
     }
   });
 });
@@ -1521,7 +1508,7 @@ app.get('/~getPost/:id/:date', function (req, res) {
 
 // get all posts with tag on date
 app.get('/~getTag/:tag/:date', function (req, res) {
-  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:""}]});}
+  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"", _id:1}]});}
   db.collection('tags').findOne({date: req.params.date}, {_id:0, ref:1}
   , function (err, dateBucket) {
     if (err) {return sendError(res, err);}

@@ -453,7 +453,7 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
         $('loading').classList.add('removed');
         // render top tags for the day
         var tagArr = json.topTags;
-        if (tagArr.length === 0) {
+        if (!tagArr || tagArr.length === 0) {
           $("top-tag-bucket").classList.add('removed');
         } else {
           var bucket = document.createElement("div");
@@ -564,6 +564,7 @@ var renderPostFeed = function (postList, date, tag) {
 }
 
 var createMessageButton = function (parent, author, insert) {
+  //console.log(author);
   // OPTIONAL 'insert' is the element before which the button is to be inserted
   if (glo.username && author.author !== glo.username && author.key) {
     var message = document.createElement("clicky");
@@ -591,7 +592,7 @@ var createMessageButton = function (parent, author, insert) {
 
 var createFollowButton = function (parent, author, insert) {
   // OPTIONAL 'insert' is the element before which the button is to be inserted
-  if (glo.username) {
+  if (glo.username && author._id) {
     var follow = document.createElement("clicky");
     // is the user already following the author?
     if (glo.following[author._id]) {
