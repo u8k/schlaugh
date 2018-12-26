@@ -71,6 +71,52 @@ var saveColors = function () {
   });
 }
 
+var colorPreset = function (num) {
+  switch (num) {
+    case 1:
+      var colors = {
+        postBackground: '#32363F',
+        text: '#D8D8D8',
+        linkText: '#BFA5FF',
+        background: '#324144',
+      }
+      break;
+    case 2:
+      var colors = {
+        postBackground: '#CB7FA6',
+        text: '#00FF1D',
+        linkText: '#00729F',
+        background: '#00B978',
+      }
+      break;
+    case 3:
+      var colors = {
+        postBackground: '#FFFFFF',
+        text: '#000000',
+        linkText: '#0500FF',
+        background: '#E4E4E4',
+      }
+      break;
+    case 4:
+      var colors = {
+        postBackground: '#525252',
+        text: '#FFFFFF',
+        linkText: '#2FFF00',
+        background: '#000000',
+      }
+      break;
+    case 5:
+      var colors = {
+        postBackground: '#44E228',
+        text: '#0200B3',
+        linkText: '#FBFF00',
+        background: '#95E8FF',
+      }
+      break;
+  }
+  changeAllColors(colors);
+}
+
 var getCursorPosition = function (elem) {
 	// IE < 9 Support
 	if (document.selection) {
@@ -1653,14 +1699,18 @@ var setColors = function () {
     }
     glo.settings.colors = savedColors;
   }
-  for (var prop in savedColors) {
-    if (savedColors.hasOwnProperty(prop)) {
-      changeColor(savedColors[prop], prop);
+  changeAllColors(savedColors)
+}
+
+var changeAllColors = function (colorObject) {
+  for (var prop in colorObject) {
+    if (colorObject.hasOwnProperty(prop)) {
+      changeColor(colorObject[prop], prop);
       // set button
-      if (savedColors[prop][0] === '#') {
-        $(prop+'-color-button').jscolor.fromString(String(savedColors[prop]).slice(1));
+      if (colorObject[prop][0] === '#') {
+        $(prop+'-color-button').jscolor.fromString(String(colorObject[prop]).slice(1));
       } else {
-        var arr = savedColors[prop].slice(4,-1).replace(/ /g, '').split(",");
+        var arr = colorObject[prop].slice(4,-1).replace(/ /g, '').split(",");
         $(prop+'-color-button').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
       }
     }

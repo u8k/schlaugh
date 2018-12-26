@@ -197,8 +197,16 @@ input:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 1000px #32363F inset !important;
 }*/
 
+#color-settings-box {
+  display: flex;
+  justify-content: space-between;
+  width: 300px;
+  margin: auto;
+}
+#color-inputs-box {text-align: right;}
+
 .color-button {
-  width: 115px;
+  width: 65px;
 }
 
 .highlight {
