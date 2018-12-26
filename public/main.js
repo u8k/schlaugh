@@ -931,7 +931,7 @@ var updatePendingPost = function (newText, newTags, remove) {
   var tags = "";
   for (var tag in newTags) {
     if (newTags.hasOwnProperty(tag)) {
-      tags += tag + " ";
+      tags += tag + ", ";
     }
   }
   $('tag-input').value = tags;
@@ -946,14 +946,17 @@ var appendTags = function (postString, tagRef, author) {
     if (tagRef.hasOwnProperty(tag)) {
       if (author) {
         tags += '<a onclick="filterAuthorByTag(`'+author+'`,`'+tag+
-          '`); return false;" href="'+author+'/~tagged/'+tag+'">'+tag+'</a> ';
+          '`); return false;" href="'+author+'/~tagged/'+tag+'">'+tag+'</a>, ';
       } else {
         tags += '<a onclick="loadPosts(0,`'+tag+
-        '`); return false;" href="/~tagged/'+tag+'">'+tag+'</a> ';
+        '`); return false;" href="/~tagged/'+tag+'">'+tag+'</a>, ';
       }
     }
   }
-  if (tags !== "") {return postString +"<br><br><hr>"+ "tags: "+tags;}
+  if (tags.substr(tags.length-2, tags.length) === ", ") {
+    tags = tags.substr(0,tags.length-2);
+  }
+  if (tags !== "") {return postString +"<br><br><hr><i>"+ tags+"</i>";}
   else {return postString;}
 }
 
