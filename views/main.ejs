@@ -78,9 +78,12 @@
     <icon id="back-arrow" class="removed clicky fas fa-caret-left" onclick="closeThread()"></icon>
     <br>
     <a id="thread-title" class="not-special"></a>
+    <br>
+    <text id='thread-status' class='removed'></text>
   </div>
   <br>
-  <clicky id="mark-unread" class="special removed" onclick="markUnread()">(mark unread)</clicky>
+  <button id="mark-unread" class="removed" onclick="markUnread()">mark unread</button>
+  <button id="block-button" class="removed" onclick="block()">block</button>
   <div id="thread-list"></div>
   <br>
   <div id="message-preview" class="removed">
@@ -133,6 +136,8 @@
 </div>
 
 <div id="login-panel" class="removed">
+
+  <slogan>have you schlaughed today?</slogan>
 
   <div id="inOrUp">
     <button onclick="chooseInOrUp(false)">schlaugh in</button>

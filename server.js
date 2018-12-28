@@ -117,12 +117,14 @@ var checkObjForProp = function (obj, prop, value) { //and add the prop if it doe
 
 var checkLastTwoMessages = function (t, tmrw, inbound) {
   //'inbound' = true to indicate we are seeking inbound messages, false = outbound
-  var len = t.length;
-  if (t[len-1] && t[len-1].date === tmrw) {
-    if (t[len-1].inbound === inbound) {
-      return len-1;
-    } else if (t[len-2] && t[len-2].date === tmrw && t[len-2].inbound === inbound) {
-      return len-2;
+  if (t && t.length !== undefined) {
+    var len = t.length;
+    if (t[len-1] && t[len-1].date === tmrw) {
+      if (t[len-1].inbound === inbound) {
+        return len-1;
+      } else if (t[len-2] && t[len-2].date === tmrw && t[len-2].inbound === inbound) {
+        return len-2;
+      }
     }
   }
   //returns false for nothing found, else returns index of hit
@@ -168,8 +170,8 @@ var bumpThreadList = function (box) {  //bumps pending threads to top of list
   } return false; // false indicates no update needed/performed
 }
 
-var removeListRefIfRemovingOnlyMessage = function (box, id, b, tmrw) {
-  if (b.remove && box.threads[id].thread.length < 2) {
+var removeListRefIfRemovingOnlyMessage = function (box, id, remove, tmrw) {
+  if (remove && box.threads[id].thread.length < 2) {
     if (!box.threads[id].thread[0] || box.threads[id].thread[0].date === tmrw) {
       for (var i = box.list.length-1; i > -1 ; i--) {
         if (String(box.list[i]) === String(id)) {
@@ -185,7 +187,7 @@ var getPayload = function (req, res, callback) {
   if (!req.session.user) {return sendError(res, "no user session");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1}
+    , {_id:0, username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1,}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, "user not found");}
@@ -208,13 +210,13 @@ var getPayload = function (req, res, callback) {
           var list = user.inbox.list;
           //reverse thread order so as to send a list ordered newest to oldest
           for (var i = list.length-1; i > -1; i--) {
-            //check the last two messages of each thread, see if they are allowed
-            var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, tmrw, true);
-            if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
-            //
-            if (user.inbox.threads[list[i]].thread.length !== 0) {
+            if (user.inbox.threads[list[i]] && user.inbox.threads[list[i]].thread && user.inbox.threads[list[i]].thread.length !== undefined) {
+              //check the last two messages of each thread, see if they are allowed
+              var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, tmrw, true);
+              if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
               // add in the authorID for the FE
               user.inbox.threads[list[i]]._id = list[i];
+              // all threads are locked until unlocked on the FE
               user.inbox.threads[list[i]].locked = true;
               threads.push(user.inbox.threads[list[i]]);
             }
@@ -580,6 +582,10 @@ var getTopTags = function (ref) { //input ref of a date of tags
   return randArr;
 }
 
+var genInboxTemplate = function () {
+  return {threads: {}, list: [], updatedOn: pool.getCurDate(), pending: {}};
+}
+
 //*******//ROUTING//*******//
 
 // admin
@@ -628,10 +634,10 @@ app.get('/admin', function(req, res) {
         [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[]}).list.length, 3],
         [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[54545, 12345, 9876]}).list.length, 5],
         //
-        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3).length, 2],
-        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[7,7,7,7]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3), false],
-        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:8}]},3:{}}, list:[1,2,3]}, 2, {remove:true}, 3), false],
-        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:3}]},3:{}}, list:[8,6,1,2,3]}, 2, {remove:true}, 3).length, 4],
+        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[]},3:{}}, list:[1,2,3]}, 2, true, 3).length, 2],
+        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[7,7,7,7]},3:{}}, list:[1,2,3]}, 2, true, 3), false],
+        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:8}]},3:{}}, list:[1,2,3]}, 2, true, 3), false],
+        [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:3}]},3:{}}, list:[8,6,1,2,3]}, 2, true, 3).length, 4],
         //
       ]
     );
@@ -1041,7 +1047,7 @@ app.post('/follow', function(req, res) {
     else {
       if (!req.body || !req.body.id) {return sendError(res, "malformed request 283");}
       // make sure they even have a following array
-      if (user.following.length === undefined) {user.following = [];}
+      if (!user.following || user.following.length === undefined) {user.following = [];}
       if (req.body.remove) {
         for (var i = 0; i < user.following.length; i++) {
           if (String(user.following[i]) === String(req.body.id)) {
@@ -1071,23 +1077,24 @@ app.post('/inbox', function(req, res) {
   if (recipientID === senderID) {return sendError(res, errMsg+"you want to message yourself??? freak.");}
   // make both sender and recipient DB calls first
   db.collection('users').findOne({_id: ObjectId(senderID)}
-  , {_id:0, inbox:1, username:1, keys:1, iconURI:1}
+  , {_id:0, inbox:1, username:1, keys:1, iconURI:1,}
   , function (err, sender) {
     if (err) {return sendError(res, errMsg+err);}
     else if (!sender) {return sendError(res, errMsg+"sender not found");}
     else {
       if (!sender.keys) {return sendError(res, errMsg+"missing sender key<br><br>"+sender.keys);}
       db.collection('users').findOne({_id: ObjectId(recipientID)}
-      , {_id:0, inbox:1, username:1, keys:1, iconURI:1}
+      , {_id:0, inbox:1, username:1, keys:1, iconURI:1,}
       , function (err, recipient) {
         if (err) {return sendError(res, errMsg+err);}
         else if (!recipient) {return sendError(res, errMsg+"recipient not found");}
         else {
+          //
           if (!recipient.keys) {return sendError(res, errMsg+"missing recipient key<br><br>"+recipient.keys);}
           var tmrw = pool.getCurDate(-1);
           var overwrite = false;
           // update the sender's end first
-          var inboxTemplate = {threads: {}, list: [], updatedOn: pool.getCurDate(), pending: {}};
+          var inboxTemplate = genInboxTemplate();
           checkObjForProp(sender, 'inbox', inboxTemplate);
           //
           var recipientPic = recipient.iconURI;
@@ -1098,8 +1105,12 @@ app.post('/inbox', function(req, res) {
             sender.inbox.list.push(recipientID);
           } else {
             // there is an extant thread, so
+            // is either person blocking the other?
+            if (sender.inbox.threads[recipientID].blocking || sender.inbox.threads[recipientID].blocked) {
+              return sendError(res, errMsg+"this message is not allowed");
+            }
             // check/update the key
-            if (sender.inbox.threads[recipientID].key !== recipient.keys.pubKey) {
+            if (!sender.inbox.threads[recipientID].key || sender.inbox.threads[recipientID].key !== recipient.keys.pubKey) {
               // key is OLD AND BAD, head back to FE w/ new Key to re-encrypt
               sender.inbox.threads[recipientID].key = recipient.keys.pubKey;
               writeToDB(senderID, sender, function (resp) {
@@ -1110,14 +1121,25 @@ app.post('/inbox', function(req, res) {
             // check the last two items, overwrite if there is already a pending message
             if (checkLastTwoForPending(sender.inbox.threads[recipientID].thread, req.body.remove, req.body.encSenderText, tmrw, false)) {
               overwrite = true;
-              removeListRefIfRemovingOnlyMessage(sender.inbox, recipientID, req.body, tmrw);
+              removeListRefIfRemovingOnlyMessage(sender.inbox, recipientID, req.body.remove, tmrw);
+            }
+            // check that there is a ref on the list, (an extant thread does not nec. imply this)
+            if (!req.body.remove) {
+              var foundMatch = false;
+              for (var i = 0; i < sender.inbox.list.length; i++) {
+                if (String(sender.inbox.list[i]) === String(recipientID)) {
+                  foundMatch = true;
+                  break;
+                }
+              }
+              if (!foundMatch) {sender.inbox.list.push(recipientID);}
             }
             // check/update the thread "name"
-            if (sender.inbox.threads[recipientID].name !== recipient.username) {
+            if (!sender.inbox.threads[recipientID].name || sender.inbox.threads[recipientID].name !== recipient.username) {
               sender.inbox.threads[recipientID].name = recipient.username;
             }
             // check/update pic
-            if (sender.inbox.threads[recipientID].image !== recipientPic) {
+            if (!sender.inbox.threads[recipientID].image || sender.inbox.threads[recipientID].image !== recipientPic) {
               sender.inbox.threads[recipientID].image = recipientPic;
             }
           }
@@ -1128,8 +1150,8 @@ app.post('/inbox', function(req, res) {
               body: req.body.encSenderText,
             });
           }
-          //remove the thread if it is now empty
-          if (!sender.inbox.threads[recipientID].thread[0]) {delete sender.inbox.threads[recipientID];}
+
+
           // AND AGAIN: now update the symetric data on the recipient's side
           if (!checkObjForProp(recipient, 'inbox', inboxTemplate)) {
             bumpThreadList(recipient.inbox);
@@ -1139,6 +1161,10 @@ app.post('/inbox', function(req, res) {
           // if the recipient does not already have a thread w/ the sender, create one
           if (!checkObjForProp(recipient.inbox.threads, senderID, {name:sender.username, unread:false, image:senderPic, thread:[], key:sender.keys.pubKey})) {
             // there is an extant thread, so
+            // is either person blocking the other?
+            if (recipient.inbox.threads[senderID].blocking || recipient.inbox.threads[senderID].blocked) {
+              return sendError(res, errMsg+"this message is not allowed");
+            }
             // check the last two items, overwrite if there is already a pending message
             if (checkLastTwoForPending(recipient.inbox.threads[senderID].thread, req.body.remove, req.body.encRecText, tmrw, true)) {
               overwrite = true;
@@ -1148,15 +1174,15 @@ app.post('/inbox', function(req, res) {
               }
             }
             // check/update the key
-            if (recipient.inbox.threads[senderID].key !== sender.keys.pubKey) {
+            if (!recipient.inbox.threads[senderID].key || recipient.inbox.threads[senderID].key !== sender.keys.pubKey) {
               recipient.inbox.threads[senderID].key = sender.keys.pubKey;
             }
             // check/update the thread "name"
-            if (recipient.inbox.threads[senderID].name !== sender.username) {
+            if (!recipient.inbox.threads[senderID].name || recipient.inbox.threads[senderID].name !== sender.username) {
               recipient.inbox.threads[senderID].name = sender.username;
             }
             // check/update pic
-            if (recipient.inbox.threads[senderID].image !== senderPic) {
+            if (!recipient.inbox.threads[senderID].image || recipient.inbox.threads[senderID].image !== senderPic) {
               recipient.inbox.threads[senderID].image = senderPic;
             }
           }
@@ -1169,8 +1195,7 @@ app.post('/inbox', function(req, res) {
             // add to the 'pending' collection
             recipient.inbox.pending[senderID] = true;
           }
-          //remove the thread if it is now empty
-          if (!recipient.inbox.threads[senderID].thread[0]) {delete recipient.inbox.threads[senderID];}
+
           writeToDB(senderID, sender, function (resp) {
             if (resp.error) {sendError(res, errMsg+resp.error);}
             else {
@@ -1184,7 +1209,63 @@ app.post('/inbox', function(req, res) {
       });
     }
   });
-})
+});
+
+// block/unblock a user from messaging you
+app.post('/block', function(req, res) {
+  var errMsg = "block/unblock error<br><br>"
+  if (!req.session.user) {return sendError(res, errMsg+"no user session");}
+  var blockerID = ObjectId(req.session.user._id);
+  if (!req.body || !req.body.blockeeID) {return sendError(res, errMsg+"malformed request 844");}
+  var blockeeID = ObjectId(req.body.blockeeID);
+  db.collection('users').findOne({_id: blockerID}
+  , {_id:0, inbox:1}
+  , function (err, blocker) {
+    if (err) {return sendError(res, errMsg+err);}
+    else if (!blocker) {return sendError(res, errMsg+"user not found, blocker");}
+    else {
+      db.collection('users').findOne({_id: blockeeID}
+      , {_id:0, inbox:1}
+      , function (err, blockee) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!blockee) {return sendError(res, errMsg+"user not found, blockee");}
+        else {
+          var inboxTemplate = {name:'', unread:false, image:'', thread:[], key:''}
+          if (!blocker.inbox) {blocker.inbox = genInboxTemplate();}
+          if (!blockee.inbox) {blockee.inbox = genInboxTemplate();}
+          if (!blocker.inbox.threads) {blocker.inbox.threads = {};}
+          if (!blockee.inbox.threads) {blockee.inbox.threads = {};}
+          if (!blocker.inbox.threads[blockeeID]) {blocker.inbox.threads[blockeeID] = inboxTemplate}
+          if (!blockee.inbox.threads[blockerID]) {blockee.inbox.threads[blockerID] = inboxTemplate}
+          if (req.body.blocking === true) {
+            blocker.inbox.threads[blockeeID].blocking = true;
+            blockee.inbox.threads[blockerID].blocked = true;
+            // delete pending message from recipient (if one exists)
+            var tmrw = pool.getCurDate(-1);
+            if (checkLastTwoForPending(blocker.inbox.threads[blockeeID].thread, true, "", tmrw, false)) {
+              removeListRefIfRemovingOnlyMessage(blocker.inbox, blockeeID, true, tmrw);
+            }
+            if (checkLastTwoForPending(blockee.inbox.threads[blockerID].thread, true, "", tmrw, true)) {
+              if (blockee.inbox.pending[blockerID]) {delete blockee.inbox.pending[blockerID];}
+            }
+          } else {          // unblocking
+            blocker.inbox.threads[blockeeID].blocking = false;
+            blockee.inbox.threads[blockerID].blocked = false;
+          }
+          writeToDB(blockerID, blocker, function (resp) {
+            if (resp.error) {sendError(res, errMsg+resp.error);}
+            else {
+              writeToDB(blockeeID, blockee, function (resp) {
+                if (resp.error) {sendError(res, errMsg+resp.error);}
+                else {res.send({error: false});}
+              });
+            }
+          });
+        }
+      });
+    }
+  });
+});
 
 // validate images
 app.post('/image', function(req, res) {
@@ -1213,21 +1294,23 @@ app.post('/link', function(req, res) {
 
 // toggle unread status of threads
 app.post('/unread', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session");}
+  var errMsg = "unread property error<br><br>"
+  if (!req.session.user) {return sendError(res, errMsg+ "no user session");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, inbox:1}
   , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, "user not found");}
+    if (err) {return sendError(res, errMsg+ err);}
+    else if (!user) {return sendError(res, errMsg+ "user not found");}
     else {
-      if (user.inbox && user.inbox.threads[req.body._id]) {
-        user.inbox.threads[req.body._id].unread = req.body.bool;
-        writeToDB(userID, user, function (resp) {
-          if (resp.error) {sendError(res, resp.error);}
-          else {res.send({error: false});}
-        });
-      } else {sendError(res,"malformed request 72");}
+      if (!user.inbox) {user.inbox = genInboxTemplate();}
+      if (!user.inbox.threads) {user.inbox.threads = {};}
+      if (!user.inbox.threads[req.body._id]) {return sendError(res, errMsg+ "thread not found");}
+      user.inbox.threads[req.body._id].unread = req.body.bool;
+      writeToDB(userID, user, function (resp) {
+        if (resp.error) {sendError(res, errMsg+ resp.error);}
+        else {res.send({error: false});}
+      });
     }
   });
 });

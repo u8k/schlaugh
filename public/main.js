@@ -271,12 +271,12 @@ var verify = function (message, callback) {
     $("pop-up-backing").classList.remove("hidden");
     $("confirm-text").innerHTML = message;
     $("confirm-yes").onclick = function () {
-      if (callback) {callback(true);}
       verify(false);
+      if (callback) {callback(true);}
     }
     var exit = function(){
-      if (callback) {callback(false);}
       verify(false);
+      if (callback) {callback(false);}
     }
     $("confirm-no").onclick = exit;
     $("pop-up-backing").onclick = exit;
@@ -597,7 +597,9 @@ var renderPostFeed = function (postList, date, tag) {
       // actual post body
       var text = document.createElement("text");
       text.setAttribute('class', 'body-text');
-      text.innerHTML = appendTags(convertText(postList[rando[i]].body, postList[rando[i]]._id+"-"+date+"-feed"), postList[rando[i]].tags);
+      if (tag) {var uniqueID = postList[rando[i]]._id+"-"+date+"-"+tag+"-feed";}
+      else {var uniqueID = postList[rando[i]]._id+"-"+date+"-feed"}
+      text.innerHTML = appendTags(convertText(postList[rando[i]].body, uniqueID), postList[rando[i]].tags);
       post.appendChild(text);
       //
       createPostFooter(post, postList[rando[i]]._id, date, postList[rando[i]].post_id, postList[rando[i]].author);
@@ -1215,7 +1217,9 @@ var hideCurrentThread = function (i) {
   $("thread-title").classList.add('removed');
   $("thread-title").removeAttribute('href');
   $("mark-unread").classList.add('removed');
+  $('block-button').classList.add('removed');
   $("thread-title-area").classList.add('removed');
+  $('thread-status').classList.add('removed');
   $("thread-list").classList.remove('removed');
   return true;
 }
@@ -1235,11 +1239,28 @@ var openThread = function (i) {
         }
       }
       glo.activeThreadIndex = i;
+      (function (index) {
+        $('block-button').onclick = function(){block(index);}
+      })(i);
+      if (glo.threads[i].blocking) {          // are you blocking them?
+        $('block-button').innerHTML = 'unblock';
+        $("message-preview").classList.add('removed');
+        $('thread-status').innerHTML = "(blocking)";
+        $('thread-status').classList.remove('removed');
+      } else if (glo.threads[i].blocked) {    // are they blocking you?
+        $('thread-status').innerHTML = "(blocked)";
+        $('thread-status').classList.remove('removed');
+        $('block-button').innerHTML = 'block';
+        $("message-preview").classList.add('removed');
+      } else {
+        $('block-button').innerHTML = 'block';
+        $("mark-unread").classList.remove('removed');
+        $("message-preview").classList.remove('removed');
+      }
+      $('block-button').classList.remove('removed');
       $("thread-list").classList.add('removed');
-      $("mark-unread").classList.remove('removed');
       $(i+"-thread").classList.remove('removed');
       if ($(i+"-thread-pic")) {$(i+"-thread-pic").classList.remove('removed');}
-      $("message-preview").classList.remove('removed');
       $("back-arrow").classList.remove('removed');
       $("thread-title").innerHTML = glo.threads[i].name;
       $("thread-title").setAttribute('href', "/"+glo.threads[i].name);
@@ -1321,7 +1342,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
   } else {
     var text = $('messageEditor').value;
     if (text === "") {return;}
-    if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option, sorry this is a bug please note all details and tell staff sorry");}
+    if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a bug please note all details and tell staff sorry");}
     //
     var encryptAndSend = function () {
       encrypt(text, glo.keys.pubKey, glo.threads[i].key, function (encSenderText, encRecText) {
@@ -1373,9 +1394,7 @@ var checkForThread = function (user) {
     var index = glo.threads.length;
     glo.threadRef[user._id] = index;
     glo.threads.push(user);
-    if (index === 0) {
-      $("thread-list").removeChild($("thread-list").childNodes[0]);
-    }
+    if ($("no-threads")) {$("no-threads").classList.add('removed');}
     createThread(index, true);
     openThread(index);
   }
@@ -1469,19 +1488,73 @@ var populateThread = function (i) {
 }
 
 var populateThreadlist = function () {
-  var parent = $("thread-list");
-  if (glo.threads.length === 0) {
-    var name = document.createElement("div");
-    name.innerHTML = "no threads!";
-    parent.appendChild(name);
-  } else {
-    for (var i = 0; i < glo.threads.length; i++) {
+  var noThreads = true;
+  for (var i = 0; i < glo.threads.length; i++) {
+    if (glo.threads[i].thread.length !== 0) {
+      noThreads = false;
       createThread(i);
     }
-    if (glo.unread > 0) {
-      $("inbox-panel-button").classList.add("special");
-    }
   }
+  if (noThreads) {
+    var name = document.createElement("div");
+    name.setAttribute('id', 'no-threads');
+    name.innerHTML = "no threads!";
+    $("thread-list").appendChild(name);
+  }
+  if (glo.unread > 0) {
+    $("inbox-panel-button").classList.add("special");
+  }
+}
+
+var block = function (threadIndex) {
+  var blockCall = function () {
+    ajaxCall('/block', 'POST', {blockeeID:glo.threads[threadIndex]._id, blocking:blocking}, function(json) {
+      if (blocking) {
+        $("block-button").innerHTML = "unblock";
+        $("mark-unread").classList.add('removed');
+        $("message-preview").classList.add('removed');
+        $("message-writer").classList.add('removed');
+        $('thread-status').classList.remove('removed');
+        $('thread-status').innerHTML = '(blocking)';
+        glo.threads[threadIndex].blocking = true;
+      } else {                          // you are unblocking them,
+        $("block-button").innerHTML = "block";
+        glo.threads[threadIndex].blocking = false;
+        if (glo.threads[threadIndex].blocked) {   // but are you still blocked by them?
+          $("mark-unread").classList.add('removed');
+          $("message-preview").classList.add('removed');
+          $('thread-status').classList.remove('removed');
+          $('thread-status').innerHTML = '(blocked)';
+        } else {
+          $('thread-status').classList.add('removed');
+          $("mark-unread").classList.remove('removed');
+          $("message-preview").classList.remove('removed');
+        }
+      }
+    });
+  }
+  var blocking = false;
+  var confMessage = "you want "+glo.threads[threadIndex].name+" to be able to message you?";
+  if ($("block-button").innerHTML === "block") {
+    blocking = true;
+    confMessage = "you want to prevent "+glo.threads[threadIndex].name+" from being able to message you?<br><br>(in the event that "+glo.threads[threadIndex].name+" currently has a pending message to you, that message will still be delivered, all further messages will be prevented, starting now)";
+  }
+  verify(confMessage, function (result) {
+    if (result) {
+      var thread = glo.threads[threadIndex].thread;
+      if (blocking && thread && thread[thread.length-1] && thread[thread.length-1].date === pool.getCurDate(-1)) {
+        verify("you have a pending message to "+glo.threads[threadIndex].name+". If you block them now, that message will be deleted and will not be sent to them. That cool?", function (result) {
+          if (result) {blockCall();}
+        });
+      } else {
+        var len = glo.threads[threadIndex].thread.length-1;
+        var last = glo.threads[threadIndex].thread[len];
+        glo.threads[threadIndex].thread.splice(len,1);
+        updatePendingMessage(threadIndex);
+        blockCall();
+      }
+    }
+  });
 }
 
 // encryption stuff
