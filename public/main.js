@@ -35,7 +35,7 @@ var changeColor = function (colorCode, type) {
       var attribute = "background-color";
       break;
     case "text":                        //text
-      var selector = "body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button, .not-special";
+      var selector = "body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button, .not-special, .pop-up";
       var attribute = "color";
       for (var i = sheet.cssRules.length-1; i > -1; i--) {
         if (sheet.cssRules[i].selectorText === 'button') {
@@ -235,7 +235,11 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
     callback: function(data) {
       if (data === null) {return;}
       else {
-        signIn('/login', data, function () {
+        if (glo.currentAuthor && glo.currentAuthor._id) {
+          data.authorID = glo.currentAuthor._id;
+        }
+        signIn('/login', data, function (resp) {
+          if (resp && resp.otherKey) {glo.currentAuthor.key = resp.otherKey;}
           createFollowButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
           createMessageButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
         });
@@ -592,13 +596,12 @@ var renderPostFeed = function (postList, date, tag) {
       authorBox.appendChild(author);
       authorBox.appendChild(document.createElement("br"));
       createFollowButton(authorBox, postList[rando[i]]);
-      createMessageButton(authorBox, postList[rando[i]]);
       post.appendChild(authorBox);
       // actual post body
       var text = document.createElement("text");
       text.setAttribute('class', 'body-text');
-      if (tag) {var uniqueID = postList[rando[i]]._id+"-"+date+"-"+tag+"-feed";}
-      else {var uniqueID = postList[rando[i]]._id+"-"+date+"-feed"}
+      if (tag) {var uniqueID = postList[rando[i]].post_id+"-"+date+"-"+tag+"-feed";}
+      else {var uniqueID = postList[rando[i]].post_id+"-"+date+"-feed"}
       text.innerHTML = appendTags(convertText(postList[rando[i]].body, uniqueID), postList[rando[i]].tags);
       post.appendChild(text);
       //
@@ -913,7 +916,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     }
     var data = {text:text, remove:remove, tags:tags}
     ajaxCall("/", 'POST', data, function(json) {
-        updatePendingPost(json.text, json.tags, remove)
+      updatePendingPost(json.text, json.tags, remove)
     });
   }
 }
@@ -1008,17 +1011,33 @@ var filterAuthorByTag = function (author, tag) {
 var prepTextForEditor = function (text) {
   // we usually want br tags and nbsp codes in the text, so we save it that way
   // and convert it for the one place we don't want that, editors
-  text = text.replace(/<br>/g, '\n');
-  text = text.replace(/\/li>/g, '/li>\n');
-  text = text.replace(/\/cut>/g, '/cut>\n');
-  text = text.replace(/\/quote>/g, '/quote>\n');
-  text = text.replace(/\/r>/g, '/r>\n');
-  text = text.replace(/\/c>/g, '/c>\n');
-  text = text.replace(/\/l>/g, '/l>\n');
-  text = text.replace(/\/ol>/g, '/ol>\n');
-  text = text.replace(/\/ul>/g, '/ul>\n');
+  text = text.replace(/\/cut>/g, '/cut><br>');
+  text = text.replace(/\/li>/g, '/li><br>');
+  text = text.replace(/\/quote>/g, '/quote><br>');
+  text = text.replace(/\/r>/g, '/r><br>');
+  text = text.replace(/\/c>/g, '/c><br>');
+  text = text.replace(/\/l>/g, '/l><br>');
+  text = text.replace(/\/ol>/g, '/ol><br>');
+  text = text.replace(/\/ul>/g, '/ul><br>');
 
-  var recurse = function (pos) {
+  var preTagLineBreakRecurse = function (pos, tag) {
+    var next = text.substr(pos).search(tag);
+    if (next !== -1) {
+      pos = pos+next;
+      if (text.substr(pos-4, 4) !== '<br>') {
+        text = text.substr(0,pos)+'<br>'+text.substr(pos);
+      }
+      preTagLineBreakRecurse(pos+1, tag);
+    }
+  }
+  var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<r>/, /<c>/, /<l>/, /<img/];
+  for (var i = 0; i < tagArr.length; i++) {
+    preTagLineBreakRecurse(0, tagArr[i]);
+  }
+
+  text = text.replace(/<br>/g, '\n');
+
+  var imgRecurse = function (pos) {
     var next = text.substr(pos).search(/<img src="/);
     if (next !== -1) {
       pos = pos+next+9;
@@ -1031,10 +1050,10 @@ var prepTextForEditor = function (text) {
         pos += qPos;
         text = text.substr(0,pos+1) + '\n' + text.substr(pos+1);
       }
-      recurse(pos+1);
+      imgRecurse(pos+1);
     }
   }
-  recurse(0);
+  imgRecurse(0);
 
   return text.replace(/&nbsp;/g, ' ');
 }
@@ -1151,11 +1170,11 @@ var insertQuote = function (src) {
         prompt({
           label: "source text(optional):",
           callback: function(sourceText) {
-            if (sourceText !== null) {
+            if (sourceText !== null && sourceText !== "") {
               prompt({
                 label: "source link(optional):",
                 callback: function(sourceLink) {
-                  if (sourceLink !== null) {
+                  if (sourceLink !== null && sourceLink !== "") {
                     ajaxCall('/link', 'POST', {url:sourceLink}, function(json) {
                       if (json.issue) {
                         verify(json.issue, function (res) {
@@ -1720,13 +1739,13 @@ var signIn = function (url, data, callback) {
       makeKeys(data.password, function (keys) {
         ajaxCall('/keys', 'POST', keys, function(json) {
           parseUserData(json.payload);
-          if (callback) {callback();}
+          if (callback) {callback(json.payload);}
         });
       });
     } else {
       parseUserData(json.payload);
       unlockInbox(data.password);
-      if (callback) {callback();}
+      if (callback) {callback(json.payload);}
     }
   });
 }

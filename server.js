@@ -183,7 +183,7 @@ var removeListRefIfRemovingOnlyMessage = function (box, id, remove, tmrw) {
   } return false;
 }
 
-var getPayload = function (req, res, callback) {
+var getPayload = function (req, res, otherUserID, callback) {
   if (!req.session.user) {return sendError(res, "no user session");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
@@ -202,9 +202,13 @@ var getPayload = function (req, res, callback) {
           settings: user.settings,
           following: user.following,
         }
+        //pending post
+        if (user.posts[tmrw]) {
+          payload.pending = user.posts[tmrw][0];
+        }
         //inbox
-        var threads = [];
         if (user.inbox) {
+          var threads = [];
           bumpThreadList(user.inbox);
           writeToDB(ObjectId(req.session.user._id), user, function () {});
           var list = user.inbox.list;
@@ -220,14 +224,35 @@ var getPayload = function (req, res, callback) {
               user.inbox.threads[list[i]].locked = true;
               threads.push(user.inbox.threads[list[i]]);
             }
+          }                     // this data request is from a login on a user page
+          if (otherUserID) {    // check if either user is blocking the other
+            if (!user.inbox.threads[otherUserID] || (!user.inbox.threads[otherUserID].blocking && !user.inbox.threads[otherUserID].blocked)) {
+              // good to go, we need the other users key
+              db.collection('users').findOne({_id: otherUserID}
+              , {_id:0, keys:1,}
+              , function (err, otherUser) {
+                if (err) {return sendError(res, err);}
+                else if (!otherUser) {return sendError(res, "other user not found");}
+                else {
+                  if (otherUser.keys) {
+                    payload.threads = threads;
+                    payload.otherKey = otherUser.keys.pubKey;
+                    return callback(payload);
+                  }
+                }
+              });
+            } else {
+              payload.threads = threads;
+              return callback(payload);
+            }
+          } else {
+            payload.threads = threads;
+            return callback(payload);
           }
+        } else {
+          payload.threads = [];
+          return callback(payload);
         }
-        payload.threads = threads;
-        //pending post
-        if (user.posts[tmrw]) {
-          payload.pending = user.posts[tmrw][0];
-        }
-        return callback(payload);
       }
     });
   }
@@ -455,7 +480,7 @@ var sendError = function (res, msg) {
 
 var postsFromAuthorListAndDate = function (authorList, date, callback) {
   db.collection('users').find({_id: {$in: authorList}}
-    ,{posts:1, username:1, iconURI:1, keys:1}).toArray(function(err, users) {
+    ,{posts:1, username:1, iconURI:1,}).toArray(function(err, users) {
     if (err) {return callback({error:err});}
     else {
       var posts = [];
@@ -463,8 +488,6 @@ var postsFromAuthorListAndDate = function (authorList, date, callback) {
         if (users[i].posts[date]) {
           var authorPic = users[i].iconURI;
           if (typeof authorPic !== 'string') {authorPic = "";}
-          var key = null;
-          if (users[i].keys) {key = users[i].keys.pubKey}
           var post_id = null;
           if (users[i].posts[date][0].post_id) {post_id = users[i].posts[date][0].post_id}
           posts.push({
@@ -474,7 +497,6 @@ var postsFromAuthorListAndDate = function (authorList, date, callback) {
             author: users[i].username,
             authorPic: authorPic,
             _id: users[i]._id,
-            key: key,
           });
         }
       }
@@ -920,7 +942,7 @@ app.get('/~payload', function(req, res) {
   // for the "cookieless" version this should be a POST
   if (!req.session.user) {return sendError(res, "no user session");}
   else {
-    getPayload(req, res, function (payload) {
+    getPayload(req, res, null, function (payload) {
       return res.send({payload:payload});
     });
   }
@@ -1498,7 +1520,10 @@ app.post('/login', function(req, res) {
               }
             } else { // this is an actual login
               req.session.user = { _id: ObjectId(user._id) };
-              getPayload(req, res, function (payload) {
+              if (req.body.authorID) {        // is this a login while viewing an author page?
+                var authorID = ObjectId(req.body.authorID);
+              }
+              getPayload(req, res, authorID, function (payload) {
                 return res.send({error:false, payload:payload});
               });
             }
@@ -1528,7 +1553,7 @@ app.post('/keys', function(req, res) {
         writeToDB(userID, user, function (resp) {
           if (resp.error) {sendError(res, resp.error);}
           else {
-            getPayload(req, res, function (payload) {
+            getPayload(req, res, null, function (payload) {
               return res.send({error:false, payload:payload});
             });
           }
@@ -1548,7 +1573,7 @@ app.get('/~logout', function(req, res) {
 app.get('/~getAuthor/:username', function(req, res) {
   if (req.params.username === "admin" || req.params.username === "apwbd") {return res.send({error: false, four04: true});}
   db.collection('users').findOne({username: req.params.username}
-  , { posts:1, postList:1, postListPending:1, iconURI:1, keys:1}
+  , { posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1}
   , function (err, author) {
     if (err) {return sendError(res, err);}
     else {
@@ -1568,8 +1593,13 @@ app.get('/~getAuthor/:username', function(req, res) {
           }
         }
         var key = null;
-        if (author.keys) {key = author.keys.pubKey}
         var authorPic = getUserPic(author);
+        if (req.session.user) {
+          var userID = ObjectId(req.session.user._id);
+          if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
+            if (author.keys) {key = author.keys.pubKey}
+          }
+        }
         res.send({
           error: false,
           four04: false,
