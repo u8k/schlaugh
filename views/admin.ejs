@@ -18,6 +18,7 @@
     <script src="/admin.js"></script>
   </head>
   <body>
+    <!--
     <br>
     codes:
     <br><br>
@@ -30,13 +31,13 @@
         <% }
       }
     } %>
-
     <br><br>
     <form action="/admin" method="post">
       <input type="text" name="code" placeholder="name">
       <input type="submit" value="addCode">
     </form>
     <br><br><br>
+  -->
     <h3>frontEnd tests:</h3>
     <h4 id="test-title"></h4>
     <div id="test-results"></div>
@@ -57,8 +58,12 @@
     <% } %>
       </ul>
     <br><br>
-    <!--<button onclick="makePostIDs()">makePostIDs</button>
-    <button onclick="resetTest()">reset test DB</button>-->
+    <!--
+    <button onclick="makePostIDs()">makePostIDs</button>
+    <button onclick="resetTest()">reset test DB</button>
+    <button type="button" name="button" onclick="testEmail()">test email</button>
+    -->
+    <button type="button" name="button" onclick="getResetCodes()">getResetCodes</button>
     <br><br>
     <input id="data-field" type="text" placeholder="data field">
     <button type="button" name="button" onclick="getUsers()">log users</button>

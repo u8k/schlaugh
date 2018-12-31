@@ -111,7 +111,7 @@ clicky, .clicky {
 .thread-name {font-size: 1.8em}
 #thread-status {font-size: .5em;}
 
-.post, .message, #settings-panel, #thread-list {
+.post, .message, #settings-box, #thread-list {
   box-shadow: 0px 0px 1px 2px rgba(0, 0, 0, .1);
   width: 75%;
   margin: auto;
@@ -123,7 +123,7 @@ clicky, .clicky {
   position: relative;
 }
 .message {width: 85%;}
-#settings-panel, #thread-list {text-align: center;}
+#settings-box, #thread-list {text-align: center;}
 
 img {
   max-width: 100%;
@@ -159,7 +159,7 @@ img {
 }
 
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .post, #settings-panel {width: 98%;}
+  .post, #settings-box {width: 98%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
   #post-writer{width: 95%;}
@@ -209,6 +209,10 @@ input:-webkit-autofill {
 .color-button {
   width: 65px;
 }
+.preset-button {
+  width: 95px;
+  height: 18px;
+}
 
 .highlight {
   font-size: 1.6em;
@@ -228,7 +232,7 @@ body, h1, input {
   color: #D8D8D8;
   background-color: #324144;
 }
-.post, .message, .editor, #settings-panel, #thread-list, .pop-up {
+.post, .message, .editor, #settings-box, #thread-list, .pop-up {
   color: #D8D8D8;
   background-color: #32363F;
 }
@@ -241,7 +245,7 @@ slogan {
   margin-top: 10vh;
   display: block;
   font-style: italic;
-  font-size: 8vh;
+  font-size: 2.8em;
 }
 
 #inOrUp {
@@ -255,6 +259,13 @@ slogan {
 #up {
   margin-top: 5vh;
 }
+
+#lost-panel {
+  text-align: center;
+  max-width: 830px;
+  margin: auto;
+}
+#lost-pass {font-size: .75em}
 
 .pop-up {
   padding: 15px;

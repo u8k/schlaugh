@@ -24,7 +24,7 @@
     <%- include("editorButtons", {kind: "post"}) %>
     <textarea id="postEditor" class="editor" autocomplete="off"></textarea>
     <br>
-    <label for="">tags</label><br>
+    <label for="tag-input">tags</label><br>
     <input id="tag-input" type="text" placeholder="separated by commas!">
     <br><br>
     <button onclick="submitPost()">schlaubmit</button>
@@ -104,35 +104,43 @@
 
 <div id="settings-panel" class="removed">
   <h2>schlettings</h2>
-  <br><br>
-  <img id="user-pic" class="removed user-pic" src="">
-  <br>
-  <label for="pic-url">picURL</label><br>
-  <input id="pic-url" type="text" name="pic-url" value=""><br>
-  <button onclick="submitPic()">schlaubmit</button>
-  <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
-  <br><br><br>
-  <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
-  <div id="color-settings-box">
-    <div id="color-presets-box">
-      <button onclick="colorPreset(1)">classic</button><br>
-      <button onclick="colorPreset(2)">give me</button><br>
-      <button onclick="colorPreset(3)">some good</button><br>
-      <button onclick="colorPreset(4)">themes to</button><br>
-      <button onclick="colorPreset(5)">put here</button>
+  <div id="settings-box">
+    <br><br>
+    <img id="user-pic" class="removed user-pic" src="">
+    <br>
+    <label for="pic-url">picURL</label><br>
+    <input id="pic-url" type="text" name="pic-url" value=""><br>
+    <button onclick="submitPic()">schlaubmit</button>
+    <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
+    <br><br><br><hr>
+    <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
+    <div id="color-settings-box">
+      <div id="color-presets-box">
+        <button class="preset-button" onclick="colorPreset(1)">classic</button><br>
+        <button class="preset-button" onclick="colorPreset(2)">slate</button><br>
+        <button class="preset-button" onclick="colorPreset(3)">evan's theme</button><br>
+        <button class="preset-button" onclick="colorPreset(4)">definite</button><br>
+        <button class="preset-button" onclick="colorPreset(5)">eyesore</button>
+      </div>
+      <div id="color-inputs-box">
+        post background: <input id="postBackground-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+        text: <input id="text-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+        link text: <input id="linkText-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+        background: <input id="background-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+      </div>
     </div>
-    <div id="color-inputs-box">
-      post background: <input id="postBackground-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-      text: <input id="text-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-      link text: <input id="linkText-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-      background: <input id="background-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-    </div>
-  </div>
+    <button id="save-colors" type="button" class="hidden" onclick="saveColors()">save</button>
 
-  <button id="save-colors" type="button" class="hidden" onclick="saveColors()">save</button>
-  <br><br><br>
-  <a class="clicky" onclick="signOut()">schlaugh out</a>
-  <br><br><br>
+    <br><br><br><hr><br>
+    <text>verify email<clicky onclick="verifyEmailExplain()" class="special">(?)</clicky></text><br>
+    <form action="javascript:void(0);">
+      <input id="email-verify-input" type="text" placeholder="email address"><br>
+      <button type="submit" onclick="verifyEmail()">check</button>
+    </form>
+    <br><br><br>
+    <a class="clicky" onclick="signOut()">schlaugh out</a>
+    <br><br><br>
+  </div>
 </div>
 
 <div id="login-panel" class="removed">
@@ -178,12 +186,57 @@
       <button type="button" onclick="togglePassTextVisibility(this, ['in-pass-input'])">show password</button>
       <br><br>
       <button type="submit" onclick="logInPageSubmit('in')">schlaugh in</button>
+      <br><br>
+      <clicky id="lost-pass" onclick="switchPanel('lost-panel')">lost password?</clicky>
     </form>
   </div>
 </div>
 
 <div id="o-panel" class="removed">
   <img src="https://images2.wikia.nocookie.net/__cb20090803052143/heyarnold/images/e/e6/Oskar.jpg" alt="oscar">
+</div>
+
+<div id="lost-panel" class="removed">
+  <h2>PASSWORD RESET EMAIL REQUEST</h2><br>
+  <text>please don't do this unless you absolutely super have to. your private messages are locked with your password, and changing your password in this manner will mean that those messages will be permanently locked in encryption and unrecoverable forever<br><br>anyway, enter your username and the email associated with your account. It has to be the same email that you previously entered. And we can't tell you whether it's correct or not. If it's right, you'll get an email, if not, then no email will be sent. If you didn't enter an email for your account, or don't know what you entered, then you're out of luck. But try several addresses, if you're not sure which one you used.<br><br>the recovery link we send you expires one hour from sending<br>schlaugh@protonmail.com for additional assistance</text>
+  <br><br>
+  <form action="javascript:void(0);">
+    <text>username</text><br>
+    <input type="text" id="username-lost"><br>
+    <text>email</text><br>
+    <input type="text" id="email-lost"><br>
+    <button id="recovery-submit-button" type="submit" onclick="submitRecoveryRequest()">submit</button>
+    <button id="recovery-reset-button" class="removed" onclick="resetRecoveryRequest()">reset</button>
+  </form><br>
+  <text id="lost-password-submission" class="hidden">if that username/email combination is valid, then an email has been sent<br>(you may need to check your spam folder)</text>
+</div>
+
+<div id="recovery-panel" class="removed">
+  <h2>PASSWORD RESET</h2><br><br>
+  <form action="javascript:void(0);" id="pass-reset-form">
+    <div id="recovery-username-box">
+      <text>username<clicky onclick="alert('this must match the account for which you had an email sent','got it')" class="special">(?)</clicky></text><br>
+      <input id="username-recovery" type="text" name="username" autocomplete="username"><br>
+    </div>
+    <div id="recovery-pass-box" class="removed">
+      <text>new password(twice)</text><br>
+      <input id="password-recovery1" type="password" autocomplete="new-password" name="password"><br>
+      <input id="password-recovery2" type="password" autocomplete="new-password" name="password"><br>
+      <button type="button" onclick="togglePassTextVisibility(this, ['password-recovery1', 'password-recovery2'])">show password</button><br>
+    </div>
+    <button type="submit" onclick="submitRecoveryName()">submit</button>
+  </form>
+  <div id="pass-reset-success" class="removed">
+    <text>your password has been successfully reset<br><br><clicky onclick="switchPanel('login-panel');simulatePageLoad();" class="special">please log in here</clicky></text>
+    <br><br>
+  </div>
+  <br><br>
+</div>
+
+<div id="bad-recovery-panel" class="removed">
+  <h2>invalid code</h2><br>
+  perhaps it has expired?<br><br>
+  <clicky onclick="switchPanel('lost-panel');simulatePageLoad();" class="special">try again?</clicky><br><br>
 </div>
 
 <div id="pop-up-backing" class="hidden"></div>

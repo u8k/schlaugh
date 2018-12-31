@@ -99,8 +99,20 @@ var removeUser = function () {
 }
 
 var removePost = function () {
-  //if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
+  if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
   ajaxCall('/admin/removePost', 'POST', {_id: $("post-to-be-removed").value}, function(json) {
+    console.log(json);
+  });
+}
+
+var testEmail = function () {
+  ajaxCall('/admin/testEmail', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var getResetCodes = function () {
+  ajaxCall('/admin/resetCodes', 'POST', {}, function(json) {
     console.log(json);
   });
 }

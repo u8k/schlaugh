@@ -14,10 +14,10 @@
 
     <% if (user && typeof settings !== "undefined" && typeof settings.colors !== "undefined") { %>
       <style media="screen">
-        .post, .message, .editor, #settings-panel, #thread-list, button, .pop-up {
+        .post, .message, .editor, #settings-box, #thread-list, button, .pop-up {
           background-color: <%= settings.colors.postBackground %>;
         }
-        body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button, .not-special, .pop-up {
+        body, h1, input, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up {
           color: <%= settings.colors.text %>;
         }
         button {border-color: <%= settings.colors.text %>;}
@@ -122,6 +122,12 @@
         <script type="text/javascript">
           loadPosts(0, <%- JSON.stringify(tag) %>);
         </script>
+      <% } else if (typeof recovery !== "undefined") { %>
+        <% if (recovery) { %>
+          <script type="text/javascript">switchPanel("recovery-panel"); glo.resetCode = <%- JSON.stringify(recovery) %>;</script>
+        <% } else { %>
+          <script type="text/javascript">switchPanel("bad-recovery-panel");</script>
+          <% } %>
       <% } else { %>
         <script type="text/javascript">switchPanel("login-panel");</script>
       <% } %>

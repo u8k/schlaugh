@@ -33,10 +33,10 @@
 
   exports.passwordValidate = function (x) {
     if (x === "") {
-      return "need a pass!"
+      return "empty string is not a valid password, sorry"
     }
     if (/[^ a-zA-Z0-9-_!@#$%&*?]/.test(x)) {
-      return 'invalid pass, a-zA-Z0-9-_!@#$%&*? only';
+      return 'invalid password<br><br> valid characters include letters A-Z(upper/lowercase), numbers 0-9, spaces, and the following special characters: -_!@#$%&*?';
     }
     else {return false;}  // false indicates good, no problems
   }

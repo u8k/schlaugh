@@ -1,7 +1,7 @@
 {
   "name": "schlaugh",
   "version": "1.0.0",
-  "description": "social network",
+  "description": "a quiet place to write",
   "main": "server.js",
   "scripts": {
     "start": "node server"
@@ -9,6 +9,7 @@
   "author": "u8k",
   "license": "",
   "dependencies": {
+    "@sendgrid/mail": "^6.3.1",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.17.2",
     "cookie-session": "^2.0.0-beta.2",

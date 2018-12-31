@@ -31,11 +31,11 @@ var changeColor = function (colorCode, type) {
   var sheet = document.styleSheets[document.styleSheets.length-1];
   switch (type) {
     case "postBackground":                 //post background
-      var selector = ".post, .message, .editor, #settings-panel, #thread-list, button, .pop-up";
+      var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up";
       var attribute = "background-color";
       break;
     case "text":                        //text
-      var selector = "body, h1, input, .post, .message, .editor, #settings-panel, #thread-list, button, .not-special, .pop-up";
+      var selector = "body, h1, input, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up";
       var attribute = "color";
       for (var i = sheet.cssRules.length-1; i > -1; i--) {
         if (sheet.cssRules[i].selectorText === 'button') {
@@ -73,7 +73,7 @@ var saveColors = function () {
 
 var colorPreset = function (num) {
   switch (num) {
-    case 1:
+    case 1:           // classic
       var colors = {
         postBackground: '#32363F',
         text: '#D8D8D8',
@@ -81,36 +81,37 @@ var colorPreset = function (num) {
         background: '#324144',
       }
       break;
-    case 2:
+    case 2:          // slate
       var colors = {
-        postBackground: '#CB7FA6',
-        text: '#00FF1D',
-        linkText: '#00729F',
-        background: '#00B978',
+        postBackground: '#3c4654',
+        text: '#FFFCEA',
+        linkText: '#9CB1FF',
+        background: '#1c1922',
       }
       break;
-    case 3:
+    case 3:         // evan's theme
+      var colors = {
+        postBackground: '#0E0E0E',
+        text: '#FFFFFF',
+        linkText: '#64C6FF',
+        background: '#000000',
+      }
+      break;
+    case 4:         // definite
       var colors = {
         postBackground: '#FFFFFF',
         text: '#000000',
         linkText: '#0500FF',
         background: '#E4E4E4',
+
       }
       break;
-    case 4:
+    case 5:       // eyesore
       var colors = {
-        postBackground: '#525252',
-        text: '#FFFFFF',
-        linkText: '#2FFF00',
-        background: '#000000',
-      }
-      break;
-    case 5:
-      var colors = {
-        postBackground: '#44E228',
-        text: '#0200B3',
-        linkText: '#FBFF00',
-        background: '#95E8FF',
+        postBackground: '#C6FFC1',
+        text: '#00518B',
+        linkText: '#A41A90',
+        background: '#BCFAFF',
       }
       break;
   }
@@ -248,7 +249,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
   });
 }
 
-var alert = function (message, callback) {
+var alert = function (message, btnTxt, callback) {
   if (!$("alert")) {return console.log(message);}
   if (!message) {  //close the alert
     $("alert").classList.add("hidden");
@@ -257,6 +258,8 @@ var alert = function (message, callback) {
     $("alert").classList.remove("hidden");
     $("pop-up-backing").classList.remove("hidden");
     $("alert-text").innerHTML = message;
+    if (btnTxt) {$('alert-submit').innerHTML = btnTxt;}
+    else {$('alert-submit').innerHTML = "'kay";}
     var exit = function(){
       if (callback) {callback();}
       alert(false);
@@ -266,7 +269,7 @@ var alert = function (message, callback) {
   }
 }
 
-var verify = function (message, callback) {
+var verify = function (message, yesText, noText, callback) {
   if (!message) {  //close the confirm
     $("confirm").classList.add("hidden");
     $("pop-up-backing").classList.add("hidden");
@@ -274,6 +277,10 @@ var verify = function (message, callback) {
     $("confirm").classList.remove("hidden");
     $("pop-up-backing").classList.remove("hidden");
     $("confirm-text").innerHTML = message;
+    if (yesText) {$("confirm-yes").innerHTML = yesText;}
+    else {$("confirm-yes").innerHTML = 'yeah';}
+    if (noText) {$("confirm-no").innerHTML = noText;}
+    else {$("confirm-no").innerHTML = 'nope';}
     $("confirm-yes").onclick = function () {
       verify(false);
       if (callback) {callback(true);}
@@ -391,7 +398,9 @@ var switchPanel = function (panelName) {
     simulatePageLoad();
     $(panelName+"-button").classList.add('highlight');
   }
-  if (panelName === "login-panel") {$("sign-in").classList.add('removed');}
+  if (panelName === "login-panel" || panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
+    $("sign-in").classList.add('removed');
+  }
   $(panelName).classList.remove('removed');
   glo.openPanel = panelName;
 }
@@ -898,7 +907,7 @@ var open404post = function (author) {
 
 var submitPost = function (remove) { //also handles editing and deleting
   if (remove) {
-    verify("you sure you want me should delete it?", function (result) {
+    verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
       else {
         var data = {text:null, tags:null, remove:remove}
@@ -1098,7 +1107,7 @@ var hyperlink = function (src) {
             if (linkText !== null) {
               ajaxCall('/link', 'POST', {url:target}, function(json) {
                 if (json.issue) {
-                  verify(json.issue, function (res) {
+                  verify(json.issue, null, null, function (res) {
                     if (!res) {
                       area.value = y;
                       setCursorPosition(area, a, b);
@@ -1125,6 +1134,7 @@ var insertImage = function (src) {
   prompt({
     label: "image url:",
     value:"https://i.imgur.com/hDEXSt7.jpg",
+    placeholder: "hiss",
     callback: function(target) {
       if (target !== null) {
         area.value = y.slice(0, a)+'<img src="'+target+'">'+y.slice(b);
@@ -1145,6 +1155,7 @@ var insertCut = function (src) {
   prompt({
     label:"text:",
     value:cutText,
+    placeholder: "",
     callback: function(cutText) {
       if (cutText != null) {
         area.value = y.slice(0, a)+'<cut>'+cutText+'</cut>'+y.slice(b);
@@ -1165,19 +1176,22 @@ var insertQuote = function (src) {
   prompt({
     label:"quote text:",
     value:quoteText,
+    placeholder: "nitwit blubber oddment tweak",
     callback: function(quoteText) {
       if (quoteText !== null) {
         prompt({
           label: "source text(optional):",
+          placeholder: "dumbledore",
           callback: function(sourceText) {
             if (sourceText !== null && sourceText !== "") {
               prompt({
                 label: "source link(optional):",
+                placeholder: "http://www.dumbledore.com",
                 callback: function(sourceLink) {
                   if (sourceLink !== null && sourceLink !== "") {
                     ajaxCall('/link', 'POST', {url:sourceLink}, function(json) {
                       if (json.issue) {
-                        verify(json.issue, function (res) {
+                        verify(json.issue,  null, null, function (res) {
                           if (!res) {
                             area.value = y;
                             setCursorPosition(area, a, b);
@@ -1217,7 +1231,7 @@ var closeThread = function () { // returns true for threadClosed, false for NO
     var last = glo.threads[i].thread[glo.threads[i].thread.length-1];
     if (!last || last.date !== pool.getCurDate(-1) || text !== prepTextForEditor(last.body)) {
       //is it okay to lose that unsaved text?
-      verify("lose current unsaved message text?", function (result) {
+      verify("lose current unsaved message text?", null, null, function (result) {
         if (!result) {return;}
         //and then take to the thread?
         else {return hideCurrentThread(i);}
@@ -1336,7 +1350,7 @@ var updatePendingMessage = function (index) {
 var submitMessage = function (remove) {  //also handles editing and deleting
   var i = glo.activeThreadIndex;
   if (remove) {
-    verify("you sure you want me should delete it?", function (result) {
+    verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
       else {
         var data = {
@@ -1558,11 +1572,11 @@ var block = function (threadIndex) {
     blocking = true;
     confMessage = "you want to prevent "+glo.threads[threadIndex].name+" from being able to message you?<br><br>(in the event that "+glo.threads[threadIndex].name+" currently has a pending message to you, that message will still be delivered, all further messages will be prevented, starting now)";
   }
-  verify(confMessage, function (result) {
+  verify(confMessage, null, null, function (result) {
     if (result) {
       var thread = glo.threads[threadIndex].thread;
       if (blocking && thread && thread[thread.length-1] && thread[thread.length-1].date === pool.getCurDate(-1)) {
-        verify("you have a pending message to "+glo.threads[threadIndex].name+". If you block them now, that message will be deleted and will not be sent to them. That cool?", function (result) {
+        verify("you have a pending message to "+glo.threads[threadIndex].name+". If you block them now, that message will be deleted and will not be sent to them. That cool?", null, null, function (result) {
           if (result) {blockCall();}
         });
       } else {
@@ -1612,6 +1626,8 @@ var decrypt = function (text, key, callback) {
     callback(decryptedMessage.data);
   }, function () {                // callback for failed decryption
     callback("<c>***encryption/decryption error! SORRY! Tell staff about this!***</c>");
+  }).catch(function (err) {
+    console.log(err);
   });
 }
 
@@ -1622,7 +1638,7 @@ var verifyPass = function (callback) {      // for decryption
       if (data === null) {return;}
       ajaxCall('/login', 'POST', data, function(json) {
         if (json.switcheroo) {
-          return alert("switcheroo!", function () {location.reload();});
+          return alert("huh!? that's a different account...", "switcheroo!", function () {location.reload();});
         } else {
           unlockInbox(data.password, callback);
         }
@@ -1832,4 +1848,95 @@ var togglePassTextVisibility = function (btn, elemArr) {
     btn.innerHTML = 'show password'
     for (var i = 0; i < elemArr.length; i++) {$(elemArr[i]).type = 'password';}
   }
+}
+
+var verifyEmailExplain = function () {
+  alert(`schlaugh stores your email in <a href="https://en.wikipedia.org/wiki/Cryptographic_hash_function#Password_verification" target="_blank">"hashed"</a> form, meaning we can't just tell you what email address you have on file with us. But you can input what you think it is and we can tell you if that's right. And it's good to have a good email address stored with us in case you need to reset your password. But please don't need to reset your password.`)
+}
+
+var verifyEmail = function () {
+  ajaxCall('/verifyEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
+    if (json.match) {
+      alert('a perfect match!<br><br>in the event of a lost password, "'+$("email-verify-input").value+'" is your recovery email', "aye, aye, captain!");
+    } else {
+      verify("hmm...<br><br>that does not match our records. you can try again, or change our records to this?", "change", "again", function (result) {
+        if (!result) {return;}
+        else {
+          verify('you want the email associated with this account to be "'+$("email-verify-input").value+'"?', "please!", "nahhhh", function (result) {
+            if (!result) {return;}
+            else {
+              // validate email format,
+              ajaxCall('/changeEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
+                if (json) {
+                  alert('congratulations!<br><br>in the event of a lost password, "'+json.email+'" is your recovery email')
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+  });
+}
+
+var submitRecoveryRequest = function () {
+  if ($("username-lost").value !== "" && $("email-lost").value !== "") {
+    var data = {username: $("username-lost").value, email: $("email-lost").value,}
+    ajaxCall('/passResetRequest', 'POST', data, function(json) {
+      $("lost-password-submission").classList.remove("hidden");
+      $("recovery-submit-button").classList.add("removed");
+      $("recovery-reset-button").classList.remove("removed");
+    });
+  } else {
+    alert("invalid input");
+  }
+}
+
+var resetRecoveryRequest = function () {
+  $("username-lost").value = "";
+  $("email-lost").value = "";
+  $("recovery-submit-button").classList.remove("removed");
+  $("recovery-reset-button").classList.add("removed");
+  $("lost-password-submission").classList.add("hidden");
+}
+
+var submitRecoveryName = function () {
+  if ($("username-recovery").value === "") {return alert("empty input!")}
+  var data = {username: $("username-recovery").value, code: glo.resetCode,}
+  if ($("password-recovery1").value !== "" && $("password-recovery2").value !== "") {
+    if ($("password-recovery1").value === $("password-recovery2").value) {
+      verify("final warning:<br><br>by resetting your password you are losing access to your messaging history. Only do this if you are sure there is no way you will ever figure out what your password was. Or if you just don't care about your old messages.<br><br>Go ahead and reset password?", 'yes', 'no', function (resp) {
+        if (!resp) {return;}
+        else {
+          data.password = $("password-recovery1").value;
+          makeResetCall(data);
+        }
+      });
+    } else {return alert("password fields are not identical!");}
+  } else if ($("password-recovery1").value !== "" || $("password-recovery2").value !== "") {
+    return alert("password fields are not identical!");
+  } else {
+    makeResetCall(data);
+  }
+}
+
+var makeResetCall = function (data) {
+  ajaxCall('/resetNameCheck', 'POST', data, function(json) {
+    if (json.verify) {
+      $("recovery-username-box").classList.add("removed");
+      $("recovery-pass-box").classList.remove("removed");
+    } else if (json.victory) {
+      $("pass-reset-form").classList.add("removed");
+      $("pass-reset-success").classList.remove("removed");
+    } else {
+      if (json.attempt === 5) {
+        alert(`the inputted username does not match the code for which it was generated<br><br>attempt 5 of 5<br><br>try a new code?`, "ok", function () {
+          switchPanel('lost-panel');
+          simulatePageLoad();
+        });
+      } else {
+        alert("the inputted username does not match the code for which it was generated<br>please try again<br><br>attempt "+json.attempt+" of 5");
+      }
+    }
+  });
 }
