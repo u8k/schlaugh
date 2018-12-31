@@ -400,6 +400,9 @@ var switchPanel = function (panelName) {
   }
   if (panelName === "login-panel" || panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
     $("sign-in").classList.add('removed');
+    $("username-recovery").value = "";
+    $("password-recovery1").value = "";
+    $("password-recovery2").value = "";
   }
   $(panelName).classList.remove('removed');
   glo.openPanel = panelName;
