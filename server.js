@@ -1137,6 +1137,7 @@ app.post('/inbox', function(req, res) {
           if (!recipient.keys) {return sendError(res, errMsg+"missing recipient key<br><br>"+recipient.keys);}
           var tmrw = pool.getCurDate(-1);
           var overwrite = false;
+          var noReKey = true;
           // update the sender's end first
           var inboxTemplate = genInboxTemplate();
           checkObjForProp(sender, 'inbox', inboxTemplate);
@@ -1156,35 +1157,37 @@ app.post('/inbox', function(req, res) {
             // check/update the key
             if (!sender.inbox.threads[recipientID].key || sender.inbox.threads[recipientID].key !== recipient.keys.pubKey) {
               // key is OLD AND BAD, head back to FE w/ new Key to re-encrypt
+              noReKey = false;
               sender.inbox.threads[recipientID].key = recipient.keys.pubKey;
               writeToDB(senderID, sender, function (resp) {
-                if (resp.error) {sendError(res, errMsg+resp.error);}
-                else {res.send({error:false, reKey:recipient.keys.pubKey});}
+                if (resp.error) {return sendError(res, errMsg+resp.error);}
+                else {return res.send({error:false, reKey:recipient.keys.pubKey});}
               });
-            }
-            // check the last two items, overwrite if there is already a pending message
-            if (checkLastTwoForPending(sender.inbox.threads[recipientID].thread, req.body.remove, req.body.encSenderText, tmrw, false)) {
-              overwrite = true;
-              removeListRefIfRemovingOnlyMessage(sender.inbox, recipientID, req.body.remove, tmrw);
-            }
-            // check that there is a ref on the list, (an extant thread does not nec. imply this)
-            if (!req.body.remove) {
-              var foundMatch = false;
-              for (var i = 0; i < sender.inbox.list.length; i++) {
-                if (String(sender.inbox.list[i]) === String(recipientID)) {
-                  foundMatch = true;
-                  break;
-                }
+            } else {
+              // check the last two items, overwrite if there is already a pending message
+              if (checkLastTwoForPending(sender.inbox.threads[recipientID].thread, req.body.remove, req.body.encSenderText, tmrw, false)) {
+                overwrite = true;
+                removeListRefIfRemovingOnlyMessage(sender.inbox, recipientID, req.body.remove, tmrw);
               }
-              if (!foundMatch) {sender.inbox.list.push(recipientID);}
-            }
-            // check/update the thread "name"
-            if (!sender.inbox.threads[recipientID].name || sender.inbox.threads[recipientID].name !== recipient.username) {
-              sender.inbox.threads[recipientID].name = recipient.username;
-            }
-            // check/update pic
-            if (!sender.inbox.threads[recipientID].image || sender.inbox.threads[recipientID].image !== recipientPic) {
-              sender.inbox.threads[recipientID].image = recipientPic;
+              // check that there is a ref on the list, (an extant thread does not nec. imply this)
+              if (!req.body.remove) {
+                var foundMatch = false;
+                for (var i = 0; i < sender.inbox.list.length; i++) {
+                  if (String(sender.inbox.list[i]) === String(recipientID)) {
+                    foundMatch = true;
+                    break;
+                  }
+                }
+                if (!foundMatch) {sender.inbox.list.push(recipientID);}
+              }
+              // check/update the thread "name"
+              if (!sender.inbox.threads[recipientID].name || sender.inbox.threads[recipientID].name !== recipient.username) {
+                sender.inbox.threads[recipientID].name = recipient.username;
+              }
+              // check/update pic
+              if (!sender.inbox.threads[recipientID].image || sender.inbox.threads[recipientID].image !== recipientPic) {
+                sender.inbox.threads[recipientID].image = recipientPic;
+              }
             }
           }
           if (!overwrite) { //no message to overwrite, so push new message
@@ -1195,60 +1198,61 @@ app.post('/inbox', function(req, res) {
             });
           }
 
-
-          // AND AGAIN: now update the symetric data on the recipient's side
-          if (!checkObjForProp(recipient, 'inbox', inboxTemplate)) {
-            bumpThreadList(recipient.inbox);
-          }
-          var senderPic = sender.iconURI;
-          if (typeof senderPic !== 'string') {senderPic = "";}
-          // if the recipient does not already have a thread w/ the sender, create one
-          if (!checkObjForProp(recipient.inbox.threads, senderID, {name:sender.username, unread:false, image:senderPic, thread:[], key:sender.keys.pubKey})) {
-            // there is an extant thread, so
-            // is either person blocking the other?
-            if (recipient.inbox.threads[senderID].blocking || recipient.inbox.threads[senderID].blocked) {
-              return sendError(res, errMsg+"this message is not allowed");
+          if (noReKey) {
+            // AND AGAIN: now update the symetric data on the recipient's side
+            if (!checkObjForProp(recipient, 'inbox', inboxTemplate)) {
+              bumpThreadList(recipient.inbox);
             }
-            // check the last two items, overwrite if there is already a pending message
-            if (checkLastTwoForPending(recipient.inbox.threads[senderID].thread, req.body.remove, req.body.encRecText, tmrw, true)) {
-              overwrite = true;
-              // if deleting a message, then remove the listing in 'pending'
-              if (req.body.remove) {
-                delete recipient.inbox.pending[senderID];
+            var senderPic = sender.iconURI;
+            if (typeof senderPic !== 'string') {senderPic = "";}
+            // if the recipient does not already have a thread w/ the sender, create one
+            if (!checkObjForProp(recipient.inbox.threads, senderID, {name:sender.username, unread:false, image:senderPic, thread:[], key:sender.keys.pubKey})) {
+              // there is an extant thread, so
+              // is either person blocking the other?
+              if (recipient.inbox.threads[senderID].blocking || recipient.inbox.threads[senderID].blocked) {
+                return sendError(res, errMsg+"this message is not allowed");
+              }
+              // check the last two items, overwrite if there is already a pending message
+              if (checkLastTwoForPending(recipient.inbox.threads[senderID].thread, req.body.remove, req.body.encRecText, tmrw, true)) {
+                overwrite = true;
+                // if deleting a message, then remove the listing in 'pending'
+                if (req.body.remove) {
+                  delete recipient.inbox.pending[senderID];
+                }
+              }
+              // check/update the key
+              if (!recipient.inbox.threads[senderID].key || recipient.inbox.threads[senderID].key !== sender.keys.pubKey) {
+                recipient.inbox.threads[senderID].key = sender.keys.pubKey;
+              }
+              // check/update the thread "name"
+              if (!recipient.inbox.threads[senderID].name || recipient.inbox.threads[senderID].name !== sender.username) {
+                recipient.inbox.threads[senderID].name = sender.username;
+              }
+              // check/update pic
+              if (!recipient.inbox.threads[senderID].image || recipient.inbox.threads[senderID].image !== senderPic) {
+                recipient.inbox.threads[senderID].image = senderPic;
               }
             }
-            // check/update the key
-            if (!recipient.inbox.threads[senderID].key || recipient.inbox.threads[senderID].key !== sender.keys.pubKey) {
-              recipient.inbox.threads[senderID].key = sender.keys.pubKey;
-            }
-            // check/update the thread "name"
-            if (!recipient.inbox.threads[senderID].name || recipient.inbox.threads[senderID].name !== sender.username) {
-              recipient.inbox.threads[senderID].name = sender.username;
-            }
-            // check/update pic
-            if (!recipient.inbox.threads[senderID].image || recipient.inbox.threads[senderID].image !== senderPic) {
-              recipient.inbox.threads[senderID].image = senderPic;
-            }
-          }
-          if (!overwrite) { //no message to overwrite, so push new message
-            recipient.inbox.threads[senderID].thread.push({
-              inbound: true,
-              date: tmrw,
-              body: req.body.encRecText,
-            });
-            // add to the 'pending' collection
-            recipient.inbox.pending[senderID] = true;
-          }
-
-          writeToDB(senderID, sender, function (resp) {
-            if (resp.error) {sendError(res, errMsg+resp.error);}
-            else {
-              writeToDB(recipientID, recipient, function (resp) {
-                if (resp.error) {sendError(res, errMsg+resp.error);}
-                else {res.send({error:false, reKey:false});}
+            if (!overwrite) { //no message to overwrite, so push new message
+              recipient.inbox.threads[senderID].thread.push({
+                inbound: true,
+                date: tmrw,
+                body: req.body.encRecText,
               });
+              // add to the 'pending' collection
+              recipient.inbox.pending[senderID] = true;
             }
-          });
+
+            writeToDB(senderID, sender, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {
+                writeToDB(recipientID, recipient, function (resp) {
+                  if (resp.error) {return sendError(res, errMsg+resp.error);}
+                  else {return res.send({error:false, reKey:false});}
+                });
+              }
+            });
+          }
         }
       });
     }
@@ -1568,8 +1572,8 @@ app.post('/keys', function(req, res) {
     else if (!user) {return sendError(res, "user not found");}
     else {
       if (req.body.privKey && req.body.pubKey) {
-        // do not overwrite existing keys!
-        if (user.keys === undefined) {
+        // do not overwrite existing keys! (when we need to change keys, we clear them elsewhere)
+        if (user.keys === undefined || user.keys === null) {
           user.keys = req.body;
         }
         writeToDB(userID, user, function (resp) {
@@ -1766,7 +1770,8 @@ app.post('/resetNameCheck', function (req, res) {
                   bcrypt.hash(req.body.password, 10, function(err, passHash){
                     if (err) {return sendError(res, err);}
                     else {
-                      var user = {password: passHash}
+                      var user = {password: passHash, keys:null}
+                      // keys are tied to pass, clear keys, new keys created on sign in
                       db.collection('users').updateOne({username: req.body.username},
                         {$set: user},
                         function(err, user) {

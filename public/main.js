@@ -1612,11 +1612,10 @@ var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
 
 var decryptPrivKey = function (pass, privKey) {
   var key = openpgp.key.readArmored(privKey).keys[0];
-  try {
-    key.decrypt(pass);
-  } catch(err) {
-    alert("EEErrrorrr?????");
-  }
+  key.decrypt(pass).catch(function (err) {
+    // do nothing, this means the pass/key combo is wrong,
+    // but we deal with that later
+  });
   return key;
 }
 
@@ -1625,12 +1624,12 @@ var decrypt = function (text, key, callback) {
     message: openpgp.message.readArmored(text),
     privateKeys: [key]
   };
-  openpgp.decrypt(options).then(function (decryptedMessage) {
-    callback(decryptedMessage.data);
-  }, function () {                // callback for failed decryption
-    callback("<c>***encryption/decryption error! SORRY! Tell staff about this!***</c>");
-  }).catch(function (err) {
-    console.log(err);
+  openpgp.decrypt(options).then(
+    function (decryptedMessage) {
+      callback(decryptedMessage.data, false);
+    },
+    function (err) {            // callback for failed decryption
+    callback(null, true);
   });
 }
 
@@ -1663,8 +1662,12 @@ var unlockInbox = function (pass, callback) {     // decrypts all messages
       msgCount[i] = glo.threads[i].thread.length;
       for (var j = 0; j < glo.threads[i].thread.length; j++) {
         (function (i,j) {
-          decrypt(glo.threads[i].thread[j].body, key, function (text) {
-            glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
+          decrypt(glo.threads[i].thread[j].body, key, function (text, err) {
+            if (err) {
+              glo.threads[i].thread[j].body = "<c>***encryption/decryption error! SORRY! Tell staff about this!***</c>";
+            } else {
+              glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
+            }
             // image validation
             //(goes here)
 
