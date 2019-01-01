@@ -1664,7 +1664,7 @@ var unlockInbox = function (pass, callback) {     // decrypts all messages
         (function (i,j) {
           decrypt(glo.threads[i].thread[j].body, key, function (text, err) {
             if (err) {
-              glo.threads[i].thread[j].body = "<c>***encryption/decryption error! SORRY! Tell staff about this!***</c>";
+              glo.threads[i].thread[j].body = "<c>***unable to decrypt message***</c>";
             } else {
               glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
             }
@@ -1882,6 +1882,97 @@ var verifyEmail = function () {
         }
       });
     }
+  });
+}
+
+var changePassword = function () {
+  if ($("password-change0").value === "" || $("password-change1").value === "" || $("password-change2").value === "") {
+    alert("'doh!");
+  } else if ($("password-change1").value !== $("password-change2").value) {
+    alert("must be same same!");
+  }
+  else {
+    verify("this may take a moment. And will require a refresh(so just like don't have any unsaved text sitting in an editor)<br><br>is that alright?", "go ahead", "maybe later", function (resp) {
+      if (!resp) {return;}
+      else {
+        var data = {
+          oldPass: $("password-change0").value,
+          newPass: $("password-change1").value,
+        }
+        ajaxCall('/changePasswordStart', 'POST', data, function(json) {
+          if (json.noMatch) {return alert("incorrect current password");}
+          else {
+            makeKeys(data.newPass, function (newKeys) {
+              var newData = {
+                newPass: data.newPass,
+                newKeys: newKeys,
+              }
+              var oldKey = decryptPrivKey(data.oldPass, json.key);
+              // each thread
+              var threadCount = 0;
+              for (var i in json.threads) {
+                if (json.threads.hasOwnProperty(i) && json.threads[i].thread.length > 0) {
+                  threadCount++;
+                }
+              }
+              if (threadCount === 0) {
+                newData.newThreads = {}
+                return makePassFinCall(newData);
+              } else {
+                var msgCount = {};
+                for (var i in json.threads) {
+                  if (json.threads.hasOwnProperty(i) && json.threads[i].thread.length > 0) {
+                    // each message
+                    msgCount[i] = json.threads[i].thread.length;
+                    for (var j = 0; j < json.threads[i].thread.length; j++) {
+                      (function (i,j) {
+                        decrypt(json.threads[i].thread[j].body, oldKey, function (text, err) {
+                          if (err) {
+                            // do nothing, just leave the bad text there
+                            msgCount[i]--;
+                            if (msgCount[i] === 0) {
+                              threadCount--;
+                              if (threadCount === 0) {
+                                newData.newThreads = json.threads;
+                                return makePassFinCall(newData);
+                              }
+                            }
+                          } else {
+                            //re-encrypt
+                            openpgp.encrypt({
+                              data: text,
+                              publicKeys: openpgp.key.readArmored(newKeys.pubKey).keys,
+                            }).then(function(encryptedMessage) {
+                              json.threads[i].thread[j].body = encryptedMessage.data;
+                              msgCount[i]--;
+                              if (msgCount[i] === 0) {
+                                threadCount--;
+                                if (threadCount === 0) {
+                                  newData.newThreads = json.threads;
+                                  return makePassFinCall(newData);
+                                }
+                              }
+                            });
+                          }
+                        });
+                      })(i,j);
+                    }
+                  }
+                }
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+}
+
+var makePassFinCall = function (newData) {
+  ajaxCall('/changePasswordFin', 'POST', newData, function(json) {
+    alert('your password has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
+      location.reload();
+    });
   });
 }
 

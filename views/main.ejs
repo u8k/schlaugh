@@ -113,14 +113,15 @@
     <button onclick="submitPic()">schlaubmit</button>
     <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
     <br><br><br><hr>
+
     <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
     <div id="color-settings-box">
       <div id="color-presets-box">
         <button class="preset-button" onclick="colorPreset(1)">classic</button><br>
         <button class="preset-button" onclick="colorPreset(2)">slate</button><br>
         <button class="preset-button" onclick="colorPreset(3)">evan's theme</button><br>
-        <button class="preset-button" onclick="colorPreset(4)">definite</button><br>
-        <button class="preset-button" onclick="colorPreset(5)">eyesore</button>
+        <button class="preset-button" onclick="colorPreset(4)">steve</button><br>
+        <button class="preset-button" onclick="colorPreset(5)">duckling</button>
       </div>
       <div id="color-inputs-box">
         post background: <input id="postBackground-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
@@ -136,6 +137,16 @@
     <form action="javascript:void(0);">
       <input id="email-verify-input" type="text" placeholder="email address"><br>
       <button type="submit" onclick="verifyEmail()">check</button>
+    </form>
+    <br><br><hr><br>
+    <text>change password</text>
+    <form action="javascript:void(0);">
+      <input type="text" autocomplete="username" name="username" style="display:none;">
+      <input id="password-change0" type="password" autocomplete="current-password" name="current-password" placeholder="current password"><br>
+      <input id="password-change1" type="password" autocomplete="new-password" name="new-password" placeholder="new password"><br>
+      <input id="password-change2" type="password" autocomplete="new-password" name="new-password" placeholder="new password"><br>
+      <button type="button" onclick="togglePassTextVisibility(this, ['password-change0','password-change1','password-change2'])">show password</button><br>
+      <button type="submit" onclick="changePassword()">change</button>
     </form>
     <br><br><br>
     <a class="clicky" onclick="signOut()">schlaugh out</a>
@@ -193,7 +204,7 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img src="https://images2.wikia.nocookie.net/__cb20090803052143/heyarnold/images/e/e6/Oskar.jpg" alt="oscar">
+  <img src="https://sites.google.com/site/saveplanet604/_/rsrc/1338144224588/orangutan/orangutan.jpg" alt="orangutan">
 </div>
 
 <div id="lost-panel" class="removed">

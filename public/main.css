@@ -210,7 +210,7 @@ input:-webkit-autofill {
   width: 65px;
 }
 .preset-button {
-  width: 95px;
+  width: 96px;
   height: 18px;
 }
 
@@ -286,10 +286,6 @@ slogan {
   left: 0;
   top: 0;
   z-index: 10;
-}
-
-.one-off {
-  border-radius: 35%;
 }
 
 quote {

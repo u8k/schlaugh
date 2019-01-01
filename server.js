@@ -658,7 +658,7 @@ app.get('/admin', function(req, res) {
         [bumpThreadList({updatedOn: pool.getCurDate(), pending:{5454:true, 1234:true, 9876:true}, list:[5454, 1234, 9876]}), false],
         [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[5454, 1234, 9876]}).list.length, 3],
         [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[]}).list.length, 3],
-        [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[54545, 12345, 9876]}).list.length, 5],
+        [bumpThreadList({updatedOn: pool.getCurDate(1), threads:{5454:{unread:true}, 1234:{unread:true}, 9876:{unread:true}}, pending:{5454:true, 1234:true, 9876:true}, list:[54545, 12354, 9876]}).list.length, 5],
         //
         [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[]},3:{}}, list:[1,2,3]}, 2, true, 3).length, 2],
         [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[7,7,7,7]},3:{}}, list:[1,2,3]}, 2, true, 3), false],
@@ -1632,7 +1632,7 @@ app.post('/changeEmail', function (req, res) {
     if (err) {return sendError(res, errMsg+ err);}
     else if (!user) {return sendError(res, errMsg+ "user not found");}
     else {
-      bcrypt.hash(req.body.email, 10, function(err, emailHash){
+      bcrypt.hash(req.body.email, 10, function(err, emailHash) {
         if (err) {return sendError(res, errMsg+err);}
         else {
           user.email = emailHash;
@@ -1642,6 +1642,69 @@ app.post('/changeEmail', function (req, res) {
           });
         }
       });
+    }
+  });
+});
+
+// change user password
+app.post('/changePasswordStart', function (req, res) {
+  if (!req.body.oldPass || !req.body.newPass) {return sendError(res, "malformed request 345")}
+  if (!req.session.user) {return sendError(res, "no user session");}
+  var userID = ObjectId(req.session.user._id);
+  db.collection('users').findOne({_id: userID}
+  , {_id:0, password:1, keys:1, inbox:1}
+  , function (err, user) {
+    if (err) {return sendError(res, err);}
+    else if (!user) {return sendError(res, "user not found");}
+    else {
+      if (!user.keys) {return sendError(res, "user has no keys???");}
+      else {
+        bcrypt.compare(req.body.oldPass, user.password, function(err, isMatch){
+          if (err) {return sendError(res, err);}
+          else if (!isMatch) {return res.send({error: false, noMatch:true});}
+          else {
+            var y = pool.passwordValidate(req.body.newPass);
+            if (y) {return res.send({error:y});}
+            else {
+              return res.send({error: false, threads:user.inbox.threads, key:user.keys.privKey});
+            }
+          }
+        });
+      }
+    }
+  });
+});
+
+// swap in re-encrypted inbox and new keys
+app.post('/changePasswordFin', function (req, res) {
+  if (!req.body.newKeys || !req.body.newPass || !req.body.newThreads) {return sendError(res, "malformed request 642")}
+  if (!req.session.user) {return sendError(res, "no user session");}
+  var userID = ObjectId(req.session.user._id);
+  db.collection('users').findOne({_id: userID}
+  , {_id:0, password:1, keys:1, inbox:1}
+  , function (err, user) {
+    if (err) {return sendError(res, err);}
+    else if (!user) {return sendError(res, "user not found");}
+    else {
+      if (!user.keys) {return sendError(res, "user has no keys???");}
+      else {
+        var y = pool.passwordValidate(req.body.newPass);
+        if (y) {return res.send({error:y});}
+        else {
+          bcrypt.hash(req.body.newPass, 10, function(err, passHash) {
+            if (err) {return sendError(res, err);}
+            else {
+              user.password = passHash;
+              user.inbox.threads = req.body.newThreads;
+              user.keys = req.body.newKeys;
+              writeToDB(userID, user, function (resp) {
+                if (resp.error) {sendError(res, resp.error);}
+                else {return res.send({error: false})}
+              });
+            }
+          });
+        }
+      }
     }
   });
 });
