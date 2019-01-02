@@ -130,7 +130,14 @@
         background: <input id="background-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
       </div>
     </div>
-    <button id="save-colors" type="button" class="hidden" onclick="saveColors()">save</button>
+    <br>
+    <text>font: </text><select id="font-select" onclick="fontSelect();" name="fonts">
+      <option>serif</option>
+      <option>sans-serif</option>
+      <option>monospace</option>
+    </select>
+    <br><br>
+    <button id="save-appearance" type="button" class="hidden" onclick="saveAppearance()">save</button>
 
     <br><br><br><hr><br>
     <text>verify email<clicky onclick="verifyEmailExplain()" class="special">(?)</clicky></text><br>
@@ -204,12 +211,12 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img src="https://sites.google.com/site/saveplanet604/_/rsrc/1338144224588/orangutan/orangutan.jpg" alt="orangutan">
+  <img id="o-pic" src="https://sites.google.com/site/saveplanet604/_/rsrc/1338144224588/orangutan/orangutan.jpg" alt="orangutan">
 </div>
 
 <div id="lost-panel" class="removed">
   <h2>PASSWORD RESET EMAIL REQUEST</h2><br>
-  <text>please don't do this unless you absolutely super have to. your private messages are locked with your password, and changing your password in this manner will mean that those messages will be permanently locked in encryption and unrecoverable forever<br><br>anyway, enter your username and the email associated with your account. It has to be the same email that you previously entered. And we can't tell you whether it's correct or not. If it's right, you'll get an email, if not, then no email will be sent. If you didn't enter an email for your account, or don't know what you entered, then you're out of luck. But try several addresses, if you're not sure which one you used.<br><br>the recovery link we send you expires one hour from sending<br>schlaugh@protonmail.com for additional assistance</text>
+  <text>please don't do this unless you absolutely super have to. your private messages are locked with your password, and changing your password in this manner will mean that those messages will be permanently locked in encryption and unrecoverable forever<br><br>anyway, enter your username and the email associated with your account. It has to be the same email that you previously entered. And we can't tell you whether it's correct or not. If it's right, you'll get an email, if not, then no email will be sent. If you didn't enter an email for your account, or don't know what you entered, then you're out of luck. But try several addresses, if you're not sure which one you used.<br><br>the recovery link we send you expires one hour from sending<br>for additional assistance: staff@schlaugh.com</text>
   <br><br>
   <form action="javascript:void(0);">
     <text>username</text><br>
@@ -298,6 +305,6 @@
   </form>
 </div>
 
-<div id="loading-box" class="hidden">
-  <div id="loading-icon" class="">❋</div>
+<div id="loading-box" class="hidden no-select">
+  <div id="loading-icon" class="no-select">❋</div>
 </div>

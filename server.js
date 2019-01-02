@@ -204,9 +204,11 @@ var getPayload = function (req, res, otherUserID, callback) {
           keys: user.keys,
           username: user.username,
           userPic: getUserPic(user),
-          settings: user.settings,
+          settings: {},
           following: user.following,
         }
+        payload.settings.colors = user.settings.colors;
+        payload.settings.font = user.settings.font;
         //pending post
         if (user.posts[tmrw]) {
           payload.pending = user.posts[tmrw][0];
@@ -269,7 +271,12 @@ var getSettings = function (req, res, callback) {
   , function (err, user) {
     if (err) {return sendError(res, err);}
     else if (!user) {return sendError(res, "user not found");}
-    else {return callback(user.settings);}
+    else {
+      var settings = {};
+      settings.colors = user.settings.colors;
+      settings.font = user.settings.font;
+      return callback(settings);
+    }
   });
 }
 
@@ -1401,7 +1408,7 @@ app.post('/changePic', function(req, res) {
 });
 
 // save custom display colors
-app.post('/saveColors', function(req, res) {
+app.post('/saveAppearance', function(req, res) {
   if (!req.session.user) {return sendError(res, "no user session");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
@@ -1410,7 +1417,8 @@ app.post('/saveColors', function(req, res) {
     if (err) {return sendError(res, err);}
     else if (!user) {return sendError(res, "user not found");}
     else {
-      user.settings.colors = req.body;
+      user.settings.colors = req.body.colors;
+      user.settings.font = req.body.font;
       writeToDB(userID, user, function (resp) {
         if (resp.error) {sendError(res, resp.error);}
         else {res.send({error: false});}
@@ -1743,7 +1751,7 @@ app.post('/passResetRequest', function (req, res) {
                 else {
                   var msg = {
                     to: req.body.email,
-                    from: 'schlaugh@protonmail.com', //'staff@schlaugh.com',
+                    from: 'staff@schlaugh.com',
                     subject: 'schlaugh account recovery',
                     text: `visit the following link to reset your schlaugh password: https://schlaugh.herokuapp.com/~recovery/`+resp._id+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
                     html: `<a href="https://schlaugh.herokuapp.com/~recovery/`+resp._id+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: https://schlaugh.herokuapp.com/~recovery/`+resp._id+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,

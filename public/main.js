@@ -25,6 +25,27 @@ var updateUserPic = function (remove, picURL) {
   }
 }
 
+var fontSelect = function () {
+  if (glo.settings.font !== $('font-select').value) {
+    changeFont($('font-select').value);
+  }
+}
+
+var changeFont = function (font) {
+  var sheet = document.styleSheets[document.styleSheets.length-1];
+  var selector = "*";
+  var attribute = "font-family";
+  for (var i = sheet.cssRules.length-1; i > -1; i--) {
+    if (sheet.cssRules[i].selectorText === selector) {
+      sheet.deleteRule(i);
+      i = -1;
+    }
+  }
+  glo.settings.font = font;
+  sheet.insertRule(selector+" {"+attribute+": "+font+";}", sheet.cssRules.length);
+  $('save-appearance').classList.remove('hidden');
+}
+
 var changeColor = function (colorCode, type) {
   colorCode = String(colorCode);
   if (colorCode.slice(0,3) !== "rgb" && colorCode.slice(0,1) !== "#") {
@@ -37,7 +58,7 @@ var changeColor = function (colorCode, type) {
       var attribute = "background-color";
       break;
     case "text":                        //text
-      var selector = "body, h1, input, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up";
+      var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up";
       var attribute = "color";
       for (var i = sheet.cssRules.length-1; i > -1; i--) {
         if (sheet.cssRules[i].selectorText === 'button') {
@@ -52,7 +73,7 @@ var changeColor = function (colorCode, type) {
       var attribute = "color";
       break;
     case "background":                 //background
-      var selector = "body, h1, input";
+      var selector = "body, h1, input, select";
       var attribute = "background-color";
       break;
   }
@@ -64,12 +85,12 @@ var changeColor = function (colorCode, type) {
   }
   glo.settings.colors[type] = colorCode;
   sheet.insertRule(selector+" {"+attribute+": "+colorCode+";}", sheet.cssRules.length);
-  $('save-colors').classList.remove('hidden');
+  $('save-appearance').classList.remove('hidden');
 }
 
-var saveColors = function () {
-  ajaxCall('/saveColors', 'POST', glo.settings.colors, function(json) {
-    $('save-colors').classList.add('hidden');
+var saveAppearance = function () {
+  ajaxCall('/saveAppearance', 'POST', glo.settings, function(json) {
+    $('save-appearance').classList.add('hidden');
   });
 }
 
@@ -1671,7 +1692,6 @@ var verifyPass = function (callback) {      // for decryption
           return alert("huh!? that's a different account...", "switcheroo!", function () {location.reload();});
         } else {
           unlockInbox(data.password, callback);
-          loading(true);
         }
       });
     }
@@ -1706,7 +1726,10 @@ var unlockInbox = function (pass, callback) {     // decrypts all messages
               populateThread(i);
               threadCount--;
               if (threadCount === 0) {
-                if (callback) {callback();}
+                if (callback) {
+                  callback();
+                  loading(true);
+                }
               }
             }
           });
@@ -1820,7 +1843,7 @@ var parseUserData = function (data) {
   loadPosts(1);
   if (glo.pending) {updatePendingPost(glo.pending.body, glo.pending.tags);}
   populateThreadlist();
-  setColors();
+  setAppearance();
   //
   if (glo.username) {
     $("username").innerHTML = glo.username;
@@ -1834,9 +1857,15 @@ var parseUserData = function (data) {
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
 }
 
-var setColors = function () {
+var setAppearance = function () {
   if (glo.settings && glo.settings.colors) {
     var savedColors = glo.settings.colors;
+    if (glo.settings.font) {
+      changeFont(glo.settings.font);
+    } else {
+      glo.settings.font = 'serif'
+    }
+    $('font-select').value = glo.settings.font;
   } else {
     if (!glo.settings) {glo.settings = {};}
     var savedColors = {
@@ -1847,7 +1876,8 @@ var setColors = function () {
     }
     glo.settings.colors = savedColors;
   }
-  changeAllColors(savedColors)
+  changeAllColors(savedColors);
+  $('save-appearance').classList.add('hidden');
 }
 
 var changeAllColors = function (colorObject) {
