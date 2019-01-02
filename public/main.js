@@ -7,8 +7,10 @@ var $ = function (id) {return document.getElementById(id);}
 var submitPic = function (remove) {
   if (remove) {$('pic-url').value = "";}
   var picURL = $('pic-url').value;
+  loading();
   ajaxCall('/changePic', 'POST', {url:picURL}, function(json) {
     updateUserPic(remove, picURL);
+    loading(true);
   });
 }
 
@@ -243,6 +245,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
           if (resp && resp.otherKey) {glo.currentAuthor.key = resp.otherKey;}
           createFollowButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
           createMessageButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
+          loading(true);
         });
       }
     }
@@ -250,6 +253,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
 }
 
 var alert = function (message, btnTxt, callback) {
+  loading(true);
   if (!$("alert")) {return console.log(message);}
   if (!message) {  //close the alert
     $("alert").classList.add("hidden");
@@ -270,6 +274,7 @@ var alert = function (message, btnTxt, callback) {
 }
 
 var verify = function (message, yesText, noText, callback) {
+  loading(true);
   if (!message) {  //close the confirm
     $("confirm").classList.add("hidden");
     $("pop-up-backing").classList.add("hidden");
@@ -291,6 +296,16 @@ var verify = function (message, yesText, noText, callback) {
     }
     $("confirm-no").onclick = exit;
     $("pop-up-backing").onclick = exit;
+  }
+}
+
+var loading = function (stop) {
+  if (stop) {
+    $("pop-up-backing").classList.add('hidden')
+    $("loading-box").classList.add('hidden')
+  } else {
+    $("pop-up-backing").classList.remove('hidden')
+    $("loading-box").classList.remove('hidden')
   }
 }
 
@@ -450,7 +465,10 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
     glo.queue.push({dir:dir,tag:tag});
     return;
   }
-  else {glo.loading = true;}
+  else {
+    glo.loading = true;
+    loading();
+  }
   var date = pool.getCurDate(glo.dateOffset);
   // clear out currently displayed posts
   if (glo.tag) {
@@ -544,6 +562,7 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
 
 var loadManage = function () {
   glo.loading = false;
+  loading(true);
   if (glo.queue && glo.queue.length !== 0) {
     var obj = glo.queue[glo.queue.length-1];
     loadPosts(obj.dir, obj.tag);
@@ -742,7 +761,9 @@ var openAuthorPanel = function (author, callback) {
     }
   } else {
     // call for data and render a new panel
+    loading();
     ajaxCall('/~getAuthor/'+author, 'GET', "", function(json) {
+      loading(true);
       if (json.four04) {
         simulatePageLoad(author, "404s & Heartbreak");
         open404author();
@@ -911,6 +932,7 @@ var open404post = function (author) {
 var submitPost = function (remove) { //also handles editing and deleting
   if (remove) {
     verify("you sure you want me should delete it?", null, null, function (result) {
+      loading();
       if (!result) {return;}
       else {
         var data = {text:null, tags:null, remove:remove}
@@ -926,6 +948,7 @@ var submitPost = function (remove) { //also handles editing and deleting
       hideWriter('post');
       return;
     }
+    loading();
     var data = {text:text, remove:remove, tags:tags}
     ajaxCall("/", 'POST', data, function(json) {
       updatePendingPost(json.text, json.tags, remove)
@@ -955,6 +978,7 @@ var updatePendingPost = function (newText, newTags, remove) {
   $('pending-post').innerHTML = appendTags(convertText(newText, 'pending'), newTags);
   $('postEditor').value = prepTextForEditor(newText);
   hideWriter('post');
+  loading(true);
 }
 
 var appendTags = function (postString, tagRef, author) {
@@ -1348,6 +1372,7 @@ var updatePendingMessage = function (index) {
   }
   $('messageEditor').value = prepTextForEditor(pending);
   hideWriter('message');
+  loading(true);
 }
 
 var submitMessage = function (remove) {  //also handles editing and deleting
@@ -1356,6 +1381,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
       else {
+        loading();
         var data = {
           recipient: glo.threads[i]._id,
           encSenderText: '',
@@ -1380,6 +1406,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     if (text === "") {return;}
     if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a bug please note all details and tell staff sorry");}
     //
+    loading();
     var encryptAndSend = function () {
       encrypt(text, glo.keys.pubKey, glo.threads[i].key, function (encSenderText, encRecText) {
         var data = {
@@ -1638,11 +1665,13 @@ var verifyPass = function (callback) {      // for decryption
     label:"<i>please</i> re-enter your password to decrypt your messages",
     callback: function(data) {
       if (data === null) {return;}
+      loading();
       ajaxCall('/login', 'POST', data, function(json) {
         if (json.switcheroo) {
           return alert("huh!? that's a different account...", "switcheroo!", function () {location.reload();});
         } else {
           unlockInbox(data.password, callback);
+          loading(true);
         }
       });
     }
@@ -1751,11 +1780,13 @@ var logInPageSubmit = function(inOrUp) {
     }
     signIn(url, data, function () {
       switchPanel('posts-panel');
+      loading(true);
     })
   }
 }
 
 var signIn = function (url, data, callback) {
+  loading();
   ajaxCall(url, 'POST', data, function(json) {
     if (json.needKeys) {
       makeKeys(data.password, function (keys) {
@@ -1861,7 +1892,9 @@ var verifyEmailExplain = function () {
 }
 
 var verifyEmail = function () {
+  loading();
   ajaxCall('/verifyEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
+    loading(true);
     if (json.match) {
       alert('a perfect match!<br><br>in the event of a lost password, "'+$("email-verify-input").value+'" is your recovery email', "aye, aye, captain!");
     } else {
@@ -1887,20 +1920,24 @@ var verifyEmail = function () {
 
 var changePassword = function () {
   if ($("password-change0").value === "" || $("password-change1").value === "" || $("password-change2").value === "") {
-    alert("'doh!");
+    alert("empty field");
   } else if ($("password-change1").value !== $("password-change2").value) {
-    alert("must be same same!");
+    alert("must be same same");
   }
   else {
     verify("this may take a moment. And will require a refresh(so just like don't have any unsaved text sitting in an editor)<br><br>is that alright?", "go ahead", "maybe later", function (resp) {
       if (!resp) {return;}
       else {
+        loading();
         var data = {
           oldPass: $("password-change0").value,
           newPass: $("password-change1").value,
         }
         ajaxCall('/changePasswordStart', 'POST', data, function(json) {
-          if (json.noMatch) {return alert("incorrect current password");}
+          if (json.noMatch) {
+            loading(true);
+            return alert("incorrect current password");
+          }
           else {
             makeKeys(data.newPass, function (newKeys) {
               var newData = {
@@ -1970,6 +2007,7 @@ var changePassword = function () {
 
 var makePassFinCall = function (newData) {
   ajaxCall('/changePasswordFin', 'POST', newData, function(json) {
+    loading(true);
     alert('your password has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
       location.reload();
     });
@@ -1979,7 +2017,9 @@ var makePassFinCall = function (newData) {
 var submitRecoveryRequest = function () {
   if ($("username-lost").value !== "" && $("email-lost").value !== "") {
     var data = {username: $("username-lost").value, email: $("email-lost").value,}
+    loading();
     ajaxCall('/passResetRequest', 'POST', data, function(json) {
+      loading(true);
       $("lost-password-submission").classList.remove("hidden");
       $("recovery-submit-button").classList.add("removed");
       $("recovery-reset-button").classList.remove("removed");
@@ -2018,7 +2058,9 @@ var submitRecoveryName = function () {
 }
 
 var makeResetCall = function (data) {
+  loading();
   ajaxCall('/resetNameCheck', 'POST', data, function(json) {
+    loading(true);
     if (json.verify) {
       $("recovery-username-box").classList.add("removed");
       $("recovery-pass-box").classList.remove("removed");
