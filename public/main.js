@@ -183,10 +183,10 @@ var prompt = function (options) {
   //      'label', 'placeholder', 'value', 'callback'(function)
   if (!options) {  //close the prompt
     $("prompt").classList.add("hidden");
-    $("pop-up-backing").classList.add("hidden");
+    blackBacking(true);
   } else {
     $("prompt").classList.remove("hidden");
-    $("pop-up-backing").classList.remove("hidden");
+    blackBacking();
     //
     $("prompt-label").innerHTML = options.label;
     if (options.placeholder) {$("prompt-input").placeholder = options.placeholder;}
@@ -213,10 +213,10 @@ var passPrompt = function (options) {
   //      'label', 'username', 'orUp'(boolean), 'callback'(function)
   if (!options) {  //close the prompt
     $("password-prompt").classList.add("hidden");
-    $("pop-up-backing").classList.add("hidden");
+    blackBacking(true);
   } else {
     $("password-prompt").classList.remove("hidden");
-    $("pop-up-backing").classList.remove("hidden");
+    blackBacking();
     //
     $("password-prompt-label").innerHTML = options.label;
     if (typeof glo !== undefined && glo.username) {
@@ -274,14 +274,14 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
 }
 
 var alert = function (message, btnTxt, callback) {
-  loading(true);
+  loading(true, true);
   if (!$("alert")) {return console.log(message);}
   if (!message) {  //close the alert
     $("alert").classList.add("hidden");
-    $("pop-up-backing").classList.add("hidden");
+    blackBacking(true);
   } else {
     $("alert").classList.remove("hidden");
-    $("pop-up-backing").classList.remove("hidden");
+    blackBacking();
     $("alert-text").innerHTML = message;
     if (btnTxt) {$('alert-submit').innerHTML = btnTxt;}
     else {$('alert-submit').innerHTML = "'kay";}
@@ -295,13 +295,13 @@ var alert = function (message, btnTxt, callback) {
 }
 
 var verify = function (message, yesText, noText, callback) {
-  loading(true);
+  loading(true, true);
   if (!message) {  //close the confirm
     $("confirm").classList.add("hidden");
-    $("pop-up-backing").classList.add("hidden");
+    blackBacking(true);
   } else {
     $("confirm").classList.remove("hidden");
-    $("pop-up-backing").classList.remove("hidden");
+    blackBacking();
     $("confirm-text").innerHTML = message;
     if (yesText) {$("confirm-yes").innerHTML = yesText;}
     else {$("confirm-yes").innerHTML = 'yeah';}
@@ -320,13 +320,32 @@ var verify = function (message, yesText, noText, callback) {
   }
 }
 
-var loading = function (stop) {
-  if (stop) {
-    $("pop-up-backing").classList.add('hidden')
-    $("loading-box").classList.add('hidden')
+var blackBacking = function (away) {
+  if (away) {
+    $("pop-up-backing").style.opacity="0";
+    glo.backingTimer = setTimeout(function () {
+      $("pop-up-backing").classList.add('hidden');
+    }, 300);
   } else {
-    $("pop-up-backing").classList.remove('hidden')
-    $("loading-box").classList.remove('hidden')
+    clearTimeout(glo.backingTimer);
+    $("pop-up-backing").classList.remove('hidden');
+    $("pop-up-backing").style.opacity="1";
+  }
+}
+
+var loading = function (stop, keepBacking) {
+  if (stop) {
+    if (!keepBacking) {
+      blackBacking(true);
+    }
+    $("loading-box").style.opacity="0";
+    setTimeout(function () {
+      $("loading-box").classList.add('hidden');
+    }, 300);
+  } else {
+    blackBacking();
+    $("loading-box").classList.remove('hidden');
+    $("loading-box").style.opacity="1";
   }
 }
 
@@ -583,11 +602,12 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
 
 var loadManage = function () {
   glo.loading = false;
-  loading(true);
   if (glo.queue && glo.queue.length !== 0) {
     var obj = glo.queue[glo.queue.length-1];
     loadPosts(obj.dir, obj.tag);
     glo.queue.pop();
+  } else {
+    loading(true);
   }
 }
 
@@ -1924,7 +1944,6 @@ var verifyEmailExplain = function () {
 var verifyEmail = function () {
   loading();
   ajaxCall('/verifyEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
-    loading(true);
     if (json.match) {
       alert('a perfect match!<br><br>in the event of a lost password, "'+$("email-verify-input").value+'" is your recovery email', "aye, aye, captain!");
     } else {
@@ -1935,6 +1954,7 @@ var verifyEmail = function () {
             if (!result) {return;}
             else {
               // validate email format,
+              loading();
               ajaxCall('/changeEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
                 if (json) {
                   alert('congratulations!<br><br>in the event of a lost password, "'+json.email+'" is your recovery email')
@@ -1965,7 +1985,6 @@ var changePassword = function () {
         }
         ajaxCall('/changePasswordStart', 'POST', data, function(json) {
           if (json.noMatch) {
-            loading(true);
             return alert("incorrect current password");
           }
           else {
@@ -2037,7 +2056,6 @@ var changePassword = function () {
 
 var makePassFinCall = function (newData) {
   ajaxCall('/changePasswordFin', 'POST', newData, function(json) {
-    loading(true);
     alert('your password has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
       location.reload();
     });
@@ -2090,11 +2108,12 @@ var submitRecoveryName = function () {
 var makeResetCall = function (data) {
   loading();
   ajaxCall('/resetNameCheck', 'POST', data, function(json) {
-    loading(true);
     if (json.verify) {
+      loading(true);
       $("recovery-username-box").classList.add("removed");
       $("recovery-pass-box").classList.remove("removed");
     } else if (json.victory) {
+      loading(true);
       $("pass-reset-form").classList.add("removed");
       $("pass-reset-success").classList.remove("removed");
     } else {
