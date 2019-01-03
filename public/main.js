@@ -266,6 +266,12 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
           if (resp && resp.otherKey) {glo.currentAuthor.key = resp.otherKey;}
           createFollowButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
           createMessageButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
+          var postArr = glo.currentAuthor.posts;
+          for (var i = 0; i < postArr.length; i++) {
+            if (postArr[i].post_id && postArr[i].date) {
+              createPostFooter($("author-"+postArr[i].post_id), {_id:glo.currentAuthor._id, name:glo.currentAuthor.author}, postArr[i]);
+            }
+          }
           loading(true);
         });
       }
@@ -634,6 +640,8 @@ var renderPostFeed = function (postList, date, tag) {
       var i = Math.floor(Math.random() * (rando.length));
       var post = document.createElement("div");
       post.setAttribute('class', 'post');
+      if (tag) {post.setAttribute('id', 'tag-'+tag+"-"+postList[rando[i]].post_id);}
+      else {post.setAttribute('id', 'feed-'+postList[rando[i]].post_id);}
       // pic
       if (postList[rando[i]].authorPic !== "") {
         var authorPic = document.createElement("img");
@@ -677,7 +685,8 @@ var renderPostFeed = function (postList, date, tag) {
       text.innerHTML = appendTags(convertText(postList[rando[i]].body, uniqueID), postList[rando[i]].tags);
       post.appendChild(text);
       //
-      createPostFooter(post, postList[rando[i]]._id, date, postList[rando[i]].post_id, postList[rando[i]].author);
+      postList[rando[i]].date = date;
+      createPostFooter(post, {_id:postList[rando[i]]._id, name:postList[rando[i]].author}, postList[rando[i]]);
       bucket.appendChild(post);
       //remove the current index refference from the randomizing helper array
       rando.splice(i,1);
@@ -741,27 +750,75 @@ var createFollowButton = function (parent, author, insert) {
   }
 }
 
-var createPostFooter = function (postElem, authorID, date, postID, authorName) {
+var createPostFooter = function (postElem, author, post) {
   if (glo.username) {
-    // post-footer
     var footer = document.createElement("div");
     footer.setAttribute('class', 'post-footer');
     postElem.appendChild(footer);
+    if (glo.username === author.name) {
+      // delete button
+      var deleteBtn = document.createElement("button");
+      deleteBtn.innerHTML = "delete";
+      deleteBtn.onclick = function() {
+        deletePost(post);
+      }
+      footer.appendChild(deleteBtn);
+      //edit button
+      /*
+      var editBtn = document.createElement("button");
+      editBtn.innerHTML = "edit";
+      editBtn.onclick = function() {
+        editPost(post, author);
+      }
+      footer.appendChild(editBtn);
+      */
+    }
     // quote button
-    var btn = document.createElement("button");
-    btn.innerHTML = "quote";
-    btn.onclick = function() {
-      ajaxCall('/~getPost/'+authorID+"/"+date, 'GET', "", function(json) {
+    var quoteBtn = document.createElement("button");
+    quoteBtn.innerHTML = "quote";
+    quoteBtn.onclick = function() {
+      loading();
+      ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
+        if (json.four04) {return alert("eRoRr! post not found???")}
+        loading(true);
         var text = "<quote>"+json.post.body+
-          '<r><a href="/~/'+postID+'">-'+authorName+"</a></r></quote>"
+          '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
         if ($('postEditor').value !== "") {text = '<br>'+text;}
         $('postEditor').value += prepTextForEditor(text);
         showWriter('post');
         switchPanel('write-panel');
       });
     }
-    footer.appendChild(btn);
+    footer.appendChild(quoteBtn);
   }
+}
+
+var deletePost = function (post) {
+  verify('you would like to Permanently and Immediately delete this post?', 'yeah', 'nope', function (resp) {
+    if (!resp) {return}
+    verify('YOU SURE???', 'YES!', '...no', function (resp) {
+      if (!resp) {return}
+      loading();
+      ajaxCall('/deleteOldPost', 'POST', post, function(json) {
+        loading(true);
+        // remove the DOM elements of ALL intances of the post that may be floating about
+        var authVers = $('author-'+post.post_id);
+        var feedVers = $('feed-'+post.post_id);
+        if (authVers) {authVers.parentNode.removeChild(authVers);}
+        if (feedVers) {feedVers.parentNode.removeChild(feedVers);}
+        for (var tag in post.tags) {
+          if (post.tags.hasOwnProperty(tag)) {
+            var tagVers = $("tag-"+tag+"-"+post.post_id);
+            if (tagVers) {tagVers.parentNode.removeChild(tagVers);}
+          }
+        }
+      });
+    });
+  });
+}
+
+var editPost = function () {
+  alert('not yet!');
 }
 
 /* userAndPostLinkHandler, not connected to anything
@@ -787,7 +844,7 @@ var openAuthorPanel = function (author, callback) {
   if ($(author+"-panel")) {
     switchPanel(author+"-panel");
     $(author+'-tag-nav').classList.add('removed')
-    var children = $(author+'-panel-all').childNodes;
+    var children = $(author+'-posts').childNodes;
     for (var i = 0; i < children.length; i++) {
       children[i].classList.remove('removed');
     }
@@ -848,7 +905,7 @@ var openAuthorPanel = function (author, callback) {
         tagNav.appendChild(tagClear);
         // post bucket
         var bucket = document.createElement("div");
-        bucket.setAttribute('id', json.author+'-panel-all');
+        bucket.setAttribute('id', json.author+'-posts');
         panel.appendChild(bucket);
         // posts
         if (json.posts.length === 0) {
@@ -860,7 +917,7 @@ var openAuthorPanel = function (author, callback) {
           for(var i=json.posts.length-1; i > -1; i--) {
             var post = document.createElement("div");
             post.setAttribute('class', 'post');
-            post.setAttribute('id', 'post-'+json.posts[i].post_id);
+            post.setAttribute('id', 'author-'+json.posts[i].post_id);
             bucket.appendChild(post);
             // date
             var dateBox = document.createElement("div");
@@ -883,7 +940,7 @@ var openAuthorPanel = function (author, callback) {
             text.innerHTML = appendTags(convertText(json.posts[i].body, json._id+"-"+json.posts[i].date+"-panel"), json.posts[i].tags, json.author);
             post.appendChild(text);
             //
-            createPostFooter(post, json._id, json.posts[i].date, json.posts[i].post_id, json.author);
+            createPostFooter(post, {_id:json._id, name:json.author}, json.posts[i]);
             //create tag ref
             if (!glo.authors) {glo.authors = {};}
             if (!glo.authors[json.author]) {glo.authors[json.author] = {}}
@@ -929,15 +986,15 @@ var open404author = function () {
 var openPost = function (author, post_id, index) { //individual post on an author page
   openAuthorPanel(author, function () {
     // hide all posts
-    var children = $(author+'-panel-all').childNodes;
+    var children = $(author+'-posts').childNodes;
     for (var i = 0; i < children.length; i++) {
       children[i].classList.add('removed');
     }
     // open the One
     if (post_id) {                                // by ID
       simulatePageLoad("~/"+post_id, author);
-      if ($('post-'+post_id)) {
-        $('post-'+post_id).classList.remove('removed');
+      if ($('author-'+post_id)) {
+        $('author-'+post_id).classList.remove('removed');
       } else {
         open404post(author);
       }
@@ -1061,7 +1118,7 @@ var tagSearch = function () {
 var filterAuthorByTag = function (author, tag) {
   openAuthorPanel(author, function () {
     // hide all posts
-    var children = $(author+'-panel-all').childNodes;
+    var children = $(author+'-posts').childNodes;
     for (var i = 0; i < children.length; i++) {
       children[i].classList.add('removed');
     }
@@ -1073,7 +1130,7 @@ var filterAuthorByTag = function (author, tag) {
         if (obj[post]) {
           if (obj[post][tag]) {
             none = false;
-            $('post-'+post).classList.remove('removed');
+            $('author-'+post).classList.remove('removed');
           }
         }
       }

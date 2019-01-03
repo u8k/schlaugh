@@ -313,7 +313,7 @@ var createPost = function (authorID, callback, date) {
   });
 }
 
-var deletePost = function (postID, callback) {  // only from the POST DB, most info is with the user
+var deletePostFromPosts = function (postID, callback) {
   db.collection('posts').remove({_id: postID},
     function(err, post) {
       if (err) {return callback({error:err});}
@@ -325,31 +325,6 @@ var deletePost = function (postID, callback) {  // only from the POST DB, most i
 var updateUserPost = function (text, newTags, userID, user, res, errMsg, callback) {
   var tmrw = pool.getCurDate(-1);
   if (user.posts[tmrw]) {                               //edit existing
-
-    var checkNewTags = function () {
-      var newTagArr = [];
-      for (var tag in newTags) {
-        if (newTags.hasOwnProperty(tag)) {
-          if (!user.posts[tmrw][0].tags[tag]) { // if the new tag is NOT an old tag too
-            newTagArr.push(tag);
-          }
-        }
-      }
-      if (newTagArr.length === 0) {wrapIt();}
-      else {
-        createTagRefs(newTagArr, tmrw, userID, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
-          else {wrapIt();}
-        });
-      }
-    }
-
-    var wrapIt = function () {
-      user.posts[tmrw][0].body = text;
-      user.posts[tmrw][0].tags = newTags;
-      return callback();
-    }
-
     // check existing tags
     var badTagArr = [];
     for (var tag in user.posts[tmrw][0].tags) {
@@ -359,13 +334,27 @@ var updateUserPost = function (text, newTags, userID, user, res, errMsg, callbac
         }
       }
     }
-    if (badTagArr.length === 0) {checkNewTags();}
-    else {
-      deleteTagRefs(badTagArr, tmrw, userID, function (resp) {
-        if (resp.error) {return sendError(res, errMsg+resp.error);}
-        else {checkNewTags();}
-      });
-    }
+    deleteTagRefs(badTagArr, tmrw, userID, function (resp) {
+      if (resp.error) {return sendError(res, errMsg+resp.error);}
+      else {
+        var newTagArr = [];
+        for (var tag in newTags) {
+          if (newTags.hasOwnProperty(tag)) {
+            if (!user.posts[tmrw][0].tags[tag]) { // if the new tag is NOT an old tag too
+              newTagArr.push(tag);
+            }
+          }
+        }
+        createTagRefs(newTagArr, tmrw, userID, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          else {
+            user.posts[tmrw][0].body = text;
+            user.posts[tmrw][0].tags = newTags;
+            return callback();
+          }
+        });
+      }
+    });
   } else {                                  //create new
     createPost(userID, function (resp) {
       if (resp.error) {return sendError(res, errMsg+resp.error);}
@@ -381,18 +370,52 @@ var updateUserPost = function (text, newTags, userID, user, res, errMsg, callbac
         for (var tag in newTags) {    // add a ref in the tag db for each tag
           if (newTags.hasOwnProperty(tag)) {tagArr.push(tag)}
         }
-        if (tagArr.length !== 0) {
-          createTagRefs(tagArr, tmrw, userID, function (resp) {
-            if (resp.error) {return sendError(res, errMsg+resp.error);}
-            else {return callback();}
-          });
-        } else {return callback();}
+        createTagRefs(tagArr, tmrw, userID, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          else {return callback();}
+        });
       }
     });
   }
 }
 
+var deletePost = function (res, errMsg, userID, user, date, callback) {
+  deletePostFromPosts(user.posts[date][0].post_id, function (resp) {
+    if (resp.error) {return sendError(res, errMsg+resp.error);}
+    else {
+      var deadTags = [];
+      for (var tag in user.posts[date][0].tags) {
+        if (user.posts[date][0].tags.hasOwnProperty(tag)) {
+          deadTags.push(tag);
+        }
+      }
+      deleteTagRefs(deadTags, date, userID, function (resp) {
+        if (resp.error) {return sendError(res, errMsg+resp.error);}
+        else {
+          delete user.posts[date];
+          // remove the ref in postList, or pending
+          if (date === pool.getCurDate(-1)) {
+            user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
+          } else {
+            for (var i = 0; i < user.postList.length; i++) {
+              if (user.postList[i].date === date) {
+                user.postList.splice(i, 1);
+                break;
+              }
+            }
+          }
+          return writeToDB(userID, user, function (resp) {
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            else {callback({error: false});}
+          });
+        }
+      });
+    }
+  });
+}
+
 var createTagRefs = function (tagArr, date, authorID, callback) {
+  if (tagArr.length === 0) {return callback({error:false});}
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
   authorID = ObjectId(authorID);
   // check if dateBucket is extant
@@ -428,6 +451,7 @@ var createTagRefs = function (tagArr, date, authorID, callback) {
 }
 
 var deleteTagRefs = function (tagArr, date, authorID, callback) {
+  if (tagArr.length === 0) {return callback({error:false});}
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
   authorID = ObjectId(authorID);
   db.collection('tags').findOne({date: date}, {ref:1}
@@ -619,6 +643,12 @@ var genInboxTemplate = function () {
   return {threads: {}, list: [], updatedOn: pool.getCurDate(), pending: {}};
 }
 
+var idCheck = function (req, res, errMsg, callback) {
+  if (!req.session.user) {return sendError(res, errMsg+"no user session");}
+  if (!ObjectId.isValid(req.session.user._id)) {return sendError(res, errMsg+"invalid userID format");}
+  return callback(ObjectId(req.session.user._id));
+}
+
 //*******//ROUTING//*******//
 
 // admin
@@ -732,6 +762,17 @@ app.post('/admin/users', function(req, res) {
   });
 });
 
+app.post('/admin/user', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('users').findOne({username: req.body.name}, {}
+    , function (err, user) {
+      if (err) {return sendError(res, err);}
+      else if (!user) {return sendError(res, errMsg+"user not found");}
+      else {return res.send(user);}
+    });
+  });
+});
+
 app.post('/admin/followStaff', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('users').find({},{_id:1, following:1}).toArray(function(err, users) {
@@ -797,13 +838,13 @@ app.post('/admin/removeUser', function(req, res) {
   });
 });
 
-app.post('/admin/removePost', function(req, res) {
+/*app.post('/admin/removePost', function(req, res) { //only from the post db...don't use this
   adminGate(req, res, function (res, user) {
-    deletePost(req.body._id, function (result) {
+    deletePostFromPosts(req.body._id, function (result) {
       res.send(result);
     });
   });
-});
+});*/
 
 app.post('/admin/makePostIDs', function(req, res) {
   adminGate(req, res, function (res, user) {
@@ -991,33 +1032,9 @@ app.post('/', function(req, res) {
       checkFreshness(user);
       var tmrw = pool.getCurDate(-1);
       if (req.body.remove) {                     //remove pending post, do not replace
-
-        var wrapIt = function () {
-          delete user.posts[tmrw];
-          user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
-          return writeToDB(userID, user, function (resp) {
-            if (resp.error) {return sendError(res, errMsg+resp.error);}
-            else {res.send({error: false});}
-          });
-        }
-
-        deletePost(user.posts[tmrw][0].post_id, function (resp) {
+        deletePost(res, errMsg, userID, user, tmrw, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
-          else {
-            var deadTags = [];
-            for (var tag in user.posts[tmrw][0].tags) {
-              if (user.posts[tmrw][0].tags.hasOwnProperty(tag)) {
-                deadTags.push(tag);
-              }
-            }
-            if (deadTags.length === 0) {wrapIt();}
-            else {
-              deleteTagRefs(deadTags, tmrw, userID, function (resp) {
-                if (resp.error) {return sendError(res, errMsg+resp.error);}
-                else {wrapIt();}
-              });
-            }
-          }
+          else {return res.send({error:false});}
         });
       } else {
         var x = pool.cleanseInputText(req.body.text);
@@ -1033,6 +1050,30 @@ app.post('/', function(req, res) {
         });
       }
     }
+  });
+});
+
+//
+app.post('/deleteOldPost', function (req, res) {
+  var errMsg = "the post was not successfully deleted<br><br>";
+  if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 813");}
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+    , {_id:0, posts:1, postList:1, postListPending:1}
+    , function (err, user) {
+      if (err) {return sendError(res, err);}
+      else if (!user) {return sendError(res, errMsg+"user not found");}
+      else {
+        checkFreshness(user); //in case they want to delete a post from today that is still in pendingList
+        // before changing anything, verify the postID corresponds with the date
+        if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
+          deletePost(res, errMsg, userID, user, req.body.date, function (resp) {
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            else {return res.send({error:false});}
+          });
+        } else {return sendError(res, errMsg+"postID and date miscoresponce");}
+      }
+    });
   });
 });
 

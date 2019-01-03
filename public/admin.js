@@ -116,3 +116,9 @@ var getResetCodes = function () {
     console.log(json);
   });
 }
+
+var getUser = function () {
+  ajaxCall('/admin/user', 'POST', {name: $("get-user-input").value}, function(json) {
+    console.log(json);
+  });
+}
