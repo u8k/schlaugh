@@ -264,8 +264,8 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
         }
         signIn('/login', data, function (resp) {
           if (resp && resp.otherKey) {glo.currentAuthor.key = resp.otherKey;}
-          createFollowButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
-          createMessageButton($(glo.openPanel), glo.currentAuthor, $(glo.openPanel+"-all"));
+          createFollowButton($(glo.openPanel), glo.currentAuthor, $(glo.currentAuthor.author+"-posts"));
+          createMessageButton($(glo.openPanel), glo.currentAuthor, $(glo.currentAuthor.author+"-posts"));
           var postArr = glo.currentAuthor.posts;
           for (var i = 0; i < postArr.length; i++) {
             if (postArr[i].post_id && postArr[i].date) {
@@ -280,8 +280,8 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
 }
 
 var alert = function (message, btnTxt, callback) {
-  loading(true, true);
   if (!$("alert")) {return console.log(message);}
+  loading(true, true);
   if (!message) {  //close the alert
     $("alert").classList.add("hidden");
     blackBacking(true);
@@ -957,19 +957,35 @@ var openAuthorPanel = function (author, callback) {
   }
 }
 
-var open404author = function () {
-  if ($('404-panel')) {switchPanel("404-panel");}
-  else {
-    // panel
-    var panel = document.createElement("div");
-    panel.setAttribute('id', '404-panel');
-    $("main").appendChild(panel);
-    // title
-    var title = document.createElement("h2");
-    title.setAttribute('class', 'author-page-title');
-    title.innerHTML = "but there was nobody home";
-    panel.appendChild(title);
-    switchPanel("404-panel");
+var open404author = function (ever) {
+  if (ever) {
+    if ($('404-panel-ever')) {switchPanel("404-panel-ever");}
+    else {
+      // panel
+      var panel = document.createElement("div");
+      panel.setAttribute('id', '404-panel-ever');
+      $("main").appendChild(panel);
+      // title
+      var title = document.createElement("h2");
+      title.setAttribute('class', 'author-page-title');
+      title.innerHTML = "once here<br>there was something<br><br>now here<br>there is nothing<br><br><i>time</i><br><br>";
+      panel.appendChild(title);
+      switchPanel("404-panel-ever");
+    }
+  } else {
+    if ($('404-panel')) {switchPanel("404-panel");}
+    else {
+      // panel
+      var panel = document.createElement("div");
+      panel.setAttribute('id', '404-panel');
+      $("main").appendChild(panel);
+      // title
+      var title = document.createElement("h2");
+      title.setAttribute('class', 'author-page-title');
+      title.innerHTML = "<br>but there was nobody home<br><br>";
+      panel.appendChild(title);
+      switchPanel("404-panel");
+    }
   }
 }
 

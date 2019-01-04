@@ -20,13 +20,13 @@
 
   exports.userNameValidate = function (x) {
     if (x === undefined || x === "") {
-      return "need a name!";
-    }
-    if (/[^a-z0-9-_]/.test(x)) {
-      return 'invalid name, a-z0-9-_ only';
+      return "empty string is not a valid username, sorry";
     }
     if (x.length > 30) {
       return 'name is too long';
+    }
+    if (/[^a-z0-9-_]/.test(x)) {
+      return 'invalid name<br><br> valid characters include letters a-z(lowercase), numbers 0-9, "-" and "_"';
     }
     else {return false;}  // false indicates good, no problems
   }
@@ -34,6 +34,9 @@
   exports.passwordValidate = function (x) {
     if (x === "") {
       return "empty string is not a valid password, sorry"
+    }
+    if (x.length > 40) {
+      return 'password is too long';
     }
     if (/[^ a-zA-Z0-9-_!@#$%&*?]/.test(x)) {
       return 'invalid password<br><br> valid characters include letters A-Z(upper/lowercase), numbers 0-9, spaces, and the following special characters: -_!@#$%&*?';

@@ -322,6 +322,18 @@ var deletePostFromPosts = function (postID, callback) {
   );
 }
 
+var nullPostFromPosts = function (postID, callback) {
+  var emptyPost = {date: null, authorID: null,};
+  db.collection('posts').updateOne({_id: postID},
+    {$set: emptyPost},
+    function(err, post) {
+      if (err) {return callback({error:err});}
+      if (!post) {return callback({error:"post not found in posts"});}
+      else {return callback({error:false});}
+    }
+  );
+}
+
 var updateUserPost = function (text, newTags, userID, user, res, errMsg, callback) {
   var tmrw = pool.getCurDate(-1);
   if (user.posts[tmrw]) {                               //edit existing
@@ -380,36 +392,46 @@ var updateUserPost = function (text, newTags, userID, user, res, errMsg, callbac
 }
 
 var deletePost = function (res, errMsg, userID, user, date, callback) {
-  deletePostFromPosts(user.posts[date][0].post_id, function (resp) {
+  var deadTags = [];
+  for (var tag in user.posts[date][0].tags) {
+    if (user.posts[date][0].tags.hasOwnProperty(tag)) {
+      deadTags.push(tag);
+    }
+  }
+  deleteTagRefs(deadTags, date, userID, function (resp) {
     if (resp.error) {return sendError(res, errMsg+resp.error);}
     else {
-      var deadTags = [];
-      for (var tag in user.posts[date][0].tags) {
-        if (user.posts[date][0].tags.hasOwnProperty(tag)) {
-          deadTags.push(tag);
-        }
-      }
-      deleteTagRefs(deadTags, date, userID, function (resp) {
-        if (resp.error) {return sendError(res, errMsg+resp.error);}
-        else {
-          delete user.posts[date];
-          // remove the ref in postList, or pending
-          if (date === pool.getCurDate(-1)) {
-            user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
-          } else {
-            for (var i = 0; i < user.postList.length; i++) {
-              if (user.postList[i].date === date) {
-                user.postList.splice(i, 1);
-                break;
-              }
-            }
+      // is this a pending or an OLD post?
+      if (date === pool.getCurDate(-1)) {
+        user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
+        deletePostFromPosts(user.posts[date][0].post_id, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          else {
+            delete user.posts[date];
+            return writeToDB(userID, user, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {callback({error: false});}
+            });
           }
-          return writeToDB(userID, user, function (resp) {
-            if (resp.error) {return sendError(res, errMsg+resp.error);}
-            else {callback({error: false});}
-          });
+        });
+      } else {    // for OLD posts
+        for (var i = 0; i < user.postList.length; i++) {
+          if (user.postList[i].date === date) {
+            user.postList.splice(i, 1);
+            break;
+          }
         }
-      });
+        nullPostFromPosts(user.posts[date][0].post_id, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          else {
+            delete user.posts[date];
+            return writeToDB(userID, user, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {callback({error: false});}
+            });
+          }
+        });
+      }
     }
   });
 }
@@ -441,7 +463,7 @@ var createTagRefs = function (tagArr, date, authorID, callback) {
       }
       db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
         {$set: dateBucket},
-        function(err, user) {
+        function(err, tag) {
           if (err) {return callback({error:err});}
           else {return callback({error:false});}
         }
@@ -454,35 +476,37 @@ var deleteTagRefs = function (tagArr, date, authorID, callback) {
   if (tagArr.length === 0) {return callback({error:false});}
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
   authorID = ObjectId(authorID);
-  db.collection('tags').findOne({date: date}, {ref:1}
+  db.collection('tags').findOne({date: date}, {ref:1, top:1}
   , function (err, dateBucket) {
     if (err) {return callback({error:err});}
-    else if (!dateBucket) {
-      return callback({error:"the to be trimmed dateBucket does not seem to exist, sir"});
-    } else {
-      for (var i = 0; i < tagArr.length; i++) {
-        if (dateBucket.ref[tagArr[i]]) {
-          var array = dateBucket.ref[tagArr[i]];
-          var notFound = true;
-          for (var j = 0; j < array.length; j++) {
-            if (String(array[j]) === String(authorID)) {
-              array.splice(j, 1);
-              notFound = false;
-              break;
+    if (!dateBucket) {return callback({error:false});}
+    // for each tag to be deleted,
+    for (var i = 0; i < tagArr.length; i++) {
+      if (dateBucket.ref[tagArr[i]]) {
+        var array = dateBucket.ref[tagArr[i]];
+        for (var j = 0; j < array.length; j++) {
+          if (String(array[j]) === String(authorID)) {
+            array.splice(j, 1);
+            break;
+          }
+        }
+        if (array.length === 0) {
+          if (dateBucket.top && dateBucket.top.length) { //check for extant top tags
+            for (var j = 0; j < dateBucket.top.length; j++) {
+              if (dateBucket.top[j] === tagArr[j]) {
+                dateBucket.top.splice(j, 1);
+              }
             }
           }
-          if (notFound) {return callback({error:'the to be deleted author refference for the tag "'+tagArr[i]+'" does not seem to exist, sir'});}
         }
-        else {return callback({error:'the to be deleted tag "'+tagArr[i]+'" does not seem to exist, sir'});}
       }
-      db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
-        {$set: dateBucket},
-        function(err, resp) {
-          if (err) {return callback({error:err});}
-          else {return callback({error:false});}
-        }
-      );
     }
+    db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
+    {$set: dateBucket},
+    function(err, resp) {
+      if (err) {return callback({error:err});}
+      else {return callback({error:false});}
+    });
   });
 }
 
@@ -676,7 +700,7 @@ app.get('/admin', function(req, res) {
     var results = pool.runTests(
       [ //array of arrays, each inner array contains two statements that are supposed to be equal
         [devFlag, false, "IN DEV MODE"],
-        [pool.userNameValidate(), "need a name!", "pool.userNameValidate()"],
+        //[pool.userNameValidate(), "need a name!", "pool.userNameValidate()"],
         [pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
         //
         [checkObjForProp({a: 23}, 'a', 23), false],
@@ -1054,6 +1078,36 @@ app.post('/', function(req, res) {
 });
 
 //
+app.post('/editOldPost', function (req, res) {
+  return res.send({error:false});
+  /*
+  var errMsg = "the post was not successfully edited<br><br>";
+  if (!req.body.post_id || !req.body.date || !req.body.newText || !req.body.tags) {return sendError(res, errMsg+"malformed request 154");}
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+    , {_id:0, posts:1,}
+    , function (err, user) {
+      if (err) {return sendError(res, err);}
+      else if (!user) {return sendError(res, errMsg+"user not found");}
+      else {
+        // before changing anything, verify the postID corresponds with the date
+        if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
+          //tag stuff
+          //bodyText stuff, Validate!
+
+          deletePost(res, errMsg, userID, user, req.body.date, function (resp) {
+
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            else {return res.send({error:false});}
+          });
+        } else {return sendError(res, errMsg+"postID and date miscoresponce");}
+      }
+    });
+  });
+  */
+});
+
+//
 app.post('/deleteOldPost', function (req, res) {
   var errMsg = "the post was not successfully deleted<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 813");}
@@ -1111,7 +1165,7 @@ app.post('/posts/:date', function(req, res) {
                 dateBucket.top = topTags;
                 db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
                   {$set: dateBucket},
-                  function(err, user) {
+                  function(err, tag) {
                     if (err) {return sendError(res, err);}
                     else {return res.send({error:false, posts:resp.posts, topTags:topTags});}
                   }
@@ -2024,8 +2078,7 @@ app.get('/~getTag/:tag/:date', function (req, res) {
 
 var authorFromPostID = function (post_id, callback) {
   if (ObjectId.isValid(post_id)) {post_id = ObjectId(post_id);}
-  db.collection('posts').findOne({_id: post_id}
-  , {}
+  db.collection('posts').findOne({_id: post_id}, {}
   , function (err, post) {
     if (err) {return callback({error:err});}
     else {
@@ -2040,7 +2093,7 @@ var authorFromPostID = function (post_id, callback) {
           if (err) {return callback({error:err});}
           else {
             if (!author) {    //404
-              return callback({error: false, four04: true,});
+              return callback({error: false, ever: true,});
             } else {
               return callback({error: false, four04: false, author:author.username});
             }
@@ -2066,7 +2119,8 @@ var renderLayout = function (req, res, data) {
       author:data.author,
       post_index:data.post_index,
       post_id:data.post_id,
-      tag:data.tag
+      tag:data.tag,
+      ever:data.ever,
     });
   } else {
     getSettings(req, res, function (settings) {
@@ -2077,6 +2131,7 @@ var renderLayout = function (req, res, data) {
         post_index:data.post_index,
         post_id:data.post_id,
         tag:data.tag,
+        ever:data.ever,
       });
     });
   }
@@ -2087,7 +2142,7 @@ app.get('/~/:post_id', function (req, res) {
   authorFromPostID(req.params.post_id, function (resp) {
     if (resp.error) {sendError(res, resp.error);}
     else {
-      renderLayout(req, res, {author:resp.author, post_id:req.params.post_id});
+      renderLayout(req, res, {author:resp.author, post_id:req.params.post_id, ever:resp.ever});
     }
   })
 });
@@ -2123,6 +2178,5 @@ app.listen(app.get('port'), function(){
 // If the Node process ends, close the DB connection
 process.on('SIGINT', function() {
   db.close();
-  console.log('bye');
   process.exit(0);
 });
