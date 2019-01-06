@@ -56,6 +56,8 @@
   }
 
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
+    if (typeof string !== "string") {return {error:"not string"}}
+
     string = string.replace(/\r?\n|\r/g, '<br>');
 
     string = string.replace(/  /g, ' &nbsp;');

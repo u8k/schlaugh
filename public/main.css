@@ -88,7 +88,7 @@ clicky, .clicky {
   user-select: none;
 }
 
-#post-writer{width: 75%; margin: auto;}
+#post-writer, #old-post-writer {width: 75%; margin: auto;}
 #message-writer{width: 65%; margin: auto;}
 
 .editor{
@@ -162,7 +162,7 @@ img {
   .post, #settings-box {width: 98%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
-  #post-writer{width: 95%;}
+  #post-writer, #old-post-writer{width: 95%;}
   #message-writer{width: 85%;}
   .author-pic {margin-left: 0; position: static;}
   .meta-text {position: relative; top: -55px;}

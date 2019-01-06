@@ -12,17 +12,14 @@
 <div id="write-panel" class="removed">
 
   <div id="post-preview">
-    <text id="pending-status">no pending post</text>
-    <br>
+    <div id="pending-status">no pending post for tomorrow</div>
     <div id="pending-post" class="post removed"></div>
     <button type="button" id='write-post-button' onclick="showWriter('post')">new post</button>
   </div>
 
   <div id="post-writer" class="removed">
-    <icon class="clicky arrow fas fa-caret-left" onclick="hideWriter('post')"></icon>
-    <br>
     <%- include("editorButtons", {kind: "post"}) %>
-    <textarea id="postEditor" class="editor" autocomplete="off"></textarea>
+    <textarea id="post-editor" class="editor" autocomplete="off"></textarea>
     <br>
     <label for="tag-input">tags</label><br>
     <input id="tag-input" type="text" placeholder="separated by commas!">
@@ -93,7 +90,7 @@
   </div>
   <div id="message-writer" class="removed">
     <%- include("editorButtons", {kind: "message"}) %>
-    <textarea id="messageEditor" autocomplete="off" class="editor"></textarea>
+    <textarea id="message-editor" autocomplete="off" class="editor"></textarea>
     <br>
     <button onclick="submitMessage()">schend</button>
     <button id='delete-message' onclick="submitMessage(true)">delete</button>
@@ -212,6 +209,29 @@
 
 <div id="o-panel" class="removed">
   <img id="o-pic" src="https://sites.google.com/site/saveplanet604/_/rsrc/1338144224588/orangutan/orangutan.jpg" alt="orangutan">
+</div>
+
+<div id="edit-panel" class="removed">
+  <a id="edit-panel-title" class="author-page-title"></a>
+
+  <div id="old-post-preview">
+    <div id="old-post-status"></div>
+    <div id="pending-edit" class="post removed"></div>
+    <button type="button" id='edit-post-button' onclick="showWriter('old-post')">new edit</button>
+    <button id='delete-pending-old-post'>delete</button>
+  </div>
+
+  <div id="old-post-writer" class="removed">
+    <div id="old-post-editor-title"></div>
+    <%- include("editorButtons", {kind: "old-post"}) %>
+    <textarea id="old-post-editor" class="editor" autocomplete="off"></textarea>
+    <br>
+    <label for="old-tag-input">tags</label><br>
+    <input id="old-tag-input" type="text" placeholder="separated by commas!">
+    <br><br>
+    <button id='submit-editing-old-post'>schlaubmit</button>
+    <button id='cancel-edit-button'>cancel</button>
+  </div>
 </div>
 
 <div id="lost-panel" class="removed">

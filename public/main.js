@@ -764,14 +764,12 @@ var createPostFooter = function (postElem, author, post) {
       }
       footer.appendChild(deleteBtn);
       //edit button
-      /*
       var editBtn = document.createElement("button");
       editBtn.innerHTML = "edit";
       editBtn.onclick = function() {
         editPost(post, author);
       }
       footer.appendChild(editBtn);
-      */
     }
     // quote button
     var quoteBtn = document.createElement("button");
@@ -783,8 +781,8 @@ var createPostFooter = function (postElem, author, post) {
         loading(true);
         var text = "<quote>"+json.post.body+
           '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
-        if ($('postEditor').value !== "") {text = '<br>'+text;}
-        $('postEditor').value += prepTextForEditor(text);
+        if ($('post-editor').value !== "") {text = '<br>'+text;}
+        $('post-editor').value += prepTextForEditor(text);
         showWriter('post');
         switchPanel('write-panel');
       });
@@ -801,7 +799,7 @@ var deletePost = function (post) {
       loading();
       ajaxCall('/deleteOldPost', 'POST', post, function(json) {
         loading(true);
-        // remove the DOM elements of ALL intances of the post that may be floating about
+        // remove the DOM elements of ALL instances of the post that may be floating about
         var authVers = $('author-'+post.post_id);
         var feedVers = $('feed-'+post.post_id);
         if (authVers) {authVers.parentNode.removeChild(authVers);}
@@ -817,8 +815,115 @@ var deletePost = function (post) {
   });
 }
 
-var editPost = function () {
-  alert('not yet!');
+var editPost = function (post, author) {
+  $("old-post-editor-title").innerHTML = "<l>editing your post for "+post.date+'</l>';
+  $('edit-post-button').onclick = function () {
+    showWriter('old-post');
+  }
+  //
+  if (glo.pendingUpdates[post.date]) {
+    var savedPost = glo.pendingUpdates[post.date][0];
+    $('old-post-editor').value = prepTextForEditor(savedPost.body);
+    $("old-post-status").innerHTML = "pending edit for your post on "+post.date;
+    updatePendingEdit(savedPost.body, savedPost.tags);
+    hideWriter('old-post');
+    $('edit-post-button').innerHTML = "edit edit";
+    switchPanel("edit-panel");
+  } else {
+    loading();
+    ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
+      if (json.four04) {return alert("eRoRr! post not found???")}
+      loading(true);
+      var tags = getTagString(post.tags);
+      glo.fetchedPosts[post.date] = [json.post];
+      $('old-tag-input').value = tags;
+      $("old-post-status").innerHTML = "no pending edit for your post on "+post.date;
+      $('old-post-editor').value = prepTextForEditor(json.post.body);
+      $('delete-pending-old-post').classList.add("removed");
+      $('pending-edit').classList.add("removed");
+      $('edit-post-button').innerHTML = "new edit";
+      hideWriter('old-post');
+      switchPanel("edit-panel");
+    });
+  }
+  // set submit button
+  var data = {date: post.date, post_id:post.post_id}
+  $('submit-editing-old-post').onclick = function () {
+    data.text = $('old-post-editor').value;
+    data.tags = $('old-tag-input').value;
+    // have changes been made?
+    if (prepTextForEditor(glo.fetchedPosts[post.date][0].body) === data.text) {
+      if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
+        return hideWriter('old-post');
+      }
+    }
+    loading();
+    ajaxCall("/editOldPost", 'POST', data, function(json) {
+      updatePendingEdit(json.text, json.tags);
+      if (!glo.pendingUpdates[post.date]) {glo.pendingUpdates[post.date] = [{}];}
+      glo.pendingUpdates[post.date][0].body = json.text;
+      glo.pendingUpdates[post.date][0].tags = json.tags;
+      glo.fetchedPosts[post.date][0].body = json.text;
+      glo.fetchedPosts[post.date][0].tags = json.tags;
+    });
+  }
+  //set cancel button
+  $('cancel-edit-button').onclick = function () {
+    verify("revert any unsaved changes?", null, null, function () {
+      $('old-post-editor').value = prepTextForEditor(glo.fetchedPosts[post.date][0].body);
+      $('old-tag-input').value = getTagString(glo.fetchedPosts[post.date][0].tags);
+      return hideWriter('old-post');
+    });
+  }
+  // set delete button
+  $('delete-pending-old-post').onclick = function () {
+    verify("you sure you want me should delete it?", null, null, function (result) {
+      if (!result) {return;}
+      loading();
+      data.text = "";
+      data.tags = "";
+      ajaxCall("/editOldPost", 'POST', data, function(json) {
+        glo.pendingUpdates[post.date] = null;
+        glo.fetchedPosts[post.date] = null;
+        updatePendingEdit(json.text, json.tags);
+        $('edit-post-button').onclick = function () {
+          editPost(post, author);
+          showWriter('old-post');
+        }
+      });
+    });
+  }
+}
+
+var updatePendingEdit = function (newText, newTags) {
+  if (newText === "") {
+    $('old-post-status').innerHTML = "no "+$('old-post-status').innerHTML;
+    $('delete-pending-old-post').classList.add("removed");
+    $('pending-edit').classList.add("removed");
+    $('edit-post-button').innerHTML = "new edit";
+  } else {
+    var str = $('old-post-status').innerHTML;
+    if (str.substr(0,3) === "no ") {$('old-post-status').innerHTML = str.substr(3);}
+    $('delete-pending-old-post').classList.remove("removed");
+    $('pending-edit').classList.remove("removed");
+    $('edit-post-button').innerHTML = "edit edit";
+  }
+  var tags = getTagString(newTags);
+  $('old-tag-input').value = tags;
+  $('old-post-editor').value = prepTextForEditor(newText);
+  $('pending-edit').innerHTML = appendTags(convertText(newText, 'old-pending'), newTags, glo.username);
+  hideWriter('old-post');
+  loading(true);
+}
+
+var getTagString = function (tagObj) {
+  var tags = "";
+  for (var tag in tagObj) {
+    if (tagObj.hasOwnProperty(tag)) {
+      tags += tag + ", ";
+    }
+  }
+  return tags;
 }
 
 /* userAndPostLinkHandler, not connected to anything
@@ -1044,53 +1149,42 @@ var open404post = function (author) {
 }
 
 var submitPost = function (remove) { //also handles editing and deleting
-  if (remove) {
+  var text = $('post-editor').value;
+  if (text === "" && !glo.pending) {return hideWriter('post');}
+  if (remove || text === "") {
     verify("you sure you want me should delete it?", null, null, function (result) {
-      loading();
       if (!result) {return;}
-      else {
-        var data = {text:null, tags:null, remove:remove}
-        ajaxCall("/", 'POST', data, function(json) {
-          updatePendingPost("", {}, remove);
-        });
-      }
+      loading();
+      ajaxCall("/", 'POST', {text:"", tags:{}}, function(json) {
+        updatePendingPost(json.text, json.tags);
+      });
     });
   } else {
-    var text = $('postEditor').value;
-    var tags = $('tag-input').value;
-    if (text === "") {
-      hideWriter('post');
-      return;
-    }
     loading();
-    var data = {text:text, remove:remove, tags:tags}
-    ajaxCall("/", 'POST', data, function(json) {
-      updatePendingPost(json.text, json.tags, remove)
+    ajaxCall("/", 'POST', {text:text, tags:$('tag-input').value}, function(json) {
+      updatePendingPost(json.text, json.tags);
     });
   }
 }
 
-var updatePendingPost = function (newText, newTags, remove) {
-  if (remove) {
-    $('pending-status').innerHTML = "no pending post";
+var updatePendingPost = function (newText, newTags) {
+  if (newText === "") {
+    glo.pending = false;
+    $('pending-status').innerHTML = "no pending post for tomorrow";
     $('delete-pending-post').classList.add("removed");
     $('pending-post').classList.add("removed");
     $('write-post-button').innerHTML = "new post";
   } else {
+    glo.pending = true;
     $('pending-status').innerHTML = "your pending post for tomorrow:";
     $('delete-pending-post').classList.remove("removed");
     $('pending-post').classList.remove("removed");
     $('write-post-button').innerHTML = "edit post";
   }
-  var tags = "";
-  for (var tag in newTags) {
-    if (newTags.hasOwnProperty(tag)) {
-      tags += tag + ", ";
-    }
-  }
+  var tags = getTagString(newTags);
   $('tag-input').value = tags;
   $('pending-post').innerHTML = appendTags(convertText(newText, 'pending'), newTags);
-  $('postEditor').value = prepTextForEditor(newText);
+  $('post-editor').value = prepTextForEditor(newText);
   hideWriter('post');
   loading(true);
 }
@@ -1214,12 +1308,13 @@ var showWriter = function (kind) {
   $(kind+'-preview').classList.add('removed');
 }
 var hideWriter = function (kind) {
+  //if ($(kind+'-editor').value !== prepTextForEditor(last.body)) {}  // later, for "revert"
   $(kind+'-writer').classList.add('removed');
   $(kind+'-preview').classList.remove('removed');
 }
 
 var styleText = function (s, src) {
-  var area = $(src+'Editor');
+  var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
   var b = x.end + 3;
@@ -1228,7 +1323,7 @@ var styleText = function (s, src) {
   setCursorPosition(area, a+2+s.length, b-1+s.length);
 }
 var hyperlink = function (src) {
-  var area = $(src+'Editor');
+  var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
   var b = x.end;
@@ -1267,7 +1362,7 @@ var hyperlink = function (src) {
   });
 }
 var insertImage = function (src) {
-  var area = $(src+'Editor');
+  var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
   var b = x.end;
@@ -1286,7 +1381,7 @@ var insertImage = function (src) {
   });
 }
 var insertCut = function (src) {
-  var area = $(src+'Editor');
+  var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
   var b = x.end;
@@ -1307,7 +1402,7 @@ var insertCut = function (src) {
   });
 }
 var insertQuote = function (src) {
-  var area = $(src+'Editor');
+  var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
   var b = x.end;
@@ -1367,7 +1462,7 @@ var closeThread = function () { // returns true for threadClosed, false for NO
   if (glo.activeThreadIndex === undefined) {return true;}
   var i = glo.activeThreadIndex;
   //does the open thread have unsaved text?
-  var text = $('messageEditor').value;
+  var text = $('message-editor').value;
   if (text !== "") {
     var last = glo.threads[i].thread[glo.threads[i].thread.length-1];
     if (!last || last.date !== pool.getCurDate(-1) || text !== prepTextForEditor(last.body)) {
@@ -1484,7 +1579,7 @@ var updatePendingMessage = function (index) {
     $('pending-message-status').innerHTML = "no pending message";
     $('pending-message').innerHTML = "";
   }
-  $('messageEditor').value = prepTextForEditor(pending);
+  $('message-editor').value = prepTextForEditor(pending);
   hideWriter('message');
   loading(true);
 }
@@ -1516,7 +1611,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
       }
     });
   } else {
-    var text = $('messageEditor').value;
+    var text = $('message-editor').value;
     if (text === "") {return;}
     if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a bug please note all details and tell staff sorry");}
     //
@@ -1927,6 +2022,8 @@ var parseUserData = function (data) {
   glo.threadRef = {};
   glo.settings = data.settings;
   glo.pending = data.pending;
+  glo.pendingUpdates = Object.create(data.pendingUpdates);
+  glo.fetchedPosts = Object.create(data.pendingUpdates);
   glo.userPic = data.userPic;
   glo.following = {};
   for (var i = 0; i < data.following.length; i++) {
@@ -1941,6 +2038,15 @@ var parseUserData = function (data) {
   if (glo.username) {
     $("username").innerHTML = glo.username;
     $("username").classList.remove("removed");
+    $("username").onclick = function () {
+      openAuthorPanel(glo.username);
+    }
+    $('edit-panel-title').innerHTML = glo.username;
+    $('edit-panel-title').setAttribute('href', "/"+glo.username);
+    $('edit-panel-title').onclick = function (event) {
+      event.preventDefault();
+      openAuthorPanel(glo.username);
+    }
     $("sign-out").classList.remove("removed");
     $("sign-in").classList.add("removed");
     //

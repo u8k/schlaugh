@@ -49,7 +49,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 //*******//HELPER FUNCTIONS//*******//
 
-var checkFreshness = function (user) {
+var checkFreshness = function (user) {  // pushes New pending posts to postlist
   var today = pool.getCurDate();
   if (user['postListUpdatedOn'] !== today) {
     user['postListUpdatedOn'] = today;
@@ -65,6 +65,46 @@ var checkFreshness = function (user) {
   } else {
     return "fresh!";
   }
+}
+
+var checkUpdates = function (user, callback) {  // pushes edits on OLD posts
+  var today = pool.getCurDate();        // user MUST have pendingUpdates, posts, and _id props
+  if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.lastUpdatedOn) {
+    if (user.pendingUpdates.lastUpdatedOn !== today) {
+      user.pendingUpdates.lastUpdatedOn = today;
+      var ref = user.pendingUpdates.updates;
+      var count = 0;
+      for (var date in ref) {
+        if (ref.hasOwnProperty(date)) {
+          if (user.posts[date]) {
+            count++;
+            // check existing tags
+            var badTagArr = [];
+            for (var tag in user.posts[date][0].tags) {
+              if (user.posts[date][0].tags.hasOwnProperty(tag)) {
+                if (!ref[date][0].tags[tag]) {       // if the old tag is NOT a new tag too
+                  badTagArr.push(tag);
+                }
+              }
+            }
+            deleteTagRefs(badTagArr, date, user._id, function (resp) {
+              if (resp.error) {return callback({error:resp.error});}
+              else {
+                count--;
+                user.posts[resp.date] = ref[resp.date];
+                delete ref[resp.date];
+                if (count === 0) {
+                  count--;
+                  return callback({change:true, user:user});
+                }
+              }
+            });
+          } else {delete ref[date];}
+        }
+      }
+      if (count === 0) {return callback({change:true, user:user});}
+    } else {return callback({change:false, user:user});}
+  } else {return callback({change:false, user:user});}
 }
 
 var imageValidate = function (arr, res, callback) {
@@ -192,7 +232,7 @@ var getPayload = function (req, res, otherUserID, callback) {
   if (!req.session.user) {return sendError(res, "no user session");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1,}
+    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, "user not found");}
@@ -213,53 +253,63 @@ var getPayload = function (req, res, otherUserID, callback) {
         if (user.posts[tmrw]) {
           payload.pending = user.posts[tmrw][0];
         }
-        //inbox
-        if (user.inbox) {
-          var threads = [];
-          bumpThreadList(user.inbox);
-          writeToDB(ObjectId(req.session.user._id), user, function () {});
-          var list = user.inbox.list;
-          //reverse thread order so as to send a list ordered newest to oldest
-          for (var i = list.length-1; i > -1; i--) {
-            if (user.inbox.threads[list[i]] && user.inbox.threads[list[i]].thread && user.inbox.threads[list[i]].thread.length !== undefined) {
-              //check the last two messages of each thread, see if they are allowed
-              var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, tmrw, true);
-              if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
-              // add in the authorID for the FE
-              user.inbox.threads[list[i]]._id = list[i];
-              // all threads are locked until unlocked on the FE
-              user.inbox.threads[list[i]].locked = true;
-              threads.push(user.inbox.threads[list[i]]);
+        checkUpdates(user, function (check) {
+          if (check.error) {return sendError(res, check.error);}
+          if (user.pendingUpdates && user.pendingUpdates.updates) {
+            payload.pendingUpdates = user.pendingUpdates.updates;
+          } else {
+            payload.pendingUpdates = {};
+          }
+          //inbox
+          if (user.inbox) {
+            var threads = [];
+            var bump = bumpThreadList(user.inbox);
+            if (bump || check.change) {
+              writeToDB(ObjectId(req.session.user._id), user, function () {});
             }
-          }                     // this data request is from a login on a user page
-          if (otherUserID) {    // check if either user is blocking the other
-            if (!user.inbox.threads[otherUserID] || (!user.inbox.threads[otherUserID].blocking && !user.inbox.threads[otherUserID].blocked)) {
-              // good to go, we need the other users key
-              db.collection('users').findOne({_id: otherUserID}
-              , {_id:0, keys:1,}
-              , function (err, otherUser) {
-                if (err) {return sendError(res, err);}
-                else if (!otherUser) {return sendError(res, "other user not found");}
-                else {
-                  if (otherUser.keys) {
-                    payload.threads = threads;
-                    payload.otherKey = otherUser.keys.pubKey;
-                    return callback(payload);
+            var list = user.inbox.list;
+            //reverse thread order so as to send a list ordered newest to oldest
+            for (var i = list.length-1; i > -1; i--) {
+              if (user.inbox.threads[list[i]] && user.inbox.threads[list[i]].thread && user.inbox.threads[list[i]].thread.length !== undefined) {
+                //check the last two messages of each thread, see if they are allowed
+                var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, tmrw, true);
+                if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
+                // add in the authorID for the FE
+                user.inbox.threads[list[i]]._id = list[i];
+                // all threads are locked until unlocked on the FE
+                user.inbox.threads[list[i]].locked = true;
+                threads.push(user.inbox.threads[list[i]]);
+              }
+            }                     // this data request is from a login on a user page
+            if (otherUserID) {    // check if either user is blocking the other
+              if (!user.inbox.threads[otherUserID] || (!user.inbox.threads[otherUserID].blocking && !user.inbox.threads[otherUserID].blocked)) {
+                // good to go, we need the other users key
+                db.collection('users').findOne({_id: otherUserID}
+                , {_id:0, keys:1,}
+                , function (err, otherUser) {
+                  if (err) {return sendError(res, err);}
+                  else if (!otherUser) {return sendError(res, "other user not found");}
+                  else {
+                    if (otherUser.keys) {
+                      payload.threads = threads;
+                      payload.otherKey = otherUser.keys.pubKey;
+                      return callback(payload);
+                    }
                   }
-                }
-              });
+                });
+              } else {
+                payload.threads = threads;
+                return callback(payload);
+              }
             } else {
               payload.threads = threads;
               return callback(payload);
             }
           } else {
-            payload.threads = threads;
+            payload.threads = [];
             return callback(payload);
           }
-        } else {
-          payload.threads = [];
-          return callback(payload);
-        }
+        });
       }
     });
   }
@@ -392,6 +442,7 @@ var updateUserPost = function (text, newTags, userID, user, res, errMsg, callbac
 }
 
 var deletePost = function (res, errMsg, userID, user, date, callback) {
+  if (!user.posts[date]) {return sendError(res, errMsg+"post not found");}
   var deadTags = [];
   for (var tag in user.posts[date][0].tags) {
     if (user.posts[date][0].tags.hasOwnProperty(tag)) {
@@ -420,6 +471,9 @@ var deletePost = function (res, errMsg, userID, user, date, callback) {
             user.postList.splice(i, 1);
             break;
           }
+        }
+        if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[date]) {
+          delete user.pendingUpdates.updates[date];
         }
         nullPostFromPosts(user.posts[date][0].post_id, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
@@ -473,13 +527,13 @@ var createTagRefs = function (tagArr, date, authorID, callback) {
 }
 
 var deleteTagRefs = function (tagArr, date, authorID, callback) {
-  if (tagArr.length === 0) {return callback({error:false});}
+  if (tagArr.length === 0) {return callback({error:false, date:date});}
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
   authorID = ObjectId(authorID);
   db.collection('tags').findOne({date: date}, {ref:1, top:1}
   , function (err, dateBucket) {
     if (err) {return callback({error:err});}
-    if (!dateBucket) {return callback({error:false});}
+    if (!dateBucket) {return callback({error:false, date:date});}
     // for each tag to be deleted,
     for (var i = 0; i < tagArr.length; i++) {
       if (dateBucket.ref[tagArr[i]]) {
@@ -505,7 +559,7 @@ var deleteTagRefs = function (tagArr, date, authorID, callback) {
     {$set: dateBucket},
     function(err, resp) {
       if (err) {return callback({error:err});}
-      else {return callback({error:false});}
+      else {return callback({error:false, date:date});}
     });
   });
 }
@@ -539,27 +593,37 @@ var sendError = function (res, msg) {
 
 var postsFromAuthorListAndDate = function (authorList, date, callback) {
   db.collection('users').find({_id: {$in: authorList}}
-    ,{posts:1, username:1, iconURI:1,}).toArray(function(err, users) {
+    ,{posts:1, username:1, iconURI:1, pendingUpdates:1}).toArray(function(err, users) {
     if (err) {return callback({error:err});}
     else {
       var posts = [];
+      var count = 0;
       for (var i = 0; i < users.length; i++) {
         if (users[i].posts[date]) {
-          var authorPic = users[i].iconURI;
-          if (typeof authorPic !== 'string') {authorPic = "";}
-          var post_id = null;
-          if (users[i].posts[date][0].post_id) {post_id = users[i].posts[date][0].post_id}
-          posts.push({
-            body: users[i].posts[date][0].body,
-            tags: users[i].posts[date][0].tags,
-            post_id: post_id,
-            author: users[i].username,
-            authorPic: authorPic,
-            _id: users[i]._id,
+          count++;
+          checkUpdates(users[i], function (resp) {
+            if (resp.error) {return callback({error:resp.error})}
+            count--;
+            var authorPic = resp.user.iconURI;
+            if (typeof authorPic !== 'string') {authorPic = "";}
+            var post_id = null;
+            if (resp.user.posts[date][0].post_id) {post_id = resp.user.posts[date][0].post_id}
+            posts.push({
+              body: resp.user.posts[date][0].body,
+              tags: resp.user.posts[date][0].tags,
+              post_id: post_id,
+              author: resp.user.username,
+              authorPic: authorPic,
+              _id: resp.user._id,
+            });
+            if (count === 0) {
+              count--;
+              return callback({error:false, posts:posts});
+            }
           });
         }
       }
-      callback({error:false, posts:posts});
+      if (count === 0) {return callback({error:false, posts:posts});}
     }
   });
 }
@@ -700,7 +764,7 @@ app.get('/admin', function(req, res) {
     var results = pool.runTests(
       [ //array of arrays, each inner array contains two statements that are supposed to be equal
         [devFlag, false, "IN DEV MODE"],
-        //[pool.userNameValidate(), "need a name!", "pool.userNameValidate()"],
+        [pool.userNameValidate(), "empty string is not a valid username, sorry", "pool.userNameValidate()"],
         [pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
         //
         [checkObjForProp({a: 23}, 'a', 23), false],
@@ -791,7 +855,7 @@ app.post('/admin/user', function(req, res) {
     db.collection('users').findOne({username: req.body.name}, {}
     , function (err, user) {
       if (err) {return sendError(res, err);}
-      else if (!user) {return sendError(res, errMsg+"user not found");}
+      else if (!user) {return res.send({error:"user not found"});}
       else {return res.send(user);}
     });
   });
@@ -1055,13 +1119,13 @@ app.post('/', function(req, res) {
     else {
       checkFreshness(user);
       var tmrw = pool.getCurDate(-1);
-      if (req.body.remove) {                     //remove pending post, do not replace
+      var x = pool.cleanseInputText(req.body.text);
+      if (x.error || x[1] === "") {                 //remove pending post, do not replace
         deletePost(res, errMsg, userID, user, tmrw, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
-          else {return res.send({error:false});}
+          else {return res.send({error:false, text:"", tags:{}});}
         });
       } else {
-        var x = pool.cleanseInputText(req.body.text);
         var tags = parseInboundTags(req.body.tags);
         if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
         imageValidate(x[0], res, function (res) {
@@ -1077,34 +1141,59 @@ app.post('/', function(req, res) {
   });
 });
 
-//
+// new/edit/delete a pending edit to an old post
 app.post('/editOldPost', function (req, res) {
-  return res.send({error:false});
-  /*
   var errMsg = "the post was not successfully edited<br><br>";
-  if (!req.body.post_id || !req.body.date || !req.body.newText || !req.body.tags) {return sendError(res, errMsg+"malformed request 154");}
+  if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 154");}
+  if (req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"you would seek to edit your future? fool!");}
   idCheck(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1,}
+    , {posts:1, pendingUpdates:1}
     , function (err, user) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(res, errMsg+err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
       else {
-        // before changing anything, verify the postID corresponds with the date
-        if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
-          //tag stuff
-          //bodyText stuff, Validate!
-
-          deletePost(res, errMsg, userID, user, req.body.date, function (resp) {
-
-            if (resp.error) {return sendError(res, errMsg+resp.error);}
-            else {return res.send({error:false});}
-          });
-        } else {return sendError(res, errMsg+"postID and date miscoresponce");}
+        // pending updates MUST be fresh when we add to it, else all goes to shit
+        checkUpdates(user, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          // before changing anything, verify the postID corresponds with the date
+          if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
+            var x = pool.cleanseInputText(req.body.text);
+            if (x.error || x[1] === "") {                 // delete
+              if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
+                delete user.pendingUpdates.updates[req.body.date];
+                return writeToDB(userID, user, function (resp) {
+                  if (resp.error) {return sendError(res, errMsg+resp.error);}
+                  else {return res.send({error:false, text:"", tags:{}});}
+                });
+              } else {return sendError(res, errMsg+"edit not found");}
+            } else {                                      // new/edit
+              var today = pool.getCurDate();
+              if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
+              if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
+              if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
+              //
+              var tags = parseInboundTags(req.body.tags);
+              if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+              imageValidate(x[0], res, function (res) {
+                var newPost = [{
+                  body: x[1],
+                  tags: tags,
+                  post_id: req.body.post_id,
+                  edited: true,
+                }];
+                user.pendingUpdates.updates[req.body.date] = newPost;
+                return writeToDB(userID, user, function (resp) {
+                  if (resp.error) {return sendError(res, errMsg+resp.error);}
+                  else {return res.send({error:false, text:x[1], tags:tags});}
+                });
+              });
+            }
+          } else {return sendError(res, errMsg+"postID and date miscoresponce");}
+        });
       }
     });
   });
-  */
 });
 
 //
@@ -1113,7 +1202,7 @@ app.post('/deleteOldPost', function (req, res) {
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 813");}
   idCheck(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1, postList:1, postListPending:1}
+    , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
@@ -1988,43 +2077,46 @@ app.post('/resetNameCheck', function (req, res) {
 app.get('/~getAuthor/:username', function(req, res) {
   if (req.params.username === "admin" || req.params.username === "apwbd") {return res.send({error: false, four04: true});}
   db.collection('users').findOne({username: req.params.username}
-  , { posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1}
+  , { posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1}
   , function (err, author) {
     if (err) {return sendError(res, err);}
     else {
       if (author) {
         checkFreshness(author);
-        var posts = [];
-        var pL = author.postList;
-        var tmrw = pool.getCurDate(-1);
-        for (var i = 0; i < pL.length; i++) {
-          if (pL[i].date !== tmrw) {
-            posts.push({
-              body: author.posts[pL[i].date][pL[i].num].body,
-              tags: author.posts[pL[i].date][pL[i].num].tags,
-              post_id: author.posts[pL[i].date][pL[i].num].post_id,
-              date: pL[i].date,
-            });
+        checkUpdates(author, function (resp) {
+          if (resp.error) {return sendError(res, resp.error);}
+          var posts = [];
+          var pL = author.postList;
+          var tmrw = pool.getCurDate(-1);
+          for (var i = 0; i < pL.length; i++) {
+            if (pL[i].date !== tmrw) {
+              posts.push({
+                body: author.posts[pL[i].date][pL[i].num].body,
+                tags: author.posts[pL[i].date][pL[i].num].tags,
+                post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                date: pL[i].date,
+              });
+            }
           }
-        }
-        var key = null;
-        var authorPic = getUserPic(author);
-        if (req.session.user) {
-          var userID = ObjectId(req.session.user._id);
-          if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
-            if (author.keys) {key = author.keys.pubKey}
+          var key = null;
+          var authorPic = getUserPic(author);
+          if (req.session.user) {
+            var userID = ObjectId(req.session.user._id);
+            if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
+              if (author.keys) {key = author.keys.pubKey}
+            }
           }
-        }
-        res.send({
-          error: false,
-          four04: false,
-          data:{
-            author: req.params.username,
-            posts: posts,
-            authorPic: authorPic,
-            _id: author._id,
-            key: key,
-          }
+          res.send({
+            error: false,
+            four04: false,
+            data:{
+              author: req.params.username,
+              posts: posts,
+              authorPic: authorPic,
+              _id: author._id,
+              key: key,
+            }
+          });
         });
       } else {
         res.send({error: false, four04: true,});      //404
@@ -2038,12 +2130,15 @@ app.get('/~getPost/:id/:date', function (req, res) {
   var authorID = req.params.id;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
   db.collection('users').findOne({_id: authorID}
-  , { posts:1, }
+  , { posts:1, pendingUpdates:1}
   , function (err, author) {
     if (err) {return sendError(res, err);}
     else {
       if (author && author.posts[req.params.date]) {
-        res.send({error: false, post: author.posts[req.params.date][0]})
+        checkUpdates(author, function (resp) {
+          if (resp.err) {return sendError(res, resp.err);}
+          res.send({error: false, post: author.posts[req.params.date][0]})
+        });
       } else {
         res.send({error: false, four04: true,});      //404
       }
