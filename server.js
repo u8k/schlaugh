@@ -597,13 +597,11 @@ var postsFromAuthorListAndDate = function (authorList, date, callback) {
     if (err) {return callback({error:err});}
     else {
       var posts = [];
-      var count = 0;
+      var count = users.length;
       for (var i = 0; i < users.length; i++) {
         if (users[i].posts[date]) {
-          count++;
           checkUpdates(users[i], function (resp) {
             if (resp.error) {return callback({error:resp.error})}
-            count--;
             var authorPic = resp.user.iconURI;
             if (typeof authorPic !== 'string') {authorPic = "";}
             var post_id = null;
@@ -616,12 +614,13 @@ var postsFromAuthorListAndDate = function (authorList, date, callback) {
               authorPic: authorPic,
               _id: resp.user._id,
             });
+            count--;
             if (count === 0) {
               count--;
               return callback({error:false, posts:posts});
             }
           });
-        }
+        } else {count--;}
       }
       if (count === 0) {return callback({error:false, posts:posts});}
     }
