@@ -7,6 +7,7 @@ var mongodb = require('mongodb');
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
 var request = require('request');
+var enforce = require('express-sslify');
 var pool = require('./public/pool.js');
 var adminB = require('./public/adminB.js');
 
@@ -40,6 +41,9 @@ app.use(session({
   keys: ['SECRETSECRETIVEGOTTASECRET'],
   maxAge: 90 * 24 * 60 * 60 * 1000 // (90 days?)
 }))
+
+// enforce https, "trustProtoHeader" is because heroku proxy
+app.use(enforce.HTTPS({ trustProtoHeader: true }))
 
 // sendgrid email config
 var sgMail = require('@sendgrid/mail');
