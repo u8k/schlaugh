@@ -1255,6 +1255,9 @@ var filterAuthorByTag = function (author, tag) {
 var prepTextForEditor = function (text) {
   // we usually want br tags and nbsp codes in the text, so we save it that way
   // and convert it for the one place we don't want that, editors
+  // ... and a bunch of other garbage hacking of html whitespace handling
+
+  //
   text = text.replace(/\/cut>/g, '/cut><br>');
   text = text.replace(/\/li>/g, '/li><br>');
   text = text.replace(/\/quote>/g, '/quote><br>');
@@ -1263,6 +1266,13 @@ var prepTextForEditor = function (text) {
   text = text.replace(/\/l>/g, '/l><br>');
   text = text.replace(/\/ol>/g, '/ol><br>');
   text = text.replace(/\/ul>/g, '/ul><br>');
+  //
+  text = text.replace(/<quote>/g, '<quote><br>');
+  text = text.replace(/<r>/g, '<r><br>');
+  text = text.replace(/<c>/g, '<c><br>');
+  text = text.replace(/<l>/g, '<l><br>');
+  text = text.replace(/<ol>/g, '<ol><br>');
+  text = text.replace(/<ul>/g, '<ul><br>');
 
   var preTagLineBreakRecurse = function (pos, tag) {
     var next = text.substr(pos).search(tag);
@@ -1276,7 +1286,7 @@ var prepTextForEditor = function (text) {
   }
   var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<r>/, /<c>/, /<l>/, /<img/];
   for (var i = 0; i < tagArr.length; i++) {
-    preTagLineBreakRecurse(0, tagArr[i]);
+    preTagLineBreakRecurse(1, tagArr[i]);
   }
 
   text = text.replace(/<br>/g, '\n');
@@ -1313,14 +1323,23 @@ var hideWriter = function (kind) {
   $(kind+'-preview').classList.remove('removed');
 }
 
-var styleText = function (s, src) {
+var styleText = function (tag, src, lineBreak) {
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
-  var b = x.end + 3;
+  var b = x.end;
   var y = area.value;
-  area.value = y.slice(0, a)+'<'+s+'>'+y.slice(a, b-3)+'</'+s+'>'+y.slice(b-3);
-  setCursorPosition(area, a+2+s.length, b-1+s.length);
+  if (!lineBreak) {
+    area.value = y.slice(0, a)+'<'+tag+'>'+y.slice(a, b)+'</'+tag+'>'+y.slice(b);
+    setCursorPosition(area, a+2+tag.length, b+2+tag.length);
+  } else {
+    var openTag = '\n<'+tag+'>\n';
+    if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<'+tag+'>\n';}
+    var closeTag = '\n</'+tag+'>\n';
+    if (y.substr(b,1) === "\n") {closeTag = '\n</'+tag+'>';}
+    area.value = y.slice(0, a)+ openTag + y.slice(a, b)+ closeTag +y.slice(b);
+    setCursorPosition(area, a+openTag.length, b+openTag.length);
+  }
 }
 var hyperlink = function (src) {
   var area = $(src+'-editor');
@@ -1373,8 +1392,12 @@ var insertImage = function (src) {
     placeholder: "hiss",
     callback: function(target) {
       if (target !== null) {
-        area.value = y.slice(0, a)+'<img src="'+target+'">'+y.slice(b);
-        var bump = a+target.length+12;
+        var openTag = '\n<img src="';
+        if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<img src="'}
+        var closeTag = '">\n';
+        if (y.substr(b,1) === "\n") {closeTag = '">'}
+        area.value = y.slice(0, a)+ openTag +target+ closeTag +y.slice(b);
+        var bump = a+target.length+ openTag.length + closeTag.length;
         setCursorPosition(area, bump, bump);
       }
     }
@@ -1394,8 +1417,11 @@ var insertCut = function (src) {
     placeholder: "",
     callback: function(cutText) {
       if (cutText != null) {
-        area.value = y.slice(0, a)+'<cut>'+cutText+'</cut>'+y.slice(b);
-        var bump = a+cutText.length+11;
+        var openTag = '<cut>';
+        var closeTag = '</cut>\n';
+        if (y.substr(b,1) === "\n") {closeTag = '</cut>'}
+        area.value = y.slice(0, a)+openTag+cutText+closeTag+y.slice(b);
+        var bump = a + cutText.length+ openTag.length + closeTag.length;
         setCursorPosition(area, bump, bump);
       }
     }
@@ -1409,6 +1435,10 @@ var insertQuote = function (src) {
   var y = area.value;
   var quoteText;
   if (a !== b) {quoteText = y.substr(a,b-a)}
+  var openTag = '\n<quote>\n'
+  if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<quote>\n'}
+  var closeTag = '\n</quote>\n';
+  if (y.substr(b,1) === "\n") {closeTag = '\n</quote>';}
   prompt({
     label:"quote text:",
     value:quoteText,
@@ -1435,19 +1465,19 @@ var insertQuote = function (src) {
                         });
                       }
                     });
-                    area.value = y.slice(0, a)+'<quote>'+quoteText+'<r><a href="'+sourceLink+'">-'+sourceText+'</a></r></quote>'+y.slice(b);
-                    var bump = a+quoteText.length+sourceLink.length+sourceText.length+38;
+                    area.value = y.slice(0, a)+openTag+quoteText+'\n<r>\n<a href="'+sourceLink+'">-'+sourceText+'</a>\n</r>'+ closeTag +y.slice(b);
+                    var bump = a+quoteText.length+sourceLink.length+sourceText.length +25 + openTag.length + closeTag.length;
                     setCursorPosition(area, bump, bump);
                   } else {
-                    area.value = y.slice(0, a)+'<quote>'+quoteText+'<r>-'+sourceText+'</r></quote>'+y.slice(b);
-                    var bump = a+quoteText.length+sourceText.length+23;
+                    area.value = y.slice(0, a)+openTag+quoteText+'\n<r>\n-'+sourceText+'\n</r>'+ closeTag +y.slice(b);
+                    var bump = a+quoteText.length+sourceText.length +11 + openTag.length + closeTag.length;
                     setCursorPosition(area, bump, bump);
                   }
                 }
               });
             } else {
-              area.value = y.slice(0, a)+'<quote>'+quoteText+'</quote>'+y.slice(b);
-              var bump = a+quoteText.length+15;
+              area.value = y.slice(0, a)+openTag+quoteText + closeTag +y.slice(b);
+              var bump = a + quoteText.length + openTag.length + closeTag.length;
               setCursorPosition(area, bump, bump);
             }
           }

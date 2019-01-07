@@ -57,7 +57,6 @@
 
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
     if (typeof string !== "string") {return {error:"not string"}}
-
     string = string.replace(/\r?\n|\r/g, '<br>');
 
     string = string.replace(/  /g, ' &nbsp;');
@@ -97,21 +96,27 @@
           pos += 2;
         } else if (string.substr(pos+1,2) === "l>") {
           pos += 2;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,2) === "c>") {
           pos += 2;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,2) === "r>") {
           pos += 2;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,4) === "cut>" && !cutOpen) {
           cutOpen = true;
           pos += 4;
         } else if (string.substr(pos+1,6) === "quote>") {
           pos += 6;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,3) === "li>") {
           pos += 3;
         } else if (string.substr(pos+1,3) === "ul>") {
           pos += 3;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,3) === "ol>") {
           pos += 3;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,3) === "/b>") {
           bOpen = false;
           pos += 3;

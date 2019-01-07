@@ -48,7 +48,6 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 
 //*******//HELPER FUNCTIONS//*******//
-
 var checkFreshness = function (user) {  // pushes New pending posts to postlist
   var today = pool.getCurDate();
   if (user['postListUpdatedOn'] !== today) {
@@ -1055,7 +1054,7 @@ app.post('/admin/testEmail', function(req, res) {
   });
 });*/
 
-/*app.post('/admin', function(req, res) {       // add new codes
+/*app.post('/admin', function(req, res) {      // add new codes
   if (req.session.user) {
     var userID = ObjectId(req.session.user._id)
     db.collection('users').findOne({_id: userID}
@@ -2101,8 +2100,10 @@ app.get('/~getAuthor/:username', function(req, res) {
           var authorPic = getUserPic(author);
           if (req.session.user) {
             var userID = ObjectId(req.session.user._id);
-            if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
-              if (author.keys) {key = author.keys.pubKey}
+            if (author.inbox && author.inbox.threads) {
+              if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
+                if (author.keys) {key = author.keys.pubKey}
+              }
             }
           }
           res.send({
