@@ -43,7 +43,8 @@ app.use(session({
 }))
 
 // enforce https, "trustProtoHeader" is because heroku proxy
-app.use(enforce.HTTPS({ trustProtoHeader: true }))
+// very silly hack to make it not enforce https on local...
+if (process.env.MONGODB_URI) {app.use(enforce.HTTPS({ trustProtoHeader: true }))}
 
 // sendgrid email config
 var sgMail = require('@sendgrid/mail');
@@ -232,7 +233,7 @@ var removeListRefIfRemovingOnlyMessage = function (box, id, remove, tmrw) {
 }
 
 var getPayload = function (req, res, otherUserID, callback) {
-  if (!req.session.user) {return sendError(res, "no user session");}
+  if (!req.session.user) {return sendError(res, "no user session 0234");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1}
@@ -734,7 +735,7 @@ var genInboxTemplate = function () {
 }
 
 var idCheck = function (req, res, errMsg, callback) {
-  if (!req.session.user) {return sendError(res, errMsg+"no user session");}
+  if (!req.session.user) {return sendError(res, errMsg+"no user session 6481");}
   if (!ObjectId.isValid(req.session.user._id)) {return sendError(res, errMsg+"invalid userID format");}
   return callback(ObjectId(req.session.user._id));
 }
@@ -1100,7 +1101,7 @@ app.get('/', function(req, res) {
 // payload
 app.get('/~payload', function(req, res) {
   // for the "cookieless" version this should be a POST
-  if (!req.session.user) {return sendError(res, "no user session");}
+  if (!req.session.user) {return sendError(res, "no user session 7194");}
   else {
     getPayload(req, res, null, function (payload) {
       return res.send({payload:payload});
@@ -1111,7 +1112,7 @@ app.get('/~payload', function(req, res) {
 // new/edit/delete post
 app.post('/', function(req, res) {
   var errMsg = "your post might not be saved, please copy all of your text to be safe<br><br>";
-  if (!req.session.user) {return sendError(res, errMsg+"no user session");}
+  if (!req.session.user) {return sendError(res, errMsg+"no user session 1652");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, posts:1, postList:1, postListPending:1}
@@ -1224,7 +1225,7 @@ app.post('/deleteOldPost', function (req, res) {
 
 // get posts of following
 app.post('/posts/:date', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session");}
+  if (!req.session.user) {return sendError(res, "no user session 1332");}
   if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
   db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
   , {_id:0, following:1,}
@@ -1274,7 +1275,7 @@ app.post('/posts/:date', function(req, res) {
 
 // follow/unfollow
 app.post('/follow', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session");}
+  if (!req.session.user) {return sendError(res, "no user session 2226");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, following:1}
@@ -1306,7 +1307,7 @@ app.post('/follow', function(req, res) {
 // new/edit/delete message
 app.post('/inbox', function(req, res) {
   var errMsg = "your message may not be saved, please copy your text if you want to keep it<br><br>";
-  if (!req.session.user) {return sendError(res, errMsg+"no user session");}
+  if (!req.session.user) {return sendError(res, errMsg+"no user session 3653");}
   // the incoming text is encrypted, so we can not cleanse it
   if (typeof req.body.encSenderText === undefined || typeof req.body.encRecText === undefined) {return sendError(res, errMsg+"malformed request 188<br><br>"+req.body.encSenderText+"<br><br>"+req.body.encRecText);}
   var recipientID = String(req.body.recipient);
@@ -1455,7 +1456,7 @@ app.post('/inbox', function(req, res) {
 // block/unblock a user from messaging you
 app.post('/block', function(req, res) {
   var errMsg = "block/unblock error<br><br>"
-  if (!req.session.user) {return sendError(res, errMsg+"no user session");}
+  if (!req.session.user) {return sendError(res, errMsg+"no user session 8008");}
   var blockerID = ObjectId(req.session.user._id);
   if (!req.body || !req.body.blockeeID) {return sendError(res, errMsg+"malformed request 844");}
   var blockeeID = ObjectId(req.body.blockeeID);
@@ -1536,7 +1537,7 @@ app.post('/link', function(req, res) {
 // toggle unread status of threads
 app.post('/unread', function(req, res) {
   var errMsg = "unread property error<br><br>"
-  if (!req.session.user) {return sendError(res, errMsg+ "no user session");}
+  if (!req.session.user) {return sendError(res, errMsg+ "no user session 4653");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, inbox:1}
@@ -1558,7 +1559,7 @@ app.post('/unread', function(req, res) {
 
 // change user picture URL
 app.post('/changePic', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session");}
+  if (!req.session.user) {return sendError(res, "no user session 7841");}
   var userID = ObjectId(req.session.user._id);
   var updateUrl = function (url) {
     db.collection('users').findOne({_id: userID}
@@ -1937,7 +1938,7 @@ app.post('/passResetRequest', function (req, res) {
                 else {
                   var msg = {
                     to: req.body.email,
-                    from: 'staff@schlaugh.com',
+                    from: 'schlaugh@protonmail.com',
                     subject: 'schlaugh account recovery',
                     text: `visit the following link to reset your schlaugh password: https://schlaugh.herokuapp.com/~recovery/`+resp._id+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
                     html: `<a href="https://schlaugh.herokuapp.com/~recovery/`+resp._id+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: https://schlaugh.herokuapp.com/~recovery/`+resp._id+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
@@ -2220,6 +2221,7 @@ var renderLayout = function (req, res, data) {
       post_id:data.post_id,
       tag:data.tag,
       ever:data.ever,
+      about:data.about,
     });
   } else {
     getSettings(req, res, function (settings) {
@@ -2231,10 +2233,16 @@ var renderLayout = function (req, res, data) {
         post_id:data.post_id,
         tag:data.tag,
         ever:data.ever,
+        about:data.about,
       });
     });
   }
 }
+
+// view about page for site
+app.get('/~', function (req, res) {
+  renderLayout(req, res, {about:true,});
+});
 
 // view a single post, by id
 app.get('/~/:post_id', function (req, res) {

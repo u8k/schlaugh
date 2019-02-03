@@ -242,7 +242,7 @@ body, h1, input, select {
 }
 
 slogan {
-  margin-top: 10vh;
+  margin-top: 9vh;
   display: block;
   font-style: italic;
   font-size: 2.8em;
@@ -266,6 +266,11 @@ slogan {
   margin: auto;
 }
 #lost-pass {font-size: .75em}
+
+#about-text {
+  text-align: center;
+  font-size: 1.45em;
+}
 
 .pop-up {
   padding: 15px;

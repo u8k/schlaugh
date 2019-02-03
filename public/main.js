@@ -450,6 +450,14 @@ var convertText = function (string, id) {
   return convertLinks(convertCuts(string, id));
 }
 
+var aboutPanelBack = function () {
+  if (glo.username) {
+    switchPanel("posts-panel");
+  } else {
+    switchPanel('login-panel');simulatePageLoad();
+  }
+}
+
 var switchPanel = function (panelName) {
   if (glo.openPanel) {
     $(glo.openPanel).classList.add('removed');

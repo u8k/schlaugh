@@ -37,7 +37,7 @@
 
       <nav class="user-info">
         <ul>
-          <li><clicky id="username" class="removed"></clicky></li>
+          <li><clicky id="username" class="removed special"></clicky></li>
           <li id="sign-in" class="clicky" onclick="passPromptSubmit()">schlaugh in</li>
           <li id="sign-out" class="clicky removed" onclick="signOut()">schlaugh out</li>
         </ul>
@@ -94,6 +94,8 @@
         <script type="text/javascript">
           fetchData(function () {loadPosts(0, <%- JSON.stringify(tag) %>)});
         </script>
+      <% } else if (typeof about !== "undefined") { %>
+        <script type="text/javascript">fetchData(function () {switchPanel("~about-panel")});</script>
       <% } else { %>
         <script type="text/javascript">fetchData(function () {switchPanel("posts-panel")});</script>
       <% } %>
@@ -144,6 +146,8 @@
         <% } else { %>
           <script type="text/javascript">switchPanel("bad-recovery-panel");</script>
           <% } %>
+      <% } else if (typeof about !== "undefined") { %>
+        <script type="text/javascript">switchPanel("~about-panel");</script>
       <% } else { %>
         <script type="text/javascript">switchPanel("login-panel");</script>
       <% } %>
