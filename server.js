@@ -1689,8 +1689,9 @@ app.post('/register', function(req, res) {
                         else {
                           // "sign in" the user
                           req.session.user = { _id: newID };
-                          // the 'false' indicates to make keys for the new user
-                          return res.send({error:false, needKeys:true});
+                          return res.send({error:false, needKeys:true, newUser: true,
+                            message: `welcome to schlaugh!<br><br>i'll be your staff. can i get you started with something to drink?<br><br>please don't hesitate to ask any questions you may have. that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. i'd like to link to an FAQ but we don't even have one of those yet because not enough Q's have been A'd<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "schlaugh@protonmail.com"<br><br>&lt;3`,
+                          });
                           /*
                           // remove the code from the admin stash so it can't be used again
                           delete admin.codes[secretCode];
@@ -1771,14 +1772,44 @@ app.post('/keys', function(req, res) {
         if (user.keys === undefined || user.keys === null) {
           user.keys = req.body;
         }
-        writeToDB(userID, user, function (resp) {
-          if (resp.error) {sendError(res, resp.error);}
-          else {
-            getPayload(req, res, null, function (payload) {
-              return res.send({error:false, payload:payload});
+        if (req.body.newUserMessage) {    // new user, send welcome message
+          var staffID = ObjectId("5a0ea8429adb2100146f7568");
+          db.collection('users').findOne({_id: staffID}
+          , {_id:0, iconURI:1, keys:1}
+          , function (err, staff) {
+            if (err) {return sendError(res, err);}
+            else if (!staff) {
+              var staff = {keys:{pubKey:adminB.dumbleKey}};  //this is wrong and will get replaced when a message is actually sent
+            }                                         // though is also a backup that *should* never be used in the first place
+            var staffPic = staff.iconURI;
+            if (typeof staffPic !== 'string') {staffPic = "";}
+            user.inbox.threads[staffID] = {name:"staff", unread:true, image:staffPic, thread:[], key:staff.keys.pubKey};
+            user.inbox.threads[staffID].thread.push({
+              inbound: true,
+              date: pool.getCurDate(),
+              body: req.body.newUserMessage,
             });
-          }
-        });
+            user.inbox.list.push(staffID);
+            //
+            writeToDB(userID, user, function (resp) {
+              if (resp.error) {sendError(res, resp.error);}
+              else {
+                getPayload(req, res, null, function (payload) {
+                  return res.send({error:false, payload:payload});
+                });
+              }
+            });
+          });
+        } else {
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, resp.error);}
+            else {
+              getPayload(req, res, null, function (payload) {
+                return res.send({error:false, payload:payload});
+              });
+            }
+          });
+        }
       } else {return sendError(res, "malformed request 303");}
     }
   });

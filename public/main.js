@@ -33,7 +33,7 @@ var fontSelect = function () {
 
 var changeFont = function (font) {
   var sheet = document.styleSheets[document.styleSheets.length-1];
-  var selector = "*";
+  var selector = ".editor, .post, .message";
   var attribute = "font-family";
   for (var i = sheet.cssRules.length-1; i > -1; i--) {
     if (sheet.cssRules[i].selectorText === selector) {
@@ -43,6 +43,7 @@ var changeFont = function (font) {
   }
   glo.settings.font = font;
   sheet.insertRule(selector+" {"+attribute+": "+font+";}", sheet.cssRules.length);
+
   $('save-appearance').classList.remove('hidden');
 }
 
@@ -1651,7 +1652,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
   } else {
     var text = $('message-editor').value;
     if (text === "") {return;}
-    if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a bug please note all details and tell staff sorry");}
+    if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a bug please note all details and tell staff, sorry");}
     //
     loading();
     var encryptAndSend = function () {
@@ -1880,6 +1881,8 @@ var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
       publicKeys: openpgp.key.readArmored(recipientPubKey).keys,
     }).then(function(encryptedDataRecipient) {
       callback(encryptedDataSender.data, encryptedDataRecipient.data);
+    },function (err) {            // callback for failed decryption
+      return alert("error, sorry! something went wrong with the encryption, please show this to staff");
     });
   });
 }
@@ -2039,10 +2042,25 @@ var signIn = function (url, data, callback) {
   ajaxCall(url, 'POST', data, function(json) {
     if (json.needKeys) {
       makeKeys(data.password, function (keys) {
-        ajaxCall('/keys', 'POST', keys, function(json) {
-          parseUserData(json.payload);
-          if (callback) {callback(json.payload);}
-        });
+        if (json.newUser) {
+          openpgp.encrypt({
+            data: json.message,
+            publicKeys: openpgp.key.readArmored(keys.pubKey).keys,
+          }).then(function(encryptedMessage) {
+            keys.newUserMessage = encryptedMessage.data;
+            ajaxCall('/keys', 'POST', keys, function(json) {
+              parseUserData(json.payload);
+              unlockInbox(data.password);
+              if (callback) {callback(json.payload);}
+            });
+          });
+        } else {
+          ajaxCall('/keys', 'POST', keys, function(json) {
+            parseUserData(json.payload);
+            unlockInbox(data.password);
+            if (callback) {callback(json.payload);}
+          });
+        }
       });
     } else {
       parseUserData(json.payload);
@@ -2134,7 +2152,7 @@ var changeAllColors = function (colorObject) {
 
 var fetchData = function (callback) {
   ajaxCall('/~payload', 'GET', "", function(json) {
-    //keys are created at sign in, this, force out people who are already in
+    //keys are created at sign in, this forces out people who are already in
     //  with a persistent login cookie, such that they will have to sign in and make keys
     if (json.needKeys) {return signOut();}
     else {

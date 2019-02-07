@@ -1,8 +1,8 @@
-* {
-  box-sizing: border-box;
-}
+* {box-sizing: border-box;}
 
 *:focus {outline:0;}
+
+h1, button, input, footer, header, postNav {font-family: monospace;}
 
 body {
   padding: 1.5vmin;
@@ -91,7 +91,7 @@ clicky, .clicky {
 #post-writer, #old-post-writer {width: 75%; margin: auto;}
 #message-writer{width: 65%; margin: auto;}
 
-.editor{
+.editor {
   height: 50vh;
   width: 100%;
   resize: vertical;
