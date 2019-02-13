@@ -29,8 +29,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
 // Body Parser Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
+app.use(bodyParser.json({limit: '5mb'}));
 
 // Set Public Folder
 app.use(express.static(path.join(__dirname, 'public')));
@@ -1690,7 +1690,7 @@ app.post('/register', function(req, res) {
                           // "sign in" the user
                           req.session.user = { _id: newID };
                           return res.send({error:false, needKeys:true, newUser: true,
-                            message: `welcome to schlaugh!<br><br>i'll be your staff. can i get you started with something to drink?<br><br>please don't hesitate to ask any questions you may have. that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. i'd like to link to an FAQ but we don't even have one of those yet because not enough Q's have been A'd<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "schlaugh@protonmail.com"<br><br>&lt;3`,
+                            message: `welcome to schlaugh!<br><br>i'll be your staff. can i get you started with something to drink?<br><br>please don't hesitate to ask any questions, that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. i'd like to link to an FAQ but we don't even have one of those yet because not enough Q's have been A'd<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "schlaugh@protonmail.com"<br><br>&lt;3`,
                           });
                           /*
                           // remove the code from the admin stash so it can't be used again

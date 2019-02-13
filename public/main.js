@@ -346,11 +346,12 @@ var loading = function (stop, keepBacking) {
       blackBacking(true);
     }
     $("loading-box").style.opacity="0";
-    setTimeout(function () {
+    glo.loadingTimer = setTimeout(function () {
       $("loading-box").classList.add('hidden');
     }, 300);
   } else {
     blackBacking();
+    clearTimeout(glo.loadingTimer);
     $("loading-box").classList.remove('hidden');
     $("loading-box").style.opacity="1";
   }
@@ -382,11 +383,15 @@ var ajaxCall = function(url, method, data, callback) {
   xhttp.open(method, url, true);
   xhttp.setRequestHeader('Content-Type', 'application/json');
   xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      var json = (xhttp.responseText);
-      json = JSON.parse(json);
-      if (json.error) {alert(json.error);}
-      else {callback(json);}
+    if (this.readyState == 4) {
+      if (this.status == 200) {
+        var json = (xhttp.responseText);
+        json = JSON.parse(json);
+        if (json.error) {alert(json.error);}
+        else {callback(json);}
+      } else {
+        alert("error, sorry!<br>something went wrong with the encryption, please show this to staff<br><br>"+this.statusText+"<br>"+this.responseText)
+      }
     }
   }
   xhttp.send(JSON.stringify(data));
