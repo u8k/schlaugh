@@ -358,6 +358,7 @@ var loading = function (stop, keepBacking) {
 }
 
 var signOut = function() {
+  loading();
   ajaxCall('/~logout', 'GET', {}, function(json) {
     location.reload();
   });
@@ -1164,7 +1165,14 @@ var open404post = function (author) {
 
 var submitPost = function (remove) { //also handles editing and deleting
   var text = $('post-editor').value;
-  if (text === "" && !glo.pending) {return hideWriter('post');}
+  var tags = $('tag-input').value;
+  if (text === "" && tags === "" && !glo.pending) {return hideWriter('post');}
+  // have changes been made?
+  if (!remove && glo.pending && prepTextForEditor(glo.pending.body) === text) {
+    if (getTagString(glo.pending.tags) === tags) {
+      return hideWriter('post');
+    }
+  }
   if (remove || text === "") {
     verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
@@ -1175,7 +1183,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     });
   } else {
     loading();
-    ajaxCall("/", 'POST', {text:text, tags:$('tag-input').value}, function(json) {
+    ajaxCall("/", 'POST', {text:text, tags:tags}, function(json) {
       updatePendingPost(json.text, json.tags);
     });
   }
@@ -1189,7 +1197,9 @@ var updatePendingPost = function (newText, newTags) {
     $('pending-post').classList.add("removed");
     $('write-post-button').innerHTML = "new post";
   } else {
-    glo.pending = true;
+    glo.pending = {};
+    glo.pending.body = newText;
+    glo.pending.tags = newTags;
     $('pending-status').innerHTML = "your pending post for tomorrow:";
     $('delete-pending-post').classList.remove("removed");
     $('pending-post').classList.remove("removed");
@@ -1201,6 +1211,53 @@ var updatePendingPost = function (newText, newTags) {
   $('post-editor').value = prepTextForEditor(newText);
   hideWriter('post');
   loading(true);
+}
+
+var cancelPost = function () {
+  if (glo.pending) {    // there is a current saved/pending post
+    // have changes been made?
+    if (prepTextForEditor(glo.pending.body) === $('post-editor').value) {
+      if (getTagString(glo.pending.tags) === $('tag-input').value) {
+        return hideWriter('post');
+      }
+    }
+    verify("you want to lose any current edits and revert to the last saved version?", null, null, function (result) {
+      if (!result) {return;}
+      else {
+        updatePendingPost(glo.pending.body, glo.pending.tags);
+      }
+    });
+  } else {        // there is NOT a current saved/pending post
+    if ($('post-editor').value === "" && $('tag-input').value === "") {return hideWriter('post');}
+    verify("you want to lose all current text in the editor?", null, null, function (result) {
+      if (!result) {return;}
+      else {
+        updatePendingPost("", {});
+      }
+    });
+  }
+}
+
+var cancelMessage = function () {
+  var index = glo.activeThreadIndex;
+  var last = glo.threads[index].thread[glo.threads[index].thread.length-1];
+  // does the thread have a pending message?
+  if (last && last.date === pool.getCurDate(-1)) {
+    // have changes been made?
+    if (prepTextForEditor(last.body) === $('message-editor').value) {
+      return hideWriter('message');
+    }
+    var verText = "you want to lose any current edits and revert to the last saved version?";
+  } else {
+    if ($('message-editor').value === "") {return hideWriter('message');}
+    var verText = "you want to lose all current text in the editor?";
+  }
+  verify(verText, null, null, function (result) {
+    if (!result) {return;}
+    else {
+      updatePendingMessage(index);
+    }
+  });
 }
 
 var appendTags = function (postString, tagRef, author) {
@@ -1298,7 +1355,7 @@ var prepTextForEditor = function (text) {
       preTagLineBreakRecurse(pos+1, tag);
     }
   }
-  var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<r>/, /<c>/, /<l>/, /<img/];
+  var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<r>/, /<c>/, /<l>/];
   for (var i = 0; i < tagArr.length; i++) {
     preTagLineBreakRecurse(1, tagArr[i]);
   }
@@ -1656,8 +1713,12 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     });
   } else {
     var text = $('message-editor').value;
-    if (text === "") {return;}
-    if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a bug please note all details and tell staff, sorry");}
+    if (text === "") {return hideWriter('message');}
+    // have changes been made?
+    if (prepTextForEditor(glo.threads[i].thread[glo.threads[i].thread.length-1].body) === $('message-editor').value) {
+      return hideWriter('message');
+    }
+    if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a (strange)bug please note all details and tell staff, sorry");}
     //
     loading();
     var encryptAndSend = function () {

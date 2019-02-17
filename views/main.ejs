@@ -15,6 +15,7 @@
     <div id="pending-status">no pending post for tomorrow</div>
     <div id="pending-post" class="post removed"></div>
     <button type="button" id='write-post-button' onclick="showWriter('post')">new post</button>
+    <button id='delete-pending-post' class="removed" onclick="submitPost(true)">delete</button>
   </div>
 
   <div id="post-writer" class="removed">
@@ -22,10 +23,10 @@
     <textarea id="post-editor" class="editor" autocomplete="off"></textarea>
     <br>
     <label for="tag-input">tags</label><br>
-    <input id="tag-input" type="text" placeholder="separated by commas!">
+    <input id="tag-input" type="text" placeholder="~separated by commas~">
     <br><br>
     <button onclick="submitPost()">schlaubmit</button>
-    <button id='delete-pending-post' class="removed" onclick="submitPost(true)">delete</button>
+    <button onclick="cancelPost()">cancel</button>
   </div>
 </div>
 
@@ -33,11 +34,11 @@
   <postNav>
     <text id="tag-display" class="removed"></text><br>
     <text id="date-display"></text><br>
-    <box id="date-arrow-box" class="no-select">
+    <div id="date-arrow-box" class="no-select">
       <icon class="clicky fas fa-caret-left" onclick="loadPosts(1)"></icon>
-      <icon id="day-forward" class="clicky hidden fas fa-caret-right" onclick="loadPosts(-1)"></icon></box>
+      <icon id="day-forward" class="clicky hidden fas fa-caret-right" onclick="loadPosts(-1)"></icon>
+    </div>
   </postNav>
-  <br>
   <button id="jump-open" onclick="openDateJump()">jump</button>
   <button id="tag-menu-open" onclick="openTagMenu()">tags</button>
   <button id="clear-tag" onclick="loadPosts(0, false);" class="removed">clear tag</button>
@@ -86,14 +87,15 @@
   <div id="message-preview" class="removed">
     <p id="pending-message-status"></p>
     <div id="pending-message" class="message removed"></div>
-    <button type="button" id='write-message-button' onclick="showWriter('message')" ></button>
+    <button type="button" id='write-message-button' onclick="showWriter('message')"></button>
+    <button id='delete-message' onclick="submitMessage(true)">delete</button>
   </div>
   <div id="message-writer" class="removed">
     <%- include("editorButtons", {kind: "message"}) %>
     <textarea id="message-editor" autocomplete="off" class="editor"></textarea>
     <br>
     <button onclick="submitMessage()">schend</button>
-    <button id='delete-message' onclick="submitMessage(true)">delete</button>
+    <button onclick="cancelMessage()">cancel</button>
   </div>
   <br>
   <div id="thread-box"></div>
@@ -229,7 +231,7 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img id="o-pic" src="https://sites.google.com/site/saveplanet604/_/rsrc/1338144224588/orangutan/orangutan.jpg" alt="orangutan">
+  <img id="o-pic" src="https://static.chaosgroup.com/gallery_images/images/000/000/277/gallery_image/damien-guimoneau-orc-art-vray-3ds-max-01.jpg" alt="orc">
 </div>
 
 <div id="edit-panel" class="removed">
