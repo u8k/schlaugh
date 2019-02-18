@@ -867,9 +867,11 @@ var editPost = function (post, author) {
     data.text = $('old-post-editor').value;
     data.tags = $('old-tag-input').value;
     // have changes been made?
-    if (prepTextForEditor(glo.fetchedPosts[post.date][0].body) === data.text) {
-      if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
-        return hideWriter('old-post');
+    if (glo.fetchedPosts[post.date][0]) {   // make sure thing even exists first...
+      if (prepTextForEditor(glo.fetchedPosts[post.date][0].body) === data.text) {
+        if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
+          return hideWriter('old-post');
+        }
       }
     }
     loading();
@@ -1715,8 +1717,10 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     var text = $('message-editor').value;
     if (text === "") {return hideWriter('message');}
     // have changes been made?
-    if (prepTextForEditor(glo.threads[i].thread[glo.threads[i].thread.length-1].body) === $('message-editor').value) {
-      return hideWriter('message');
+    if (glo.threads[i].thread[glo.threads[i].thread.length-1]) {
+      if (prepTextForEditor(glo.threads[i].thread[glo.threads[i].thread.length-1].body) === $('message-editor').value) {
+        return hideWriter('message');
+      }
     }
     if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a (strange)bug please note all details and tell staff, sorry");}
     //
