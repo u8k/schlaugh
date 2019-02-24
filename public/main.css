@@ -2,7 +2,7 @@
 
 *:focus {outline:0;}
 
-h1, button, input, footer, header, postNav, .post-footer-left {font-family: monospace;}
+h1, button, input, footer, header, postNav, .post-footer-left, h2 {font-family: monospace;}
 
 body {
   padding: 1.5vmin;
@@ -21,6 +21,7 @@ h1 {
 }
 
 h2 {
+  margin-top: 10px;
   margin-bottom: 10px;
 }
 
@@ -188,7 +189,8 @@ footerButton {
   #pending-message {width: 85%}
   #post-writer, #old-post-writer{width: 95%;}
   #message-writer{width: 85%;}
-  .author-pic {margin-left: 0; left: 15px; top:15px;}
+  .meta-text {height: 50px}
+  .author-pic {margin-left: 0; left: 15px; top:15px; max-height: 50px;}
 
 }
 
@@ -288,6 +290,20 @@ slogan {
   font-size: 1.45em;
 }
 
+
+.following-listing {
+  font-size: 25px;
+  height: 35px;
+  margin-bottom: 5px;
+}
+
+.little-pic {
+  margin-right: 5px;
+  max-width: 30px;
+  max-height: 30px;
+  display: inline;
+}
+
 .pop-up {
   padding: 15px;
   position: fixed;
@@ -311,6 +327,12 @@ slogan {
   transition: opacity .3s ease-out;
 }
 
+#following-list {
+  max-height: 90vh;
+  text-align: left;
+  overflow-y: scroll;
+  top: 50%;
+}
 
 #loading-box {
   position: fixed;

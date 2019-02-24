@@ -595,11 +595,23 @@ var sendError = function (res, msg) {
   res.send({error: msg});
 }
 
-var postsFromAuthorListAndDate = function (authorList, date, callback) {
+var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
   db.collection('users').find({_id: {$in: authorList}}
     ,{posts:1, username:1, iconURI:1, pendingUpdates:1}).toArray(function(err, users) {
     if (err) {return callback({error:err});}
     else {
+      var followingList = [];
+      if (init) {
+        for (var i = 0; i < users.length; i++) {
+          var pic = users[i].iconURI;
+          if (typeof pic !== 'string') {pic = "";}
+          followingList.push({
+            name: users[i].username,
+            _id: users[i]._id,
+            pic: pic,
+          });
+        }
+      }
       var posts = [];
       var count = users.length;
       for (var i = 0; i < users.length; i++) {
@@ -621,12 +633,12 @@ var postsFromAuthorListAndDate = function (authorList, date, callback) {
             count--;
             if (count === 0) {
               count--;
-              return callback({error:false, posts:posts});
+              return callback({error:false, posts:posts, followingList:followingList});
             }
           });
         } else {count--;}
       }
-      if (count === 0) {return callback({error:false, posts:posts});}
+      if (count === 0) {return callback({error:false, posts:posts, followingList:followingList});}
     }
   });
 }
@@ -1249,8 +1261,10 @@ app.post('/posts/:date', function(req, res) {
             }
           }
           //
+          if (req.body.init) {var init = true;}
+          else {var init = false;}
           if (user.following.length === undefined) {user.following = [];}
-          postsFromAuthorListAndDate(user.following, req.params.date, function (resp) {
+          postsFromAuthorListAndDate(user.following, req.params.date, init, function (resp) {
             if (resp.error) {return sendError(res, resp.error);}
             else {
               if (freshTops) {
@@ -1259,11 +1273,11 @@ app.post('/posts/:date', function(req, res) {
                   {$set: dateBucket},
                   function(err, tag) {
                     if (err) {return sendError(res, err);}
-                    else {return res.send({error:false, posts:resp.posts, topTags:topTags});}
+                    else {return res.send({error:false, posts:resp.posts, followingList:resp.followingList, topTags:topTags});}
                   }
                 );
               } else {
-                return res.send({error:false, posts:resp.posts, topTags:topTags});
+                return res.send({error:false, posts:resp.posts, followingList:resp.followingList, topTags:topTags});
               }
             }
           });
@@ -2197,7 +2211,7 @@ app.get('/~getTag/:tag/:date', function (req, res) {
         if (dateBucket.ref[req.params.tag].length === 0) {
           return res.send({error: false, posts: [],});
         } else {
-          postsFromAuthorListAndDate(dateBucket.ref[req.params.tag], req.params.date, function (resp) {
+          postsFromAuthorListAndDate(dateBucket.ref[req.params.tag], req.params.date, null, function (resp) {
             if (resp.error) {return sendError(res, resp.error);}
             else {return res.send({error:false, posts:resp.posts});}
           });

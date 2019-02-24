@@ -111,7 +111,9 @@
     <input id="pic-url" type="text" name="pic-url" value=""><br>
     <button onclick="submitPic()">schlaubmit</button>
     <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
-    <br><br><br><hr>
+    <br><br>
+    <button onclick="followingListDisplay(true)">following list</button>
+    <br><br><br><hr><br>
 
     <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
     <div id="color-settings-box">
@@ -138,7 +140,7 @@
     <br><br>
     <button id="save-appearance" type="button" class="hidden" onclick="saveAppearance()">save</button>
 
-    <br><br><br><hr><br>
+    <br><br><hr><br>
     <text>verify email<clicky onclick="verifyEmailExplain()" class="special">(?)</clicky></text><br>
     <form action="javascript:void(0);">
       <input id="email-verify-input" type="text" placeholder="email address"><br>
@@ -346,6 +348,14 @@
     <button id="confirm-yes">yeah</button>
     <button id="confirm-no" type="submit">nope</button>
   </form>
+</div>
+
+<div id="following-list" class="pop-up hidden">
+  <h2>following:</h2>
+  <div id="following-bucket">
+  </div>
+  <br>
+  <button onclick="followingListDisplay(false)">x</button>
 </div>
 
 <div id="loading-box" class="hidden no-select">

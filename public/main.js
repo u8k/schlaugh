@@ -484,6 +484,17 @@ var switchPanel = function (panelName) {
   glo.openPanel = panelName;
 }
 
+var followingListDisplay = function (open) {
+  if (open) {
+    $('following-list').classList.remove('hidden');
+    blackBacking();
+  }
+  else {
+    $('following-list').classList.add('hidden');
+    blackBacking(true);
+  }
+}
+
 var openDateJump = function (close) {
   if (close) {
     $('jump-open').classList.remove('removed');
@@ -525,7 +536,7 @@ var getEpochSeconds = function (dateStamp) {
   }
 }
 
-var loadPosts = function (dir, tag) { // load all posts for a day/tag
+var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
   if (glo.loading) {
     if (!glo.queue) {glo.queue = [];}
     glo.queue.push({dir:dir,tag:tag});
@@ -594,9 +605,38 @@ var loadPosts = function (dir, tag) { // load all posts for a day/tag
     } else {
       // we don't, so make the ajax call
       $('loading').classList.remove('removed');
-      ajaxCall('/posts/'+date, 'POST', {}, function(json) {
+      if (init) {var data = {init:true};}
+      else {var data = {};}
+      ajaxCall('/posts/'+date, 'POST', data, function(json) {
         renderPostFeed(json.posts, date);
         $('loading').classList.add('removed');
+        //following list, if this is the first call for posts,
+        if (init) {
+          var followingBucket = $("following-bucket");
+          for (var i = 0; i < json.followingList.length; i++) {
+            var listing = document.createElement("div");
+            listing.setAttribute('class', 'following-listing');
+            var link = document.createElement("a");
+            link.setAttribute('href', "/"+json.followingList[i].name);
+            link.setAttribute('class', 'not-special');
+            (function (name) {
+              link.onclick = function(){
+                event.preventDefault();
+                openAuthorPanel(name);
+                followingListDisplay(false);
+              }
+            })(json.followingList[i].name);
+            var name = document.createElement("text");
+            name.innerHTML = json.followingList[i].name;
+            var pic = document.createElement("img");
+            pic.setAttribute('class', 'little-pic');
+            pic.setAttribute('src', json.followingList[i].pic);
+            link.appendChild(pic);
+            link.appendChild(name);
+            listing.appendChild(link);
+            followingBucket.appendChild(listing);
+          }
+        }
         // render top tags for the day
         var tagArr = json.topTags;
         if (!tagArr || tagArr.length === 0) {
@@ -746,7 +786,7 @@ var createFollowButton = function (parent, author, insert) {
   if (glo.username && author._id) {
     var follow = document.createElement("button");
     // is the user already following the author?
-    if (glo.following[author._id]) {
+    if (glo.followingRef[author._id]) {
       follow.innerHTML = "defollow";
       var remove = true;
     } else {
@@ -755,8 +795,8 @@ var createFollowButton = function (parent, author, insert) {
     }
     follow.onclick = function(){
       ajaxCall('/follow', 'POST', {id:author._id, remove:remove}, function(json) {
-        if (remove) {glo.following[author._id] = false;}
-        else {glo.following[author._id] = true;}
+        if (remove) {glo.followingRef[author._id] = false;}
+        else {glo.followingRef[author._id] = true;}
         // refresh button(by hiding and creating new)
         follow.classList.add('removed');
         createFollowButton(parent, author, follow);
@@ -2183,12 +2223,12 @@ var parseUserData = function (data) {
   glo.pendingUpdates = Object.create(data.pendingUpdates);
   glo.fetchedPosts = Object.create(data.pendingUpdates);
   glo.userPic = data.userPic;
-  glo.following = {};
+  glo.followingRef = {};
   for (var i = 0; i < data.following.length; i++) {
-    glo.following[data.following[i]] = true;
+    glo.followingRef[data.following[i]] = true;
   }
   // init stuff
-  loadPosts(1);
+  loadPosts(1, null, true);
   if (glo.pending) {updatePendingPost(glo.pending.body, glo.pending.tags);}
   populateThreadlist();
   setAppearance();
