@@ -496,9 +496,10 @@ var openDateJump = function (close) {
   }
 }
 
-var dateJump = function () {
-  var target = $("date-picker").value;
-  if (!target) { target = pool.getCurDate();}
+var dateJump = function (input) {
+  var target = input;
+  if (!target) {target = $("date-picker").value;}
+  if (!target) {target = pool.getCurDate();}
   if (target.length !== 10 || target[4] !== "-" || target[7] !== "-" || !isNumeric(target.slice(0,4)) || !isNumeric(target.slice(5,7)) || !isNumeric(target.slice(8,10))) {
     return alert("date must be formatted YYYY-MM-DD");
   } else {
@@ -506,7 +507,11 @@ var dateJump = function () {
     if (target > getEpochSeconds(pool.getCurDate())) {
       return alert("and no future vision either!");
     } else {
-      loadPosts(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)));
+      if (input) {
+        loadPosts(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)), false);
+      } else {
+        loadPosts(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)));
+      }
     }
   }
 }
@@ -520,7 +525,7 @@ var getEpochSeconds = function (dateStamp) {
   }
 }
 
-var loadPosts = function (dir, tag) { // load and display all posts for a day/tag
+var loadPosts = function (dir, tag) { // load all posts for a day/tag
   if (glo.loading) {
     if (!glo.queue) {glo.queue = [];}
     glo.queue.push({dir:dir,tag:tag});
@@ -556,7 +561,7 @@ var loadPosts = function (dir, tag) { // load and display all posts for a day/ta
   $('date-display').innerHTML = date;
   if (tag) {
     glo.tag = tag;
-    $("tag-display").innerHTML = 'all posts tagged "'+tag+'" on';
+    $("tag-display").innerHTML = 'posts tagged "'+tag+'" on';
     $("tag-menu").classList.add("removed");
     $("tag-menu-open").classList.add("removed");
     $("clear-tag").classList.remove("removed");
@@ -657,6 +662,23 @@ var renderPostFeed = function (postList, date, tag) {
       post.setAttribute('class', 'post');
       if (tag) {post.setAttribute('id', 'tag-'+tag+"-"+postList[rando[i]].post_id);}
       else {post.setAttribute('id', 'feed-'+postList[rando[i]].post_id);}
+      // author/meta text
+      var authorBox = document.createElement("div");
+      authorBox.setAttribute('class', 'meta-text');
+      var author = document.createElement("a");
+      (function (name) {
+        author.onclick = function(event){
+          event.preventDefault();
+          openAuthorPanel(name);
+        }
+      })(postList[rando[i]].author);
+      author.setAttribute('class', 'author special');
+      author.setAttribute('href', "/"+postList[rando[i]].author);
+      author.innerHTML = "<clicky>"+postList[rando[i]].author+"</clicky>";
+      authorBox.appendChild(author);
+      authorBox.appendChild(document.createElement("br"));
+      //createFollowButton(authorBox, postList[rando[i]]);
+      post.appendChild(authorBox);
       // pic
       if (postList[rando[i]].authorPic !== "") {
         var authorPic = document.createElement("img");
@@ -675,23 +697,6 @@ var renderPostFeed = function (postList, date, tag) {
       post.appendChild(authorPicBox);
       authorPic.setAttribute('class', 'author-pic clicky');
       authorPicBox.appendChild(authorPic);
-      // author/meta text
-      var authorBox = document.createElement("div");
-      authorBox.setAttribute('class', 'meta-text');
-      var author = document.createElement("a");
-      (function (post) {
-        author.onclick = function(event){
-          event.preventDefault();
-          openPost(post.author, post.post_id);
-        }
-      })(postList[rando[i]]);
-      author.setAttribute('class', 'author special');
-      author.setAttribute('href', "~/"+postList[rando[i]].post_id);
-      author.innerHTML = "<clicky>"+postList[rando[i]].author+"</clicky>";
-      authorBox.appendChild(author);
-      authorBox.appendChild(document.createElement("br"));
-      createFollowButton(authorBox, postList[rando[i]]);
-      post.appendChild(authorBox);
       // actual post body
       var text = document.createElement("text");
       text.setAttribute('class', 'body-text');
@@ -701,7 +706,7 @@ var renderPostFeed = function (postList, date, tag) {
       post.appendChild(text);
       //
       postList[rando[i]].date = date;
-      createPostFooter(post, {_id:postList[rando[i]]._id, name:postList[rando[i]].author}, postList[rando[i]]);
+      createPostFooter(post, {_id:postList[rando[i]]._id, name:postList[rando[i]].author}, postList[rando[i]], true);
       bucket.appendChild(post);
       //remove the current index refference from the randomizing helper array
       rando.splice(i,1);
@@ -713,7 +718,7 @@ var renderPostFeed = function (postList, date, tag) {
 var createMessageButton = function (parent, author, insert) {
   // OPTIONAL 'insert' is the element before which the button is to be inserted
   if (glo.username && author.author !== glo.username && author.key) {
-    var message = document.createElement("clicky");
+    var message = document.createElement("button");
     message.innerHTML = "message";
     message.onclick = function(){
       //look for a thread btwn the author and logged in user
@@ -739,7 +744,7 @@ var createMessageButton = function (parent, author, insert) {
 var createFollowButton = function (parent, author, insert) {
   // OPTIONAL 'insert' is the element before which the button is to be inserted
   if (glo.username && author._id) {
-    var follow = document.createElement("clicky");
+    var follow = document.createElement("button");
     // is the user already following the author?
     if (glo.following[author._id]) {
       follow.innerHTML = "defollow";
@@ -765,44 +770,86 @@ var createFollowButton = function (parent, author, insert) {
   }
 }
 
-var createPostFooter = function (postElem, author, post) {
-  if (glo.username) {
+var createPostFooter = function (postElem, author, post, feed) {
+  // is there an extant footer?
+  if (postElem.childNodes[postElem.childNodes.length-1].classList[0] === "post-footer") {
+    var footer = postElem.childNodes[postElem.childNodes.length-1];
+    // remove the sub-sections
+    footer.removeChild(footer.childNodes[footer.childNodes.length-1]);
+    footer.removeChild(footer.childNodes[footer.childNodes.length-1]);
+  } else {
     var footer = document.createElement("div");
     footer.setAttribute('class', 'post-footer');
     postElem.appendChild(footer);
-    if (glo.username === author.name) {
-      // delete button
-      var deleteBtn = document.createElement("button");
-      deleteBtn.innerHTML = "delete";
-      deleteBtn.onclick = function() {
-        deletePost(post);
+  }
+  // footer left
+  if (!feed) {
+    var footerLeft = document.createElement("div");
+    footerLeft.setAttribute('class', 'post-footer-left');
+    footer.appendChild(footerLeft);
+    var dateStamp = document.createElement("text");
+    dateStamp.innerHTML = post.date;
+    dateStamp.setAttribute('class', 'date-stamp');
+    if (glo.username) {
+      dateStamp.setAttribute('class', 'clicky special date-stamp');
+      dateStamp.onclick = function(){
+        dateJump(post.date);
+        switchPanel('posts-panel');
       }
-      footer.appendChild(deleteBtn);
-      //edit button
-      var editBtn = document.createElement("button");
-      editBtn.innerHTML = "edit";
-      editBtn.onclick = function() {
-        editPost(post, author);
-      }
-      footer.appendChild(editBtn);
     }
+    footerLeft.appendChild(dateStamp);
+  }
+  // footer buttons(right side of post footer)
+  var footerButtons = document.createElement("div");
+  footerButtons.setAttribute('class', 'post-footer-right');
+  footer.appendChild(footerButtons);
+  if (glo.username) {
     // quote button
-    var quoteBtn = document.createElement("button");
-    quoteBtn.innerHTML = "quote";
+    var quoteBtn = document.createElement("footerButton");
+    quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
     quoteBtn.onclick = function() {
       loading();
       ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
         if (json.four04) {return alert("eRoRr! post not found???")}
         loading(true);
         var text = "<quote>"+json.post.body+
-          '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
+        '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
         if ($('post-editor').value !== "") {text = '<br>'+text;}
         $('post-editor').value += prepTextForEditor(text);
         showWriter('post');
         switchPanel('write-panel');
       });
     }
-    footer.appendChild(quoteBtn);
+    footerButtons.appendChild(quoteBtn);
+  }
+  // perma-link
+  var permalinkWrapper = document.createElement("a");
+  permalinkWrapper.setAttribute('href', "/~/"+post.post_id);
+  permalinkWrapper.setAttribute('class', 'not-special');
+  var permalink = document.createElement("footerButton");
+  permalink.innerHTML = '<i class="fas fa-link"></i>';
+  permalink.onclick = function(event) {
+    event.preventDefault();
+    openPost(author.name, post.post_id);
+  }
+  permalinkWrapper.appendChild(permalink);
+  footerButtons.appendChild(permalinkWrapper);
+  //
+  if (!feed && glo.username && glo.username === author.name) {
+    //edit button
+    var editBtn = document.createElement("footerButton");
+    editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+    editBtn.onclick = function() {
+      editPost(post, author);
+    }
+    footerButtons.appendChild(editBtn);
+    // delete button
+    var deleteBtn = document.createElement("footerButton");
+    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    deleteBtn.onclick = function() {
+      deletePost(post);
+    }
+    footerButtons.appendChild(deleteBtn);
   }
 }
 
@@ -1041,21 +1088,6 @@ var openAuthorPanel = function (author, callback) {
             post.setAttribute('class', 'post');
             post.setAttribute('id', 'author-'+json.posts[i].post_id);
             bucket.appendChild(post);
-            // date
-            var dateBox = document.createElement("div");
-            dateBox.setAttribute('class', 'date-stamp-box');
-            var date = document.createElement("a");
-            date.setAttribute('href', "/~/"+json.posts[i].post_id);
-            (function (author, post_id) {
-              date.onclick = function(event){
-                event.preventDefault();
-                openPost(author, post_id);
-              }
-            })(json.author, json.posts[i].post_id);
-            date.innerHTML = json.posts[i].date;
-            date.setAttribute('class', 'clicky special');
-            dateBox.appendChild(date);
-            post.appendChild(dateBox);
             // body
             var text = document.createElement("text");
             text.setAttribute('class', 'body-text');

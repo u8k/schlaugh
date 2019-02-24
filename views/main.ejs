@@ -23,7 +23,7 @@
     <textarea id="post-editor" class="editor" autocomplete="off"></textarea>
     <br>
     <label for="tag-input">tags</label><br>
-    <input id="tag-input" type="text" placeholder="~separated by commas~">
+    <input id="tag-input" type="text" placeholder="milkshake,">
     <br><br>
     <button onclick="submitPost()">schlaubmit</button>
     <button onclick="cancelPost()">cancel</button>
@@ -41,7 +41,7 @@
   </postNav>
   <button id="jump-open" onclick="openDateJump()">jump</button>
   <button id="tag-menu-open" onclick="openTagMenu()">tags</button>
-  <button id="clear-tag" onclick="loadPosts(0, false);" class="removed">clear tag</button>
+  <button id="clear-tag" onclick="loadPosts(0, false); openTagMenu()" class="removed">clear tag</button>
   <form id="date-jump" class="removed" action="javascript:void(0);">
     <input id="date-picker" type="text" placeholder="date">
     <script type="text/javascript">
@@ -57,7 +57,7 @@
       <div id="top-tags"></div>
     </div>
     <form id="tag-search" action="javascript:void(0);">
-      <input id="tag-picker" type="text" placeholder="tag">
+      <input id="tag-picker" type="text" placeholder="milkshake">
       <br>
       <button type="submit" onclick="tagSearch()">search</button>
       <button onclick="openTagMenu(true)">x</button>
@@ -231,7 +231,7 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img id="o-pic" src="https://static.chaosgroup.com/gallery_images/images/000/000/277/gallery_image/damien-guimoneau-orc-art-vray-3ds-max-01.jpg" alt="orc">
+  <img id="o-pic" src="https://statesymbolsusa.org/sites/statesymbolsusa.org/files/primary-images/orca_seaworld-380.jpg" alt="orca">
 </div>
 
 <div id="edit-panel" class="removed">
@@ -250,7 +250,7 @@
     <textarea id="old-post-editor" class="editor" autocomplete="off"></textarea>
     <br>
     <label for="old-tag-input">tags</label><br>
-    <input id="old-tag-input" type="text" placeholder="separated by commas!">
+    <input id="old-tag-input" type="text" placeholder="milkshake,">
     <br><br>
     <button id='submit-editing-old-post'>schlaubmit</button>
     <button id='cancel-edit-button'>cancel</button>
