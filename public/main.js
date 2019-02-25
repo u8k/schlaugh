@@ -488,6 +488,9 @@ var followingListDisplay = function (open) {
   if (open) {
     $('following-list').classList.remove('hidden');
     blackBacking();
+    $("pop-up-backing").onclick = function () {
+      followingListDisplay(false);
+    }
   }
   else {
     $('following-list').classList.add('hidden');
@@ -917,12 +920,33 @@ var deletePost = function (post) {
   });
 }
 
+var deleteBio = function () {
+  verify('you would like to Permanently and Immediately delete your bio?', 'yeah', 'nope', function (resp) {
+    if (!resp) {return}
+    verify('YOU SURE???', 'YES!', '...no', function (resp) {
+      if (!resp) {return}
+      loading();
+      var data = {post_id:'bio' ,date:'bio'};
+      ajaxCall('/deleteOldPost', 'POST', data, function(json) {
+        loading(true);
+        glo.bio = "";
+        $(glo.username+'-bio').parentNode.removeChild($(glo.username+'-bio'));
+        $(glo.username+'-delete-bio-button').parentNode.removeChild($(glo.username+'-delete-bio-button'));
+      });
+    });
+  });
+}
+
 var editPost = function (post, author) {
+  $('pending-post-edit').classList.remove("removed");
+  $('pending-header-preview').classList.add("removed");
+  //
   $("old-post-editor-title").innerHTML = "<l>editing your post for "+post.date+'</l>';
   $('edit-post-button').onclick = function () {
     showWriter('old-post');
   }
   //
+  $("old-tag-box").classList.remove("removed");
   if (glo.pendingUpdates[post.date]) {
     var savedPost = glo.pendingUpdates[post.date][0];
     $('old-post-editor').value = prepTextForEditor(savedPost.body);
@@ -942,7 +966,7 @@ var editPost = function (post, author) {
       $("old-post-status").innerHTML = "no pending edit for your post on "+post.date;
       $('old-post-editor').value = prepTextForEditor(json.post.body);
       $('delete-pending-old-post').classList.add("removed");
-      $('pending-edit').classList.add("removed");
+      $('pending-post-edit').classList.add("removed");
       $('edit-post-button').innerHTML = "new edit";
       hideWriter('old-post');
       switchPanel("edit-panel");
@@ -973,9 +997,16 @@ var editPost = function (post, author) {
   }
   //set cancel button
   $('cancel-edit-button').onclick = function () {
-    verify("revert any unsaved changes?", null, null, function () {
-      $('old-post-editor').value = prepTextForEditor(glo.fetchedPosts[post.date][0].body);
-      $('old-tag-input').value = getTagString(glo.fetchedPosts[post.date][0].tags);
+    var oldText = prepTextForEditor(glo.fetchedPosts[post.date][0].body);
+    var oldTags = getTagString(glo.fetchedPosts[post.date][0].tags);
+    // have changes been made?
+    if (oldText === $('old-post-editor').value && oldTags === $('old-tag-input').value) {
+      return hideWriter('old-post');
+    }
+    verify("revert any unsaved changes?", null, null, function (result) {
+      if (!result) {return;}
+      $('old-post-editor').value = oldText;
+      $('old-tag-input').value = oldTags
       return hideWriter('old-post');
     });
   }
@@ -999,25 +1030,99 @@ var editPost = function (post, author) {
   }
 }
 
-var updatePendingEdit = function (newText, newTags) {
+var updatePendingEdit = function (newText, newTags, bio) {
   if (newText === "") {
     $('old-post-status').innerHTML = "no "+$('old-post-status').innerHTML;
     $('delete-pending-old-post').classList.add("removed");
-    $('pending-edit').classList.add("removed");
+    if (bio) {$('pending-header-preview').classList.add("removed");}
+    else {$('pending-post-edit').classList.add("removed");}
     $('edit-post-button').innerHTML = "new edit";
   } else {
     var str = $('old-post-status').innerHTML;
     if (str.substr(0,3) === "no ") {$('old-post-status').innerHTML = str.substr(3);}
     $('delete-pending-old-post').classList.remove("removed");
-    $('pending-edit').classList.remove("removed");
+    if (bio) {$('pending-header-preview').classList.remove("removed");}
+    else {$('pending-post-edit').classList.remove("removed");}
     $('edit-post-button').innerHTML = "edit edit";
   }
   var tags = getTagString(newTags);
   $('old-tag-input').value = tags;
   $('old-post-editor').value = prepTextForEditor(newText);
-  $('pending-edit').innerHTML = appendTags(convertText(newText, 'old-pending'), newTags, glo.username);
+  if (bio) {$('pending-right-preview').innerHTML = convertText(newText, 'old-pending')}
+  else {$('pending-post-edit').innerHTML = appendTags(convertText(newText, 'old-pending'), newTags, glo.username);}
+
   hideWriter('old-post');
   loading(true);
+}
+
+var editBio = function () {
+  $('pending-post-edit').classList.add("removed");
+  $('pending-header-preview').classList.remove("removed");
+  //
+  $("old-post-editor-title").innerHTML = "<l>editing bio</l>";
+  $('edit-post-button').onclick = function () {
+    showWriter('old-post');
+  }
+  $("old-tag-box").classList.add("removed");
+  //
+  if (glo.pendingUpdates['bio']) {
+    $('old-post-editor').value = prepTextForEditor(glo.pendingUpdates['bio']);
+    $("old-post-status").innerHTML = "pending bio edit:";
+    updatePendingEdit(glo.pendingUpdates['bio'], {}, true);
+    hideWriter('old-post');
+    $('edit-post-button').innerHTML = "edit edit";
+    switchPanel("edit-panel");
+  } else {
+    $("old-post-status").innerHTML = "no pending edit for your bio";
+    $('old-post-editor').value = prepTextForEditor(glo.bio);
+    $('delete-pending-old-post').classList.add("removed");
+    $('pending-header-preview').classList.add("removed");
+    $('edit-post-button').innerHTML = "new edit";
+    hideWriter('old-post');
+    switchPanel("edit-panel");
+  }
+  // set submit button
+  var data = {date: "bio", post_id:"bio"}
+  $('submit-editing-old-post').onclick = function () {
+    data.text = $('old-post-editor').value;
+    // have changes been made?
+    if (prepTextForEditor(glo.bio) === data.text) {
+      return hideWriter('old-post');
+    }
+    loading();
+    ajaxCall("/editOldPost", 'POST', data, function(json) {
+      updatePendingEdit(json.text, {}, true);
+      glo.pendingUpdates['bio'] = json.text;
+    });
+  }
+  //set cancel button
+  $('cancel-edit-button').onclick = function () {
+    if (glo.pendingUpdates['bio']) {var oldText = prepTextForEditor(glo.pendingUpdates['bio']);}
+    else {var oldText = prepTextForEditor(glo.bio);}
+    // have changes been made?
+    if (oldText === $('old-post-editor').value) {return hideWriter('old-post');}
+    verify("revert any unsaved changes?", null, null, function (result) {
+      if (!result) {return;}
+      $('old-post-editor').value = oldText;
+      return hideWriter('old-post');
+    });
+  }
+  // set delete button
+  $('delete-pending-old-post').onclick = function () {
+    verify("you sure you want me should delete it?", null, null, function (result) {
+      if (!result) {return;}
+      loading();
+      data.text = "";
+      ajaxCall("/editOldPost", 'POST', data, function(json) {
+        glo.pendingUpdates['bio'] = null;
+        updatePendingEdit(json.text, {}, true);
+        $('edit-post-button').onclick = function () {
+          editBio();
+          showWriter('old-post');
+        }
+      });
+    });
+  }
 }
 
 var getTagString = function (tagObj) {
@@ -1050,8 +1155,8 @@ var userAndPostLinkHandler = function (author, post) { // not connected to anyth
 
 var openAuthorPanel = function (author, callback) {
   // see if a panel for the author already exists
-  if ($(author+"-panel")) {
-    switchPanel(author+"-panel");
+  if ($("user-"+author+"-panel")) {
+    switchPanel("user-"+author+"-panel");
     $(author+'-tag-nav').classList.add('removed')
     var children = $(author+'-posts').childNodes;
     for (var i = 0; i < children.length; i++) {
@@ -1078,25 +1183,67 @@ var openAuthorPanel = function (author, callback) {
         json = json.data;
         // panel
         var panel = document.createElement("div");
-        panel.setAttribute('id', json.author+'-panel');
+        panel.setAttribute('id', "user-"+json.author+"-panel");
         $("main").appendChild(panel);
+        // header
+        var authorHeader = document.createElement("div");
+        authorHeader.setAttribute('class', 'author-header');
+        panel.appendChild(authorHeader);
+        // header-left
+        var authorHeaderLeft = document.createElement("div");
+        authorHeaderLeft.setAttribute('class', 'author-header-left');
+        authorHeader.appendChild(authorHeaderLeft);
         // pic
         if (json.authorPic !== "") {
           var authorPic = document.createElement("img");
           authorPic.setAttribute('src', json.authorPic);
           authorPic.setAttribute('class', 'author-panel-pic');
-          panel.appendChild(authorPic);
+          authorHeaderLeft.appendChild(authorPic);
+          var x = authorPic.cloneNode();
+          $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
         }
         // title
-        var title = document.createElement("a")
-        title.setAttribute('id', json.author+'-panel-title');
+        var title = document.createElement("a");
         title.setAttribute('class', 'author-page-title not-special');
         title.innerHTML = json.author;
-        panel.appendChild(title);
-        panel.appendChild(document.createElement("br"));
+        var x = title.cloneNode(true);
+        title.setAttribute('id', json.author+'-panel-title');
+        authorHeaderLeft.appendChild(title);
+        $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
+        authorHeaderLeft.appendChild(document.createElement("br"));
+        $("pending-left-preview").insertBefore(document.createElement("br"), $("preview-follow-button"));
         // follow and message buttons
-        createFollowButton(panel, json);
-        createMessageButton(panel, json);
+        createFollowButton(authorHeaderLeft, json);
+        createMessageButton(authorHeaderLeft, json);
+        // edit bio button,
+        if (glo.username && glo.username === json.author) {
+          authorHeaderLeft.appendChild(document.createElement("br"));
+          var editButton = document.createElement("button");
+          editButton.innerHTML = "edit bio";
+          editButton.onclick = function(){
+            editBio();
+          }
+          authorHeaderLeft.appendChild(editButton);
+          // delete bio button
+          if (json.bio && json.bio !== "") {
+            authorHeaderLeft.appendChild(document.createElement("br"));
+            var deleteButton = document.createElement("button");
+            deleteButton.innerHTML = "delete bio";
+            deleteButton.setAttribute('id', json.author+'-delete-bio-button');
+            deleteButton.onclick = function(){
+              deleteBio();
+            }
+            authorHeaderLeft.appendChild(deleteButton);
+          }
+        }
+        // header-right
+        if (json.bio && json.bio !== "") {
+          var authorHeaderRight = document.createElement("div");
+          authorHeaderRight.setAttribute('class', 'author-header-right');
+          authorHeaderRight.setAttribute('id', json.author+'-bio');
+          authorHeaderRight.innerHTML = convertText(json.bio, json.author+"-bio");
+          authorHeader.appendChild(authorHeaderRight);
+        }
         // tag nav
         var tagNav = document.createElement("div");
         tagNav.setAttribute('class','removed')
@@ -1141,7 +1288,7 @@ var openAuthorPanel = function (author, callback) {
             glo.authors[json.author][json.posts[i].post_id] = json.posts[i].tags;
           }
         }
-        switchPanel(json.author+"-panel");
+        switchPanel("user-"+json.author+"-panel");
         if (callback) {callback();}
         else {
           simulatePageLoad(json.author);
@@ -1233,7 +1380,7 @@ var open404post = function (author) {
     var e404 = document.createElement("h2")
     e404.setAttribute('id', author+'-panel-404');
     e404.innerHTML = "<c>not even a single thing</c>";
-    $(author+'-panel').appendChild(e404);
+    $("user-"+author+"-panel").appendChild(e404);
   }
 }
 
@@ -2214,6 +2361,7 @@ var signIn = function (url, data, callback) {
 
 var parseUserData = function (data) {
   glo.username = data.username;
+  glo.bio = data.bio;
   glo.unread = 0;
   glo.threads = data.threads;
   glo.keys = data.keys;

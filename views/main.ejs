@@ -241,7 +241,13 @@
 
   <div id="old-post-preview">
     <div id="old-post-status"></div>
-    <div id="pending-edit" class="post removed"></div>
+    <div id="pending-post-edit" class="post removed"></div>
+    <div id="pending-header-preview" class="author-header removed">
+      <div id="pending-left-preview" class="author-header-left">
+        <button id="preview-follow-button" onclick="alert(`Y'ALL<br>DONE<br>DID<br>GET<br>GOT<br>BY<br>A<br>FAKE BUTTON`,'doh')">follow</button>
+      </div>
+      <div id="pending-right-preview" class="author-header-right"></div>
+    </div>
     <button type="button" id='edit-post-button' onclick="showWriter('old-post')">new edit</button>
     <button id='delete-pending-old-post'>delete</button>
   </div>
@@ -251,9 +257,11 @@
     <%- include("editorButtons", {kind: "old-post"}) %>
     <textarea id="old-post-editor" class="editor" autocomplete="off"></textarea>
     <br>
-    <label for="old-tag-input">tags</label><br>
-    <input id="old-tag-input" type="text" placeholder="milkshake,">
-    <br><br>
+    <div id="old-tag-box">
+      <label for="old-tag-input">tags</label><br>
+      <input id="old-tag-input" type="text" placeholder="milkshake,">
+      <br><br>
+    </div>
     <button id='submit-editing-old-post'>schlaubmit</button>
     <button id='cancel-edit-button'>cancel</button>
   </div>

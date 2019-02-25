@@ -2,7 +2,7 @@
 
 *:focus {outline:0;}
 
-h1, button, input, footer, header, postNav, .post-footer-left, h2 {font-family: monospace;}
+h1, button, input, footer, header, postNav, .post-footer-left, h2, .author-page-title, .author {font-family: monospace;}
 
 body {
   padding: 1.5vmin;
@@ -28,6 +28,7 @@ h2 {
 .author-panel-pic {
   max-width: 100px;
   max-height: 100px;
+  border-radius: 5px;
 }
 
 .author-page-title {
@@ -146,7 +147,7 @@ a, a.visited, .special {
 #pending-message {width: 65%}
 
 .author {
-  font-size: 1.3em;
+  font-size: 1.7em;
 }
 
 .author-pic {
@@ -184,7 +185,7 @@ footerButton {
 }
 
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .post, #settings-box {width: 98%;}
+  .post, .author-header, #settings-box {width: 98%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
   #post-writer, #old-post-writer{width: 95%;}
@@ -200,6 +201,7 @@ footerButton {
 .user-pic {
   max-width: 50px;
   max-height: 100px;
+  border-radius: 5px;
 }
 
 button, .button {
@@ -290,7 +292,6 @@ slogan {
   font-size: 1.45em;
 }
 
-
 .following-listing {
   font-size: 25px;
   height: 35px;
@@ -302,6 +303,7 @@ slogan {
   max-width: 30px;
   max-height: 30px;
   display: inline;
+  border-radius: 3px;
 }
 
 .pop-up {
@@ -333,6 +335,18 @@ slogan {
   overflow-y: scroll;
   top: 50%;
 }
+
+.author-header {
+  width: 75%;
+  margin: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.author-header-left {padding: 10px;}
+.author-header-right {padding: 10px; text-align: left;}
+
+#pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
 
 #loading-box {
   position: fixed;

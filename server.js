@@ -72,7 +72,7 @@ var checkFreshness = function (user) {  // pushes New pending posts to postlist
 }
 
 var checkUpdates = function (user, callback) {  // pushes edits on OLD posts
-  var today = pool.getCurDate();        // user MUST have pendingUpdates, posts, and _id props
+  var today = pool.getCurDate();        // "user"obj MUST have pendingUpdates, posts, bio, and _id props
   if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.lastUpdatedOn) {
     if (user.pendingUpdates.lastUpdatedOn !== today) {
       user.pendingUpdates.lastUpdatedOn = today;
@@ -80,8 +80,12 @@ var checkUpdates = function (user, callback) {  // pushes edits on OLD posts
       var count = 0;
       for (var date in ref) {
         if (ref.hasOwnProperty(date)) {
-          if (user.posts[date]) {
-            count++;
+          count++;
+          if (date === "bio") {
+            user.bio = ref[date];
+            delete ref[date];
+            count--;
+          } else if (user.posts[date]) {
             // check existing tags
             var badTagArr = [];
             for (var tag in user.posts[date][0].tags) {
@@ -95,18 +99,23 @@ var checkUpdates = function (user, callback) {  // pushes edits on OLD posts
               if (resp.error) {return callback({error:resp.error});}
               else {
                 count--;
-                user.posts[resp.date] = ref[resp.date];
+                user.posts[resp.date] = ref[resp.date];         // the line where the update actually happens!
                 delete ref[resp.date];
-                if (count === 0) {
-                  count--;
-                  return callback({change:true, user:user});
-                }
+                setTimeout(function () {
+                  if (count === 0) {
+                    count--;
+                    return callback({change:true, user:user});
+                  }
+                }, 0);
               }
             });
           } else {delete ref[date];}
         }
       }
-      if (count === 0) {return callback({change:true, user:user});}
+      if (count === 0) {
+        count--;
+        return callback({change:true, user:user});
+      }
     } else {return callback({change:false, user:user});}
   } else {return callback({change:false, user:user});}
 }
@@ -236,7 +245,7 @@ var getPayload = function (req, res, otherUserID, callback) {
   if (!req.session.user) {return sendError(res, "no user session 0234");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1}
+    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1, bio:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, "user not found");}
@@ -244,12 +253,15 @@ var getPayload = function (req, res, otherUserID, callback) {
         var tmrw = pool.getCurDate(-1);
         // check if user needs keys
         if (!user.keys) {return res.send({needKeys:true});}
+        var bio = user.bio;
+        if (typeof bio !== 'string') {bio = "";}
         var payload = {
           keys: user.keys,
           username: user.username,
           userPic: getUserPic(user),
           settings: {},
           following: user.following,
+          bio: bio,
         }
         payload.settings.colors = user.settings.colors;
         payload.settings.font = user.settings.font;
@@ -259,6 +271,7 @@ var getPayload = function (req, res, otherUserID, callback) {
         }
         checkUpdates(user, function (check) {
           if (check.error) {return sendError(res, check.error);}
+          user = check.user;
           if (user.pendingUpdates && user.pendingUpdates.updates) {
             payload.pendingUpdates = user.pendingUpdates.updates;
           } else {
@@ -597,7 +610,7 @@ var sendError = function (res, msg) {
 
 var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
   db.collection('users').find({_id: {$in: authorList}}
-    ,{posts:1, username:1, iconURI:1, pendingUpdates:1}).toArray(function(err, users) {
+    ,{posts:1, username:1, iconURI:1, pendingUpdates:1, bio:1}).toArray(function(err, users) {
     if (err) {return callback({error:err});}
     else {
       var followingList = [];
@@ -1121,7 +1134,7 @@ app.get('/~payload', function(req, res) {
   }
 });
 
-// new/edit/delete post
+// new/edit/delete (current) post
 app.post('/', function(req, res) {
   var errMsg = "your post might not be saved, please copy all of your text to be safe<br><br>";
   if (!req.session.user) {return sendError(res, errMsg+"no user session 1652");}
@@ -1156,14 +1169,14 @@ app.post('/', function(req, res) {
   });
 });
 
-// new/edit/delete a pending edit to an old post
+// new/edit/delete a pending edit to an old post, also handles bios
 app.post('/editOldPost', function (req, res) {
   var errMsg = "the post was not successfully edited<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 154");}
-  if (req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"you would seek to edit your future? fool!");}
+  if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"you would seek to edit your future? fool!");}
   idCheck(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
-    , {posts:1, pendingUpdates:1}
+    , {posts:1, pendingUpdates:1, bio:1}
     , function (err, user) {
       if (err) {return sendError(res, errMsg+err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
@@ -1171,8 +1184,9 @@ app.post('/editOldPost', function (req, res) {
         // pending updates MUST be fresh when we add to it, else all goes to shit
         checkUpdates(user, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
+          user = resp.user;
           // before changing anything, verify the postID corresponds with the date
-          if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
+          if ((req.body.date === "bio" && req.body.post_id === "bio") || (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id)) {
             var x = pool.cleanseInputText(req.body.text);
             if (x.error || x[1] === "") {                 // delete
               if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
@@ -1188,15 +1202,23 @@ app.post('/editOldPost', function (req, res) {
               if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
               if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
               //
-              var tags = parseInboundTags(req.body.tags);
-              if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+              if (req.body.post_id !== "bio") {
+                var tags = parseInboundTags(req.body.tags);
+                if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+              } else {
+                var tags = {};
+              }
               imageValidate(x[0], res, function (res) {
-                var newPost = [{
-                  body: x[1],
-                  tags: tags,
-                  post_id: req.body.post_id,
-                  edited: true,
-                }];
+                if (req.body.post_id === "bio") {
+                  var newPost = x[1];
+                } else {
+                  var newPost = [{
+                    body: x[1],
+                    tags: tags,
+                    post_id: req.body.post_id,
+                    edited: true,
+                  }];
+                }
                 user.pendingUpdates.updates[req.body.date] = newPost;
                 return writeToDB(userID, user, function (resp) {
                   if (resp.error) {return sendError(res, errMsg+resp.error);}
@@ -1211,25 +1233,33 @@ app.post('/editOldPost', function (req, res) {
   });
 });
 
-//
+// delete an alread posted(non pending) post, also bio
 app.post('/deleteOldPost', function (req, res) {
   var errMsg = "the post was not successfully deleted<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 813");}
   idCheck(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1}
+    , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
       else {
-        checkFreshness(user); //in case they want to delete a post from today that is still in pendingList
-        // before changing anything, verify the postID corresponds with the date
-        if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
-          deletePost(res, errMsg, userID, user, req.body.date, function (resp) {
+        if (req.body.date === "bio" && req.body.post_id === "bio") {
+          user.bio = "";
+          writeToDB(userID, user, function (resp) {
             if (resp.error) {return sendError(res, errMsg+resp.error);}
-            else {return res.send({error:false});}
+            else {return res.send({error: false});}
           });
-        } else {return sendError(res, errMsg+"postID and date miscoresponce");}
+        } else {
+          checkFreshness(user); //in case they want to delete a post from today that is still in pendingList
+          // before changing anything, verify the postID corresponds with the date
+          if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
+            deletePost(res, errMsg, userID, user, req.body.date, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {return res.send({error:false});}
+            });
+          } else {return sendError(res, errMsg+"postID and date miscoresponce");}
+        }
       }
     });
   });
@@ -1672,11 +1702,6 @@ app.post('/register', function(req, res) {
               pending: {},
             },
             following: [],
-            about: {
-              oldText: "",
-              newText: "",
-              updatedOn: today,
-            },
             iconURI: "",
             settings: {},
           }, {}, function (err, result) {
@@ -2125,7 +2150,7 @@ app.post('/resetNameCheck', function (req, res) {
 app.get('/~getAuthor/:username', function(req, res) {
   if (req.params.username === "admin" || req.params.username === "apwbd") {return res.send({error: false, four04: true});}
   db.collection('users').findOne({username: req.params.username}
-  , { posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1}
+  , { posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
   , function (err, author) {
     if (err) {return sendError(res, err);}
     else {
@@ -2133,6 +2158,7 @@ app.get('/~getAuthor/:username', function(req, res) {
         checkFreshness(author);
         checkUpdates(author, function (resp) {
           if (resp.error) {return sendError(res, resp.error);}
+          author = resp.user;
           var posts = [];
           var pL = author.postList;
           var tmrw = pool.getCurDate(-1);
@@ -2146,6 +2172,8 @@ app.get('/~getAuthor/:username', function(req, res) {
               });
             }
           }
+          var bio = author.bio;
+          if (typeof bio !== 'string') {bio = "";}
           var key = null;
           var authorPic = getUserPic(author);
           if (req.session.user) {
@@ -2161,6 +2189,7 @@ app.get('/~getAuthor/:username', function(req, res) {
             four04: false,
             data:{
               author: req.params.username,
+              bio: bio,
               posts: posts,
               authorPic: authorPic,
               _id: author._id,
@@ -2180,13 +2209,14 @@ app.get('/~getPost/:id/:date', function (req, res) {
   var authorID = req.params.id;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
   db.collection('users').findOne({_id: authorID}
-  , { posts:1, pendingUpdates:1}
+  , { posts:1, pendingUpdates:1, bio:1}
   , function (err, author) {
     if (err) {return sendError(res, err);}
     else {
       if (author && author.posts[req.params.date]) {
         checkUpdates(author, function (resp) {
           if (resp.err) {return sendError(res, resp.err);}
+          author = resp.user;
           res.send({error: false, post: author.posts[req.params.date][0]})
         });
       } else {
