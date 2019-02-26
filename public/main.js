@@ -287,13 +287,16 @@ var alert = function (message, btnTxt, callback) {
     $("alert").classList.add("hidden");
     blackBacking(true);
   } else {
+    var oldFocus = document.activeElement;
     $("alert").classList.remove("hidden");
     blackBacking();
+    $('alert-submit').focus();
     $("alert-text").innerHTML = message;
     if (btnTxt) {$('alert-submit').innerHTML = btnTxt;}
     else {$('alert-submit').innerHTML = "'kay";}
     var exit = function(){
       if (callback) {callback();}
+      oldFocus.focus();
       alert(false);
     }
     $("alert-submit").onclick = exit;
@@ -309,6 +312,8 @@ var verify = function (message, yesText, noText, callback) {
   } else {
     $("confirm").classList.remove("hidden");
     blackBacking();
+    var oldFocus = document.activeElement;
+    $('confirm-no').focus();
     $("confirm-text").innerHTML = message;
     if (yesText) {$("confirm-yes").innerHTML = yesText;}
     else {$("confirm-yes").innerHTML = 'yeah';}
@@ -320,6 +325,7 @@ var verify = function (message, yesText, noText, callback) {
     }
     var exit = function(){
       verify(false);
+      oldFocus.focus();
       if (callback) {callback(false);}
     }
     $("confirm-no").onclick = exit;
@@ -364,7 +370,7 @@ var signOut = function() {
   });
 }
 
-var simulatePageLoad = function (newPath, newTitle) {
+var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   // scrolls to top, updates the url, and the browser/tab title
   // defaults to home if no args given, second arg defaults to first if not given
   scroll(0, 0);
@@ -377,6 +383,20 @@ var simulatePageLoad = function (newPath, newTitle) {
     if (!newTitle) {newTitle = newPath;}
     document.title = newTitle;
   }
+  if (faviconSrc) {changeFavicon(faviconSrc);}
+  else {changeFavicon(null);}
+}
+
+var changeFavicon = function (src) {
+  var oldLink = $('dynamic-favicon');
+  var link = document.createElement('link');
+  link.id = 'dynamic-favicon';
+  link.rel = 'icon';
+  link.type = "image/png";
+  if (src) {link.href = src;}
+  else {link.href = "/favicon.png";}
+  if (oldLink) {document.head.removeChild(oldLink);}
+  document.head.appendChild(link);
 }
 
 var ajaxCall = function(url, method, data, callback) {
@@ -1073,7 +1093,7 @@ var editBio = function () {
     $('edit-post-button').innerHTML = "edit edit";
     switchPanel("edit-panel");
   } else {
-    $("old-post-status").innerHTML = "no pending edit for your bio";
+    $("old-post-status").innerHTML = "no pending bio edit";
     $('old-post-editor').value = prepTextForEditor(glo.bio);
     $('delete-pending-old-post').classList.add("removed");
     $('pending-header-preview').classList.add("removed");
@@ -1169,7 +1189,7 @@ var openAuthorPanel = function (author, callback) {
     $(author+'-panel-title').classList.add("not-special");
     if (callback) {callback();}
     else {
-      simulatePageLoad(author);
+      simulatePageLoad(author, null, glo.authorPics[author]);
     }
   } else {
     // call for data and render a new panel
@@ -1198,6 +1218,7 @@ var openAuthorPanel = function (author, callback) {
           var authorPic = document.createElement("img");
           authorPic.setAttribute('src', json.authorPic);
           authorPic.setAttribute('class', 'author-panel-pic');
+          glo.authorPics[json.author] = json.authorPic;
           authorHeaderLeft.appendChild(authorPic);
           var x = authorPic.cloneNode();
           $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
@@ -1291,7 +1312,7 @@ var openAuthorPanel = function (author, callback) {
         switchPanel("user-"+json.author+"-panel");
         if (callback) {callback();}
         else {
-          simulatePageLoad(json.author);
+          simulatePageLoad(json.author, null, json.authorPic);
         }
       }
     });
@@ -1349,14 +1370,14 @@ var openPost = function (author, post_id, index) { //individual post on an autho
     }
     // open the One
     if (post_id) {                                // by ID
-      simulatePageLoad("~/"+post_id, author);
+      simulatePageLoad("~/"+post_id, author, glo.authorPics[author]);
       if ($('author-'+post_id)) {
         $('author-'+post_id).classList.remove('removed');
       } else {
         open404post(author);
       }
     } else if (index) {                          // by index
-      simulatePageLoad(author+"/"+index, author);
+      simulatePageLoad(author+"/"+index, author, glo.authorPics[author]);
       if (!isNumeric(index) || index >= children.length || index<0) {
         open404post(author);
       } else {
@@ -1538,7 +1559,7 @@ var filterAuthorByTag = function (author, tag) {
       }
     }
     if (none) {open404post(author);}
-    simulatePageLoad(author+"/~tagged/"+tag, author);
+    simulatePageLoad(author+"/~tagged/"+tag, author, glo.authorPics[author]);
     $(author+'-tag-nav').classList.remove('removed');
     $(author+'-tag-text').innerHTML = 'posts tagged "'+tag+'"';
   });
@@ -2101,9 +2122,7 @@ var populateThreadlist = function () {
     name.innerHTML = "no threads!";
     $("thread-list").appendChild(name);
   }
-  if (glo.unread > 0) {
-    $("inbox-panel-button").classList.add("special");
-  }
+  if (glo.unread > 0) {$("inbox-panel-button").classList.add("special");}
 }
 
 var block = function (threadIndex) {
@@ -2371,6 +2390,7 @@ var parseUserData = function (data) {
   glo.pendingUpdates = Object.create(data.pendingUpdates);
   glo.fetchedPosts = Object.create(data.pendingUpdates);
   glo.userPic = data.userPic;
+  glo.authorPics = {};
   glo.followingRef = {};
   for (var i = 0; i < data.following.length; i++) {
     glo.followingRef[data.following[i]] = true;
@@ -2400,6 +2420,7 @@ var parseUserData = function (data) {
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
+  if (glo.unread > 0) {$("inbox-panel-button").classList.add("special");}
 }
 
 var setAppearance = function () {
@@ -2452,12 +2473,14 @@ var fetchData = function (callback) {
   });
 }
 
-var togglePassTextVisibility = function (btn, elemArr) {
-  if (btn.innerHTML === 'show password') {
-    btn.innerHTML = 'hide password';
+var showPassword = function (bool, elemName, elemArr) {       //or hide pass, if !bool
+  if (bool) {                                               // show it
+    $(elemName).classList.add('removed');
+    $(elemName+"c").classList.remove('removed');
     for (var i = 0; i < elemArr.length; i++) {$(elemArr[i]).type = 'text';}
-  } else {
-    btn.innerHTML = 'show password'
+  } else {                                                    // hide it
+    $(elemName+"c").classList.add('removed');
+    $(elemName).classList.remove('removed');
     for (var i = 0; i < elemArr.length; i++) {$(elemArr[i]).type = 'password';}
   }
 }

@@ -153,8 +153,10 @@
       <input id="password-change0" type="password" autocomplete="current-password" name="current-password" placeholder="current password"><br>
       <input id="password-change1" type="password" autocomplete="new-password" name="new-password" placeholder="new password"><br>
       <input id="password-change2" type="password" autocomplete="new-password" name="new-password" placeholder="new password"><br>
-      <button type="button" onclick="togglePassTextVisibility(this, ['password-change0','password-change1','password-change2'])">show password</button><br>
-      <button type="submit" onclick="changePassword()">change</button>
+      <icon id="eye5" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye5', ['password-change0','password-change1','password-change2'])"></icon>
+      <icon id="eye5c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye5', ['password-change0','password-change1','password-change2'])"></icon>
+      <br>
+      <button type="submit" class="change-pass-button-bump" onclick="changePassword()">change</button>
     </form>
     <br><br><br>
     <a class="clicky" onclick="signOut()">schlaugh out</a>
@@ -188,9 +190,10 @@
       <input id="secret-code" type="password" name="secretCode" placeholder="secret code">
       -->
       <br>
-      <button type="button" onclick="togglePassTextVisibility(this, ['pass-input', 'pass-input-two'])">show password</button>
-      <br><br>
-      <button type="submit" onclick="logInPageSubmit('up')">schlaugh up</button>
+      <icon id="eye2" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
+      <icon id="eye2c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
+      <br>
+      <button type="submit" class="change-pass-button-bump" onclick="logInPageSubmit('up')">schlaugh up</button>
     </form>
   </div>
 
@@ -202,9 +205,10 @@
       <br>
       <input id="in-pass-input" type="password" name="password" autocomplete=“current-password” placeholder="password">
       <br>
-      <button type="button" onclick="togglePassTextVisibility(this, ['in-pass-input'])">show password</button>
-      <br><br>
-      <button type="submit" onclick="logInPageSubmit('in')">schlaugh in</button>
+      <icon id="eye1" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye1', ['in-pass-input'])"></icon>
+      <icon id="eye1c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye1', ['in-pass-input'])"></icon>
+      <br>
+      <button type="submit" class="change-pass-button-bump" onclick="logInPageSubmit('in')">schlaugh in</button>
       <br><br>
       <clicky id="lost-pass" onclick="switchPanel('lost-panel')">lost password?</clicky>
     </form>
@@ -294,9 +298,10 @@
       <input id="password-recovery0" type="password" autocomplete="new-password" name="new-password" style="display:none;">
       <input id="password-recovery1" type="password" autocomplete="new-password" name="new-password"><br>
       <input id="password-recovery2" type="password" autocomplete="new-password" name="new-password"><br>
-      <button type="button" onclick="togglePassTextVisibility(this, ['password-recovery1', 'password-recovery2'])">show password</button><br>
+      <icon id="eye3" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye3', ['password-recovery1', 'password-recovery2'])"></icon>
+      <icon id="eye3c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye3', ['password-recovery1', 'password-recovery2'])"></icon>
     </div>
-    <button type="submit" onclick="submitRecoveryName()">submit</button>
+    <button type="submit" class="change-pass-button-bump" onclick="submitRecoveryName()">submit</button>
   </form>
   <div id="pass-reset-success" class="removed">
     <text>your password has been successfully reset<br><br><clicky onclick="switchPanel('login-panel');simulatePageLoad();" class="special">please log in here</clicky></text>
@@ -331,8 +336,9 @@
     <br>
     <input id="prompt-password" type="password" name="password" autocomplete=“current-password” placeholder="password">
     <br>
-    <button type="button" onclick="togglePassTextVisibility(this, ['prompt-password'])">show password</button>
-    <br><br>
+    <icon id="eye4" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye4', ['prompt-password'])"></icon>
+    <icon id="eye4c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye4', ['prompt-password'])"></icon>
+    <br>
     <button id="password-prompt-submit" type="submit">submit</button>
   </form>
   <div id="or-schlaugh-up" class="removed">

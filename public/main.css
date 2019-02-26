@@ -220,12 +220,25 @@ input {
   border-style: inset;
   outline-style: none;
   margin-bottom: 2px;
-  padding: 2px 5px 2px 5px;
+  padding: 3px 5px 3px 5px;
 }
-/*hack to make Chrome not force a yellow background when it autofills
+
+/*hack to make Chrome not force formatting when it autofills*/
 input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #32363F inset !important;
-}*/
+  -webkit-box-shadow: 0 0 0 1000px #324144 inset;
+  -webkit-text-fill-color: #D8D8D8;
+}
+
+.eye {
+  position: relative;
+  left: 65px;
+  bottom: 23px;
+}
+
+.change-pass-button-bump {
+  position: relative;
+  bottom: 19px;
+}
 
 #color-settings-box {
   display: flex;
