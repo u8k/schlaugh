@@ -1,6 +1,6 @@
 "use strict";
 
-var glo = {dateOffset: -1,};
+var glo = {dateOffset: -1, authorPics:{}};
 
 var $ = function (id) {return document.getElementById(id);}
 
@@ -2390,7 +2390,6 @@ var parseUserData = function (data) {
   glo.pendingUpdates = Object.create(data.pendingUpdates);
   glo.fetchedPosts = Object.create(data.pendingUpdates);
   glo.userPic = data.userPic;
-  glo.authorPics = {};
   glo.followingRef = {};
   for (var i = 0; i < data.following.length; i++) {
     glo.followingRef[data.following[i]] = true;
