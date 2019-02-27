@@ -61,13 +61,14 @@
 
     string = string.replace(/  /g, ' &nbsp;');
 
-    var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList) {
+    var buttonUp = function (bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, codeOpen, imgList) {
       if (aOpen) {string += "</a>"}
       if (bOpen) {string += "</b>"}
       if (iOpen) {string += "</i>"}
       if (uOpen) {string += "</u>"}
       if (sOpen) {string += "</s>"}
       if (cutOpen) {string += "</cut>"}
+      if (codeOpen) {string += "</code>"}
       return [imgList, string];
     }
 
@@ -77,9 +78,9 @@
       }
     }
 
-    var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList) {
+    var recurse = function (pos, bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, codeOpen, imgList) {
       var next = string.substr(pos).search(/</);
-      if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);}
+      if (next === -1) {return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, codeOpen, imgList);}
       else {
         pos += next;
         if (string.substr(pos+1,2) === "b>" && !bOpen) {
@@ -106,6 +107,9 @@
         } else if (string.substr(pos+1,4) === "cut>" && !cutOpen) {
           cutOpen = true;
           pos += 4;
+        } else if (string.substr(pos+1,5) === "code>" && !codeOpen) {
+          codeOpen = true;
+          pos += 5;
         } else if (string.substr(pos+1,6) === "quote>") {
           pos += 6;
           removeExtraBreak(pos);
@@ -142,6 +146,9 @@
           cutOpen = false;
           pos += 5;
           removeExtraBreak(pos);
+        } else if (string.substr(pos+1,6) === "/code>") {
+          codeOpen = false;
+          pos += 6;
         } else if (string.substr(pos+1,7) === "/quote>") {
           pos += 7;
           removeExtraBreak(pos);
@@ -164,7 +171,7 @@
           var qPos = string.substr(pos+1).search(/"/);
           if (qPos === -1) {
             string += '">';
-            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);
+            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, codeOpen, imgList);
           }
           else {pos += qPos;}
           if (string[pos+2] !== ">") {
@@ -180,7 +187,7 @@
           if (qPos === -1) {
             imgList.push(string.substr(pos+1))
             string += '">';
-            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);
+            return buttonUp(bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, codeOpen, imgList);
           }
           else {
             imgList.push(string.substr(pos+1,qPos))
@@ -194,10 +201,10 @@
         } else {  // the found tag is not on the sanctioned list, so replace it
           string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
         }
-        return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, imgList);
+        return recurse(pos+1, bOpen, iOpen, aOpen, uOpen, sOpen, cutOpen, codeOpen, imgList);
       }
     }
-    return recurse(0, false, false, false, false, false, false, []);
+    return recurse(0, false, false, false, false, false, false, false, []);
   }
 
 

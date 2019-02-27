@@ -402,6 +402,13 @@ quote {
   font-style: italic;
 }
 
+code {
+  box-shadow: inset 0px 0px 0px 20px rgba(0, 0, 0, .1);
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: .12em;
+  font-size: 1.03em;
+}
+
 ul, ol {margin: 0}
 
 l {text-align: left;}
