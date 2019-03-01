@@ -870,6 +870,7 @@ var createPostFooter = function (postElem, author, post, feed) {
     // quote button
     var quoteBtn = document.createElement("footerButton");
     quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
+    quoteBtn.title = "quote";
     quoteBtn.onclick = function() {
       loading();
       ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
@@ -891,6 +892,7 @@ var createPostFooter = function (postElem, author, post, feed) {
   permalinkWrapper.setAttribute('class', 'not-special');
   var permalink = document.createElement("footerButton");
   permalink.innerHTML = '<i class="fas fa-link"></i>';
+  permalink.title = "permalink";
   permalink.onclick = function(event) {
     event.preventDefault();
     openPost(author.name, post.post_id);
@@ -902,6 +904,7 @@ var createPostFooter = function (postElem, author, post, feed) {
     //edit button
     var editBtn = document.createElement("footerButton");
     editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+    editBtn.title = "edit";
     editBtn.onclick = function() {
       editPost(post, author);
     }
@@ -909,6 +912,7 @@ var createPostFooter = function (postElem, author, post, feed) {
     // delete button
     var deleteBtn = document.createElement("footerButton");
     deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    deleteBtn.title = "delete";
     deleteBtn.onclick = function() {
       deletePost(post);
     }
@@ -1518,7 +1522,7 @@ var appendTags = function (postString, tagRef, author) {
   if (tags.substr(tags.length-2, tags.length) === ", ") {
     tags = tags.substr(0,tags.length-2);
   }
-  if (tags !== "") {return postString +"<br><br><hr><i>"+ tags+"</i>";}
+  if (tags !== "") {return postString +"</quote></r></c><br><hr><i><l>"+ tags+"</l></i>";}
   else {return postString;}
 }
 
@@ -1591,7 +1595,7 @@ var prepTextForEditor = function (text) {
     var next = text.substr(pos).search(tag);
     if (next !== -1) {
       pos = pos+next;
-      if (text.substr(pos-4, 4) !== '<br>') {
+      if (text.substr(pos-4, 4) !== '<br>' && text.substr(pos-5, 5) !== '<cut>') {
         text = text.substr(0,pos)+'<br>'+text.substr(pos);
       }
       preTagLineBreakRecurse(pos+1, tag);
@@ -1642,6 +1646,7 @@ var styleText = function (tag, src, lineBreak) {
   var a = x.start;
   var b = x.end;
   var y = area.value;
+  if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   if (!lineBreak) {
     area.value = y.slice(0, a)+'<'+tag+'>'+y.slice(a, b)+'</'+tag+'>'+y.slice(b);
     setCursorPosition(area, a+2+tag.length, b+2+tag.length);
@@ -1660,8 +1665,9 @@ var hyperlink = function (src) {
   var a = x.start;
   var b = x.end;
   var y = area.value;
+  if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   var linkText;
-  if (a !== b) {linkText = y.substr(a,b-a)}
+  if (a !== b) {linkText = convertLineBreaks(y.substr(a,b-a), true);}
   prompt({
     label: "target url:",
     placeholder: "http://www.butts.cash/",
@@ -1673,6 +1679,7 @@ var hyperlink = function (src) {
           label: "link text:",
           callback: function(linkText) {
             if (linkText !== null) {
+              linkText = convertLineBreaks(linkText);
               ajaxCall('/link', 'POST', {url:target}, function(json) {
                 if (json.issue) {
                   verify(json.issue, null, null, function (res) {
@@ -1699,6 +1706,7 @@ var insertImage = function (src) {
   var a = x.start;
   var b = x.end;
   var y = area.value;
+  if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   prompt({
     label: "image url:",
     value:"https://i.imgur.com/hDEXSt7.jpg",
@@ -1722,14 +1730,16 @@ var insertCut = function (src) {
   var a = x.start;
   var b = x.end;
   var y = area.value;
+  if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   var cutText = "more";
-  if (a !== b) {cutText = y.substr(a,b-a)}
+  if (a !== b) {cutText = convertLineBreaks(y.substr(a,b-a), true);}
   prompt({
     label:"text:",
     value:cutText,
     placeholder: "",
     callback: function(cutText) {
       if (cutText != null) {
+        cutText = convertLineBreaks(cutText);
         var openTag = '<cut>';
         var closeTag = '</cut>\n';
         if (y.substr(b,1) === "\n") {closeTag = '</cut>'}
@@ -1746,8 +1756,9 @@ var insertQuote = function (src) {
   var a = x.start;
   var b = x.end;
   var y = area.value;
+  if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   var quoteText;
-  if (a !== b) {quoteText = y.substr(a,b-a)}
+  if (a !== b) {quoteText = convertLineBreaks(y.substr(a,b-a), true);}
   var openTag = '\n<quote>\n'
   if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<quote>\n'}
   var closeTag = '\n</quote>\n';
@@ -1758,6 +1769,7 @@ var insertQuote = function (src) {
     placeholder: "nitwit blubber oddment tweak",
     callback: function(quoteText) {
       if (quoteText !== null) {
+        quoteText = convertLineBreaks(quoteText);
         prompt({
           label: "source text(optional):",
           placeholder: "dumbledore",
@@ -1798,6 +1810,15 @@ var insertQuote = function (src) {
       }
     }
   });
+}
+
+var convertLineBreaks = function (string, dir) {
+  if (dir) {
+    return string.replace(/\r?\n|\r/g, '<br>');
+     string;
+  } else {
+    return string.replace(/<br>/g, '\n');
+  }
 }
 
 // thread stuff
