@@ -65,7 +65,6 @@
     if (string.substr(0,1) === " ") {               //for a single space at the post start
       string = '&nbsp;' + string.substr(1);
     }
-    console.log(string);
 
     var buttonUp = function (b, i, a, u, s, cut, code, li, ul, ol, l, r, c, quote, imgList) {
       if (b) {string += "</b>"}
