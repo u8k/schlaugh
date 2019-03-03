@@ -122,3 +122,12 @@ var getUser = function () {
     console.log(json);
   });
 }
+
+var createPostID = function () {
+  ajaxCall('/admin/makePostIDs', 'POST', {
+    name: $("author-of-post").value,
+    date: $("date-of-post").value,
+  }, function(json) {
+    console.log(json);
+  });
+}

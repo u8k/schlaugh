@@ -1225,7 +1225,9 @@ var openAuthorPanel = function (author, callback) {
           glo.authorPics[json.author] = json.authorPic;
           authorHeaderLeft.appendChild(authorPic);
           var x = authorPic.cloneNode();
-          $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
+          if (glo.username && glo.username === json.author) {
+            $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
+          }
         }
         // title
         var title = document.createElement("a");
@@ -1234,9 +1236,11 @@ var openAuthorPanel = function (author, callback) {
         var x = title.cloneNode(true);
         title.setAttribute('id', json.author+'-panel-title');
         authorHeaderLeft.appendChild(title);
-        $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
         authorHeaderLeft.appendChild(document.createElement("br"));
-        $("pending-left-preview").insertBefore(document.createElement("br"), $("preview-follow-button"));
+        if (glo.username && glo.username === json.author) {
+          $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
+          $("pending-left-preview").insertBefore(document.createElement("br"), $("preview-follow-button"));
+        }
         // follow and message buttons
         createFollowButton(authorHeaderLeft, json);
         createMessageButton(authorHeaderLeft, json);

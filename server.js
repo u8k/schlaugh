@@ -360,7 +360,7 @@ var genID = function (clctn, length, callback) {
   });
 }
 
-var createPost = function (authorID, callback, date) {
+var createPost = function (authorID, callback, date) {    //creates a postID and ref in the postDB
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
   authorID = ObjectId(authorID);
   if (!date) {date = pool.getCurDate(-1)}
@@ -964,36 +964,24 @@ app.post('/admin/removeUser', function(req, res) {
 
 app.post('/admin/makePostIDs', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('users').find({}
-      ,{posts:1,}).toArray(function(err, users) {
+    db.collection('users').findOne({username: req.body.name}, {posts:1,}
+    , function (err, user) {
       if (err) {return sendError(res, err);}
+      else if (!user) {return res.send({error:"user not found"});}
       else {
-        var count = 0;
-        for (var i = 0; i < users.length; i++) {
-          for (var date in users[i].posts) {
-            if (users[i].posts.hasOwnProperty(date)) {
-              if (!users[i].posts[date][0].post_id) {
-                count++;
-                (function (i,date) {
-                  createPost(users[i]._id, function (resp) {
-                    if (resp.error) {sendError(res, resp.error);}
-                    else {
-                      users[i].posts[date][0].post_id = resp.postID;
-                      writeToDB(users[i]._id, users[i], function (resp) {
-                        if (resp.error) {sendError(res, resp.error);}
-                        else {
-                          count--;
-                          if (count === 0) {
-                            res.send({error:false});
-                          }
-                        }
-                      });
-                    }
-                  }, date);
-                })(i,date);
-              }
+        if (req.body.date && user.posts[req.body.date] && user.posts[req.body.date][0]) {
+          createPost(user._id, function (resp) {
+            if (resp.error) {sendError(res, resp.error);}
+            else {
+              user.posts[req.body.date][0].post_id = resp.postID;
+              writeToDB(user._id, user, function (resp) {
+                if (resp.error) {sendError(res, resp.error);}
+                else {res.send({error:false, newID: user.posts[req.body.date][0].post_id});}
+              });
             }
-          }
+          }, req.body.date);
+        } else {
+          return res.send({error:"post not found"});
         }
       }
     });

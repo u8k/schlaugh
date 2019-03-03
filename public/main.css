@@ -358,7 +358,7 @@ slogan {
 }
 
 .author-header-left {padding: 10px;}
-.author-header-right {padding: 10px; text-align: left;}
+.author-header-right {padding: 10px; text-align: left; align-self: center;}
 
 #pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
 
