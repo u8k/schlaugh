@@ -245,7 +245,7 @@ var getPayload = function (req, res, otherUserID, callback) {
   if (!req.session.user) {return sendError(res, "no user session 0234");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1, bio:1}
+    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1, bio:1, bookmarks:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, "user not found");}
@@ -255,6 +255,7 @@ var getPayload = function (req, res, otherUserID, callback) {
         if (!user.keys) {return res.send({needKeys:true});}
         var bio = user.bio;
         if (typeof bio !== 'string') {bio = "";}
+        if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
         var payload = {
           keys: user.keys,
           username: user.username,
@@ -262,6 +263,7 @@ var getPayload = function (req, res, otherUserID, callback) {
           settings: {},
           following: user.following,
           bio: bio,
+          bookmarks: user.bookmarks,
         }
         payload.settings.colors = user.settings.colors;
         payload.settings.font = user.settings.font;
@@ -347,12 +349,17 @@ var getSettings = function (req, res, callback) {
   });
 }
 
-var genID = function (clctn, length, callback) {
+var genRandString = function (length) {
   var bank = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   var output = "";
   for (var i = 0; i < length; i++) {
     output += bank[Math.floor(Math.random() * (bank.length))];
   }
+  return output;
+}
+
+var genID = function (clctn, length, callback) {
+  var output = genRandString(length);
   db.collection(clctn).findOne({_id: output}, {_id:1}, function (err, record) {
     if (err) {return callback({error:err})}
     else if (record) {return genID(clctn, length, callback);} // collision! try again
@@ -609,6 +616,7 @@ var sendError = function (res, msg) {
 }
 
 var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
+  // for getting posts by following for main feed, and all posts with tag on date
   db.collection('users').find({_id: {$in: authorList}}
     ,{posts:1, username:1, iconURI:1, pendingUpdates:1, bio:1}).toArray(function(err, users) {
     if (err) {return callback({error:err});}
@@ -631,8 +639,7 @@ var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
         if (users[i].posts[date]) {
           checkUpdates(users[i], function (resp) {
             if (resp.error) {return callback({error:resp.error})}
-            var authorPic = resp.user.iconURI;
-            if (typeof authorPic !== 'string') {authorPic = "";}
+            var authorPic = getUserPic(resp.user);
             var post_id = null;
             if (resp.user.posts[date][0].post_id) {post_id = resp.user.posts[date][0].post_id}
             posts.push({
@@ -642,6 +649,7 @@ var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
               author: resp.user.username,
               authorPic: authorPic,
               _id: resp.user._id,
+              date: date,
             });
             count--;
             if (count === 0) {
@@ -652,6 +660,75 @@ var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
         } else {count--;}
       }
       if (count === 0) {return callback({error:false, posts:posts, followingList:followingList});}
+    }
+  });
+}
+
+var postsFromListOfAuthorsAndDates = function (postList, callback) {
+  // this is for bookmarkLists and sequences
+  // parse postList into authorList and postRef
+  var postRef = {}
+  for (var i = 0; i < postList.length; i++) {
+    var listing = {date:postList[i].date ,pos:i};
+    if (postRef[postList[i].author_id]) {
+      postRef[postList[i].author_id].push(listing)
+    } else {
+      postRef[postList[i].author_id] = [listing];
+    }
+  }
+  var authorList = [];
+  for (var author in postRef) {
+    if (postRef.hasOwnProperty(author)) {
+      authorList.push(ObjectId(author));
+    }
+  }
+  db.collection('users').find({_id: {$in: authorList}}
+    ,{posts:1, username:1, iconURI:1, pendingUpdates:1, bio:1}).toArray(function(err, users) {
+    if (err) {return callback({error:err});}
+    else {
+      var posts = [];
+      var count = users.length;
+      for (var i = 0; i < users.length; i++) {
+        checkUpdates(users[i], function (resp) {
+          if (resp.error) {return callback({error:resp.error})}
+          var authorPic = getUserPic(resp.user);
+          //
+          for (var j = 0; j < postRef[resp.user._id].length; j++) {
+            var date = postRef[resp.user._id][j].date;
+            if (resp.user.posts[date] && date <= pool.getCurDate()) {
+              var post_id = null;
+              if (resp.user.posts[date][0].post_id) {post_id = resp.user.posts[date][0].post_id}
+              posts[postRef[resp.user._id][j].pos] = {
+                body: resp.user.posts[date][0].body,
+                tags: resp.user.posts[date][0].tags,
+                post_id: post_id,
+                author: resp.user.username,
+                authorPic: authorPic,
+                _id: resp.user._id,
+                date: date,
+              };
+            } else {  // post not found
+              posts[postRef[resp.user._id][j].pos] = {
+                body: "<c><b>***post has been deleted by author***</b></c>",
+                tags: {},
+                post_id: genRandString(8),
+                author: resp.user.username,
+                authorPic: authorPic,
+                _id: resp.user._id,
+                date: date,
+              };
+            }
+          }
+          count--;
+          if (count === 0) {
+            count--;
+            return callback({error:false, posts:posts,});
+          }
+        });
+      }
+      if (count === 0) {
+        return callback({error:false, posts:posts,});
+      }
     }
   });
 }
@@ -1253,86 +1330,150 @@ app.post('/deleteOldPost', function (req, res) {
   });
 });
 
-// get posts of following
+// get posts of following, for a date
 app.post('/posts/:date', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session 1332");}
-  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
-  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-  , {_id:0, following:1,}
-  , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, "user not found");}
-    else {
-      //fetch top tags
-      db.collection('tags').findOne({date: req.params.date}, {ref:1, top:1}
-      , function (err, dateBucket) {
-        if (err) {return sendError(res, err);}
-        else {
-          var freshTops = false;
-          var topTags = [];
-          if (dateBucket) {
-            if (dateBucket.top && dateBucket.top.length) { //check for extant top tags
-              topTags = dateBucket.top;
-            } else if (dateBucket.ref) {
-              topTags = getTopTags(dateBucket.ref);
-              freshTops = true;
-            }
-          }
-          //
-          if (req.body.init) {var init = true;}
-          else {var init = false;}
-          if (user.following.length === undefined) {user.following = [];}
-          postsFromAuthorListAndDate(user.following, req.params.date, init, function (resp) {
-            if (resp.error) {return sendError(res, resp.error);}
-            else {
-              if (freshTops) {
-                dateBucket.top = topTags;
-                db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
-                  {$set: dateBucket},
-                  function(err, tag) {
-                    if (err) {return sendError(res, err);}
-                    else {return res.send({error:false, posts:resp.posts, followingList:resp.followingList, topTags:topTags});}
-                  }
-                );
-              } else {
-                return res.send({error:false, posts:resp.posts, followingList:resp.followingList, topTags:topTags});
+  var errMsg = "error retrieving the posts of following<br><br>";
+  if (!req.params.date || req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+    , {_id:0, following:1,}
+    , function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      else if (!user) {return sendError(res, errMsg+"user not found");}
+      else {
+        //fetch top tags
+        db.collection('tags').findOne({date: req.params.date}, {ref:1, top:1}
+        , function (err, dateBucket) {
+          if (err) {return sendError(res, errMsg+err);}
+          else {
+            var freshTops = false;
+            var topTags = [];
+            if (dateBucket) {
+              if (dateBucket.top && dateBucket.top.length) { //check for extant top tags
+                topTags = dateBucket.top;
+              } else if (dateBucket.ref) {
+                topTags = getTopTags(dateBucket.ref);
+                freshTops = true;
               }
             }
+            //
+            if (req.body.init) {var init = true;}
+            else {var init = false;}
+            if (user.following.length === undefined) {user.following = [];}
+            postsFromAuthorListAndDate(user.following, req.params.date, init, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {
+                if (freshTops) {
+                  dateBucket.top = topTags;
+                  db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
+                    {$set: dateBucket},
+                    function(err, tag) {
+                      if (err) {return sendError(res, errMsg+err);}
+                      else {return res.send({error:false, posts:resp.posts, followingList:resp.followingList, topTags:topTags});}
+                    }
+                  );
+                } else {
+                  return res.send({error:false, posts:resp.posts, followingList:resp.followingList, topTags:topTags});
+                }
+              }
+            });
+          }
+        });
+      }
+    });
+  });
+});
+
+// get posts of bookmarks
+app.get('/bookmarks', function(req, res) {
+  var errMsg = "bookmark list not successfully retrieved<br><br>";
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+    , {_id:0, bookmarks:1,}
+    , function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      else if (!user) {return sendError(res, errMsg+"user not found");}
+      else {
+        if (!user.bookmarks || user.bookmarks.length === undefined) {
+          return res.send({error:false, posts:[],});
+        } else {
+          postsFromListOfAuthorsAndDates(user.bookmarks, function (resp) {
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            else {return res.send({error:false, posts:resp.posts,});}
+          });
+        }
+      }
+    });
+  });
+});
+
+// add/remove to/from bookmarks
+app.post('/bookmarks', function(req, res) {
+  var errMsg = "bookmark list not successfully updated<br><br>";
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, bookmarks:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          if (!req.body || !req.body.author_id || !req.body.date) {return sendError(res, errMsg+"malformed request 644");}
+          if (req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"pretty sneaky sis");}
+          if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
+          var found = false;
+          for (var i = 0; i < user.bookmarks.length; i++) {
+            if (String(user.bookmarks[i].author_id) === String(req.body.author_id) && user.bookmarks[i].date === req.body.date) {
+              found = true;
+              if (req.body.remove) {
+                user.bookmarks.splice(i, 1);
+                i--;
+              }
+            }
+          }
+          if (!found) {
+            user.bookmarks.push({
+              author_id: ObjectId(req.body.author_id),
+              date: req.body.date
+            });
+          }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, errMsg+resp.error);}
+            else {res.send({error: false});}
           });
         }
       });
-    }
   });
 });
 
 // follow/unfollow
 app.post('/follow', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session 2226");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, following:1}
-  , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, "user not found");}
-    else {
-      if (!req.body || !req.body.id) {return sendError(res, "malformed request 283");}
-      // make sure they even have a following array
-      if (!user.following || user.following.length === undefined) {user.following = [];}
-      if (req.body.remove) {
-        for (var i = 0; i < user.following.length; i++) {
-          if (String(user.following[i]) === String(req.body.id)) {
-            user.following.splice(i, 1);
-            i--;
+  var errMsg = "following list not successfully updated<br><br>";
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, following:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          if (!req.body || !req.body.id) {return sendError(res, errMsg+"malformed request 283");}
+          // make sure they even have a following array
+          if (!user.following || user.following.length === undefined) {user.following = [];}
+          if (req.body.remove) {
+            for (var i = 0; i < user.following.length; i++) {
+              if (String(user.following[i]) === String(req.body.id)) {
+                user.following.splice(i, 1);
+                i--;
+              }
+            }
+          } else {
+            user.following.push(ObjectId(req.body.id));
           }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, errMsg+resp.error);}
+            else {res.send({error: false});}
+          });
         }
-      } else {
-        user.following.push(ObjectId(req.body.id));
-      }
-      writeToDB(userID, user, function (resp) {
-        if (resp.error) {sendError(res, resp.error);}
-        else {res.send({error: false});}
       });
-    }
   });
 });
 

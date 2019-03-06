@@ -721,61 +721,111 @@ var renderPostFeed = function (postList, date, tag) {
     // create posts
     while(rando.length !== 0) {
       var i = Math.floor(Math.random() * (rando.length));
-      var post = document.createElement("div");
-      post.setAttribute('class', 'post');
-      if (tag) {post.setAttribute('id', 'tag-'+tag+"-"+postList[rando[i]].post_id);}
-      else {post.setAttribute('id', 'feed-'+postList[rando[i]].post_id);}
-      // author/meta text
-      var authorBox = document.createElement("div");
-      authorBox.setAttribute('class', 'meta-text');
-      var author = document.createElement("a");
-      (function (name) {
-        author.onclick = function(event){
-          event.preventDefault();
-          openAuthorPanel(name);
-        }
-      })(postList[rando[i]].author);
-      author.setAttribute('class', 'author special');
-      author.setAttribute('href', "/"+postList[rando[i]].author);
-      author.innerHTML = "<clicky>"+postList[rando[i]].author+"</clicky>";
-      authorBox.appendChild(author);
-      authorBox.appendChild(document.createElement("br"));
-      //createFollowButton(authorBox, postList[rando[i]]);
-      post.appendChild(authorBox);
-      // pic
-      if (postList[rando[i]].authorPic !== "") {
-        var authorPic = document.createElement("img");
-        authorPic.setAttribute('src', postList[rando[i]].authorPic);
+      if (tag) {
+        bucket.appendChild(renderOnePost(postList[rando[i]], 'tag', tag));
       } else {
-        var authorPic = document.createElement("div");
+        bucket.appendChild(renderOnePost(postList[rando[i]], 'feed', null));
       }
-      var authorPicBox = document.createElement("a");
-      authorPicBox.setAttribute('href', "/"+postList[rando[i]].author);
-      (function (name) {
-        authorPicBox.onclick = function(event){
-          event.preventDefault();
-          openAuthorPanel(name);
-        }
-      })(postList[rando[i]].author);
-      post.appendChild(authorPicBox);
-      authorPic.setAttribute('class', 'author-pic clicky');
-      authorPicBox.appendChild(authorPic);
-      // actual post body
-      var text = document.createElement("text");
-      text.setAttribute('class', 'body-text');
-      if (tag) {var uniqueID = postList[rando[i]].post_id+"-"+date+"-"+tag+"-feed";}
-      else {var uniqueID = postList[rando[i]].post_id+"-"+date+"-feed"}
-      text.innerHTML = appendTags(convertText(postList[rando[i]].body, uniqueID), postList[rando[i]].tags);
-      post.appendChild(text);
-      //
-      postList[rando[i]].date = date;
-      createPostFooter(post, {_id:postList[rando[i]]._id, name:postList[rando[i]].author}, postList[rando[i]], true);
-      bucket.appendChild(post);
       //remove the current index refference from the randomizing helper array
       rando.splice(i,1);
     }
   }
   $('posts').appendChild(bucket);
+}
+
+var renderOnePost = function (postData, type, typeName) {
+  // type = 'author','tag','feed','bookmark','sequence',
+  var post = document.createElement("div");
+  post.setAttribute('class', 'post');
+  // id
+  if (type === 'tag') {var uniqueID = postData.post_id+"-"+postData.date+"-"+typeName+"-feed";}
+  else if (type === 'author') {var uniqueID = 'author-'+postData.post_id}
+  else if (type === 'bookmark') {var uniqueID = 'bookmarkFeed-'+postData.post_id;}
+  else if (type === 'feed') {var uniqueID = postData.post_id+"-"+postData.date+"-feed"}
+  else if (type === 'sequence') {var uniqueID = 'sequence-'+typeName+'-'+postData.post_id;}
+  else {return alert("error, sorry! render error, post is not of a valid type???, please show this to staff");}
+  post.setAttribute('id', uniqueID);
+  //
+  if (type !== 'author') {
+    // author/meta text
+    var authorBox = document.createElement("div");
+    authorBox.setAttribute('class', 'meta-text');
+    var author = document.createElement("a");
+    (function (name) {
+      author.onclick = function(event){
+        event.preventDefault();
+        openAuthorPanel(name);
+      }
+    })(postData.author);
+    author.setAttribute('class', 'author special');
+    author.setAttribute('href', "/"+postData.author);
+    author.innerHTML = "<clicky>"+postData.author+"</clicky>";
+    authorBox.appendChild(author);
+    authorBox.appendChild(document.createElement("br"));
+    post.appendChild(authorBox);
+    // authorPic
+    if (postData.authorPic && postData.authorPic !== "") {
+      var authorPic = document.createElement("img");
+      authorPic.setAttribute('src', postData.authorPic);
+    } else {
+      var authorPic = document.createElement("div");
+    }
+    var authorPicBox = document.createElement("a");
+    authorPicBox.setAttribute('href', "/"+postData.author);
+    (function (name) {
+      authorPicBox.onclick = function(event){
+        event.preventDefault();
+        openAuthorPanel(name);
+      }
+    })(postData.author);
+    post.appendChild(authorPicBox);
+    authorPic.setAttribute('class', 'author-pic clicky');
+    authorPicBox.appendChild(authorPic);
+  }
+  // actual post body
+  var text = document.createElement("text");
+  text.setAttribute('class', 'body-text');
+  var authorOption = null;
+  if (type === 'author') {authorOption = typeName}
+  text.innerHTML = appendTags(convertText(postData.body, uniqueID), postData.tags, authorOption);
+  post.appendChild(text);
+  //
+  createPostFooter(post, {_id:postData._id, name:postData.author}, postData, type);
+  //
+  if (type === 'author') {
+    //create tag ref
+    if (!glo.authors) {glo.authors = {};}
+    if (!glo.authors[postData.author]) {glo.authors[postData.author] = {}}
+    glo.authors[postData.author][postData.post_id] = postData.tags;
+  }
+  //
+  return post;
+}
+
+var displayBookmarks = function () {
+  if (glo.bookmarksFetched) {
+    switchPanel('bookmarks-panel');
+  } else {
+    loading();
+    ajaxCall('/bookmarks', 'GET', {}, function(json) {
+      glo.bookmarksFetched = true;
+      var bucket = $("bookmark-bucket");
+      // if there are no posts
+      if (json.posts.length === 0) {
+        var post = document.createElement("div");
+        post.innerHTML = "None Marked!";
+        bucket.appendChild(document.createElement("br"));
+        bucket.appendChild(document.createElement("br"));
+        bucket.appendChild(post);
+      } else {
+        for (var i=json.posts.length-1; i > -1; i--) {
+          bucket.appendChild(renderOnePost(json.posts[i], 'bookmark', null));
+        }
+      }
+      loading(true);
+      switchPanel('bookmarks-panel');
+    });
+  }
 }
 
 var createMessageButton = function (parent, author, insert) {
@@ -833,7 +883,7 @@ var createFollowButton = function (parent, author, insert) {
   }
 }
 
-var createPostFooter = function (postElem, author, post, feed) {
+var createPostFooter = function (postElem, author, post, type) {
   // is there an extant footer?
   if (postElem.childNodes[postElem.childNodes.length-1].classList[0] === "post-footer") {
     var footer = postElem.childNodes[postElem.childNodes.length-1];
@@ -846,7 +896,7 @@ var createPostFooter = function (postElem, author, post, feed) {
     postElem.appendChild(footer);
   }
   // footer left
-  if (!feed) {
+  if (type !== 'feed' && type !== 'tag') {
     var footerLeft = document.createElement("div");
     footerLeft.setAttribute('class', 'post-footer-left');
     footer.appendChild(footerLeft);
@@ -867,40 +917,46 @@ var createPostFooter = function (postElem, author, post, feed) {
   footerButtons.setAttribute('class', 'post-footer-right');
   footer.appendChild(footerButtons);
   if (glo.username) {
-    // quote button
-    var quoteBtn = document.createElement("footerButton");
-    quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
-    quoteBtn.title = "quote";
-    quoteBtn.onclick = function() {
-      loading();
-      ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
-        if (json.four04) {return alert("eRoRr! post not found???")}
-        loading(true);
-        var text = "<quote>"+json.post.body+
-        '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
-        if ($('post-editor').value !== "") {text = '<br>'+text;}
-        $('post-editor').value += prepTextForEditor(text);
-        showWriter('post');
-        switchPanel('write-panel');
-      });
+    if (post.post_id && post.post_id.length !== 8) {
+      // quote button
+      var quoteBtn = document.createElement("footerButton");
+      quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
+      quoteBtn.title = "quote";
+      quoteBtn.onclick = function() {
+        loading();
+        ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
+          if (json.four04) {return alert("eRoRr! post not found???")}
+          loading(true);
+          var text = "<quote>"+json.post.body+
+          '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
+          if ($('post-editor').value !== "") {text = '<br>'+text;}
+          $('post-editor').value += prepTextForEditor(text);
+          showWriter('post');
+          switchPanel('write-panel');
+        });
+      }
+      footerButtons.appendChild(quoteBtn);
     }
-    footerButtons.appendChild(quoteBtn);
+    //
+    createBookmarkButton(footerButtons, author._id, post);
   }
   // perma-link
-  var permalinkWrapper = document.createElement("a");
-  permalinkWrapper.setAttribute('href', "/~/"+post.post_id);
-  permalinkWrapper.setAttribute('class', 'not-special');
-  var permalink = document.createElement("footerButton");
-  permalink.innerHTML = '<i class="fas fa-link"></i>';
-  permalink.title = "permalink";
-  permalink.onclick = function(event) {
-    event.preventDefault();
-    openPost(author.name, post.post_id);
+  if (post.post_id && post.post_id.length !== 8) {
+    var permalinkWrapper = document.createElement("a");
+    permalinkWrapper.setAttribute('href', "/~/"+post.post_id);
+    permalinkWrapper.setAttribute('class', 'not-special');
+    var permalink = document.createElement("footerButton");
+    permalink.innerHTML = '<i class="fas fa-link"></i>';
+    permalink.title = "permalink";
+    permalink.onclick = function(event) {
+      event.preventDefault();
+      openPost(author.name, post.post_id);
+    }
+    permalinkWrapper.appendChild(permalink);
+    footerButtons.appendChild(permalinkWrapper);
   }
-  permalinkWrapper.appendChild(permalink);
-  footerButtons.appendChild(permalinkWrapper);
   //
-  if (!feed && glo.username && glo.username === author.name) {
+  if (type === 'author' && glo.username && glo.username === author.name) {
     //edit button
     var editBtn = document.createElement("footerButton");
     editBtn.innerHTML = '<i class="fas fa-pen"></i>';
@@ -917,6 +973,53 @@ var createPostFooter = function (postElem, author, post, feed) {
       deletePost(post);
     }
     footerButtons.appendChild(deleteBtn);
+  }
+}
+
+var createBookmarkButton = function (parent, author_id, post, insert) {
+  // OPTIONAL 'insert' is the element before which the button is to be inserted
+  var elem = document.createElement("footerButton");
+  var alreadyMarked = false;
+  if (glo.bookmarks && glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
+    alreadyMarked = true;
+    elem.innerHTML = '<icon class="fas fa-bookmark"></icon>';
+    elem.title = "un-bookmark";
+  } else {
+    elem.innerHTML = '<icon class="far fa-bookmark"></icon>';
+    elem.title = "bookmark";
+  }
+  elem.onclick = function() {
+    ajaxCall('/bookmarks', 'POST', {author_id:author_id, date:post.date, remove:alreadyMarked}, function(json) {
+      if (!glo.bookmarks) {glo.bookmarks = {}}
+      if (alreadyMarked) {
+        if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
+          glo.bookmarks[author_id][post.date] = false;
+        }
+        // check if bookmarks have been rendered and if so, remove!
+        if (glo.bookmarksFetched) {
+          $('bookmarkFeed-'+post.post_id).classList.add('removed');
+        }
+        // check for other rendered versions of the post and update their bookmark buttons
+
+      } else {
+        if (!glo.bookmarks[author_id]) {glo.bookmarks[author_id] = {}}
+        glo.bookmarks[author_id][post.date] = true;
+        // check if bookmarks have been rendered and if so, add!
+        if (glo.bookmarksFetched) {
+          $("bookmark-bucket").insertBefore(renderOnePost(post, 'bookmark', null), $("bookmark-bucket").childNodes[0]);
+        }
+        // check for other rendered versions of the post and update their bookmark buttons
+
+      }
+      // refresh button(by hiding and creating new)
+      elem.classList.add('removed');
+      createBookmarkButton(parent, author_id, post, elem);
+    });
+  }
+  if (insert) {
+    parent.insertBefore(elem, insert);
+  } else {
+    parent.appendChild(elem);
   }
 }
 
@@ -1300,21 +1403,10 @@ var openAuthorPanel = function (author, callback) {
           bucket.appendChild(text);
         } else {
           for(var i=json.posts.length-1; i > -1; i--) {
-            var post = document.createElement("div");
-            post.setAttribute('class', 'post');
-            post.setAttribute('id', 'author-'+json.posts[i].post_id);
-            bucket.appendChild(post);
-            // body
-            var text = document.createElement("text");
-            text.setAttribute('class', 'body-text');
-            text.innerHTML = appendTags(convertText(json.posts[i].body, json._id+"-"+json.posts[i].date+"-panel"), json.posts[i].tags, json.author);
-            post.appendChild(text);
-            //
-            createPostFooter(post, {_id:json._id, name:json.author}, json.posts[i]);
-            //create tag ref
-            if (!glo.authors) {glo.authors = {};}
-            if (!glo.authors[json.author]) {glo.authors[json.author] = {}}
-            glo.authors[json.author][json.posts[i].post_id] = json.posts[i].tags;
+            json.posts[i]._id = json._id;   // set authorID into the postData
+            json.posts[i].author = json.author;   // set authorName into the postData
+            json.posts[i].authorPic = json.authorPic;   // set authorName into the postData
+            bucket.appendChild(renderOnePost(json.posts[i], 'author', json.author));
           }
         }
         switchPanel("user-"+json.author+"-panel");
@@ -2418,6 +2510,13 @@ var parseUserData = function (data) {
   glo.followingRef = {};
   for (var i = 0; i < data.following.length; i++) {
     glo.followingRef[data.following[i]] = true;
+  }
+  glo.bookmarks = {};
+  for (var i = 0; i < data.bookmarks.length; i++) {
+    if (!glo.bookmarks[data.bookmarks[i].author_id]) {
+      glo.bookmarks[data.bookmarks[i].author_id] = {};
+    }
+    glo.bookmarks[data.bookmarks[i].author_id][data.bookmarks[i].date] = true;
   }
   // init stuff
   loadPosts(1, null, true);

@@ -352,6 +352,7 @@ slogan {
 
 .author-header {
   width: 75%;
+  max-width: 1000px;
   margin: auto;
   display: flex;
   justify-content: center;

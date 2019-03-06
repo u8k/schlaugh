@@ -107,15 +107,15 @@
         } else if (string.substr(pos+1,2) === "s>" && !s) {
           s = true;
           pos += 2;
-        } else if (string.substr(pos+1,2) === "l>" && !l) {
+        } else if (string.substr(pos+1,2) === "l>") {
           l = true;
           pos += 2;
           removeExtraBreak(pos);
-        } else if (string.substr(pos+1,2) === "c>" && !c) {
+        } else if (string.substr(pos+1,2) === "c>") {
           c = true;
           pos += 2;
           removeExtraBreak(pos);
-        } else if (string.substr(pos+1,2) === "r>" && !r) {
+        } else if (string.substr(pos+1,2) === "r>") {
           r = true;
           pos += 2;
           removeExtraBreak(pos);
@@ -125,18 +125,18 @@
         } else if (string.substr(pos+1,5) === "code>" && !code) {
           code = true;
           pos += 5;
-        } else if (string.substr(pos+1,6) === "quote>" && !quote) {
+        } else if (string.substr(pos+1,6) === "quote>") {
           quote = true;
           pos += 6;
           removeExtraBreak(pos);
-        } else if (string.substr(pos+1,3) === "li>" && !li) {
+        } else if (string.substr(pos+1,3) === "li>") {
           li = true;
           pos += 3;
-        } else if (string.substr(pos+1,3) === "ul>" && !ul) {
+        } else if (string.substr(pos+1,3) === "ul>") {
           ul = true;
           pos += 3;
           removeExtraBreak(pos);
-        } else if (string.substr(pos+1,3) === "ol>" && !ol) {
+        } else if (string.substr(pos+1,3) === "ol>") {
           ol = true;
           pos += 3;
           removeExtraBreak(pos);

@@ -111,8 +111,9 @@
     <input id="pic-url" type="text" name="pic-url" value=""><br>
     <button onclick="submitPic()">schlaubmit</button>
     <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
-    <br><br>
+    <br><br><br>
     <button onclick="followingListDisplay(true)">following list</button>
+    <button onclick="displayBookmarks()">bookmarks</button>
     <br><br><br><hr><br>
 
     <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
@@ -161,6 +162,12 @@
     <br><br><br>
     <a class="clicky" onclick="signOut()">schlaugh out</a>
     <br><br><br>
+  </div>
+</div>
+
+<div id="bookmarks-panel" class="removed">
+  <h2>bookmarked posts</h2>
+  <div id="bookmark-bucket">
   </div>
 </div>
 
