@@ -1672,6 +1672,7 @@ var prepTextForEditor = function (text) {
 
   //
   text = text.replace(/\/cut>/g, '/cut><br>');
+  text = text.replace(/\/ascii>/g, '/ascii><br>');
   text = text.replace(/\/li>/g, '/li><br>');
   text = text.replace(/\/quote>/g, '/quote><br>');
   text = text.replace(/\/r>/g, '/r><br>');
@@ -1681,6 +1682,7 @@ var prepTextForEditor = function (text) {
   text = text.replace(/\/ul>/g, '/ul><br>');
   //
   text = text.replace(/<quote>/g, '<quote><br>');
+  text = text.replace(/<ascii>/g, '<ascii><br>');
   text = text.replace(/<r>/g, '<r><br>');
   text = text.replace(/<c>/g, '<c><br>');
   text = text.replace(/<l>/g, '<l><br>');
@@ -1697,7 +1699,7 @@ var prepTextForEditor = function (text) {
       preTagLineBreakRecurse(pos+1, tag);
     }
   }
-  var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<r>/, /<c>/, /<l>/];
+  var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<ascii>/, /<r>/, /<c>/, /<l>/];
   for (var i = 0; i < tagArr.length; i++) {
     preTagLineBreakRecurse(1, tagArr[i]);
   }

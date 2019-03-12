@@ -185,6 +185,8 @@ footerButton {
   cursor: pointer;
 }
 
+#o-pic {border-radius: 3%; max-width: 500px;}
+
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
   .post, .author-header, #settings-box {width: 98%;}
   #thread-box {width: 100%;}
@@ -193,7 +195,7 @@ footerButton {
   #message-writer{width: 85%;}
   .meta-text {height: 50px}
   .author-pic {margin-left: 0; left: 15px; top:15px; max-height: 50px;}
-
+  #o-pic {max-width: 95%;}
 }
 
 .outbound {margin-right: 0}
@@ -393,8 +395,6 @@ slogan {
   }
 }
 
-#o-pic {border-radius: 3%}
-
 quote {
   box-shadow: 0px 0px 1px 2px rgba(0, 0, 0, .1);
   background-color: rgba(255, 255, 255, 0.07);
@@ -411,6 +411,20 @@ code {
   font-size: 15.55px;
 }
 
+ascii {
+  font-family: monospace;
+  border-radius: 4px;
+  display: block;
+  padding: 15px;
+  border-style: groove;
+  width: fit-content;
+  max-width: 100%;
+  margin: auto;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-align: left;
+}
+
 ul, ol {margin: 0}
 
 l {text-align: left;}
@@ -418,6 +432,8 @@ c {text-align: center;}
 r {text-align: right;}
 l, c, r {display: block;}
 
+r > ascii, r > img {margin-right: 0;}
+l > ascii, l > img {margin-left: 0;}
 
 .hidden {visibility: hidden;}
 .removed {display: none;}
