@@ -205,8 +205,8 @@ footerButton {
   flex-wrap: wrap;
 }
 
-.author-header-left {padding: 10px; max-width: 100%}
-.author-header-right {padding: 10px; text-align: left; align-self: center;}
+.author-header-left {padding: 10px; max-width: 67%}
+.author-header-right {padding: 10px; text-align: left; align-self: center; max-width: 65%}
 
 #pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
 
