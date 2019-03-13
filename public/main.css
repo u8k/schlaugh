@@ -35,7 +35,12 @@ h2 {
   font-weight: bold;
   font-size: 3em;
   margin-top: 0;
-  display: inline;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  max-width: 98vw;
 }
 
 nav {
@@ -43,20 +48,24 @@ nav {
 }
 
 .user-info {
-  float: right;
   text-align: right;
   font-size: 1.1em;
   margin: 0;
+  max-width: 60%;
 }
 
-nav ul {
-  list-style: none;
-  margin: 0;
+.user-info-item {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 header {
   width: 100%;
   height: 50px;
+  display: flex;
+  justify-content: space-between;
 }
 
 main {
@@ -187,6 +196,20 @@ footerButton {
 
 #o-pic {border-radius: 3%; max-width: 500px;}
 
+.author-header {
+  width: 75%;
+  max-width: 1000px;
+  margin: auto;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.author-header-left {padding: 10px; max-width: 100%}
+.author-header-right {padding: 10px; text-align: left; align-self: center;}
+
+#pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
+
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
   .post, .author-header, #settings-box {width: 98%;}
   #thread-box {width: 100%;}
@@ -196,6 +219,10 @@ footerButton {
   .meta-text {height: 50px}
   .author-pic {margin-left: 0; left: 15px; top:15px; max-height: 50px;}
   #o-pic {max-width: 95%;}
+}
+
+@media screen and (max-width: 500px) {
+  .author-header {flex-direction: column;}
 }
 
 .outbound {margin-right: 0}
@@ -312,6 +339,9 @@ slogan {
   font-size: 25px;
   height: 35px;
   margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .little-pic {
@@ -346,24 +376,12 @@ slogan {
 }
 
 #following-list {
+  max-width: 100vw;
   max-height: 90vh;
   text-align: left;
-  overflow-y: scroll;
+  overflow-y: auto;
   top: 50%;
 }
-
-.author-header {
-  width: 75%;
-  max-width: 1000px;
-  margin: auto;
-  display: flex;
-  justify-content: center;
-}
-
-.author-header-left {padding: 10px;}
-.author-header-right {padding: 10px; text-align: left; align-self: center;}
-
-#pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
 
 #loading-box {
   position: fixed;

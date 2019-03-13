@@ -1339,7 +1339,7 @@ var openAuthorPanel = function (author, callback) {
         var x = title.cloneNode(true);
         title.setAttribute('id', json.author+'-panel-title');
         authorHeaderLeft.appendChild(title);
-        authorHeaderLeft.appendChild(document.createElement("br"));
+        //authorHeaderLeft.appendChild(document.createElement("br"));
         if (glo.username && glo.username === json.author) {
           $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
           $("pending-left-preview").insertBefore(document.createElement("br"), $("preview-follow-button"));
@@ -1821,6 +1821,16 @@ var insertImage = function (src) {
       }
     }
   });
+}
+var insertHR = function (src) {
+  var area = $(src+'-editor');
+  var x = getCursorPosition(area);
+  var a = x.start;
+  var b = x.end;
+  var y = area.value;
+  if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
+  area.value = y.slice(0, a)+ "<hr>" +y.slice(b);
+  setCursorPosition(area, a+4, a+4);
 }
 var insertCut = function (src) {
   var area = $(src+'-editor');

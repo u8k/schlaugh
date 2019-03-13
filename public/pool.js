@@ -198,6 +198,8 @@
           removeExtraBreak(pos);
         } else if (string.substr(pos+1,3) === "br>") {
           pos += 3;
+        } else if (string.substr(pos+1,3) === "hr>") {
+          pos += 3;
         } else if (string.substr(pos+1,4) === "br/>") {
           pos += 4;
         } else if (string.substr(pos+1,8) === 'a href="') {
