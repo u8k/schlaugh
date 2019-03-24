@@ -270,7 +270,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
           var postArr = glo.currentAuthor.posts;
           for (var i = 0; i < postArr.length; i++) {
             if (postArr[i].post_id && postArr[i].date) {
-              createPostFooter($("author-"+postArr[i].post_id), {_id:glo.currentAuthor._id, name:glo.currentAuthor.author}, postArr[i]);
+              createPostFooter($("author-"+postArr[i].post_id), {_id:glo.currentAuthor._id, name:glo.currentAuthor.author}, postArr[i], 'author');
             }
           }
           loading(true);
@@ -420,7 +420,7 @@ var ajaxCall = function(url, method, data, callback) {
 
 var convertCuts = function (string, id) {
   // changes cut tags into functional cuts, needs id so that every cut has a unique id tag on the front end,
-  // this will need alteration if multiple posts per user are allowed
+  // this will need alteration if multiple posts per user(per day) are allowed
   var recurse = function (pos, count) {
     var next = string.substr(pos).search(/<cut>/);
     if (next === -1) {return string;}
@@ -670,7 +670,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
           for (var i = 0; i < tagArr.length; i++) {
             var tagShell = document.createElement("div");
             var tag = document.createElement("text");
-            tag.setAttribute('class', 'clicky');
+            tag.setAttribute('class', 'clicky top-tag');
             tag.innerHTML = tagArr[i];
             (function (tagName) {
               tag.onclick = function(){
@@ -734,7 +734,8 @@ var renderPostFeed = function (postList, date, tag) {
 }
 
 var renderOnePost = function (postData, type, typeName) {
-  // type = 'author','tag','feed','bookmark','sequence',
+  // type = 'author','tag','feed','bookmark','sequence','preview'
+  // postData needs fields: post_id, date, authorPic, author, body, tags, _id,
   var post = document.createElement("div");
   post.setAttribute('class', 'post');
   // id
@@ -743,13 +744,34 @@ var renderOnePost = function (postData, type, typeName) {
   else if (type === 'bookmark') {var uniqueID = 'bookmarkFeed-'+postData.post_id;}
   else if (type === 'feed') {var uniqueID = postData.post_id+"-"+postData.date+"-feed"}
   else if (type === 'sequence') {var uniqueID = 'sequence-'+typeName+'-'+postData.post_id;}
+  else if (type === 'preview') {var uniqueID = 'preview-'+typeName;}
   else {return alert("error, sorry! render error, post is not of a valid type???, please show this to staff");}
   post.setAttribute('id', uniqueID);
+  // post header
+  var postHeader = document.createElement("div");
+  post.appendChild(postHeader);
   //
-  if (type !== 'author') {
-    // author/meta text
+  if (type !== 'author' && (type !== 'preview' || typeName !== "edit")) {
+    postHeader.setAttribute('class', 'post-header-feed');
     var authorBox = document.createElement("div");
-    authorBox.setAttribute('class', 'meta-text');
+    postHeader.appendChild(authorBox);
+    // authorPic
+    if (postData.authorPic && postData.authorPic !== "") {
+      var authorPic = document.createElement("img");
+      authorPic.setAttribute('src', postData.authorPic);
+      (function (name) {
+        authorPic.onclick = function(event){
+          event.preventDefault();
+          openAuthorPanel(name);
+        }
+      })(postData.author);
+      authorPic.setAttribute('href', "/"+postData.author);
+      authorPic.setAttribute('class', 'author-pic clicky');
+      authorBox.appendChild(authorPic);
+      //
+      authorBox.appendChild(document.createElement("br"));
+    }
+    // authorName
     var author = document.createElement("a");
     (function (name) {
       author.onclick = function(event){
@@ -761,36 +783,36 @@ var renderOnePost = function (postData, type, typeName) {
     author.setAttribute('href', "/"+postData.author);
     author.innerHTML = "<clicky>"+postData.author+"</clicky>";
     authorBox.appendChild(author);
-    authorBox.appendChild(document.createElement("br"));
-    post.appendChild(authorBox);
-    // authorPic
-    if (postData.authorPic && postData.authorPic !== "") {
-      var authorPic = document.createElement("img");
-      authorPic.setAttribute('src', postData.authorPic);
-    } else {
-      var authorPic = document.createElement("div");
+  } else {
+    postHeader.setAttribute('class', 'post-header');
+  }
+  // post title
+  if (postData.title) {
+    var title = document.createElement("text");
+    title.innerHTML = postData.title;
+    title.setAttribute('class', 'post-title');
+    if (true) {
+      // click handler goes here if we want that
     }
-    var authorPicBox = document.createElement("a");
-    authorPicBox.setAttribute('href', "/"+postData.author);
-    (function (name) {
-      authorPicBox.onclick = function(event){
-        event.preventDefault();
-        openAuthorPanel(name);
-      }
-    })(postData.author);
-    post.appendChild(authorPicBox);
-    authorPic.setAttribute('class', 'author-pic clicky');
-    authorPicBox.appendChild(authorPic);
+    postHeader.appendChild(title);
   }
   // actual post body
-  var text = document.createElement("text");
-  text.setAttribute('class', 'body-text');
+  var body = document.createElement("div");
+  body.setAttribute('class', 'body-text');
+  body.innerHTML = convertText(postData.body, uniqueID);
+  post.appendChild(body);
+  // tags
   var authorOption = null;
-  if (type === 'author') {authorOption = typeName}
-  text.innerHTML = appendTags(convertText(postData.body, uniqueID), postData.tags, authorOption);
-  post.appendChild(text);
+  if (type === 'author' || (type === 'preview' && typeName === "edit")) {authorOption = postData.author}
+  var tagString = formatTags(postData.tags, authorOption);
+  var tagElem = document.createElement("div");
+  tagElem.setAttribute('class', 'tag-section');
+  tagElem.innerHTML = tagString;
+  post.appendChild(tagElem);
   //
-  createPostFooter(post, {_id:postData._id, name:postData.author}, postData, type);
+  if (type !== 'preview') {
+    createPostFooter(post, {_id:postData._id, name:postData.author}, postData, type);
+  }
   //
   if (type === 'author') {
     //create tag ref
@@ -913,66 +935,68 @@ var createPostFooter = function (postElem, author, post, type) {
     footerLeft.appendChild(dateStamp);
   }
   // footer buttons(right side of post footer)
-  var footerButtons = document.createElement("div");
-  footerButtons.setAttribute('class', 'post-footer-right');
-  footer.appendChild(footerButtons);
-  if (glo.username) {
-    if (post.post_id && post.post_id.length !== 8) {
-      // quote button
-      var quoteBtn = document.createElement("footerButton");
-      quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
-      quoteBtn.title = "quote";
-      quoteBtn.onclick = function() {
-        loading();
-        ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
-          if (json.four04) {return alert("eRoRr! post not found???")}
-          loading(true);
-          var text = "<quote>"+json.post.body+
-          '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
-          if ($('post-editor').value !== "") {text = '<br>'+text;}
-          $('post-editor').value += prepTextForEditor(text);
-          showWriter('post');
-          switchPanel('write-panel');
-        });
+  if (type !== "preview") {
+    var footerButtons = document.createElement("div");
+    footerButtons.setAttribute('class', 'post-footer-right');
+    footer.appendChild(footerButtons);
+    if (glo.username) {
+      if (post.post_id && post.post_id.length !== 8) {
+        // quote button
+        var quoteBtn = document.createElement("footerButton");
+        quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
+        quoteBtn.title = "quote";
+        quoteBtn.onclick = function() {
+          loading();
+          ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
+            if (json.four04) {return alert("eRoRr! post not found???")}
+            loading(true);
+            var text = "<quote>"+json.post.body+
+            '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
+            if ($('post-editor').value !== "") {text = '<br>'+text;}
+            $('post-editor').value += prepTextForEditor(text);
+            showWriter('post');
+            switchPanel('write-panel');
+          });
+        }
+        footerButtons.appendChild(quoteBtn);
       }
-      footerButtons.appendChild(quoteBtn);
+      //
+      createBookmarkButton(footerButtons, author._id, post);
+    }
+    // perma-link
+    if (post.post_id && post.post_id.length !== 8) {
+      var permalinkWrapper = document.createElement("a");
+      permalinkWrapper.setAttribute('href', "/~/"+post.post_id);
+      permalinkWrapper.setAttribute('class', 'not-special');
+      var permalink = document.createElement("footerButton");
+      permalink.innerHTML = '<i class="fas fa-link"></i>';
+      permalink.title = "permalink";
+      permalink.onclick = function(event) {
+        event.preventDefault();
+        openPost(author.name, post.post_id);
+      }
+      permalinkWrapper.appendChild(permalink);
+      footerButtons.appendChild(permalinkWrapper);
     }
     //
-    createBookmarkButton(footerButtons, author._id, post);
-  }
-  // perma-link
-  if (post.post_id && post.post_id.length !== 8) {
-    var permalinkWrapper = document.createElement("a");
-    permalinkWrapper.setAttribute('href', "/~/"+post.post_id);
-    permalinkWrapper.setAttribute('class', 'not-special');
-    var permalink = document.createElement("footerButton");
-    permalink.innerHTML = '<i class="fas fa-link"></i>';
-    permalink.title = "permalink";
-    permalink.onclick = function(event) {
-      event.preventDefault();
-      openPost(author.name, post.post_id);
+    if (type === 'author' && glo.username && glo.username === author.name) {
+      //edit button
+      var editBtn = document.createElement("footerButton");
+      editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+      editBtn.title = "edit";
+      editBtn.onclick = function() {
+        editPost(post, author);
+      }
+      footerButtons.appendChild(editBtn);
+      // delete button
+      var deleteBtn = document.createElement("footerButton");
+      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      deleteBtn.title = "delete";
+      deleteBtn.onclick = function() {
+        deletePost(post);
+      }
+      footerButtons.appendChild(deleteBtn);
     }
-    permalinkWrapper.appendChild(permalink);
-    footerButtons.appendChild(permalinkWrapper);
-  }
-  //
-  if (type === 'author' && glo.username && glo.username === author.name) {
-    //edit button
-    var editBtn = document.createElement("footerButton");
-    editBtn.innerHTML = '<i class="fas fa-pen"></i>';
-    editBtn.title = "edit";
-    editBtn.onclick = function() {
-      editPost(post, author);
-    }
-    footerButtons.appendChild(editBtn);
-    // delete button
-    var deleteBtn = document.createElement("footerButton");
-    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-    deleteBtn.title = "delete";
-    deleteBtn.onclick = function() {
-      deletePost(post);
-    }
-    footerButtons.appendChild(deleteBtn);
   }
 }
 
@@ -1078,7 +1102,7 @@ var editPost = function (post, author) {
     var savedPost = glo.pendingUpdates[post.date][0];
     $('old-post-editor').value = prepTextForEditor(savedPost.body);
     $("old-post-status").innerHTML = "pending edit for your post on "+post.date;
-    updatePendingEdit(savedPost.body, savedPost.tags);
+    updatePendingEdit(savedPost);
     hideWriter('old-post');
     $('edit-post-button').innerHTML = "edit edit";
     switchPanel("edit-panel");
@@ -1087,9 +1111,10 @@ var editPost = function (post, author) {
     ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
       if (json.four04) {return alert("eRoRr! post not found???")}
       loading(true);
-      var tags = getTagString(post.tags);
+      var tags = getTagString(json.post.tags);
       glo.fetchedPosts[post.date] = [json.post];
       $('old-tag-input').value = tags;
+      if (json.post.title) {$('old-title-input').value = post.title;}
       $("old-post-status").innerHTML = "no pending edit for your post on "+post.date;
       $('old-post-editor').value = prepTextForEditor(json.post.body);
       $('delete-pending-old-post').classList.add("removed");
@@ -1104,21 +1129,25 @@ var editPost = function (post, author) {
   $('submit-editing-old-post').onclick = function () {
     data.text = $('old-post-editor').value;
     data.tags = $('old-tag-input').value;
+    data.title = $('old-title-input').value;
     // have changes been made?
     if (glo.fetchedPosts[post.date][0]) {   // make sure thing even exists first...
       if (prepTextForEditor(glo.fetchedPosts[post.date][0].body) === data.text) {
-        if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
-          return hideWriter('old-post');
+        var oldTitle = glo.fetchedPosts[post.date][0].title || "";
+        if (oldTitle === data.title) {
+          if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
+            return hideWriter('old-post');
+          }
         }
       }
     }
     loading();
     ajaxCall("/editOldPost", 'POST', data, function(json) {
-      updatePendingEdit(json.text, json.tags);
+      updatePendingEdit(json);
       if (!glo.pendingUpdates[post.date]) {glo.pendingUpdates[post.date] = [{}];}
-      glo.pendingUpdates[post.date][0].body = json.text;
+      glo.pendingUpdates[post.date][0].body = json.body;
       glo.pendingUpdates[post.date][0].tags = json.tags;
-      glo.fetchedPosts[post.date][0].body = json.text;
+      glo.fetchedPosts[post.date][0].body = json.body;
       glo.fetchedPosts[post.date][0].tags = json.tags;
     });
   }
@@ -1126,14 +1155,17 @@ var editPost = function (post, author) {
   $('cancel-edit-button').onclick = function () {
     var oldText = prepTextForEditor(glo.fetchedPosts[post.date][0].body);
     var oldTags = getTagString(glo.fetchedPosts[post.date][0].tags);
+    var oldTitle = glo.fetchedPosts[post.date][0].title;
+    if (!oldTitle) {oldTitle = "";}
     // have changes been made?
-    if (oldText === $('old-post-editor').value && oldTags === $('old-tag-input').value) {
+    if (oldText === $('old-post-editor').value && oldTags === $('old-tag-input').value && oldTitle === $('old-title-input').value) {
       return hideWriter('old-post');
     }
     verify("revert any unsaved changes?", null, null, function (result) {
       if (!result) {return;}
       $('old-post-editor').value = oldText;
-      $('old-tag-input').value = oldTags
+      $('old-tag-input').value = oldTags;
+      $('old-title-input').value = oldTitle;
       return hideWriter('old-post');
     });
   }
@@ -1147,7 +1179,7 @@ var editPost = function (post, author) {
       ajaxCall("/editOldPost", 'POST', data, function(json) {
         glo.pendingUpdates[post.date] = null;
         glo.fetchedPosts[post.date] = null;
-        updatePendingEdit(json.text, json.tags);
+        updatePendingEdit(json);
         $('edit-post-button').onclick = function () {
           editPost(post, author);
           showWriter('old-post');
@@ -1157,8 +1189,8 @@ var editPost = function (post, author) {
   }
 }
 
-var updatePendingEdit = function (newText, newTags, bio) {
-  if (newText === "") {
+var updatePendingEdit = function (post, bio) {
+  if (post.body === "") {
     $('old-post-status').innerHTML = "no "+$('old-post-status').innerHTML;
     $('delete-pending-old-post').classList.add("removed");
     if (bio) {$('pending-header-preview').classList.add("removed");}
@@ -1172,12 +1204,20 @@ var updatePendingEdit = function (newText, newTags, bio) {
     else {$('pending-post-edit').classList.remove("removed");}
     $('edit-post-button').innerHTML = "edit edit";
   }
-  var tags = getTagString(newTags);
+  var tags = getTagString(post.tags);
   $('old-tag-input').value = tags;
-  $('old-post-editor').value = prepTextForEditor(newText);
-  if (bio) {$('pending-right-preview').innerHTML = convertText(newText, 'old-pending')}
-  else {$('pending-post-edit').innerHTML = appendTags(convertText(newText, 'old-pending'), newTags, glo.username);}
-
+  if (post.title) {$('old-title-input').value = post.title;}
+  $('old-post-editor').value = prepTextForEditor(post.body);
+  if (bio) {$('pending-right-preview').innerHTML = convertText(post.body, 'old-pending')}
+  else {
+    post.author = glo.username;
+    var newEditElem = renderOnePost(post, "preview", "edit")
+    if ($('pending-post-edit').childNodes[0]) {
+      $('pending-post-edit').replaceChild(newEditElem, $('pending-post-edit').childNodes[0]);
+    } else {
+      $('pending-post-edit').appendChild(newEditElem);
+    }
+  }
   hideWriter('old-post');
   loading(true);
 }
@@ -1195,7 +1235,7 @@ var editBio = function () {
   if (glo.pendingUpdates['bio']) {
     $('old-post-editor').value = prepTextForEditor(glo.pendingUpdates['bio']);
     $("old-post-status").innerHTML = "pending bio edit:";
-    updatePendingEdit(glo.pendingUpdates['bio'], {}, true);
+    updatePendingEdit({body: glo.pendingUpdates['bio']}, true);
     hideWriter('old-post');
     $('edit-post-button').innerHTML = "edit edit";
     switchPanel("edit-panel");
@@ -1218,8 +1258,8 @@ var editBio = function () {
     }
     loading();
     ajaxCall("/editOldPost", 'POST', data, function(json) {
-      updatePendingEdit(json.text, {}, true);
-      glo.pendingUpdates['bio'] = json.text;
+      updatePendingEdit(json, true);
+      glo.pendingUpdates['bio'] = json.body;
     });
   }
   //set cancel button
@@ -1242,7 +1282,7 @@ var editBio = function () {
       data.text = "";
       ajaxCall("/editOldPost", 'POST', data, function(json) {
         glo.pendingUpdates['bio'] = null;
-        updatePendingEdit(json.text, {}, true);
+        updatePendingEdit(json, true);
         $('edit-post-button').onclick = function () {
           editBio();
           showWriter('old-post');
@@ -1384,6 +1424,7 @@ var openAuthorPanel = function (author, callback) {
         tagNav.appendChild(document.createElement("br"));
         var tagText = document.createElement("h2");
         tagText.setAttribute('id', json.author+'-tag-text')
+        tagText.setAttribute('class','top-tag')
         tagNav.appendChild(tagText);
         var tagClear = document.createElement("button");
         tagClear.innerHTML = 'clear tag';
@@ -1405,7 +1446,7 @@ var openAuthorPanel = function (author, callback) {
           for(var i=json.posts.length-1; i > -1; i--) {
             json.posts[i]._id = json._id;   // set authorID into the postData
             json.posts[i].author = json.author;   // set authorName into the postData
-            json.posts[i].authorPic = json.authorPic;   // set authorName into the postData
+            json.posts[i].authorPic = json.authorPic;   // set authorPic into the postData
             bucket.appendChild(renderOnePost(json.posts[i], 'author', json.author));
           }
         }
@@ -1508,30 +1549,33 @@ var open404post = function (author) {
 var submitPost = function (remove) { //also handles editing and deleting
   var text = $('post-editor').value;
   var tags = $('tag-input').value;
-  if (text === "" && tags === "" && !glo.pending) {return hideWriter('post');}
+  var title = $('title-input').value;
+  if (text === "" && tags === "" && title === "" && !glo.pending) {return hideWriter('post');}
   // have changes been made?
   if (!remove && glo.pending && prepTextForEditor(glo.pending.body) === text) {
-    if (getTagString(glo.pending.tags) === tags) {
-      return hideWriter('post');
+    if (glo.pending.title === title) {
+      if (getTagString(glo.pending.tags) === tags) {
+        return hideWriter('post');
+      }
     }
   }
   if (remove || text === "") {
     verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
       loading();
-      ajaxCall("/", 'POST', {text:"", tags:{}}, function(json) {
-        updatePendingPost(json.text, json.tags);
+      ajaxCall("/", 'POST', {text:"", tags:{}, title:""}, function(json) {
+        updatePendingPost(json.text, json.tags, json.title);
       });
     });
   } else {
     loading();
-    ajaxCall("/", 'POST', {text:text, tags:tags}, function(json) {
-      updatePendingPost(json.text, json.tags);
+    ajaxCall("/", 'POST', {text:text, tags:tags, title:title}, function(json) {
+      updatePendingPost(json.text, json.tags, json.title);
     });
   }
 }
 
-var updatePendingPost = function (newText, newTags) {
+var updatePendingPost = function (newText, newTags, newTitle) {
   if (newText === "") {
     glo.pending = false;
     $('pending-status').innerHTML = "no pending post for tomorrow";
@@ -1542,6 +1586,7 @@ var updatePendingPost = function (newText, newTags) {
     glo.pending = {};
     glo.pending.body = newText;
     glo.pending.tags = newTags;
+    glo.pending.title = newTitle;
     $('pending-status').innerHTML = "your pending post for tomorrow:";
     $('delete-pending-post').classList.remove("removed");
     $('pending-post').classList.remove("removed");
@@ -1549,7 +1594,20 @@ var updatePendingPost = function (newText, newTags) {
   }
   var tags = getTagString(newTags);
   $('tag-input').value = tags;
-  $('pending-post').innerHTML = appendTags(convertText(newText, 'pending'), newTags);
+  if (newTitle) {$('title-input').value = newTitle;}
+  var postData = {
+    body: newText,
+    tags: newTags,
+    title: newTitle,
+    author: glo.username,
+    authorPic: glo.userPic,
+  }
+  var newPostElem = renderOnePost(postData, "preview", "new");
+  if ($('pending-post').childNodes[0]) {
+    $('pending-post').replaceChild(newPostElem, $('pending-post').childNodes[0]);
+  } else {
+    $('pending-post').appendChild(newPostElem);
+  }
   $('post-editor').value = prepTextForEditor(newText);
   hideWriter('post');
   loading(true);
@@ -1559,14 +1617,16 @@ var cancelPost = function () {
   if (glo.pending) {    // there is a current saved/pending post
     // have changes been made?
     if (prepTextForEditor(glo.pending.body) === $('post-editor').value) {
-      if (getTagString(glo.pending.tags) === $('tag-input').value) {
-        return hideWriter('post');
+      if (glo.pending.title === $('title-input').value) {
+        if (getTagString(glo.pending.tags) === $('tag-input').value) {
+          return hideWriter('post');
+        }
       }
     }
     verify("you want to lose any current edits and revert to the last saved version?", null, null, function (result) {
       if (!result) {return;}
       else {
-        updatePendingPost(glo.pending.body, glo.pending.tags);
+        updatePendingPost(glo.pending.body, glo.pending.tags, glo.pending.title);
       }
     });
   } else {        // there is NOT a current saved/pending post
@@ -1574,7 +1634,7 @@ var cancelPost = function () {
     verify("you want to lose all current text in the editor?", null, null, function (result) {
       if (!result) {return;}
       else {
-        updatePendingPost("", {});
+        updatePendingPost("", {}, "");
       }
     });
   }
@@ -1602,7 +1662,7 @@ var cancelMessage = function () {
   });
 }
 
-var appendTags = function (postString, tagRef, author) {
+var formatTags = function (tagRef, author) {
   var tags = "";
   for (var tag in tagRef) {
     if (tagRef.hasOwnProperty(tag)) {
@@ -1618,8 +1678,9 @@ var appendTags = function (postString, tagRef, author) {
   if (tags.substr(tags.length-2, tags.length) === ", ") {
     tags = tags.substr(0,tags.length-2);
   }
-  if (tags !== "") {return postString +"</quote></r></c><br><hr><i><l>"+ tags+"</l></i>";}
-  else {return postString;}
+  //if (tags !== "") {return "</quote></r></c><br><hr><i><l>"+ tags+"</l></i>";}
+  if (tags !== "") {return "<hr>" + tags;}
+  else {return "";}
 }
 
 var openTagMenu = function (close) {
@@ -1724,7 +1785,7 @@ var prepTextForEditor = function (text) {
   }
   imgRecurse(0);
 
-  return text.replace(/&nbsp;/g, ' ');
+  return text;
 }
 
 // editor stuff
@@ -2532,7 +2593,7 @@ var parseUserData = function (data) {
   }
   // init stuff
   loadPosts(1, null, true);
-  if (glo.pending) {updatePendingPost(glo.pending.body, glo.pending.tags);}
+  if (glo.pending) {updatePendingPost(glo.pending.body, glo.pending.tags, glo.pending.title);}
   populateThreadlist();
   setAppearance();
   //

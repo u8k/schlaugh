@@ -408,7 +408,7 @@ var nullPostFromPosts = function (postID, callback) {
   );
 }
 
-var updateUserPost = function (text, newTags, userID, user, res, errMsg, callback) {
+var updateUserPost = function (text, newTags, title, userID, user, res, errMsg, callback) {
   var tmrw = pool.getCurDate(-1);
   if (user.posts[tmrw]) {                               //edit existing
     // check existing tags
@@ -436,6 +436,7 @@ var updateUserPost = function (text, newTags, userID, user, res, errMsg, callbac
           else {
             user.posts[tmrw][0].body = text;
             user.posts[tmrw][0].tags = newTags;
+            user.posts[tmrw][0].title = title;
             return callback();
           }
         });
@@ -448,6 +449,7 @@ var updateUserPost = function (text, newTags, userID, user, res, errMsg, callbac
         user.posts[tmrw] = [{
             body: text,
             tags: newTags,
+            title: title,
             post_id: resp.postID,
           }];
         user.postListPending.push({date:tmrw, num:0});
@@ -599,13 +601,21 @@ var parseInboundTags = function (tagString) {
         arr.splice(i,1);
       }
     }
-    if (arr.length > 20) {return "this is not actually an 'error', this is just me preventing you from using this many tags. Do you really need this many tags? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of LOTR as tags in an attempt to crash the server.<br><br>enjoy your breakfast"}
+    if (arr.length > 7) {return "this is not actually an 'error', this is just me preventing you from using this many tags. Do you <i>really</i> need this many tags?? Tell staff about this if you have legitimate reason for the limit to be higher. I might have drawn the line too low, i dunno, i had to draw it somewhere.<br><br>beep boop"}
     for (var i = 0; i < arr.length; i++) {
-      if (arr[i].length > 200) {return "this is not actually an 'error', it's just one of your tags is very long and I'm preventing you from submitting it. Do you <i>really</i> need that many characters in one tag? Tell staff about this if you have legitimate reason for the limit to be higher. I might have drawn the line too low, i dunno, i had to draw it somewhere.<br><br>beep boop"}
+      if (arr[i].length > 140) {return "this is not actually an 'error', it's just one of your tags is very long and I'm preventing you from submitting it. Do you <i>really</i> need that many characters in one tag?? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>HPMOR</i> as tags in an attempt to break the site.<br><br>enjoy your breakfast"}
       tags[arr[i]] = true;
     }
   }
   return tags;
+}
+
+var validatePostTitle = function (string) {
+  if (string.length > 140) {
+    return {error: "this is not actually an 'error', this is just me preventing you from making a title this long. Do you really need it to be this long? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>Gödel, Escher, Bach</i> as a title in an attempt to break the site.<br><br>have a nice lunch"};
+  }
+  string = string.replace(/[^ a-zA-Z0-9-_!@&*:;=~,]/g, '');
+  return string;
 }
 
 var sendError = function (res, msg) {
@@ -1216,16 +1226,18 @@ app.post('/', function(req, res) {
       if (x.error || x[1] === "") {                 //remove pending post, do not replace
         deletePost(res, errMsg, userID, user, tmrw, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
-          else {return res.send({error:false, text:"", tags:{}});}
+          else {return res.send({error:false, text:"", tags:{}, title:""});}
         });
       } else {
         var tags = parseInboundTags(req.body.tags);
         if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+        var title = validatePostTitle(req.body.title);
+        if (title.error) {return sendError(res, errMsg+title.error);}
         imageValidate(x[0], res, function (res) {
-          updateUserPost(x[1], tags, userID, user, res, errMsg, function () {
+          updateUserPost(x[1], tags, title, userID, user, res, errMsg, function () {
             return writeToDB(userID, user, function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
-              else {return res.send({error:false, text:x[1], tags:tags});}
+              else {return res.send({error:false, text:x[1], tags:tags, title:title});}
             });
           });
         });
@@ -1258,7 +1270,7 @@ app.post('/editOldPost', function (req, res) {
                 delete user.pendingUpdates.updates[req.body.date];
                 return writeToDB(userID, user, function (resp) {
                   if (resp.error) {return sendError(res, errMsg+resp.error);}
-                  else {return res.send({error:false, text:"", tags:{}});}
+                  else {return res.send({error:false, text:"", tags:{}, title:""});}
                 });
               } else {return sendError(res, errMsg+"edit not found");}
             } else {                                      // new/edit
@@ -1270,8 +1282,11 @@ app.post('/editOldPost', function (req, res) {
               if (req.body.post_id !== "bio") {
                 var tags = parseInboundTags(req.body.tags);
                 if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+                var title = validatePostTitle(req.body.title);
+                if (title.error) {return sendError(res, errMsg+title.error);}
               } else {
                 var tags = {};
+                var title = "";
               }
               imageValidate(x[0], res, function (res) {
                 if (req.body.post_id === "bio") {
@@ -1280,6 +1295,7 @@ app.post('/editOldPost', function (req, res) {
                   var newPost = [{
                     body: x[1],
                     tags: tags,
+                    title: title,
                     post_id: req.body.post_id,
                     edited: true,
                   }];
@@ -1287,7 +1303,7 @@ app.post('/editOldPost', function (req, res) {
                 user.pendingUpdates.updates[req.body.date] = newPost;
                 return writeToDB(userID, user, function (resp) {
                   if (resp.error) {return sendError(res, errMsg+resp.error);}
-                  else {return res.send({error:false, text:x[1], tags:tags});}
+                  else {return res.send({error:false, body:x[1], tags:tags, title:title});}
                 });
               });
             }

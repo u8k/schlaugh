@@ -13,7 +13,7 @@
 
   <div id="post-preview">
     <div id="pending-status">no pending post for tomorrow</div>
-    <div id="pending-post" class="post removed"></div>
+    <div id="pending-post" class="removed"></div>
     <button type="button" id='write-post-button' onclick="showWriter('post')">new post</button>
     <button id='delete-pending-post' class="removed" onclick="submitPost(true)">delete</button>
   </div>
@@ -21,9 +21,11 @@
   <div id="post-writer" class="removed">
     <%- include("editorButtons", {kind: "post"}) %>
     <textarea id="post-editor" class="editor" autocomplete="off"></textarea>
-    <br>
-    <label for="tag-input">tags</label><br>
-    <input id="tag-input" type="text" placeholder="milkshake,">
+    <br><br>
+    <label for="tag-input">tags:</label>
+    <input id="tag-input" type="text" placeholder="milkshake,"><br>
+    <label for="title-input">title:</label>
+    <input id="title-input" type="text" placeholder="optional">
     <br><br>
     <button onclick="submitPost()">schlaubmit</button>
     <button onclick="cancelPost()">cancel</button>
@@ -235,7 +237,7 @@
     there is only reading and writing
     <br><br>
     you may make one post per day<br>
-    there is no rush<br>
+    there is no rush<br><br>
     <3
   </div>
   <br><br>
@@ -243,7 +245,7 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img id="o-pic" src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Ocelot_%28Jaguatirica%29_Zoo_Itatiba.jpg/1280px-Ocelot_%28Jaguatirica%29_Zoo_Itatiba.jpg" alt="ocelot">
+  <img id="o-pic" src="https://i.imgur.com/mPQvp6R.png" alt="ox">
 </div>
 
 <div id="edit-panel" class="removed">
@@ -251,7 +253,7 @@
 
   <div id="old-post-preview">
     <div id="old-post-status"></div>
-    <div id="pending-post-edit" class="post removed"></div>
+    <div id="pending-post-edit" class="removed"></div>
     <div id="pending-header-preview" class="author-header removed">
       <div id="pending-left-preview" class="author-header-left">
         <button id="preview-follow-button" onclick="alert(`Y'ALL<br>DONE<br>DID<br>GET<br>GOT<br>BY<br>A<br>FAKE BUTTON`,'doh')">follow</button>
@@ -268,8 +270,11 @@
     <textarea id="old-post-editor" class="editor" autocomplete="off"></textarea>
     <br>
     <div id="old-tag-box">
-      <label for="old-tag-input">tags</label><br>
+      <label for="old-tag-input">tags:</label>
       <input id="old-tag-input" type="text" placeholder="milkshake,">
+      <br>
+      <label for="old-title-input">title:</label>
+      <input id="old-title-input" type="text" placeholder="optional">
       <br><br>
     </div>
     <button id='submit-editing-old-post'>schlaubmit</button>

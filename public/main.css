@@ -2,7 +2,7 @@
 
 *:focus {outline:0;}
 
-h1, button, input, footer, header, postNav, .post-footer-left, h2, .author-page-title, .author {font-family: monospace;}
+h1, button, input, footer, header, postNav, .post-footer-left, h2, .author-page-title, .author, .thread-name, #thread-title, #pending-message-status {font-family: monospace;}
 
 body {
   padding: 1.5vmin;
@@ -138,6 +138,12 @@ clicky, .clicky {
 .message {width: 85%;}
 #settings-box, #thread-list {text-align: center;}
 
+.post, .message, #tag-display, .top-tag {
+  white-space: pre-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 img {
   max-width: 100%;
   height: auto;
@@ -163,16 +169,35 @@ a, a.visited, .special {
 .author-pic {
   max-width: 50px;
   max-height: 100px;
-  position: absolute;
-  left: -55px;
-  top: 10px;
   border-radius: 4px;
+  display: inline;
 }
 
-.meta-text, .date-stamp-box {
+.date-stamp-box {
   text-align: right;
   margin-bottom: 10px;
   display: block;
+}
+
+.post-header {
+  margin-bottom: 10px;
+}
+
+.post-header-feed {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row-reverse;
+}
+
+.post-title {
+  font-size: 2em;
+  font-family: monospace;
+  text-align: left;
+}
+
+.tag-section {
+  font-style: italic;
 }
 
 .post-footer {
@@ -216,8 +241,6 @@ footerButton {
   #pending-message {width: 85%}
   #post-writer, #old-post-writer{width: 95%;}
   #message-writer{width: 85%;}
-  .meta-text {height: 50px}
-  .author-pic {margin-left: 0; left: 15px; top:15px; max-height: 50px;}
   #o-pic {max-width: 95%;}
 }
 

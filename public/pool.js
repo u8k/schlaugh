@@ -59,12 +59,6 @@
     if (typeof string !== "string") {return {error:"not string"}}
 
     string = string.replace(/\r?\n|\r/g, '<br>');   //change /n for <br>
-    string = string.replace(/  /g, ' &nbsp;');
-    string = string.replace(/<br> /g, '<br>&nbsp;');   //for a single space at a line start
-    string = string.replace(/ <br>/g, '&nbsp;<br>');   //for a trailing space at a line end
-    if (string.substr(0,1) === " ") {               //for a single space at the post start
-      string = '&nbsp;' + string.substr(1);
-    }
 
     var buttonUp = function (b, i, a, u, s, cut, code, ascii, li, ul, ol, l, r, c, quote, imgList) {
       if (b) {string += "</b>"}
