@@ -184,6 +184,7 @@ a, a.visited, .special {
 }
 
 .post-header-feed {
+  text-align: right;
   margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
