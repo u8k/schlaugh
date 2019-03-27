@@ -660,6 +660,7 @@ var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
               authorPic: authorPic,
               _id: resp.user._id,
               date: date,
+              title: resp.user.posts[date][0].title
             });
             count--;
             if (count === 0) {
@@ -711,6 +712,7 @@ var postsFromListOfAuthorsAndDates = function (postList, callback) {
               posts[postRef[resp.user._id][j].pos] = {
                 body: resp.user.posts[date][0].body,
                 tags: resp.user.posts[date][0].tags,
+                title: resp.user.posts[date][0].title,
                 post_id: post_id,
                 author: resp.user.username,
                 authorPic: authorPic,
@@ -2312,6 +2314,7 @@ app.get('/~getAuthor/:username', function(req, res) {
               posts.push({
                 body: author.posts[pL[i].date][pL[i].num].body,
                 tags: author.posts[pL[i].date][pL[i].num].tags,
+                title: author.posts[pL[i].date][pL[i].num].title,
                 post_id: author.posts[pL[i].date][pL[i].num].post_id,
                 date: pL[i].date,
               });
