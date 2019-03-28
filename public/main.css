@@ -462,7 +462,7 @@ ascii {
   width: fit-content;
   max-width: 100%;
   margin: auto;
-  white-space: nowrap;
+  white-space: pre;
   overflow-x: auto;
   text-align: left;
 }
