@@ -33,7 +33,7 @@ var fontSelect = function () {
 
 var changeFont = function (font) {
   var sheet = document.styleSheets[document.styleSheets.length-1];
-  var selector = ".editor, .post, .message";
+  var selector = ".editor, .post, .message, .author-header-right";
   var attribute = "font-family";
   for (var i = sheet.cssRules.length-1; i > -1; i--) {
     if (sheet.cssRules[i].selectorText === selector) {
@@ -265,8 +265,9 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
         }
         signIn('/login', data, function (resp) {
           if (resp && resp.otherKey) {glo.currentAuthor.key = resp.otherKey;}
-          createFollowButton($(glo.openPanel), glo.currentAuthor, $(glo.currentAuthor.author+"-posts"));
-          createMessageButton($(glo.openPanel), glo.currentAuthor, $(glo.currentAuthor.author+"-posts"));
+          createFollowButton($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
+          createMessageButton($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
+          createEditBioButtons($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
           var postArr = glo.currentAuthor.posts;
           for (var i = 0; i < postArr.length; i++) {
             if (postArr[i].post_id && postArr[i].date) {
@@ -791,9 +792,7 @@ var renderOnePost = function (postData, type, typeName) {
     var title = document.createElement("text");
     title.innerHTML = postData.title;
     title.setAttribute('class', 'post-title');
-    if (true) {
-      // click handler goes here if we want that
-    }
+    // click handler goes here if we want that
     postHeader.appendChild(title);
   }
   // actual post body
@@ -820,6 +819,10 @@ var renderOnePost = function (postData, type, typeName) {
     if (!glo.authors[postData.author]) {glo.authors[postData.author] = {}}
     glo.authors[postData.author][postData.post_id] = postData.tags;
   }
+  // add elem to post ref
+  if (!glo.posts) {glo.posts = {}}
+  if (!glo.posts[postData.post_id]) {glo.posts[postData.post_id] = [];}
+  glo.posts[postData.post_id].push(post);
   //
   return post;
 }
@@ -834,11 +837,7 @@ var displayBookmarks = function () {
       var bucket = $("bookmark-bucket");
       // if there are no posts
       if (json.posts.length === 0) {
-        var post = document.createElement("div");
-        post.innerHTML = "None Marked!";
-        bucket.appendChild(document.createElement("br"));
-        bucket.appendChild(document.createElement("br"));
-        bucket.appendChild(post);
+        renderNoMarks();
       } else {
         for (var i=json.posts.length-1; i > -1; i--) {
           bucket.appendChild(renderOnePost(json.posts[i], 'bookmark', null));
@@ -848,6 +847,15 @@ var displayBookmarks = function () {
       switchPanel('bookmarks-panel');
     });
   }
+}
+
+var renderNoMarks = function () {
+  var bucket = $("bookmark-bucket");
+  var post = document.createElement("div");
+  bucket.appendChild(document.createElement("br"));
+  bucket.appendChild(document.createElement("br"));
+  post.innerHTML = "None Marked!";
+  bucket.appendChild(post);
 }
 
 var createMessageButton = function (parent, author, insert) {
@@ -901,6 +909,30 @@ var createFollowButton = function (parent, author, insert) {
       parent.insertBefore(follow, insert);
     } else {
       parent.appendChild(follow);
+    }
+  }
+}
+
+var createEditBioButtons = function (parent, data) {
+  // edit bio button,
+  if (glo.username && glo.username === data.author) {
+    parent.appendChild(document.createElement("br"));
+    var editButton = document.createElement("button");
+    editButton.innerHTML = "edit bio";
+    editButton.onclick = function(){
+      editBio();
+    }
+    parent.appendChild(editButton);
+    // delete bio button
+    if (data.bio && data.bio !== "") {
+      parent.appendChild(document.createElement("br"));
+      var deleteButton = document.createElement("button");
+      deleteButton.innerHTML = "delete bio";
+      deleteButton.setAttribute('id', data.author+'-delete-bio-button');
+      deleteButton.onclick = function(){
+        deleteBio();
+      }
+      parent.appendChild(deleteButton);
     }
   }
 }
@@ -1000,9 +1032,14 @@ var createPostFooter = function (postElem, author, post, type) {
   }
 }
 
-var createBookmarkButton = function (parent, author_id, post, insert) {
-  // OPTIONAL 'insert' is the element before which the button is to be inserted
+var createBookmarkButton = function (parent, author_id, post) {
+  // is there an extant bookmark button?
+  var x = parent.childNodes;
+  if (x[x.length-2] && x[1].classList[0] === "bookmark-button") {
+    var insert = x[1];
+  }
   var elem = document.createElement("footerButton");
+  elem.setAttribute('class', "bookmark-button");
   var alreadyMarked = false;
   if (glo.bookmarks && glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
     alreadyMarked = true;
@@ -1022,29 +1059,63 @@ var createBookmarkButton = function (parent, author_id, post, insert) {
         // check if bookmarks have been rendered and if so, remove!
         if (glo.bookmarksFetched) {
           $('bookmarkFeed-'+post.post_id).classList.add('removed');
+          // if the bookmark list is now empty, indicate
+          if (isBookmarkListEmpty()) {
+            renderNoMarks();
+          }
         }
-        // check for other rendered versions of the post and update their bookmark buttons
-
       } else {
-        if (!glo.bookmarks[author_id]) {glo.bookmarks[author_id] = {}}
-        glo.bookmarks[author_id][post.date] = true;
         // check if bookmarks have been rendered and if so, add!
         if (glo.bookmarksFetched) {
+          // check if list was previously empty, and remove the empty indicator
+          if (isBookmarkListEmpty()) {
+            var childrenCount = $("bookmark-bucket").childNodes.length;
+            for (var i = 0; i < childrenCount; i++) {
+              $("bookmark-bucket").removeChild($("bookmark-bucket").childNodes[0]);
+            }
+          }
+          if (!glo.bookmarks[author_id]) {glo.bookmarks[author_id] = {}}
+          glo.bookmarks[author_id][post.date] = true;
           $("bookmark-bucket").insertBefore(renderOnePost(post, 'bookmark', null), $("bookmark-bucket").childNodes[0]);
+        } else {
+          if (!glo.bookmarks[author_id]) {glo.bookmarks[author_id] = {}}
+          glo.bookmarks[author_id][post.date] = true;
         }
-        // check for other rendered versions of the post and update their bookmark buttons
-
       }
-      // refresh button(by hiding and creating new)
-      elem.classList.add('removed');
-      createBookmarkButton(parent, author_id, post, elem);
+      // update bookmark buttons on all rendered versions of the post
+      if (glo.posts && glo.posts[post.post_id]) {
+        var posArr = glo.posts[post.post_id];
+        for (var i = 0; i < posArr.length; i++) {
+          var x = posArr[i].childNodes;
+          var y = x[x.length-1].childNodes[x[x.length-1].childNodes.length-1]
+          if (y && y.classList[0] === "post-footer-right") {
+            createBookmarkButton(y, author_id, post);
+          }
+        }
+      }
     });
   }
   if (insert) {
     parent.insertBefore(elem, insert);
+    insert.parentNode.removeChild(insert);
   } else {
     parent.appendChild(elem);
   }
+}
+
+var isBookmarkListEmpty = function () {
+  for (var auth in glo.bookmarks) {
+    if (glo.bookmarks.hasOwnProperty(auth)) {
+      for (var mark in glo.bookmarks[auth]) {
+        if (glo.bookmarks[auth].hasOwnProperty(mark)) {
+          if (glo.bookmarks[auth][mark]) {
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
 }
 
 var deletePost = function (post) {
@@ -1056,14 +1127,10 @@ var deletePost = function (post) {
       ajaxCall('/deleteOldPost', 'POST', post, function(json) {
         loading(true);
         // remove the DOM elements of ALL instances of the post that may be floating about
-        var authVers = $('author-'+post.post_id);
-        var feedVers = $('feed-'+post.post_id);
-        if (authVers) {authVers.parentNode.removeChild(authVers);}
-        if (feedVers) {feedVers.parentNode.removeChild(feedVers);}
-        for (var tag in post.tags) {
-          if (post.tags.hasOwnProperty(tag)) {
-            var tagVers = $("tag-"+tag+"-"+post.post_id);
-            if (tagVers) {tagVers.parentNode.removeChild(tagVers);}
+        if (glo.posts && glo.posts[post.post_id]) {
+          var posArr = glo.posts[post.post_id];
+          for (var i = 0; i < posArr.length; i++) {
+            posArr[i].parentNode.removeChild(posArr[i]);
           }
         }
       });
@@ -1359,6 +1426,7 @@ var openAuthorPanel = function (author, callback) {
         // header-left
         var authorHeaderLeft = document.createElement("div");
         authorHeaderLeft.setAttribute('class', 'author-header-left');
+        authorHeaderLeft.setAttribute('id', json.author+'-header-left');
         authorHeader.appendChild(authorHeaderLeft);
         // pic
         if (json.authorPic !== "") {
@@ -1379,35 +1447,14 @@ var openAuthorPanel = function (author, callback) {
         var x = title.cloneNode(true);
         title.setAttribute('id', json.author+'-panel-title');
         authorHeaderLeft.appendChild(title);
-        //authorHeaderLeft.appendChild(document.createElement("br"));
         if (glo.username && glo.username === json.author) {
           $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
           $("pending-left-preview").insertBefore(document.createElement("br"), $("preview-follow-button"));
         }
-        // follow and message buttons
+        // follow and message and bio buttons
         createFollowButton(authorHeaderLeft, json);
         createMessageButton(authorHeaderLeft, json);
-        // edit bio button,
-        if (glo.username && glo.username === json.author) {
-          authorHeaderLeft.appendChild(document.createElement("br"));
-          var editButton = document.createElement("button");
-          editButton.innerHTML = "edit bio";
-          editButton.onclick = function(){
-            editBio();
-          }
-          authorHeaderLeft.appendChild(editButton);
-          // delete bio button
-          if (json.bio && json.bio !== "") {
-            authorHeaderLeft.appendChild(document.createElement("br"));
-            var deleteButton = document.createElement("button");
-            deleteButton.innerHTML = "delete bio";
-            deleteButton.setAttribute('id', json.author+'-delete-bio-button');
-            deleteButton.onclick = function(){
-              deleteBio();
-            }
-            authorHeaderLeft.appendChild(deleteButton);
-          }
-        }
+        createEditBioButtons(authorHeaderLeft, json);
         // header-right
         if (json.bio && json.bio !== "") {
           var authorHeaderRight = document.createElement("div");
@@ -1727,6 +1774,9 @@ var filterAuthorByTag = function (author, tag) {
 }
 
 var prepTextForEditor = function (text) {
+  if (text === null || text === undefined) {
+    return "";
+  }
   // we usually want br tags and nbsp codes in the text, so we save it that way
   // and convert it for the one place we don't want that, editors
   // ... and a bunch of other garbage hacking of html whitespace handling

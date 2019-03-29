@@ -614,7 +614,8 @@ var validatePostTitle = function (string) {
   if (string.length > 140) {
     return {error: "this is not actually an 'error', this is just me preventing you from making a title this long. Do you really need it to be this long? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>Gödel, Escher, Bach</i> as a title in an attempt to break the site.<br><br>have a nice lunch"};
   }
-  string = string.replace(/[^ a-zA-Z0-9-_!@&*:;=~,]/g, '');
+  string = string.replace(/</g, '&lt;');
+  string = string.replace(/>/g, '&gt;');
   return string;
 }
 
@@ -1272,7 +1273,7 @@ app.post('/editOldPost', function (req, res) {
                 delete user.pendingUpdates.updates[req.body.date];
                 return writeToDB(userID, user, function (resp) {
                   if (resp.error) {return sendError(res, errMsg+resp.error);}
-                  else {return res.send({error:false, text:"", tags:{}, title:""});}
+                  else {return res.send({error:false, body:"", tags:{}, title:""});}
                 });
               } else {return sendError(res, errMsg+"edit not found");}
             } else {                                      // new/edit
@@ -1316,7 +1317,7 @@ app.post('/editOldPost', function (req, res) {
   });
 });
 
-// delete an alread posted(non pending) post, also bio
+// delete an already posted(non pending) post, also bio
 app.post('/deleteOldPost', function (req, res) {
   var errMsg = "the post was not successfully deleted<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 813");}
