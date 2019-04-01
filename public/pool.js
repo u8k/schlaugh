@@ -22,7 +22,7 @@
     if (x === undefined || x === "") {
       return "empty string is not a valid username, sorry";
     }
-    if (x.length > 30) {
+    if (x.length > 17) {
       return 'name is too long';
     }
     if (/[^a-z0-9-_]/.test(x)) {

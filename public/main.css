@@ -138,7 +138,7 @@ clicky, .clicky {
 .message {width: 85%;}
 #settings-box, #thread-list {text-align: center;}
 
-.post, .message, #tag-display, .top-tag, .author-header-right {
+.post, .message, #tag-display, .top-tag, .author-header-right, .author {
   white-space: pre-wrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -193,8 +193,10 @@ a, a.visited, .special {
 
 .post-title {
   font-size: 2em;
+  font-weight: bold;
   font-family: monospace;
   text-align: left;
+  padding-right: 10px;
 }
 
 .tag-section {
@@ -231,7 +233,7 @@ footerButton {
   align-items: center;
 }
 
-.author-header-left {padding: 10px;}
+.author-header-left {padding: 10px; max-width: 400px; align-self: flex-start;}
 .author-header-right {padding: 10px; text-align: left;}
 
 #pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
@@ -245,8 +247,12 @@ footerButton {
   #o-pic {max-width: 95%;}
 }
 
-@media screen and (max-width: 500px) {
-  .author-header {flex-direction: column; }
+@media screen and (max-width: 600px) {
+  .author-header {flex-direction: column;}
+  .author-header-left {align-self: center;}
+}
+@media screen and (max-width: 550px) {
+  .post-header-feed {flex-direction: column; }
 }
 
 .outbound {margin-right: 0}
