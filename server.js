@@ -256,6 +256,7 @@ var getPayload = function (req, res, otherUserID, callback) {
         var bio = user.bio;
         if (typeof bio !== 'string') {bio = "";}
         if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
+        if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = [];}
         var payload = {
           keys: user.keys,
           username: user.username,
