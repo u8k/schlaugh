@@ -793,7 +793,16 @@ var renderOnePost = function (postData, type, typeName) {
         openAuthorPanel(name);
       }
     })(postData.author);
-    author.setAttribute('class', 'author special');
+    author.setAttribute('class', 'author-on-post special');
+    // text sizing based on name length
+    if (postData.author.length < 6) {author.classList.add('author-size-0')}
+    else if (postData.author.length < 12) {author.classList.add('author-size-1')}
+    else if (postData.author.length < 20) {author.classList.add('author-size-2')}
+    else if (postData.author.length < 30) {author.classList.add('author-size-3')}
+    else if (postData.author.length < 40) {author.classList.add('author-size-4')}
+    else if (postData.author.length < 50) {author.classList.add('author-size-5')}
+    else {author.classList.add('author-size-6')}
+    //
     author.setAttribute('href', "/"+postData.author);
     author.innerHTML = "<clicky>"+postData.author+"</clicky>";
     authorBox.appendChild(author);
@@ -1497,6 +1506,15 @@ var openAuthorPanel = function (author, callback) {
         // title
         var title = document.createElement("a");
         title.setAttribute('class', 'author-page-title not-special');
+        // text sizing based on name length
+        if (json.author.length < 6) {title.classList.add('author-page-title-0')}
+        else if (json.author.length < 12) {title.classList.add('author-page-title-1')}
+        else if (json.author.length < 20) {title.classList.add('author-page-title-2')}
+        else if (json.author.length < 30) {title.classList.add('author-page-title-3')}
+        else if (json.author.length < 40) {title.classList.add('author-page-title-4')}
+        else if (json.author.length < 50) {title.classList.add('author-page-title-5')}
+        else {title.classList.add('author-page-title-6')}
+        //
         title.innerHTML = json.author;
         var x = title.cloneNode(true);
         title.setAttribute('id', json.author+'-panel-title');

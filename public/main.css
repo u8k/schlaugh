@@ -2,7 +2,7 @@
 
 *:focus {outline:0;}
 
-h1, button, input, footer, header, postNav, .post-footer-left, h2, .author-page-title, .author, .thread-name, #thread-title, #pending-message-status {font-family: monospace;}
+h1, button, input, footer, header, postNav, .post-footer-left, h2, .author-page-title, .author-on-post, .thread-name, #thread-title, #pending-message-status {font-family: monospace;}
 
 body {
   padding: 1.5vmin;
@@ -41,6 +41,27 @@ h2 {
   text-overflow: ellipsis;
   width: 100%;
   max-width: 98vw;
+}
+
+.author-page-title-0 {font-size: 4em;}
+.author-page-title-1 {font-size: 3.5em;}
+.author-page-title-2 {font-size: 3em;}
+.author-page-title-3 {font-size: 1.8em;}
+.author-page-title-4 {font-size: 1.36em;}
+.author-page-title-5 {font-size: 1.08em;}
+.author-page-title-6 {font-size: 0.83em;}
+@media screen and (max-width: 600px) {
+  .author-page-title-2 {font-size: 2.7em;}
+}
+@media screen and (max-width: 500px) {
+  .author-page-title-2 {font-size: 2.4em;}
+}
+@media screen and (max-width: 400px) {
+  .author-page-title-2 {font-size: 2.2em;}
+  .author-page-title-3 {font-size: 1.45em;}
+  .author-page-title-4 {font-size: 1.08em;}
+  .author-page-title-5 {font-size: .85em;}
+  .author-page-title-6 {font-size: .65em;}
 }
 
 nav {
@@ -138,7 +159,7 @@ clicky, .clicky {
 .message {width: 85%;}
 #settings-box, #thread-list {text-align: center;}
 
-.post, .message, #tag-display, .top-tag, .author-header-right, .author {
+.post, .message, #tag-display, .top-tag, .author-header-right, .author-on-post, #thread-list {
   white-space: pre-wrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -162,8 +183,23 @@ a, a.visited, .special {
 
 #pending-message {width: 65%}
 
-.author {
-  font-size: 1.7em;
+.author-size-0 {font-size: 2em;}
+.author-size-1 {font-size: 1.7em;}
+.author-size-2 {font-size: 1.4em;}
+.author-size-3 {font-size: 1.2em;}
+.author-size-4 {font-size: 1.1em;}
+.author-size-5 {font-size: 1em;}
+.author-size-6 {font-size: 1em;}
+@media screen and (max-width: 600px) {
+  .author-size-6 {font-size: .8em;}
+}
+@media screen and (max-width: 500px) {
+  .author-size-5 {font-size: .9em;}
+  .author-size-6 {font-size: .7em;}
+}
+@media screen and (max-width: 400px) {
+  .author-size-5 {font-size: .8em;}
+  .author-size-6 {font-size: .6em;}
 }
 
 .author-pic {
@@ -343,6 +379,8 @@ body, h1, input, select {
 
 .arrow, #thread-title-area {
   font-size: 3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 slogan {
