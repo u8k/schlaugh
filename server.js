@@ -245,7 +245,7 @@ var getPayload = function (req, res, otherUserID, callback) {
   if (!req.session.user) {return sendError(res, "no user session 0234");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1, bio:1, bookmarks:1}
+    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, "user not found");}
@@ -264,6 +264,7 @@ var getPayload = function (req, res, otherUserID, callback) {
           following: user.following,
           bio: bio,
           bookmarks: user.bookmarks,
+          collapsed: user.collapsed,
         }
         payload.settings.colors = user.settings.colors;
         payload.settings.font = user.settings.font;
@@ -1724,6 +1725,42 @@ app.post('/link', function(req, res) {
       }
     });
   } else {sendError(res,"boy i hope no one ever sees this error message!");}
+});
+
+// toggle collapsed status of posts
+app.post('/collapse', function(req, res) {
+  var errMsg = "collapsed property error<br><br>";
+  if (!req.body.id) {return sendError(res, errMsg+"malformed request 501");}
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, collapsed:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = []}
+          if (req.body.collapse) {
+            // limit to 50, delete olest, FIFO
+            if (user.collapsed.length > 50) {
+              user.collapsed.splice(0,1);
+            }
+            user.collapsed.push(req.body.id);
+          } else {
+            for (var i = 0; i < user.collapsed.length; i++) {
+              if (user.collapsed[i] === req.body.id) {
+                user.collapsed.splice(i,1);
+                i--;
+              }
+            }
+          }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, errMsg+ resp.error);}
+            else {res.send({error: false});}
+          });
+        }
+      }
+    )
+  })
 });
 
 // toggle unread status of threads

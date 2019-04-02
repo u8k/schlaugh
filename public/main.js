@@ -748,10 +748,23 @@ var renderOnePost = function (postData, type, typeName) {
   else if (type === 'preview') {var uniqueID = 'preview-'+typeName;}
   else {return alert("error, sorry! render error, post is not of a valid type???, please show this to staff");}
   post.setAttribute('id', uniqueID);
+  // collapse button
+  var collapseBtn = document.createElement("clicky");
+  collapseBtn.setAttribute('class', 'collapse-button');
+  collapseBtn.setAttribute('id', uniqueID+'collapse-button');
+  if (glo.collapsed[postData.post_id]) {
+    collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
+    collapseBtn.title = 'expand';
+  } else {
+    collapseBtn.innerHTML = '<i class="far fa-minus-square"></i>';
+    collapseBtn.title = 'collapse';
+  }
+  collapseBtn.onclick = function () {collapsePost(uniqueID, postData.post_id);}
+  post.appendChild(collapseBtn);
   // post header
   var postHeader = document.createElement("div");
   post.appendChild(postHeader);
-  //
+  // author stuff in header
   if (type !== 'author' && (type !== 'preview' || typeName !== "edit")) {
     postHeader.setAttribute('class', 'post-header-feed');
     var authorBox = document.createElement("div");
@@ -798,7 +811,9 @@ var renderOnePost = function (postData, type, typeName) {
   // actual post body
   var body = document.createElement("div");
   body.setAttribute('class', 'body-text');
+  body.setAttribute('id', uniqueID+'body');
   body.innerHTML = convertText(postData.body, uniqueID);
+  if (glo.collapsed[postData.post_id]) {body.classList.add('removed');}
   post.appendChild(body);
   // tags
   var authorOption = null;
@@ -822,9 +837,48 @@ var renderOnePost = function (postData, type, typeName) {
   // add elem to post ref
   if (!glo.posts) {glo.posts = {}}
   if (!glo.posts[postData.post_id]) {glo.posts[postData.post_id] = [];}
-  glo.posts[postData.post_id].push(post);
+  glo.posts[postData.post_id].push(uniqueID);
   //
   return post;
+}
+
+var collapsePost = function (uniqueID, postID) {
+  var btnElem = $(uniqueID+'collapse-button');
+  if (btnElem.title === 'expand') {
+    btnElem.title = 'collapse';
+    btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
+    $(uniqueID+'body').classList.remove('removed');
+    var collapse = false;
+    glo.collapsed[postID] = false;
+  } else {
+    btnElem.title = 'expand';
+    btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
+    $(uniqueID+'body').classList.add('removed');
+    var collapse = true;
+    glo.collapsed[postID] = true;
+  }
+  if (postID) {
+    ajaxCall('/collapse', 'POST', {id:postID, collapse:collapse}, function(json) {
+      //
+    });
+    // update all other rendered versions of the post
+    if (glo.posts && glo.posts[postID]) {
+      var posArr = glo.posts[postID];
+      for (var i = 0; i < posArr.length; i++) {
+        if (uniqueID !== posArr[i]) {
+          if (!collapse) {
+            $(posArr[i]+'collapse-button').title = 'collapse';
+            $(posArr[i]+'collapse-button').innerHTML = '<i class="far fa-minus-square"></i>';
+            $(posArr[i]+'body').classList.remove('removed');
+          } else {
+            $(posArr[i]+'collapse-button').title = 'expand';
+            $(posArr[i]+'collapse-button').innerHTML = '<i class="far fa-plus-square"></i>';
+            $(posArr[i]+'body').classList.add('removed');
+          }
+        }
+      }
+    }
+  }
 }
 
 var displayBookmarks = function () {
@@ -1086,7 +1140,7 @@ var createBookmarkButton = function (parent, author_id, post) {
       if (glo.posts && glo.posts[post.post_id]) {
         var posArr = glo.posts[post.post_id];
         for (var i = 0; i < posArr.length; i++) {
-          var x = posArr[i].childNodes;
+          var x = $(posArr[i]).childNodes;
           var y = x[x.length-1].childNodes[x[x.length-1].childNodes.length-1]
           if (y && y.classList[0] === "post-footer-right") {
             createBookmarkButton(y, author_id, post);
@@ -1130,7 +1184,7 @@ var deletePost = function (post) {
         if (glo.posts && glo.posts[post.post_id]) {
           var posArr = glo.posts[post.post_id];
           for (var i = 0; i < posArr.length; i++) {
-            posArr[i].parentNode.removeChild(posArr[i]);
+            $(posArr[i]).parentNode.removeChild($(posArr[i]));
           }
         }
       });
@@ -2640,6 +2694,10 @@ var parseUserData = function (data) {
       glo.bookmarks[data.bookmarks[i].author_id] = {};
     }
     glo.bookmarks[data.bookmarks[i].author_id][data.bookmarks[i].date] = true;
+  }
+  glo.collapsed = {};
+  for (var i = 0; i < data.collapsed.length; i++) {
+    glo.collapsed[data.collapsed[i]] = true;
   }
   // init stuff
   loadPosts(1, null, true);

@@ -179,12 +179,23 @@ a, a.visited, .special {
   display: block;
 }
 
+.collapse-button {
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  font-weight: bolder;
+  font-size: 1.1em;
+  opacity: .7;
+}
+
 .post-header {
+  margin-top: 5px;
   margin-bottom: 10px;
 }
 
 .post-header-feed {
   text-align: right;
+  margin-top: 5px;
   margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
