@@ -2088,7 +2088,6 @@ var insertQuote = function (src) {
 var convertLineBreaks = function (string, dir) {
   if (dir) {
     return string.replace(/\r?\n|\r/g, '<br>');
-     string;
   } else {
     return string.replace(/<br>/g, '\n');
   }
