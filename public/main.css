@@ -219,7 +219,6 @@ a, a.visited, .special {
   position: absolute;
   left: 4px;
   top: 2px;
-  font-weight: bolder;
   font-size: 1.1em;
   opacity: .7;
 }
@@ -499,6 +498,15 @@ quote {
   display: block;
   padding: 15px;
   font-style: italic;
+}
+
+.note {
+  position: relative;
+  display: block;
+  border-radius: 4px;
+  padding: 8px 24px;
+  border-style: ridge;
+  border-width: thin;
 }
 
 code {

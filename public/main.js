@@ -450,6 +450,41 @@ var convertCuts = function (string, id) {
   return recurse(0,0);
 }
 
+var convertNotes = function (string, id) {
+  // changes note tags into functional notes, needs id so that every note has a unique id tag on the front end,
+  var recurse = function (pos, count) {
+    var next = string.substr(pos).search(/<note linkText="/);
+    if (next === -1) {return string;}
+    else {
+      pos += next;
+      var qPos = string.substr(pos+16).search(/"/);
+      if (qPos === -1) { // 'should' never be the case since "cleanse" already ran
+        return string += '">';
+      } else {
+        var linkText = string.substr(pos+16, qPos);
+        var cPos = string.substr(pos+qPos+18).search('</note>');
+        if (cPos === -1) { // 'should' never be the case since "cleanse" already ran
+          return string += '</note>';
+        } else {
+          var noteText = string.substr(pos+qPos+18, cPos);
+          var uniqueID = "note-"+id+"-"+count;
+          if (string.substr(pos+qPos+cPos+25, 4) === "<br>") {
+            string = string.substr(0, pos+qPos+cPos+25)+'<br id="'+uniqueID+'-br">'+string.substr(pos+qPos+cPos+29);
+          }
+          string = string.substr(0,pos)
+            +`<a class='clicky' id="`+uniqueID+`-note-open" onclick="collapseNote('`+uniqueID+`', true)">`
+            +linkText
+            +"</a>"+"<ul class='note removed' id='"+uniqueID+"'>"
+            +`<clicky title='collapse' onclick="collapseNote('`+uniqueID+`')" class="collapse-button"><i class="far fa-minus-square"></i></clicky>`
+            +noteText+"</ul>"+ string.substr(pos+qPos+cPos+25);
+        }
+      }
+    }
+    return recurse(pos+1, count+1);
+  }
+  return recurse(0,0);
+}
+
 var convertLinks = function (string) {
   // adds the " target="_blank" " property to links in user posts/messages
   //        (so that they open in new tabs automatically)
@@ -457,8 +492,7 @@ var convertLinks = function (string) {
   var b = ' target="_blank"';
   var recurse = function (pos) {
     var next = string.substr(pos).search(/a href="/);
-    if (next === -1) {
-      return string;}
+    if (next === -1) {return string;}
     else {
       pos += next+8;
       var qPos = string.substr(pos).search(/"/);
@@ -475,7 +509,23 @@ var convertLinks = function (string) {
 }
 
 var convertText = function (string, id) {
-  return convertLinks(convertCuts(string, id));
+  return convertLinks(convertNotes(convertCuts(string, id), id));
+}
+
+var collapseNote = function (id, dir) {
+  if (dir) {
+    $(id).classList.remove('removed')
+    $(id+"-note-open").onclick = function () {collapseNote(id);}
+    if ($(id+"-br")) {
+      $(id+"-br").classList.add('removed');
+    }
+  } else {
+    $(id).classList.add('removed')
+    $(id+"-note-open").onclick = function () {collapseNote(id, true);}
+    if ($(id+"-br")) {
+      $(id+"-br").classList.remove('removed');
+    }
+  }
 }
 
 var aboutPanelBack = function () {
@@ -1849,9 +1899,7 @@ var prepTextForEditor = function (text) {
   if (text === null || text === undefined) {
     return "";
   }
-  // we usually want br tags and nbsp codes in the text, so we save it that way
-  // and convert it for the one place we don't want that, editors
-  // ... and a bunch of other garbage hacking of html whitespace handling
+  // a bunch garbage hacking of html whitespace handling
 
   //
   text = text.replace(/\/cut>/g, '/cut><br>');
@@ -2094,6 +2142,36 @@ var insertQuote = function (src) {
             } else {
               area.value = y.slice(0, a)+openTag+quoteText + closeTag +y.slice(b);
               var bump = a + quoteText.length + openTag.length + closeTag.length;
+              setCursorPosition(area, bump, bump);
+            }
+          }
+        });
+      }
+    }
+  });
+}
+var insertNote = function (src) {
+  var area = $(src+'-editor');
+  var x = getCursorPosition(area);
+  var a = x.start;
+  var b = x.end;
+  var y = area.value;
+  var linkText;
+  if (a !== b) {linkText = convertLineBreaks(y.substr(a,b-a), true);}
+  prompt({
+    label: "link text:",
+    placeholder: "(aside)",
+    value: linkText,
+    callback: function(linkText) {
+      if (linkText !== null) {
+        prompt({
+          placeholder: "Laura Epsom",
+          label: "note contents:",
+          callback: function(noteContents) {
+            if (noteContents !== null) {
+              noteContents = convertLineBreaks(noteContents);
+              area.value = y.slice(0, a)+'<note linkText="'+linkText+'">'+noteContents+'</note>'+y.slice(b);
+              var bump = a+linkText.length+noteContents.length+25;
               setCursorPosition(area, bump, bump);
             }
           }
