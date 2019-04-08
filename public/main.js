@@ -721,13 +721,27 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
           for (var i = 0; i < tagArr.length; i++) {
             var tagShell = document.createElement("div");
             var tag = document.createElement("text");
-            tag.setAttribute('class', 'clicky top-tag');
-            tag.innerHTML = tagArr[i];
-            (function (tagName) {
-              tag.onclick = function(){
-                loadPosts(0, tagName);
+            tag.setAttribute('class', 'clicky top-tag special');
+              // cover for both the old topTag format, and the new AllTags
+            if (tagArr[i].tag) {
+              if (tagArr[i].count !== 1) {
+                tag.innerHTML = tagArr[i].tag + "("+tagArr[i].count+")";
+              } else {
+                tag.innerHTML = tagArr[i].tag;
               }
-            })(tagArr[i]);
+              (function (tagName) {
+                tag.onclick = function(){
+                  loadPosts(0, tagName);
+                }
+              })(tagArr[i].tag);
+            } else {
+              tag.innerHTML = tagArr[i];
+              (function (tagName) {
+                tag.onclick = function(){
+                  loadPosts(0, tagName);
+                }
+              })(tagArr[i]);
+            }
             tagShell.appendChild(tag);
             bucket.appendChild(tagShell);
           }
@@ -802,7 +816,7 @@ var renderOnePost = function (postData, type, typeName) {
   var collapseBtn = document.createElement("clicky");
   collapseBtn.setAttribute('class', 'collapse-button');
   collapseBtn.setAttribute('id', uniqueID+'collapse-button');
-  if (glo.collapsed[postData.post_id]) {
+  if (glo.collapsed && glo.collapsed[postData.post_id]) {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
     collapseBtn.title = 'expand';
   } else {
@@ -872,7 +886,7 @@ var renderOnePost = function (postData, type, typeName) {
   body.setAttribute('class', 'body-text');
   body.setAttribute('id', uniqueID+'body');
   body.innerHTML = convertText(postData.body, uniqueID);
-  if (glo.collapsed[postData.post_id]) {body.classList.add('removed');}
+  if (glo.collapsed && glo.collapsed[postData.post_id]) {body.classList.add('removed');}
   post.appendChild(body);
   // tags
   var authorOption = null;
@@ -908,15 +922,15 @@ var collapsePost = function (uniqueID, postID) {
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
     $(uniqueID+'body').classList.remove('removed');
     var collapse = false;
-    glo.collapsed[postID] = false;
+    if (glo.collapsed) {glo.collapsed[postID] = false;}
   } else {
     btnElem.title = 'expand';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
     $(uniqueID+'body').classList.add('removed');
     var collapse = true;
-    glo.collapsed[postID] = true;
+    if (glo.collapsed) {glo.collapsed[postID] = true;}
   }
-  if (postID) {
+  if (glo.collapsed && postID) {
     ajaxCall('/collapse', 'POST', {id:postID, collapse:collapse}, function(json) {
       //
     });
@@ -1920,6 +1934,7 @@ var prepTextForEditor = function (text) {
   text = text.replace(/<ol>/g, '<ol><br>');
   text = text.replace(/<ul>/g, '<ul><br>');
 
+
   var preTagLineBreakRecurse = function (pos, tag) {
     var next = text.substr(pos).search(tag);
     if (next !== -1) {
@@ -1954,6 +1969,24 @@ var prepTextForEditor = function (text) {
     }
   }
   imgRecurse(0);
+
+  var noteRecurse = function (pos) {
+    var next = text.substr(pos).search(/<note linkText="/);
+    if (next !== -1) {
+      pos = pos+next+15;
+      var qPos = text.substr(pos+1).search(/"/)+2;
+      if (qPos === -1) {
+        text += '">';
+        return;
+      }
+      else {
+        pos += qPos;
+        text = text.substr(0,pos+1) + '\n' + text.substr(pos+1);
+      }
+      noteRecurse(pos+1);
+    }
+  }
+  noteRecurse(0);
 
   return text;
 }
@@ -2170,8 +2203,8 @@ var insertNote = function (src) {
           callback: function(noteContents) {
             if (noteContents !== null) {
               noteContents = convertLineBreaks(noteContents);
-              area.value = y.slice(0, a)+'<note linkText="'+linkText+'">'+noteContents+'</note>'+y.slice(b);
-              var bump = a+linkText.length+noteContents.length+25;
+              area.value = y.slice(0, a)+'<note linkText="'+linkText+'">\n'+noteContents+'\n</note>'+y.slice(b);
+              var bump = a+linkText.length+noteContents.length+27;
               setCursorPosition(area, bump, bump);
             }
           }

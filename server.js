@@ -769,10 +769,26 @@ var trimTail = function (array) {
 }
 
 var getTopTags = function (ref) { //input ref of a date of tags
+  // MISNOMER, this now just returns an ordered(by usage freq) list of ALL tags
   var arr = [];
   for (var tag in ref) {
     if (ref.hasOwnProperty(tag)) {
       if (ref[tag] && ref[tag].length) {
+        if (arr.length === 0) {
+          arr[0] = {tag: tag, count: ref[tag].length};
+        } else {
+          for (var i = arr.length-1; i > -1 ; i--) {
+            if (ref[tag].length > arr[i].count || ref[tag].length === arr[i].count) {
+              if (i === 0) {
+                arr = insertIntoArray(arr, 0, {tag: tag, count: ref[tag].length});
+              }
+            } else {    // less than
+              arr = insertIntoArray(arr, i+1, {tag: tag, count: ref[tag].length});
+              break;
+            }
+          }
+        }
+        /*
         if (arr.length === 0) {
           arr[0] = {tag: tag, count: ref[tag].length};
         } else {
@@ -804,9 +820,12 @@ var getTopTags = function (ref) { //input ref of a date of tags
             }
           }
         }
+        */
       }
     }
   }
+  return arr;
+  /*
   // final trim
   if (arr.length > 7) {
     var value = arr[arr.length-1].count;
@@ -845,6 +864,7 @@ var getTopTags = function (ref) { //input ref of a date of tags
     newArr.splice(x,1);
   }
   return randArr;
+  */
 }
 
 var genInboxTemplate = function () {
@@ -910,6 +930,12 @@ app.get('/admin', function(req, res) {
         [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:8}]},3:{}}, list:[1,2,3]}, 2, true, 3), false],
         [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:3}]},3:{}}, list:[8,6,1,2,3]}, 2, true, 3).length, 4],
         //
+        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: [], 'funding boards': [], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c66263ac4b7ab001575b147", "5c6f608a98456000150f589b"], optimism: ["5ca7fa0049d171001595d43d"]})[0].tag, "milkshake", 'getTopTags'],
+        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: [], 'funding boards': [], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c66263ac4b7ab001575b147", "5c6f608a98456000150f589b"], optimism: ["5ca7fa0049d171001595d43d"]})[0].count, 2, 'getTopTags'],
+        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: [], 'funding boards': [], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c66263ac4b7ab001575b147", "5c6f608a98456000150f589b"], optimism: ["5ca7fa0049d171001595d43d"]})[1].count, 1, 'getTopTags'],
+        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: [], 'funding boards': [], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c66263ac4b7ab001575b147"], optimism: ["5ca7fa0049d171001595d43d"]})[0].tag, "optimism", 'getTopTags'],
+        [getTopTags({altruism: [], apologies: [], 'funding boards': [], health: []})[0], undefined, 'getTopTags'],
+        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: ["5ca7fa0049d171001595d43d"], 'funding boards': ["5ca7fa0049d171001595d43d"], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c6f608a98456000150f589b"], optimism: ["5ca7fa0049d171001595d43d"], shealth: ["5ca7fa0049d171001595d43d"], shope: ["5ca7fa0049d171001595d43d"], smilkshake: ["5c6f608a98456000150f589b"], hoptimism: ["5ca7fa0049d171001595d43d"]})[10].tag, "altruism", 'getTopTags'],
       ]
     );
     if (!devFlag) {return res.render('admin', { codes:user.codes, results:results });}
