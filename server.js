@@ -594,7 +594,7 @@ var deleteTagRefs = function (tagArr, date, authorID, callback) {
 
 var parseInboundTags = function (tagString) {
   var tags = {};
-  tagString = tagString.replace(/[^ a-zA-Z0-9-_!@&*:;=~,]/g, '');
+  tagString = tagString.replace(/[^ a-zA-Z0-9-_!?@&*:;=~,]/g, '');
   var arr = tagString.match(/[ a-zA-Z0-9-_!@&*:;=~]+/g);
   if (arr) {
     for (var i = 0; i < arr.length; i++) {
