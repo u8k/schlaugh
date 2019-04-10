@@ -2439,22 +2439,23 @@ app.get('/~getPost/:id/:date', function (req, res) {
   })
 });
 
-// get all posts with tag on date
-app.get('/~getTag/:tag/:date', function (req, res) {
-  if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
-  db.collection('tags').findOne({date: req.params.date}, {_id:0, ref:1}
+// get all posts with tag on date, "post" just so we can take characters like "?", but this is a get request in spirit
+app.post('/~getTag', function (req, res) {
+  if (!req.body.date || !req.body.tag) {return sendError(res, errMsg+"malformed request 712");}
+  if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
+  db.collection('tags').findOne({date: req.body.date}, {_id:0, ref:1}
   , function (err, dateBucket) {
     if (err) {return sendError(res, err);}
     else {
       if (!dateBucket) {
         return res.send({error: false, posts: [],});
-      } else if (!dateBucket.ref[req.params.tag]) {
+      } else if (!dateBucket.ref[req.body.tag]) {
         return res.send({error: false, posts: [],});
       } else {
-        if (dateBucket.ref[req.params.tag].length === 0) {
+        if (dateBucket.ref[req.body.tag].length === 0) {
           return res.send({error: false, posts: [],});
         } else {
-          postsFromAuthorListAndDate(dateBucket.ref[req.params.tag], req.params.date, null, function (resp) {
+          postsFromAuthorListAndDate(dateBucket.ref[req.body.tag], req.body.date, null, function (resp) {
             if (resp.error) {return sendError(res, resp.error);}
             else {return res.send({error:false, posts:resp.posts});}
           });

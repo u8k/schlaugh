@@ -658,7 +658,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
     } else {
       // we don't, so make the ajax call
       $('loading').classList.remove('removed');
-      ajaxCall('/~getTag/'+tag+"/"+date, 'GET', {}, function(json) {
+      ajaxCall('/~getTag', 'POST', {date:date, tag:tag,}, function(json) {
         renderPostFeed(json.posts, date, tag);
         $('loading').classList.add('removed');
         loadManage();
@@ -1160,6 +1160,7 @@ var createPostFooter = function (postElem, author, post, type) {
 }
 
 var createBookmarkButton = function (parent, author_id, post) {
+  if (!parent || !author_id || !post.date || !post.post_id) {return;}
   // is there an extant bookmark button?
   var x = parent.childNodes;
   if (x[x.length-2] && x[1].classList[0] === "bookmark-button") {
