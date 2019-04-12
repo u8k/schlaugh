@@ -552,6 +552,10 @@ var switchPanel = function (panelName) {
     $("password-recovery2").value = "";
   }
   $(panelName).classList.remove('removed');
+  // open the editor if editPanelButton is clicked when editPanel is already open
+  if (glo.openPanel && glo.openPanel === "write-panel" && panelName === "write-panel") {
+    showWriter('post');
+  }
   glo.openPanel = panelName;
 }
 
@@ -778,21 +782,19 @@ var renderPostFeed = function (postList, date, tag) {
     bucket.appendChild(document.createElement("br"));
     bucket.appendChild(post);
   } else {
-    // create temporary randomizing helper array
-    var rando = [];
-    for (var i = 0; i < postList.length; i++) {
-      rando.push(i);
-    }
+    postList.sort(function(a, b) {
+        if(a.post_id < b.post_id) { return -1; }
+        if(a.post_id > b.post_id) { return 1; }
+        return 0;
+    });
     // create posts
-    while(rando.length !== 0) {
-      var i = Math.floor(Math.random() * (rando.length));
+    for (var i = 0; i < postList.length; i++) {
+      postList[i]
       if (tag) {
-        bucket.appendChild(renderOnePost(postList[rando[i]], 'tag', tag));
+        bucket.appendChild(renderOnePost(postList[i], 'tag', tag));
       } else {
-        bucket.appendChild(renderOnePost(postList[rando[i]], 'feed', null));
+        bucket.appendChild(renderOnePost(postList[i], 'feed', null));
       }
-      //remove the current index refference from the randomizing helper array
-      rando.splice(i,1);
     }
   }
   $('posts').appendChild(bucket);
@@ -2837,7 +2839,9 @@ var parseUserData = function (data) {
   if (glo.username) {
     $("username").innerHTML = glo.username;
     $("username").classList.remove("removed");
+    $('username').setAttribute('href', "/"+glo.username);
     $("username").onclick = function () {
+      event.preventDefault();
       openAuthorPanel(glo.username);
     }
     $('edit-panel-title').innerHTML = glo.username;

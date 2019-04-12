@@ -1219,14 +1219,18 @@ app.post('/admin/testEmail', function(req, res) {
 
 
 
-// main page
+// main page, and panels
 app.get('/', function(req, res) {
-  if (!req.session.user) {res.render('layout', {user:false});}
-  else {
-    getSettings(req, res, function (settings) {
-      res.render('layout', {user:true, settings:settings});
-    });
-  }
+  renderLayout(req, res, {panel:"posts"});
+});
+app.get('/~writePanel', function(req, res) {
+  renderLayout(req, res, {panel:"write"});
+});
+app.get('/~inboxPanel', function(req, res) {
+  renderLayout(req, res, {panel:"inbox"});
+});
+app.get('/~settingsPanel', function(req, res) {
+  renderLayout(req, res, {panel:"settings"});
 });
 
 // payload
@@ -2523,6 +2527,7 @@ var renderLayout = function (req, res, data) {
         tag:data.tag,
         ever:data.ever,
         about:data.about,
+        panel:data.panel,
       });
     });
   }

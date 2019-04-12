@@ -10,7 +10,6 @@
     <script src="/pool.js"></script>
     <script src="/main.js"></script>
 	  <link rel="icon" type="image/png" href="/favicon.png" id='dynamic-favicon'>
-
     <script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js" integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy" crossorigin="anonymous"></script>
 
     <% if (user && typeof settings !== "undefined" && typeof settings.colors !== "undefined") { %>
@@ -37,7 +36,7 @@
       <a href="/"><h1>schlaugh</h1></a>
 
       <nav class="user-info">
-        <clicky id="username" class="removed special user-info-item"></clicky>
+        <a id="username" class="clicky removed special user-info-item"></a>
         <text id="sign-in" class="clicky user-info-item" onclick="passPromptSubmit()">schlaugh in</text>
         <text id="sign-out" class="clicky removed user-info-item" onclick="signOut()">schlaugh out</text>
       </nav>
@@ -96,7 +95,7 @@
       <% } else if (typeof about !== "undefined") { %>
         <script type="text/javascript">fetchData(function () {switchPanel("~about-panel")});</script>
       <% } else { %>
-        <script type="text/javascript">fetchData(function () {switchPanel("posts-panel")});</script>
+        <script type="text/javascript">fetchData(function () {switchPanel(<%- JSON.stringify(panel) %>+"-panel")});</script>
       <% } %>
     <% } else { %>
       <% if (typeof author !== "undefined") { %>

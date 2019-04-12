@@ -1,11 +1,19 @@
 <nav id="nav" class="removed">
-  <icon id="write-panel-button" class="clicky fas fa-pencil-alt" onclick="switchPanel('write-panel')"></icon>
+  <a href="/~writePanel" id="write-panel-button" class="clicky not-special" onclick="event.preventDefault(); switchPanel('write-panel')">
+    <icon class="fas fa-pencil-alt"></icon>
+  </a>
   &nbsp;
-  <icon id="posts-panel-button" class="clicky fas fa-book" onclick="switchPanel('posts-panel')"></icon>
+  <a href="/" id="posts-panel-button" class="clicky not-special" onclick="event.preventDefault(); switchPanel('posts-panel')">
+    <icon class="fas fa-book"></icon>
+  </a>
   &nbsp;
-  <icon id="inbox-panel-button" class="clicky fas fa-envelope" onclick="switchPanel('inbox-panel')"></icon>
+  <a href="/~inboxPanel" id="inbox-panel-button" class="clicky not-special" onclick="event.preventDefault(); switchPanel('inbox-panel')">
+    <icon class="fas fa-envelope"></icon>
+  </a>
   &nbsp;
-  <icon id="settings-panel-button" class="clicky fas fa-cog" onclick="switchPanel('settings-panel')"></icon>
+  <a href="/~settingsPanel" id="settings-panel-button" class="clicky not-special" onclick="event.preventDefault(); switchPanel('settings-panel')">
+    <icon class="fas fa-cog"></icon>
+  </a>
   <br><br>
 </nav>
 
