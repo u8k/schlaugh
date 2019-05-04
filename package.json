@@ -2,9 +2,12 @@
   "name": "schlaugh",
   "version": "1.0.0",
   "description": "a quiet place to write",
-  "main": "server.js",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "build/server.js",
   "scripts": {
-    "start": "node server"
+    "start": "node build/server.js",
+    "br": "tsc && node build/server.js"
   },
   "author": "u8k",
   "license": "",
@@ -18,5 +21,11 @@
     "express-sslify": "^1.2.0",
     "mongodb": "^2.2.31",
     "request": "^2.85.0"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.1.4",
+    "tslint": "^5.16.0",
+    "typescript": "^3.4.5"
   }
 }

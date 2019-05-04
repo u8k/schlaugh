@@ -1,7 +1,9 @@
-FROM node:7.7.2-alpine
+FROM node:8.16.0-alpine
 WORKDIR /usr/app
+RUN mkdir /usr/app/build
 COPY package.json .
-RUN npm install --silent
-COPY . .
-RUN npm install -g nodemon --silent
+COPY yarn.lock .
+RUN yarn install --silent --network-timeout 600000
+COPY build .
+RUN yarn global add nodemon --silent
 EXPOSE 3000

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>s c h l a u g h</title>
+    <link rel="stylesheet" href="/main.css">
+    <script src="/openpgp.min.js"></script>
+    <script src="/jscolor.js"></script>
+    <script src="/pool.js"></script>
+    <script src="/main.js"></script>
+	  <link rel="icon" type="image/png" href="/favicon.png" id='dynamic-favicon'>
+    <script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js" integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy" crossorigin="anonymous"></script>
+
+    <% if (user && typeof settings !== "undefined" && typeof settings.colors !== "undefined") { %>
+      <style media="screen">
+        .post, .message, .editor, #settings-box, #thread-list, button, .pop-up {
+          background-color: <%= settings.colors.postBackground %>;
+        }
+        body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up {
+          color: <%= settings.colors.text %>;
+        }
+        button {border-color: <%= settings.colors.text %>;}
+        a, a.visited, a.hover, .special {
+          color: <%= settings.colors.linkText %>;
+        }
+        body, h1, input, select {
+          background-color: <%= settings.colors.background %>;
+        }
+      </style>
+    <% } %>
+
+  </head>
+  <body>
+    <header>
+      <a href="/"><h1>schlaugh</h1></a>
+
+      <nav class="user-info">
+        <a id="username" class="clicky removed special user-info-item"></a>
+        <text id="sign-in" class="clicky user-info-item" onclick="passPromptSubmit()">schlaugh in</text>
+        <text id="sign-out" class="clicky removed user-info-item" onclick="signOut()">schlaugh out</text>
+      </nav>
+    </header>
+
+    <main id="main">
+      <%- include("main") %>
+    </main>
+
+
+    <% if (user) { %>
+      <% if (typeof author !== "undefined") { %>
+        <% if (post_id) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var post_id = <%- JSON.stringify(post_id) %>;
+            fetchData(function () {openPost(author, post_id)});
+          </script>
+        <% } else if (post_index) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var post_index = <%- JSON.stringify(post_index) %>;
+            fetchData(function () {openPost(author, null, post_index)});
+          </script>
+        <% } else if (tag) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var tag = <%- JSON.stringify(tag) %>;
+            fetchData(function () {filterAuthorByTag(author, tag)});
+          </script>
+        <% } else { %>
+          <script type="text/javascript">
+            fetchData(function () {openAuthorPanel(<%- JSON.stringify(author) %>)});
+          </script>
+        <% } %>
+      <% } else if (typeof post_id !== "undefined") { %>
+        <% if (typeof ever !== "undefined") { %>
+          <script type="text/javascript">
+            fetchData(function () {
+              simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
+              open404author(true);
+            });
+          </script>
+        <% } else { %>
+          <script type="text/javascript">
+            fetchData(function () {
+              simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
+              open404author();
+            });
+          </script>
+        <% } %>
+      <% } else if (typeof tag !== "undefined") { %>
+        <script type="text/javascript">
+          fetchData(function () {loadPosts(0, <%- JSON.stringify(tag) %>)});
+        </script>
+      <% } else if (typeof about !== "undefined") { %>
+        <script type="text/javascript">fetchData(function () {switchPanel("~about-panel")});</script>
+      <% } else { %>
+        <script type="text/javascript">fetchData(function () {switchPanel(<%- JSON.stringify(panel) %>+"-panel")});</script>
+      <% } %>
+    <% } else { %>
+      <% if (typeof author !== "undefined") { %>
+        <% if (post_id) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var post_id = <%- JSON.stringify(post_id) %>;
+            openPost(author, post_id);
+          </script>
+        <% } else if (post_index) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var post_index = <%- JSON.stringify(post_index) %>;
+            openPost(author, null, post_index);
+          </script>
+        <% } else if (tag) { %>
+          <script type="text/javascript">
+            var author = <%- JSON.stringify(author) %>;
+            var tag = <%- JSON.stringify(tag) %>;
+            filterAuthorByTag(author, tag);
+          </script>
+        <% } else { %>
+          <script type="text/javascript">
+            openAuthorPanel(<%- JSON.stringify(author) %>);
+          </script>
+        <% } %>
+      <% } else if (typeof post_id !== "undefined") { %>
+        <% if (typeof ever !== "undefined") { %>
+          <script type="text/javascript">
+            simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
+            open404author(true);
+          </script>
+        <% } else { %>
+          <script type="text/javascript">
+            simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
+            open404author();
+          </script>
+        <% } %>
+      <% } else if (typeof tag !== "undefined") { %>
+        <script type="text/javascript">
+          loadPosts(0, <%- JSON.stringify(tag) %>);
+        </script>
+      <% } else if (typeof recovery !== "undefined") { %>
+        <% if (recovery) { %>
+          <script type="text/javascript">switchPanel("recovery-panel"); glo.resetCode = <%- JSON.stringify(recovery) %>;</script>
+        <% } else { %>
+          <script type="text/javascript">switchPanel("bad-recovery-panel");</script>
+          <% } %>
+      <% } else if (typeof about !== "undefined") { %>
+        <script type="text/javascript">switchPanel("~about-panel");</script>
+      <% } else { %>
+        <script type="text/javascript">switchPanel("login-panel");</script>
+      <% } %>
+    <% } %>
+
+    <footer>
+      <%
+        var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+        var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours to schlaupdate";
+      %>
+      <text><%= hoursRemaining %></text>
+    </footer>
+
+  </body>
+</html>
