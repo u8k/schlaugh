@@ -2602,7 +2602,7 @@ var block = function (threadIndex) {
 }
 
 // encryption stuff
-openpgp.initWorker({ path:'/openpgp.worker.min.js' });
+openpgp.initWorker({ path:'/assets/openpgp.worker.min.js' });
 
 var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
   openpgp.encrypt({

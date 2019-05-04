@@ -25,7 +25,7 @@ MongoClient.connect(uri, function(err, database) {
 var app = express();
 
 // Load View Engine
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, '../views'));
 app.set('view engine', 'ejs');
 
 // Body Parser Middleware
