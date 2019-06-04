@@ -4,7 +4,7 @@
   "description": "a quiet place to write",
   "engines": {
 	"node": "8.16.0"
-  }
+  },
   "license": "UNLICENSED",
   "private": true,
   "main": "build/server.js",
