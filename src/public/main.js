@@ -32,6 +32,7 @@ var fontSelect = function () {
 }
 
 var changeFont = function (font) {
+  console.log('butts');
   var sheet = document.styleSheets[document.styleSheets.length-1];
   var selector = ".editor, .post, .message, .author-header-right";
   var attribute = "font-family";
