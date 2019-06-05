@@ -179,7 +179,7 @@ var isNumeric = function (n) {
   return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
-var prompt = function (options) {
+var uiPrompt = function (options) {
   // options is an object that can include props for
   //      'label', 'placeholder', 'value', 'callback'(function)
   if (!options) {  //close the prompt
@@ -197,12 +197,12 @@ var prompt = function (options) {
     setCursorPosition($("prompt-input"), 0, $("prompt-input").value.length);
     //
     $("prompt-submit").onclick = function(){
-      prompt(false);
+      uiPrompt(false);
       options.callback($("prompt-input").value);
     }
     var exit = function(){
       options.callback(null);
-      prompt(false);
+      uiPrompt(false);
     }
     $("prompt-close").onclick = exit;
     $("pop-up-backing").onclick = exit;
@@ -281,7 +281,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
   });
 }
 
-var alert = function (message, btnTxt, callback) {
+var uiAlert = function (message, btnTxt, callback) {
   if (!$("alert")) {return console.log(message);}
   loading(true, true);
   if (!message) {  //close the alert
@@ -298,7 +298,7 @@ var alert = function (message, btnTxt, callback) {
     var exit = function(){
       if (callback) {callback();}
       oldFocus.focus();
-      alert(false);
+      uiAlert(false);
     }
     $("alert-submit").onclick = exit;
     $("pop-up-backing").onclick = exit;
@@ -409,10 +409,10 @@ var ajaxCall = function(url, method, data, callback) {
       if (this.status == 200) {
         var json = (xhttp.responseText);
         json = JSON.parse(json);
-        if (json.error) {alert(json.error);}
+        if (json.error) {uiAlert(json.error);}
         else {callback(json);}
       } else {
-        alert("error, sorry!<br>something went wrong with the encryption, please show this to staff<br><br>"+this.statusText+"<br>"+this.responseText)
+        uiAlert("error, sorry!<br>something went wrong with the encryption, please show this to staff<br><br>"+this.statusText+"<br>"+this.responseText)
       }
     }
   }
@@ -590,11 +590,11 @@ var dateJump = function (input) {
   if (!target) {target = $("date-picker").value;}
   if (!target) {target = pool.getCurDate();}
   if (target.length !== 10 || target[4] !== "-" || target[7] !== "-" || !isNumeric(target.slice(0,4)) || !isNumeric(target.slice(5,7)) || !isNumeric(target.slice(8,10))) {
-    return alert("date must be formatted YYYY-MM-DD");
+    return uiAlert("date must be formatted YYYY-MM-DD");
   } else {
     target = getEpochSeconds(target);
     if (target > getEpochSeconds(pool.getCurDate())) {
-      return alert("and no future vision either!");
+      return uiAlert("and no future vision either!");
     } else {
       if (input) {
         loadPosts(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)), false);
@@ -812,7 +812,7 @@ var renderOnePost = function (postData, type, typeName) {
   else if (type === 'feed') {var uniqueID = postData.post_id+"-"+postData.date+"-feed"}
   else if (type === 'sequence') {var uniqueID = 'sequence-'+typeName+'-'+postData.post_id;}
   else if (type === 'preview') {var uniqueID = 'preview-'+typeName;}
-  else {return alert("error, sorry! render error, post is not of a valid type???, please show this to staff");}
+  else {return uiAlert("error, sorry! render error, post is not of a valid type???, please show this to staff");}
   post.setAttribute('id', uniqueID);
   // collapse button
   var collapseBtn = document.createElement("clicky");
@@ -1109,7 +1109,7 @@ var createPostFooter = function (postElem, author, post, type) {
         quoteBtn.onclick = function() {
           loading();
           ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
-            if (json.four04) {return alert("eRoRr! post not found???")}
+            if (json.four04) {return uiAlert("eRoRr! post not found???")}
             loading(true);
             var text = "<quote>"+json.post.body+
             '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
@@ -1306,7 +1306,7 @@ var editPost = function (post, author) {
   } else {
     loading();
     ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
-      if (json.four04) {return alert("eRoRr! post not found???")}
+      if (json.four04) {return uiAlert("eRoRr! post not found???")}
       loading(true);
       var tags = getTagString(json.post.tags);
       glo.fetchedPosts[post.date] = [json.post];
@@ -2033,12 +2033,12 @@ var hyperlink = function (src) {
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   var linkText;
   if (a !== b) {linkText = convertLineBreaks(y.substr(a,b-a), true);}
-  prompt({
+  uiPrompt({
     label: "target url:",
     placeholder: "http://www.butts.cash/",
     callback: function(target) {
       if (target !== null) {
-        prompt({
+        uiPrompt({
           placeholder: "butts.cash",
           value: linkText,
           label: "link text:",
@@ -2072,7 +2072,7 @@ var insertImage = function (src) {
   var b = x.end;
   var y = area.value;
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
-  prompt({
+  uiPrompt({
     label: "image url:",
     value:"https://i.imgur.com/hDEXSt7.jpg",
     placeholder: "hiss",
@@ -2108,7 +2108,7 @@ var insertCut = function (src) {
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   var cutText = "more";
   if (a !== b) {cutText = convertLineBreaks(y.substr(a,b-a), true);}
-  prompt({
+  uiPrompt({
     label:"text:",
     value:cutText,
     placeholder: "",
@@ -2138,19 +2138,19 @@ var insertQuote = function (src) {
   if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<quote>\n'}
   var closeTag = '\n</quote>\n';
   if (y.substr(b,1) === "\n") {closeTag = '\n</quote>';}
-  prompt({
+  uiPrompt({
     label:"quote text:",
     value:quoteText,
     placeholder: "nitwit blubber oddment tweak",
     callback: function(quoteText) {
       if (quoteText !== null) {
         quoteText = convertLineBreaks(quoteText);
-        prompt({
+        uiPrompt({
           label: "source text(optional):",
           placeholder: "dumbledore",
           callback: function(sourceText) {
             if (sourceText !== null && sourceText !== "") {
-              prompt({
+              uiPrompt({
                 label: "source link(optional):",
                 placeholder: "http://www.dumbledore.com",
                 callback: function(sourceLink) {
@@ -2194,13 +2194,13 @@ var insertNote = function (src) {
   var y = area.value;
   var linkText;
   if (a !== b) {linkText = convertLineBreaks(y.substr(a,b-a), true);}
-  prompt({
+  uiPrompt({
     label: "link text:",
     placeholder: "(aside)",
     value: linkText,
     callback: function(linkText) {
       if (linkText !== null) {
-        prompt({
+        uiPrompt({
           placeholder: "Laura Epsom",
           label: "note contents:",
           callback: function(noteContents) {
@@ -2387,7 +2387,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
         return hideWriter('message');
       }
     }
-    if (!glo.threads[i].key) {return alert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a (strange)bug please note all details and tell staff, sorry");}
+    if (!glo.threads[i].key) {return uiAlert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a (strange)bug please note all details and tell staff, sorry");}
     //
     loading();
     var encryptAndSend = function () {
@@ -2602,7 +2602,7 @@ var block = function (threadIndex) {
 }
 
 // encryption stuff
-openpgp.initWorker({ path:'/openpgp.worker.min.js' });
+openpgp.initWorker({ path:'/assets/openpgp.worker.min.js' });
 
 var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
   openpgp.encrypt({
@@ -2615,7 +2615,7 @@ var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
     }).then(function(encryptedDataRecipient) {
       callback(encryptedDataSender.data, encryptedDataRecipient.data);
     },function (err) {            // callback for failed decryption
-      return alert("error, sorry! something went wrong with the encryption, please show this to staff");
+      return uiAlert("error, sorry! something went wrong with the encryption, please show this to staff");
     });
   });
 }
@@ -2651,7 +2651,7 @@ var verifyPass = function (callback) {      // for decryption
       loading();
       ajaxCall('/login', 'POST', data, function(json) {
         if (json.switcheroo) {
-          return alert("huh!? that's a different account...", "switcheroo!", function () {location.reload();});
+          return uiAlert("huh!? that's a different account...", "switcheroo!", function () {location.reload();});
         } else {
           unlockInbox(data.password, callback);
         }
@@ -2749,8 +2749,8 @@ var logInPageSubmit = function(inOrUp) {
   // validate
   var x = pool.userNameValidate(data.username);
   var y = pool.passwordValidate(data.password);
-  if (x) {alert(x);}
-  else if (y) {alert(y);}
+  if (x) {uiAlert(x);}
+  else if (y) {uiAlert(y);}
   else {
     if (inOrUp === 'in') {
       var url = '/login';
@@ -2759,7 +2759,7 @@ var logInPageSubmit = function(inOrUp) {
       data.email = $('email-input').value;
       //data.secretCode = $('secret-code').value;
       if (data.password !== $('pass-input-two').value) {
-        alert('passwords are not the same');
+        uiAlert('passwords are not the same');
         return;
       }
     }
@@ -2923,14 +2923,14 @@ var showPassword = function (bool, elemName, elemArr) {       //or hide pass, if
 }
 
 var verifyEmailExplain = function () {
-  alert(`schlaugh stores your email in <a href="https://en.wikipedia.org/wiki/Cryptographic_hash_function#Password_verification" target="_blank">"hashed"</a> form, meaning we can't just tell you what email address you have on file with us. But you can input what you think it is and we can tell you if that's right. And it's good to have a good email address stored with us in case you need to reset your password. But please don't need to reset your password.`)
+  uiAlert(`schlaugh stores your email in <a href="https://en.wikipedia.org/wiki/Cryptographic_hash_function#Password_verification" target="_blank">"hashed"</a> form, meaning we can't just tell you what email address you have on file with us. But you can input what you think it is and we can tell you if that's right. And it's good to have a good email address stored with us in case you need to reset your password. But please don't need to reset your password.`)
 }
 
 var verifyEmail = function () {
   loading();
   ajaxCall('/verifyEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
     if (json.match) {
-      alert('a perfect match!<br><br>in the event of a lost password, "'+$("email-verify-input").value+'" is your recovery email', "aye, aye, captain!");
+      uiAlert('a perfect match!<br><br>in the event of a lost password, "'+$("email-verify-input").value+'" is your recovery email', "aye, aye, captain!");
     } else {
       verify("hmm...<br><br>that does not match our records. you can try again, or change our records to this?", "change", "again", function (result) {
         if (!result) {return;}
@@ -2942,7 +2942,7 @@ var verifyEmail = function () {
               loading();
               ajaxCall('/changeEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
                 if (json) {
-                  alert('congratulations!<br><br>in the event of a lost password, "'+json.email+'" is your recovery email')
+                  uiAlert('congratulations!<br><br>in the event of a lost password, "'+json.email+'" is your recovery email')
                 }
               });
             }
@@ -2955,9 +2955,9 @@ var verifyEmail = function () {
 
 var changePassword = function () {
   if ($("password-change0").value === "" || $("password-change1").value === "" || $("password-change2").value === "") {
-    alert("empty field");
+    uiAlert("empty field");
   } else if ($("password-change1").value !== $("password-change2").value) {
-    alert("must be same same");
+    uiAlert("must be same same");
   }
   else {
     verify("this may take a moment. And will require a refresh(so just like don't have any unsaved text sitting in an editor)<br><br>is that alright?", "go ahead", "maybe later", function (resp) {
@@ -2970,7 +2970,7 @@ var changePassword = function () {
         }
         ajaxCall('/changePasswordStart', 'POST', data, function(json) {
           if (json.noMatch) {
-            return alert("incorrect current password");
+            return uiAlert("incorrect current password");
           }
           else {
             makeKeys(data.newPass, function (newKeys) {
@@ -3041,7 +3041,7 @@ var changePassword = function () {
 
 var makePassFinCall = function (newData) {
   ajaxCall('/changePasswordFin', 'POST', newData, function(json) {
-    alert('your password has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
+    uiAlert('your password has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
       location.reload();
     });
   });
@@ -3058,7 +3058,7 @@ var submitRecoveryRequest = function () {
       $("recovery-reset-button").classList.remove("removed");
     });
   } else {
-    alert("invalid input");
+    uiAlert("invalid input");
   }
 }
 
@@ -3071,7 +3071,7 @@ var resetRecoveryRequest = function () {
 }
 
 var submitRecoveryName = function () {
-  if ($("username-recovery").value === "") {return alert("empty input!")}
+  if ($("username-recovery").value === "") {return uiAlert("empty input!")}
   var data = {username: $("username-recovery").value, code: glo.resetCode,}
   if ($("password-recovery1").value !== "" && $("password-recovery2").value !== "") {
     if ($("password-recovery1").value === $("password-recovery2").value) {
@@ -3082,9 +3082,9 @@ var submitRecoveryName = function () {
           makeResetCall(data);
         }
       });
-    } else {return alert("password fields are not identical!");}
+    } else {return uiAlert("password fields are not identical!");}
   } else if ($("password-recovery1").value !== "" || $("password-recovery2").value !== "") {
-    return alert("password fields are not identical!");
+    return uiAlert("password fields are not identical!");
   } else {
     makeResetCall(data);
   }
@@ -3103,12 +3103,12 @@ var makeResetCall = function (data) {
       $("pass-reset-success").classList.remove("removed");
     } else {
       if (json.attempt === 5) {
-        alert(`the inputted username does not match the code for which it was generated<br><br>attempt 5 of 5<br><br>try a new code?`, "ok", function () {
+        uiAlert(`the inputted username does not match the code for which it was generated<br><br>attempt 5 of 5<br><br>try a new code?`, "ok", function () {
           switchPanel('lost-panel');
           simulatePageLoad();
         });
       } else {
-        alert("the inputted username does not match the code for which it was generated<br>please try again<br><br>attempt "+json.attempt+" of 5");
+        uiAlert("the inputted username does not match the code for which it was generated<br>please try again<br><br>attempt "+json.attempt+" of 5");
       }
     }
   });

@@ -2,6 +2,9 @@
   "name": "schlaugh",
   "version": "1.0.0",
   "description": "a quiet place to write",
+  "engines": {
+	"node": "8.16.0"
+  },
   "license": "UNLICENSED",
   "private": true,
   "main": "build/server.js",
@@ -10,7 +13,6 @@
     "br": "tsc && node build/server.js"
   },
   "author": "u8k",
-  "license": "",
   "dependencies": {
     "@sendgrid/mail": "^6.3.1",
     "bcryptjs": "^2.4.3",

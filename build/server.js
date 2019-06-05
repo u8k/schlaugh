@@ -25,7 +25,7 @@ MongoClient.connect(uri, function(err, database) {
 var app = express();
 
 // Load View Engine
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, '../views'));
 app.set('view engine', 'ejs');
 
 // Body Parser Middleware
@@ -33,7 +33,8 @@ app.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
 app.use(bodyParser.json({limit: '5mb'}));
 
 // Set Public Folder
-app.use(express.static(path.join(__dirname, 'public')));
+app.use("/assets", express.static(path.join(__dirname, '../assets')));
+app.use("/app", express.static(path.join(__dirname, 'public')));
 
 // Configure cookie-session middleware
 app.use(session({
@@ -649,7 +650,7 @@ var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
       var posts = [];
       var count = users.length;
       for (var i = 0; i < users.length; i++) {
-        if (users[i].posts[date]) {
+        if (users[i].posts && users[i].posts[date]) {
           checkUpdates(users[i], function (resp) {
             if (resp.error) {return callback({error:resp.error})}
             var authorPic = getUserPic(resp.user);
