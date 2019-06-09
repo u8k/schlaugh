@@ -3,13 +3,12 @@ services:
   app:
     container_name: app
     restart: always
-    command: nodemon -L --watch ./build/server.js ./build/server.js
+    command: nodemon -L --watch ./src/server.js ./src/server.js
     build: .
     ports:
       - "3000:3000"
     volumes:
       - ./assets:/usr/app/assets
-      - ./build:/usr/app/build
       - ./src:/usr/app/src
       - ./views:/usr/app/views
     links:
@@ -19,6 +18,7 @@ services:
   mongo:
     container_name: mongo
     image: mongo
+    command: --quiet
     volumes:
       - ./data:/data
     ports:

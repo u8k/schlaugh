@@ -9,7 +9,8 @@
   "private": true,
   "main": "build/server.js",
   "scripts": {
-    "start": "tsc && node build/server.js"
+    "start": "node build/server.js",
+    "build": "tsc"
   },
   "author": "u8k",
   "dependencies": {
