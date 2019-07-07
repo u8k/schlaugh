@@ -52,6 +52,7 @@
   <button id="jump-open" onclick="openDateJump()">jump</button>
   <button id="tag-menu-open" onclick="openTagMenu()">tags</button>
   <button id="clear-tag" onclick="loadPosts(0, false); openTagMenu()" class="removed">clear tag</button>
+  <button id="save-tag" onclick="saveTag(false, glo.tag)" class="removed">save tag</button>
   <form id="date-jump" class="removed" action="javascript:void(0);">
     <input id="date-picker" type="text" placeholder="date">
     <script type="text/javascript">
@@ -62,13 +63,19 @@
     <button onclick="openDateJump(true)">x</button>
   </form>
   <div id="tag-menu" class="removed">
-    <div id="top-tag-bucket" class="removed">
-      <div id="top-tags"></div>
-    </div>
+    _____<br>
+    <h2>saved tags:</h2>
+    <text id="none-tags">(none)</text>
+    <div id="tag-bucket"></div>
+    <text class="monospace">include tagged posts in main feed</text>
+    <text id="include-tagged-posts-toggle" onclick="toggleTaggedPostsInclusion()"></text>
+    <br><br>
     <form id="tag-search" action="javascript:void(0);">
       <input id="tag-picker" type="text" placeholder="milkshake">
       <br>
       <button type="submit" onclick="tagSearch()">search</button>
+      <button onclick="saveTag()">save</button>
+      <br>
       <button onclick="openTagMenu(true)">x</button>
     </form>
   </div>
@@ -252,7 +259,7 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img id="o-pic" src="https://media-cdn.tripadvisor.com/media/photo-s/11/ff/07/4b/sweet-potato-spotted.jpg" alt="owl">
+  <img id="o-pic" src="https://upload.wikimedia.org/wikipedia/en/6/6a/Odessey_and_Oracle.jpg" alt="Odessey and Oracle">
 </div>
 
 <div id="edit-panel" class="removed">

@@ -2,7 +2,7 @@
 
 *:focus {outline:0;}
 
-h1, button, input, footer, header, postNav, .post-footer-left, h2, .author-page-title, .author-on-post, .thread-name, #thread-title, #pending-message-status {font-family: monospace;}
+h1, button, input, footer, header, postNav, .post-footer-left, h2, .author-page-title, .author-on-post, .thread-name, #thread-title, #pending-message-status, .monospace {font-family: monospace;}
 
 body {
   padding: 1.5vmin;
@@ -163,6 +163,14 @@ clicky, .clicky {
   white-space: pre-wrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.de-tag-button {
+  font-size: .75em;
+}
+
+#include-tagged-posts-toggle {
+  font-size: .9em;
 }
 
 img {

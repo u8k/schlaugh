@@ -412,7 +412,7 @@ var ajaxCall = function(url, method, data, callback) {
         if (json.error) {uiAlert(json.error);}
         else {callback(json);}
       } else {
-        uiAlert("error, sorry!<br>something went wrong with the encryption, please show this to staff<br><br>"+this.statusText+"<br>"+this.responseText)
+        uiAlert("error, sorry!<br><br>unethical response from server, please show this to staff<br><br>"+this.statusText+"<br>"+this.responseText)
       }
     }
   }
@@ -575,8 +575,10 @@ var followingListDisplay = function (open) {
 
 var openDateJump = function (close) {
   if (close) {
+    if (!glo.tag) {
+      $('tag-menu-open').classList.remove('removed');
+    }
     $('jump-open').classList.remove('removed');
-    $('tag-menu-open').classList.remove('removed');
     $('date-jump').classList.add('removed');
   } else {
     $('date-jump').classList.remove('removed');
@@ -630,15 +632,16 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
     if ($('posts-for-'+ date +'-'+glo.tag)) {$('posts-for-'+ date +'-'+glo.tag).classList.add('removed');}
   } else {
     if ($('posts-for-'+ date)) {$('posts-for-'+ date).classList.add('removed');}
-    if ($('top-tags-for-'+ date)) {$('top-tags-for-'+ date).classList.add('removed');}
+    if ($('tags-for-'+ date)) {$('tags-for-'+ date).classList.add('removed');}
   }
   //
   if (tag === false) {
     glo.tag = null;
     $("tag-display").classList.add("removed");
     $("clear-tag").classList.add("removed");
+    $("save-tag").classList.add("removed");
     $("tag-menu-open").classList.remove("removed");
-    $("jump-open").classList.remove("removed");
+    $('date-jump').classList.add("removed");
   } else if (!tag) {
     tag = glo.tag;
   }
@@ -650,6 +653,11 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
   $('date-display').innerHTML = date;
   if (tag) {
     glo.tag = tag;
+    if (!glo.savedTags[tag]) {$("save-tag").classList.remove("removed");}
+    else {$("save-tag").classList.add("removed");}
+    if ($('date-jump').classList.contains('removed')) {
+      $("jump-open").classList.remove("removed");
+    }
     $("tag-display").innerHTML = 'posts tagged "'+tag+'" on';
     $("tag-menu").classList.add("removed");
     $("tag-menu-open").classList.add("removed");
@@ -663,7 +671,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
       // we don't, so make the ajax call
       $('loading').classList.remove('removed');
       ajaxCall('/~getTag', 'POST', {date:date, tag:tag,}, function(json) {
-        renderPostFeed(json.posts, date, tag);
+        renderPostFeed(json.posts, date, tag).classList.remove('removed');
         $('loading').classList.add('removed');
         loadManage();
       });
@@ -673,12 +681,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
     // check if we already have the data
     if ($('posts-for-'+date)) {
       $('posts-for-'+date).classList.remove('removed');
-      if ($('top-tags-for-'+date)) {
-        $('top-tags-for-'+date).classList.remove('removed');
-        $("top-tag-bucket").classList.remove('removed');
-      } else {
-        $("top-tag-bucket").classList.add('removed');
-      }
+      if ($('tags-for-'+date)) {$('tags-for-'+date).classList.remove('removed');}
       loadManage();
     } else {
       // we don't, so make the ajax call
@@ -686,7 +689,19 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
       if (init) {var data = {init:true};}
       else {var data = {};}
       ajaxCall('/posts/'+date, 'POST', data, function(json) {
-        renderPostFeed(json.posts, date);
+        var filteredPosts = [];
+        if (!glo.settings || !glo.settings.includeTaggedPosts) {
+          for (var i = 0; i < json.posts.length; i++) {
+            if (glo.followingRef) {
+              if (glo.followingRef[json.posts[i]._id]) {
+                filteredPosts.push(json.posts[i]);
+              }
+            }
+          }
+        } else {
+          filteredPosts = json.posts;
+        }
+        renderPostFeed(filteredPosts, date).classList.remove('removed');
         $('loading').classList.add('removed');
         //following list, if this is the first call for posts,
         if (init) {
@@ -715,42 +730,46 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
             followingBucket.appendChild(listing);
           }
         }
-        // render top tags for the day
-        var tagArr = json.topTags;
+        // render saved tags, with counts for that day, and tag feeds for each
+        var tagArr = json.tagList;
         if (!tagArr || tagArr.length === 0) {
-          $("top-tag-bucket").classList.add('removed');
+          $("none-tags").classList.remove('removed');
         } else {
+          $("none-tags").classList.add('removed');
           var bucket = document.createElement("div");
-          bucket.setAttribute('id', 'top-tags-for-'+date);
+          bucket.setAttribute('id', 'tags-for-'+date);
           for (var i = 0; i < tagArr.length; i++) {
+            var count = 0;
+            var taggedPosts = [];
+            for (var j = 0; j < json.posts.length; j++) {
+              if (json.posts[j].tags[tagArr[i]]) {
+                taggedPosts.push(json.posts[j]);
+                count++;
+              }
+            }
+            renderPostFeed(taggedPosts, date, tagArr[i]);
             var tagShell = document.createElement("div");
             var tag = document.createElement("text");
             tag.setAttribute('class', 'clicky top-tag special');
-              // cover for both the old topTag format, and the new AllTags
-            if (tagArr[i].tag) {
-              if (tagArr[i].count !== 1) {
-                tag.innerHTML = tagArr[i].tag + "("+tagArr[i].count+")";
-              } else {
-                tag.innerHTML = tagArr[i].tag;
+            tag.innerHTML = tagArr[i] + "("+count+")";
+            (function (tagName) {
+              tag.onclick = function(){
+                loadPosts(0, tagName);
               }
-              (function (tagName) {
-                tag.onclick = function(){
-                  loadPosts(0, tagName);
-                }
-              })(tagArr[i].tag);
-            } else {
-              tag.innerHTML = tagArr[i];
-              (function (tagName) {
-                tag.onclick = function(){
-                  loadPosts(0, tagName);
-                }
-              })(tagArr[i]);
-            }
+            })(tagArr[i]);
+            var detag = document.createElement("text");
+            detag.setAttribute('class', 'clicky de-tag-button special');
+            detag.innerHTML = ' &nbsp; <icon class="fas fa-trash-alt"></icon>';
+            (function (tagName) {
+              detag.onclick = function(){
+                saveTag(true, tagName);
+              }
+            })(tagArr[i]);
             tagShell.appendChild(tag);
+            tagShell.appendChild(detag);
             bucket.appendChild(tagShell);
           }
-          $("top-tags").appendChild(bucket);
-          $("top-tag-bucket").classList.remove('removed');
+          $("tag-bucket").appendChild(bucket);
         }
         loadManage();
       });
@@ -771,7 +790,7 @@ var loadManage = function () {
 
 var renderPostFeed = function (postList, date, tag) {
   var bucket = document.createElement("div");
-  bucket.setAttribute('class', 'post-bucket');
+  bucket.setAttribute('class', 'post-bucket monospace removed');
   if (tag) {bucket.setAttribute('id', 'posts-for-'+date+'-'+tag);}
   else {bucket.setAttribute('id', 'posts-for-'+date);}
   // if there are no posts for the day/tag
@@ -798,6 +817,7 @@ var renderPostFeed = function (postList, date, tag) {
     }
   }
   $('posts').appendChild(bucket);
+  return bucket;
 }
 
 var renderOnePost = function (postData, type, typeName) {
@@ -1885,6 +1905,45 @@ var tagSearch = function () {
   loadPosts(0, $("tag-picker").value);
 }
 
+var saveTag = function (remove, tag) {
+  if (tag === undefined) {
+    tag = $("tag-picker").value;
+    if (tag === "") {return uiAlert("ya can't track nothin!");}
+  }
+  loading();
+  ajaxCall("/saveTag", 'POST', {tag, remove:remove}, function(json) {
+    if (remove) {glo.savedTags[tag] = false;}
+    else {glo.savedTags[tag] = true;}
+    destroyCurrentBucketsAndReload();
+  });
+}
+
+var destroyCurrentBucketsAndReload = function () {
+  // Let the past die, kill it if you have to
+  var children = $("tag-bucket").childNodes;
+  for (var i = children.length-1; i > -1; i--) {
+    $("tag-bucket").removeChild(children[i]);
+  }
+  var oldPostArr = document.getElementsByClassName('post-bucket');
+  for (var i = oldPostArr.length-1; i > -1; i--) {
+    oldPostArr[i].parentNode.removeChild(oldPostArr[i]);
+  }
+  loadPosts(0, glo.tag);
+}
+
+var toggleTaggedPostsInclusion = function () {
+  ajaxCall('/toggleSetting', 'POST', {setting: "includeTaggedPosts"}, function(json) {
+    if (glo.settings.includeTaggedPosts) {
+      $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+      glo.settings.includeTaggedPosts = false;
+    } else {
+      $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
+      glo.settings.includeTaggedPosts = true;
+    }
+    destroyCurrentBucketsAndReload();
+  });
+}
+
 var filterAuthorByTag = function (author, tag) {
   openAuthorPanel(author, function () {
     // hide all posts
@@ -2816,6 +2875,10 @@ var parseUserData = function (data) {
   glo.fetchedPosts = Object.create(data.pendingUpdates);
   glo.userPic = data.userPic;
   glo.followingRef = {};
+  glo.savedTags = {};
+  for (var i = 0; i < data.savedTags.length; i++) {
+    glo.savedTags[data.savedTags[i]] = true;
+  }
   for (var i = 0; i < data.following.length; i++) {
     glo.followingRef[data.following[i]] = true;
   }
@@ -2854,6 +2917,12 @@ var parseUserData = function (data) {
     $("sign-in").classList.add("removed");
     //
     $("nav").classList.remove("removed");
+    //
+    if (glo.settings.includeTaggedPosts) {
+      $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
+    } else {
+      $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+    }
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}

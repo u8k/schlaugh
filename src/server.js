@@ -246,7 +246,7 @@ var getPayload = function (req, res, otherUserID, callback) {
   if (!req.session.user) {return sendError(res, "no user session 0234");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1}
+    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1, savedTags:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, "user not found");}
@@ -258,18 +258,18 @@ var getPayload = function (req, res, otherUserID, callback) {
         if (typeof bio !== 'string') {bio = "";}
         if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
         if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = [];}
+        if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
         var payload = {
           keys: user.keys,
           username: user.username,
           userPic: getUserPic(user),
-          settings: {},
+          settings: user.settings,
           following: user.following,
           bio: bio,
           bookmarks: user.bookmarks,
           collapsed: user.collapsed,
+          savedTags: user.savedTags,
         }
-        payload.settings.colors = user.settings.colors;
-        payload.settings.font = user.settings.font;
         //pending post
         if (user.posts[tmrw]) {
           payload.pending = user.posts[tmrw][0];
@@ -595,8 +595,8 @@ var deleteTagRefs = function (tagArr, date, authorID, callback) {
 
 var parseInboundTags = function (tagString) {
   var tags = {};
-  tagString = tagString.replace(/[^ a-zA-Z0-9-_!?@&*:;=~,]/g, '');
-  var arr = tagString.match(/[ a-zA-Z0-9-_!?@&*:;=~]+/g);
+  tagString = tagString.replace(/[^ a-zA-Z0-9-_!?@&*%:=+`"'~,]/g, '');
+  var arr = tagString.match(/[ a-zA-Z0-9-_!?@&*%:=+`"'~]+/g);
   if (arr) {
     for (var i = 0; i < arr.length; i++) {
       arr[i] = arr[i].trim();
@@ -749,6 +749,29 @@ var postsFromListOfAuthorsAndDates = function (postList, callback) {
   });
 }
 
+var getAuthorListFromTagListAndDate = function (tagList, date, callback) {
+  var authorList = [];
+  if (!tagList || !tagList.length || !date) {
+    return callback({error: false, authorList: authorList});
+  }
+  db.collection('tags').findOne({date: date}, {_id:0, ref:1}
+  , function (err, dateBucket) {
+    if (err) {return callback({error:err});}
+    else {
+      if (!dateBucket) {
+        return callback({error: false, authorList: authorList});
+      } else {
+        for (var i = 0; i < tagList.length; i++) {
+          if (dateBucket.ref[tagList[i]]) {
+            authorList = authorList.concat(dateBucket.ref[tagList[i]]);
+          }
+        }
+        return callback({error: false, authorList: authorList});
+      }
+    }
+  });
+}
+
 var insertIntoArray = function (array, index, item) {
   var before = array.slice(0,index);
   before.push(item);
@@ -756,20 +779,8 @@ var insertIntoArray = function (array, index, item) {
   return before.concat(after);
 }
 
-var trimTail = function (array) {
-  if (array.length > 7) {
-    var value = array[array.length-1].count;
-    for (var i = array.length-2; i > -1 ; i--) {
-      if (array[i].count !== value) {
-        if (i > 7) {return array.slice(0,i);}
-        else {break;}
-      }
-    }
-  }
-  return array;
-}
-
 var getTopTags = function (ref) { //input ref of a date of tags
+  // DEPRECIATED, this is only called by admin, leave so admin can see all used tags???
   // MISNOMER, this now just returns an ordered(by usage freq) list of ALL tags
   var arr = [];
   for (var tag in ref) {
@@ -789,83 +800,10 @@ var getTopTags = function (ref) { //input ref of a date of tags
             }
           }
         }
-        /*
-        if (arr.length === 0) {
-          arr[0] = {tag: tag, count: ref[tag].length};
-        } else {
-          var matched = false;
-          for (var i = arr.length-1; i > -1 ; i--) {
-            if (ref[tag].length > arr[i].count) {
-              if (i === 0) {
-                arr = insertIntoArray(arr, 0, {tag: tag, count: ref[tag].length});
-                arr = trimTail(arr);
-              }
-            } else if (ref[tag].length === arr[i].count) {
-              matched = true;
-              if (i === 0) {
-                arr = insertIntoArray(arr, 0, {tag: tag, count: ref[tag].length});
-                arr = trimTail(arr);
-              }
-            } else {    // less than
-              if (matched) {
-                arr = insertIntoArray(arr, i+1, {tag: tag, count: ref[tag].length});
-                arr = trimTail(arr);
-                break;
-              } else {
-                if (i < 7) {
-                  arr = insertIntoArray(arr, i+1, {tag: tag, count: ref[tag].length});
-                  arr = trimTail(arr);
-                }
-                break;
-              }
-            }
-          }
-        }
-        */
       }
     }
   }
   return arr;
-  /*
-  // final trim
-  if (arr.length > 7) {
-    var value = arr[arr.length-1].count;
-    for (var i = arr.length-2; i > -1 ; i--) {
-      if (arr[i].count !== value) {
-        var newArr = arr.slice(0,i+1);
-        var arr = arr.slice(i+1);
-        var choose = (7 - newArr.length);
-        for (var j = 0; j < choose; j++) {
-          var x = (Math.floor(Math.random() * (arr.length)));
-          newArr.push(arr[x]);
-          arr.splice(x,1);
-        }
-        break;
-      } else if (i === 0) {
-        var newArr = [];
-        for (var j = 0; j < 7; j++) {
-          var x = (Math.floor(Math.random() * (arr.length)));
-          newArr.push(arr[x]);
-          arr.splice(x,1);
-        }
-      }
-    }
-  } else {
-    var newArr = [];
-    for (var i = 0; i < arr.length; i++) {
-      newArr.push(arr[i]);
-    }
-  }
-  // randomize order
-  var randArr = [];
-  var len = newArr.length;
-  for (var i = 0; i < len; i++) {
-    var x = Math.floor(Math.random() * (newArr.length));
-    randArr.push(newArr[x].tag)
-    newArr.splice(x,1);
-  }
-  return randArr;
-  */
 }
 
 var genInboxTemplate = function () {
@@ -931,12 +869,6 @@ app.get('/admin', function(req, res) {
         [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:8}]},3:{}}, list:[1,2,3]}, 2, true, 3), false],
         [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:3}]},3:{}}, list:[8,6,1,2,3]}, 2, true, 3).length, 4],
         //
-        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: [], 'funding boards': [], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c66263ac4b7ab001575b147", "5c6f608a98456000150f589b"], optimism: ["5ca7fa0049d171001595d43d"]})[0].tag, "milkshake", 'getTopTags'],
-        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: [], 'funding boards': [], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c66263ac4b7ab001575b147", "5c6f608a98456000150f589b"], optimism: ["5ca7fa0049d171001595d43d"]})[0].count, 2, 'getTopTags'],
-        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: [], 'funding boards': [], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c66263ac4b7ab001575b147", "5c6f608a98456000150f589b"], optimism: ["5ca7fa0049d171001595d43d"]})[1].count, 1, 'getTopTags'],
-        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: [], 'funding boards': [], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c66263ac4b7ab001575b147"], optimism: ["5ca7fa0049d171001595d43d"]})[0].tag, "optimism", 'getTopTags'],
-        [getTopTags({altruism: [], apologies: [], 'funding boards': [], health: []})[0], undefined, 'getTopTags'],
-        [getTopTags({altruism: ["5ca7fa0049d171001595d43d"],apologies: ["5ca7fa0049d171001595d43d"], 'funding boards': ["5ca7fa0049d171001595d43d"], health: ["5ca7fa0049d171001595d43d"], hope: ["5ca7fa0049d171001595d43d"], milkshake: ["5c6f608a98456000150f589b"], optimism: ["5ca7fa0049d171001595d43d"], shealth: ["5ca7fa0049d171001595d43d"], shope: ["5ca7fa0049d171001595d43d"], smilkshake: ["5c6f608a98456000150f589b"], hoptimism: ["5ca7fa0049d171001595d43d"]})[10].tag, "altruism", 'getTopTags'],
       ]
     );
     if (!devFlag) {return res.render('admin', { codes:user.codes, results:results });}
@@ -1382,51 +1314,30 @@ app.post('/deleteOldPost', function (req, res) {
   });
 });
 
-// get posts of following, for a date
+// get posts of following/with tracked tag, for a date
 app.post('/posts/:date', function(req, res) {
   var errMsg = "error retrieving the posts of following<br><br>";
   if (!req.params.date || req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
   idCheck(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
-    , {_id:0, following:1,}
+    , {_id:0, following:1, savedTags:1}
     , function (err, user) {
       if (err) {return sendError(res, errMsg+err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
       else {
-        //fetch top tags
-        db.collection('tags').findOne({date: req.params.date}, {ref:1, top:1}
-        , function (err, dateBucket) {
-          if (err) {return sendError(res, errMsg+err);}
+        //
+        if (req.body.init) {var init = true;}
+        else {var init = false;}
+        if (!user.following || !user.following.length) {user.following = [];}
+        if (!user.savedTags || !user.savedTags.length) {user.savedTags = [];}
+        getAuthorListFromTagListAndDate(user.savedTags, req.params.date, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
           else {
-            var freshTops = false;
-            var topTags = [];
-            if (dateBucket) {
-              if (dateBucket.top && dateBucket.top.length) { //check for extant top tags
-                topTags = dateBucket.top;
-              } else if (dateBucket.ref) {
-                topTags = getTopTags(dateBucket.ref);
-                freshTops = true;
-              }
-            }
-            //
-            if (req.body.init) {var init = true;}
-            else {var init = false;}
-            if (user.following.length === undefined) {user.following = [];}
-            postsFromAuthorListAndDate(user.following, req.params.date, init, function (resp) {
+            var authorList = resp.authorList.concat(user.following);
+            postsFromAuthorListAndDate(authorList, req.params.date, init, function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
               else {
-                if (freshTops) {
-                  dateBucket.top = topTags;
-                  db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
-                    {$set: dateBucket},
-                    function(err, tag) {
-                      if (err) {return sendError(res, errMsg+err);}
-                      else {return res.send({error:false, posts:resp.posts, followingList:resp.followingList, topTags:topTags});}
-                    }
-                  );
-                } else {
-                  return res.send({error:false, posts:resp.posts, followingList:resp.followingList, topTags:topTags});
-                }
+                return res.send({error:false, posts:resp.posts, followingList:resp.followingList, tagList:user.savedTags});
               }
             });
           }
@@ -1482,11 +1393,45 @@ app.post('/bookmarks', function(req, res) {
               }
             }
           }
-          if (!found) {
+          if (!found && req.body.remove) {
             user.bookmarks.push({
               author_id: ObjectId(req.body.author_id),
               date: req.body.date
             });
+          }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, errMsg+resp.error);}
+            else {res.send({error: false});}
+          });
+        }
+      });
+  });
+});
+
+// save/unsave tags
+app.post('/saveTag', function(req, res) {
+  var errMsg = "tag not successfully saved<br><br>";
+  if (!req.body || !req.body.tag) {return sendError(res, errMsg+"malformed request 552");}
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, savedTags:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
+          var found = false;
+          for (var i = 0; i < user.savedTags.length; i++) {
+            if (user.savedTags[i] === req.body.tag) {
+              found = true;
+              if (req.body.remove) {
+                user.savedTags.splice(i, 1);
+                i--;
+              }
+            }
+          }
+          if (!found && !req.body.remove) {
+            user.savedTags.push(req.body.tag);
           }
           writeToDB(userID, user, function (resp) {
             if (resp.error) {sendError(res, errMsg+resp.error);}
@@ -1872,6 +1817,33 @@ app.post('/saveAppearance', function(req, res) {
         else {res.send({error: false});}
       });
     }
+  });
+});
+
+// flip a boolean setting
+app.post('/toggleSetting', function(req, res) {
+  var errMsg = "settings not successfully updated<br><br>";
+  if (!req.body || !req.body.setting) {return sendError(res, errMsg+"malformed request 992");}
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, settings:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          var setting = req.body.setting;
+          if (user.settings[setting]) {
+            user.settings[setting] = false;
+          } else {
+            user.settings[setting] = true;
+          }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, resp.error);}
+            else {res.send({error: false});}
+          });
+        }
+      }
+    );
   });
 });
 
@@ -2446,65 +2418,24 @@ app.get('/~getPost/:id/:date', function (req, res) {
 
 // get all posts with tag on date, "post" just so we can take characters like "?", but this is a get request in spirit
 app.post('/~getTag', function (req, res) {
+  var errMsg = "tag fetch error<br><br>"
   if (!req.body.date || !req.body.tag) {return sendError(res, errMsg+"malformed request 712");}
   if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
-  db.collection('tags').findOne({date: req.body.date}, {_id:0, ref:1}
-  , function (err, dateBucket) {
-    if (err) {return sendError(res, err);}
+  getAuthorListFromTagListAndDate([req.body.tag], req.body.date, function (resp) {
+    if (resp.error) {return sendError(res, resp.error);}
     else {
-      if (!dateBucket) {
-        return res.send({error: false, posts: [],});
-      } else if (!dateBucket.ref[req.body.tag]) {
-        return res.send({error: false, posts: [],});
+      if (resp.authorList.length === 0) {
+        return res.send({error:false, posts:[],});
       } else {
-        if (dateBucket.ref[req.body.tag].length === 0) {
-          return res.send({error: false, posts: [],});
-        } else {
-          postsFromAuthorListAndDate(dateBucket.ref[req.body.tag], req.body.date, null, function (resp) {
-            if (resp.error) {return sendError(res, resp.error);}
-            else {return res.send({error:false, posts:resp.posts});}
-          });
-        }
-      }
-    }
-  })
-});
-
-var authorFromPostID = function (post_id, callback) {
-  if (ObjectId.isValid(post_id)) {post_id = ObjectId(post_id);}
-  db.collection('posts').findOne({_id: post_id}, {}
-  , function (err, post) {
-    if (err) {return callback({error:err});}
-    else {
-      if (!post) {    //404
-        return callback({error: false, four04: true,});
-      } else {
-        var author_id = post.authorID;
-        if (ObjectId.isValid(author_id)) {author_id = ObjectId(author_id);}
-        db.collection('users').findOne({_id: author_id}
-        , { _id:0, username:1,}
-        , function (err, author) {
-          if (err) {return callback({error:err});}
-          else {
-            if (!author) {    //404
-              return callback({error: false, ever: true,});
-            } else {
-              return callback({error: false, four04: false, author:author.username});
-            }
-          }
+        postsFromAuthorListAndDate(resp.authorList, req.body.date, null, function (resp) {
+          if (resp.error) {return callback({error:err});}
+          else {return res.send({error:false, posts:resp.posts,});}
         });
       }
     }
   });
-}
+});
 
-// get a post, by id
-/*app.get('/~getPost/:post_id', function (req, res) {
-  authorFromPostID(req.params.post_id, function (resp) {
-    if (resp.error) {sendError(res, resp.error);}
-    else {res.send(resp);}
-  })
-});*/
 
 var renderLayout = function (req, res, data) {
   if (!req.session.user) {
@@ -2538,6 +2469,34 @@ var renderLayout = function (req, res, data) {
 app.get('/~', function (req, res) {
   renderLayout(req, res, {about:true,});
 });
+
+var authorFromPostID = function (post_id, callback) {
+  if (ObjectId.isValid(post_id)) {post_id = ObjectId(post_id);}
+  db.collection('posts').findOne({_id: post_id}, {}
+  , function (err, post) {
+    if (err) {return callback({error:err});}
+    else {
+      if (!post) {    //404
+        return callback({error: false, four04: true,});
+      } else {
+        var author_id = post.authorID;
+        if (ObjectId.isValid(author_id)) {author_id = ObjectId(author_id);}
+        db.collection('users').findOne({_id: author_id}
+        , { _id:0, username:1,}
+        , function (err, author) {
+          if (err) {return callback({error:err});}
+          else {
+            if (!author) {    //404
+              return callback({error: false, ever: true,});
+            } else {
+              return callback({error: false, four04: false, author:author.username});
+            }
+          }
+        });
+      }
+    }
+  });
+}
 
 // view a single post, by id
 app.get('/~/:post_id', function (req, res) {
