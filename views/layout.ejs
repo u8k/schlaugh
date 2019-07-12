@@ -94,6 +94,8 @@
         </script>
       <% } else if (typeof about !== "undefined") { %>
         <script type="text/javascript">fetchData(function () {switchPanel("~about-panel")});</script>
+      <% } else if (typeof faq !== "undefined") { %>
+        <script type="text/javascript">fetchData(function () {openFAQ();});</script>
       <% } else { %>
         <script type="text/javascript">fetchData(function () {switchPanel(<%- JSON.stringify(panel) %>+"-panel")});</script>
       <% } %>
@@ -146,6 +148,8 @@
           <% } %>
       <% } else if (typeof about !== "undefined") { %>
         <script type="text/javascript">switchPanel("~about-panel");</script>
+      <% } else if (typeof faq !== "undefined") { %>
+        <script type="text/javascript">openFAQ();</script>
       <% } else { %>
         <script type="text/javascript">switchPanel("login-panel");</script>
       <% } %>
@@ -157,6 +161,12 @@
         var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours to schlaupdate";
       %>
       <text><%= hoursRemaining %></text>
+      <br>
+      <div id="footer-footer" class="removed">
+        <a href="/~" class="clicky footer-text" onclick="event.preventDefault(); switchPanel('~about-panel'); simulatePageLoad('~', false);">about</a>
+        •
+        <a href="/~faq" class="clicky footer-text" onclick="event.preventDefault(); openFAQ();">faq</a>
+      </div>
     </footer>
 
   </body>

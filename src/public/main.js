@@ -264,14 +264,16 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
           data.authorID = glo.currentAuthor._id;
         }
         signIn('/login', data, function (resp) {
-          if (resp && resp.otherKey) {glo.currentAuthor.key = resp.otherKey;}
-          createFollowButton($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
-          createMessageButton($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
-          createEditBioButtons($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
-          var postArr = glo.currentAuthor.posts;
-          for (var i = 0; i < postArr.length; i++) {
-            if (postArr[i].post_id && postArr[i].date) {
-              createPostFooter($("author-"+postArr[i].post_id), {_id:glo.currentAuthor._id, name:glo.currentAuthor.author}, postArr[i], 'author');
+          if (glo.currentAuthor) {
+            if (resp && resp.otherKey) {glo.currentAuthor.key = resp.otherKey;}
+            createFollowButton($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
+            createMessageButton($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
+            createEditBioButtons($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
+            var postArr = glo.currentAuthor.posts;
+            for (var i = 0; i < postArr.length; i++) {
+              if (postArr[i].post_id && postArr[i].date) {
+                createPostFooter($("author-"+postArr[i].post_id), {_id:glo.currentAuthor._id, name:glo.currentAuthor.author}, postArr[i], 'author');
+              }
             }
           }
           loading(true);
@@ -377,6 +379,8 @@ var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   scroll(0, 0);
   if (!newPath) {
     newPath = "";
+  }
+  if (!newPath || newTitle === false) {
     newTitle = "s c h l a u g h";
   }
   if (newPath !== window.location.pathname) {
@@ -475,7 +479,8 @@ var convertNotes = function (string, id) {
             +`<a class='clicky' id="`+uniqueID+`-note-open" onclick="collapseNote('`+uniqueID+`', true)">`
             +linkText
             +"</a>"+"<ul class='note removed' id='"+uniqueID+"'>"
-            +`<clicky title='collapse' onclick="collapseNote('`+uniqueID+`')" class="collapse-button"><i class="far fa-minus-square"></i></clicky>`
+            +`<clicky onclick="collapseNote('`+uniqueID+`')" class="collapse-button-top"><i class="far fa-minus-square"></i></clicky>`
+            +`<clicky onclick="collapseNote('`+uniqueID+`')" class="collapse-button-bottom hidden" id="`+uniqueID+`-note-close" ><i class="far fa-minus-square"></i></clicky>`
             +noteText+"</ul>"+ string.substr(pos+qPos+cPos+25);
         }
       }
@@ -513,13 +518,16 @@ var convertText = function (string, id) {
 }
 
 var collapseNote = function (id, dir) {
-  if (dir) {
+  if (dir) {  // expand
     $(id).classList.remove('removed')
     $(id+"-note-open").onclick = function () {collapseNote(id);}
     if ($(id+"-br")) {
       $(id+"-br").classList.add('removed');
     }
-  } else {
+    if ($(id).offsetHeight > window.innerHeight) {
+      $(id +'-note-close').classList.remove("hidden");
+    }
+  } else {  // collapse
     $(id).classList.add('removed')
     $(id+"-note-open").onclick = function () {collapseNote(id, true);}
     if ($(id+"-br")) {
@@ -528,11 +536,30 @@ var collapseNote = function (id, dir) {
   }
 }
 
-var aboutPanelBack = function () {
+var backToMain = function () {
   if (glo.username) {
     switchPanel("posts-panel");
   } else {
     switchPanel('login-panel');simulatePageLoad();
+  }
+}
+
+var openFAQ = function () {
+  if ($('faq-body')) {
+    switchPanel('~faq-panel');
+    simulatePageLoad('~faq', false);
+  } else {
+    loading();
+    ajaxCall('/~faqText', 'GET', {}, function(json) {
+      var faqBody = document.createElement("div");
+      faqBody.setAttribute('id', 'faq-body');
+      faqBody.setAttribute('class', 'post');
+      faqBody.innerHTML = convertText(json.text, "~faq~");
+      $("faq-bucket").appendChild(faqBody)
+      switchPanel('~faq-panel');
+      simulatePageLoad('~faq', false);
+      loading(true);
+    });
   }
 }
 
@@ -671,7 +698,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
       // we don't, so make the ajax call
       $('loading').classList.remove('removed');
       ajaxCall('/~getTag', 'POST', {date:date, tag:tag,}, function(json) {
-        renderPostFeed(json.posts, date, tag).classList.remove('removed');
+        renderPostFeed(json.posts, date, tag);
         $('loading').classList.add('removed');
         loadManage();
       });
@@ -701,7 +728,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
         } else {
           filteredPosts = json.posts;
         }
-        renderPostFeed(filteredPosts, date).classList.remove('removed');
+        renderPostFeed(filteredPosts, date);
         $('loading').classList.add('removed');
         //following list, if this is the first call for posts,
         if (init) {
@@ -742,12 +769,12 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
             var count = 0;
             var taggedPosts = [];
             for (var j = 0; j < json.posts.length; j++) {
-              if (json.posts[j].tags[tagArr[i]]) {
+              if (json.posts[j].tags && json.posts[j].tags[tagArr[i]]) {
                 taggedPosts.push(json.posts[j]);
                 count++;
               }
             }
-            renderPostFeed(taggedPosts, date, tagArr[i]);
+            renderPostFeed(taggedPosts, date, tagArr[i]).classList.add('removed');
             var tagShell = document.createElement("div");
             var tag = document.createElement("text");
             tag.setAttribute('class', 'clicky top-tag special');
@@ -790,7 +817,7 @@ var loadManage = function () {
 
 var renderPostFeed = function (postList, date, tag) {
   var bucket = document.createElement("div");
-  bucket.setAttribute('class', 'post-bucket monospace removed');
+  bucket.setAttribute('class', 'post-bucket monospace');
   if (tag) {bucket.setAttribute('id', 'posts-for-'+date+'-'+tag);}
   else {bucket.setAttribute('id', 'posts-for-'+date);}
   // if there are no posts for the day/tag
@@ -806,17 +833,29 @@ var renderPostFeed = function (postList, date, tag) {
         if(a.post_id > b.post_id) { return 1; }
         return 0;
     });
+    var freshPosts = [];
     // create posts
     for (var i = 0; i < postList.length; i++) {
-      postList[i]
+      //postList[i]
       if (tag) {
-        bucket.appendChild(renderOnePost(postList[i], 'tag', tag));
+        var post = renderOnePost(postList[i], 'tag', tag)
+        bucket.appendChild(post);
       } else {
-        bucket.appendChild(renderOnePost(postList[i], 'feed', null));
+        var post = renderOnePost(postList[i], 'feed', null)
+        bucket.appendChild(post);
       }
+      freshPosts.push(post)
     }
   }
   $('posts').appendChild(bucket);
+  if (freshPosts) {
+    for (var i = 0; i < freshPosts.length; i++) {
+      if (freshPosts[i].offsetHeight > window.innerHeight) {
+        $(freshPosts[i].id +'collapse-button-bottom').classList.remove("hidden");
+      }
+    }
+  }
+
   return bucket;
 }
 
@@ -836,8 +875,8 @@ var renderOnePost = function (postData, type, typeName) {
   post.setAttribute('id', uniqueID);
   // collapse button
   var collapseBtn = document.createElement("clicky");
-  collapseBtn.setAttribute('class', 'collapse-button');
-  collapseBtn.setAttribute('id', uniqueID+'collapse-button');
+  collapseBtn.setAttribute('class', 'collapse-button-top');
+  collapseBtn.setAttribute('id', uniqueID+'collapse-button-top');
   if (glo.collapsed && glo.collapsed[postData.post_id]) {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
     collapseBtn.title = 'expand';
@@ -847,6 +886,14 @@ var renderOnePost = function (postData, type, typeName) {
   }
   collapseBtn.onclick = function () {collapsePost(uniqueID, postData.post_id);}
   post.appendChild(collapseBtn);
+  var collapseBtn2 = collapseBtn.cloneNode(true);
+  collapseBtn2.setAttribute('class', 'collapse-button-bottom hidden');
+  collapseBtn2.setAttribute('id', uniqueID+'collapse-button-bottom');
+  if (glo.collapsed && glo.collapsed[postData.post_id]) {
+    collapseBtn2.classList.add('removed');
+  }
+  collapseBtn2.onclick = function () {collapsePost(uniqueID, postData.post_id);}
+  post.appendChild(collapseBtn2);
   // post header
   var postHeader = document.createElement("div");
   post.appendChild(postHeader);
@@ -938,16 +985,24 @@ var renderOnePost = function (postData, type, typeName) {
 }
 
 var collapsePost = function (uniqueID, postID) {
-  var btnElem = $(uniqueID+'collapse-button');
+  var btnElem = $(uniqueID+'collapse-button-top');
+  var btnElem2 = $(uniqueID+'collapse-button-bottom');
   if (btnElem.title === 'expand') {
     btnElem.title = 'collapse';
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
+    btnElem2.title = 'collapse';
+    btnElem2.innerHTML = '<i class="far fa-minus-square"></i>';
+    btnElem2.classList.remove('removed');
     $(uniqueID+'body').classList.remove('removed');
+    if ($(uniqueID).offsetHeight > window.innerHeight) {
+      $(uniqueID +'collapse-button-bottom').classList.remove("hidden");
+    }
     var collapse = false;
     if (glo.collapsed) {glo.collapsed[postID] = false;}
   } else {
     btnElem.title = 'expand';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
+    btnElem2.classList.add('removed');
     $(uniqueID+'body').classList.add('removed');
     var collapse = true;
     if (glo.collapsed) {glo.collapsed[postID] = true;}
@@ -962,12 +1017,19 @@ var collapsePost = function (uniqueID, postID) {
       for (var i = 0; i < posArr.length; i++) {
         if (uniqueID !== posArr[i]) {
           if (!collapse) {
-            $(posArr[i]+'collapse-button').title = 'collapse';
-            $(posArr[i]+'collapse-button').innerHTML = '<i class="far fa-minus-square"></i>';
+            $(posArr[i]+'collapse-button-top').title = 'collapse';
+            $(posArr[i]+'collapse-button-top').innerHTML = '<i class="far fa-minus-square"></i>';
+            $(posArr[i]+'collapse-button-bottom').title = 'collapse';
+            $(posArr[i]+'collapse-button-bottom').innerHTML = '<i class="far fa-minus-square"></i>';
+            $(posArr[i]+'collapse-button-bottom').classList.remove('removed');
             $(posArr[i]+'body').classList.remove('removed');
+            if ($(posArr[i]).offsetHeight > window.innerHeight) {
+              $(posArr[i] +'collapse-button-bottom').classList.remove("hidden");
+            }
           } else {
-            $(posArr[i]+'collapse-button').title = 'expand';
-            $(posArr[i]+'collapse-button').innerHTML = '<i class="far fa-plus-square"></i>';
+            $(posArr[i]+'collapse-button-top').title = 'expand';
+            $(posArr[i]+'collapse-button-top').innerHTML = '<i class="far fa-plus-square"></i>';
+            $(posArr[i]+'collapse-button-bottom').classList.add('removed');
             $(posArr[i]+'body').classList.add('removed');
           }
         }
@@ -1653,7 +1715,11 @@ var openAuthorPanel = function (author, callback) {
             json.posts[i]._id = json._id;   // set authorID into the postData
             json.posts[i].author = json.author;   // set authorName into the postData
             json.posts[i].authorPic = json.authorPic;   // set authorPic into the postData
-            bucket.appendChild(renderOnePost(json.posts[i], 'author', json.author));
+            var postElem = renderOnePost(json.posts[i], 'author', json.author)
+            bucket.appendChild(postElem);
+            if (postElem.offsetHeight > window.innerHeight) {
+              $(postElem.id +'collapse-button-bottom').classList.remove("hidden");
+            }
           }
         }
         switchPanel("user-"+json.author+"-panel");
@@ -2917,6 +2983,7 @@ var parseUserData = function (data) {
     $("sign-in").classList.add("removed");
     //
     $("nav").classList.remove("removed");
+    $("footer-footer").classList.remove("removed");
     //
     if (glo.settings.includeTaggedPosts) {
       $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';

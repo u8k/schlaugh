@@ -131,3 +131,15 @@ var createPostID = function () {
     console.log(json);
   });
 }
+
+var publishFAQ = function () {
+  ajaxCall('/admin/faq', 'POST', {text: $("faq-input").value}, function(json) {
+    console.log(json);
+  });
+}
+
+var fetchFAQ = function () {
+  ajaxCall('/~faqText', 'GET', {}, function(json) {
+    $("faq-input").value = prepTextForEditor(json.text);
+  });
+}

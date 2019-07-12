@@ -940,6 +940,33 @@ app.post('/admin/user', function(req, res) {
   });
 });
 
+app.post('/admin/faq', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var x = pool.cleanseInputText(req.body.text);
+    var faq = {
+      name: 'faq',
+      text: x[1],
+    }
+    db.collection('siteStuff').findOne({name: "faq"}, {}, function (err, doc) {
+      if (err) {return sendError(res, err);}
+      else if (doc) {
+        db.collection('siteStuff').updateOne({name: "faq"},
+          {$set: faq},
+          function(err, doc) {
+            if (err) {return sendError(res, err);}
+            else {res.send({error:false});}
+          }
+        );
+      } else {
+        db.collection('siteStuff').insertOne(faq, {}, function (err, result) {
+          if (err) {return sendError(res, err);}
+          else {res.send({error:false});}
+        });
+      }
+    });
+  });
+});
+
 app.post('/admin/followStaff', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('users').find({},{_id:1, following:1}).toArray(function(err, users) {
@@ -2447,6 +2474,7 @@ var renderLayout = function (req, res, data) {
       tag:data.tag,
       ever:data.ever,
       about:data.about,
+      faq:data.faq,
     });
   } else {
     getSettings(req, res, function (settings) {
@@ -2459,6 +2487,7 @@ var renderLayout = function (req, res, data) {
         tag:data.tag,
         ever:data.ever,
         about:data.about,
+        faq:data.faq,
         panel:data.panel,
       });
     });
@@ -2468,6 +2497,24 @@ var renderLayout = function (req, res, data) {
 // view about page for site
 app.get('/~', function (req, res) {
   renderLayout(req, res, {about:true,});
+});
+
+// view faq page
+app.get('/~faq', function (req, res) {
+  renderLayout(req, res, {faq:true,});
+});
+
+app.get('/~faqText', function (req, res) {
+  var errMsg = "error retrieving faq content<br><br>"
+  db.collection('siteStuff').findOne({name: "faq"}
+  , {_id:0, text:1}
+  , function (err, faq) {
+    if (err) {return sendError(res, errMsg+ err);}
+    else if (!faq) {return sendError(res, errMsg+ "faq not found");}
+    else {
+      res.send({error: false, text: faq.text,})
+    }
+  });
 });
 
 var authorFromPostID = function (post_id, callback) {

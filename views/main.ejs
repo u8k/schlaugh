@@ -236,7 +236,7 @@
     </form>
   </div>
   <br><br><br>
-  <h2 class="clicky special" onclick="switchPanel('~about-panel');simulatePageLoad('~');">schlaugh what?<h2>
+  <h2 class="clicky special" onclick="switchPanel('~about-panel');simulatePageLoad('~', false);">schlaugh what?<h2>
 
 </div>
 
@@ -254,8 +254,20 @@
     there is no rush<br><br>
     <3
   </div>
-  <br><br>
-  <icon class="no-select clicky arrow fas fa-caret-up" onclick="aboutPanelBack()"></icon>
+  <br>
+  <h2 class="clicky special" onclick="openFAQ();">faq</h2>
+  <br>
+  <a href="/" id="posts-panel-button" class="clicky" onclick="event.preventDefault(); backToMain();">
+    <h2>back</h2>
+  </a>
+</div>
+
+<div id="~faq-panel" class="removed">
+  <h2>faq</h2>
+  <div id="faq-bucket"></div>
+  <a href="/" id="posts-panel-button" class="clicky" onclick="event.preventDefault(); backToMain();">
+    <h2>back</h2>
+  </a>
 </div>
 
 <div id="o-panel" class="removed">
