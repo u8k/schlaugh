@@ -376,7 +376,7 @@ var signOut = function() {
 var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   // scrolls to top, updates the url, and the browser/tab title
   // defaults to home if no args given, second arg defaults to first if not given
-  scroll(0, 0);
+  window.scroll(0, 0);
   if (!newPath) {
     newPath = "";
   }
@@ -416,7 +416,7 @@ var ajaxCall = function(url, method, data, callback) {
         if (json.error) {uiAlert(json.error);}
         else {callback(json);}
       } else {
-        uiAlert("error, sorry!<br><br>unethical response from server, please show this to staff<br><br>"+this.statusText+"<br>"+this.responseText)
+        uiAlert("error, sorry!<br><br>unethical response from server, please show this to staff<br><br>"+url+"<br>"+this.statusText+"<br>"+this.responseText)
       }
     }
   }
@@ -480,7 +480,7 @@ var convertNotes = function (string, id) {
             +linkText
             +"</a>"+"<ul class='note removed' id='"+uniqueID+"'>"
             +`<clicky onclick="collapseNote('`+uniqueID+`')" class="collapse-button-top"><i class="far fa-minus-square"></i></clicky>`
-            +`<clicky onclick="collapseNote('`+uniqueID+`')" class="collapse-button-bottom hidden" id="`+uniqueID+`-note-close" ><i class="far fa-minus-square"></i></clicky>`
+            +`<clicky onclick="collapseNote('`+uniqueID+`', false, '`+id+`')" class="collapse-button-bottom hidden" id="`+uniqueID+`-note-close" ><i class="far fa-minus-square"></i></clicky>`
             +noteText+"</ul>"+ string.substr(pos+qPos+cPos+25);
         }
       }
@@ -517,10 +517,10 @@ var convertText = function (string, id) {
   return convertLinks(convertNotes(convertCuts(string, id), id));
 }
 
-var collapseNote = function (id, dir) {
+var collapseNote = function (id, dir, postID) {
   if (dir) {  // expand
     $(id).classList.remove('removed')
-    $(id+"-note-open").onclick = function () {collapseNote(id);}
+    $(id+"-note-open").onclick = function () {collapseNote(id, false);}
     if ($(id+"-br")) {
       $(id+"-br").classList.add('removed');
     }
@@ -528,7 +528,16 @@ var collapseNote = function (id, dir) {
       $(id +'-note-close').classList.remove("hidden");
     }
   } else {  // collapse
-    $(id).classList.add('removed')
+    if (postID) {
+      var initScroll = window.scrollY;
+      var initHeight = $(postID).offsetHeight;
+    }
+    $(id).classList.add('removed');
+    if (postID) {
+      if (initScroll === window.scrollY) {
+        window.scrollBy(0, $(postID).offsetHeight - initHeight);
+      }
+    }
     $(id+"-note-open").onclick = function () {collapseNote(id, true);}
     if ($(id+"-br")) {
       $(id+"-br").classList.remove('removed');
@@ -884,7 +893,7 @@ var renderOnePost = function (postData, type, typeName) {
     collapseBtn.innerHTML = '<i class="far fa-minus-square"></i>';
     collapseBtn.title = 'collapse';
   }
-  collapseBtn.onclick = function () {collapsePost(uniqueID, postData.post_id);}
+  collapseBtn.onclick = function () {collapsePost(uniqueID, postData.post_id, false);}
   post.appendChild(collapseBtn);
   var collapseBtn2 = collapseBtn.cloneNode(true);
   collapseBtn2.setAttribute('class', 'collapse-button-bottom hidden');
@@ -892,7 +901,7 @@ var renderOnePost = function (postData, type, typeName) {
   if (glo.collapsed && glo.collapsed[postData.post_id]) {
     collapseBtn2.classList.add('removed');
   }
-  collapseBtn2.onclick = function () {collapsePost(uniqueID, postData.post_id);}
+  collapseBtn2.onclick = function () {collapsePost(uniqueID, postData.post_id, true);}
   post.appendChild(collapseBtn2);
   // post header
   var postHeader = document.createElement("div");
@@ -984,10 +993,10 @@ var renderOnePost = function (postData, type, typeName) {
   return post;
 }
 
-var collapsePost = function (uniqueID, postID) {
+var collapsePost = function (uniqueID, postID, isBtmBtn) {
   var btnElem = $(uniqueID+'collapse-button-top');
   var btnElem2 = $(uniqueID+'collapse-button-bottom');
-  if (btnElem.title === 'expand') {
+  if (btnElem.title === 'expand') {     // expand the post
     btnElem.title = 'collapse';
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
     btnElem2.title = 'collapse';
@@ -999,11 +1008,22 @@ var collapsePost = function (uniqueID, postID) {
     }
     var collapse = false;
     if (glo.collapsed) {glo.collapsed[postID] = false;}
-  } else {
+  } else {                             // collapse the post
     btnElem.title = 'expand';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
     btnElem2.classList.add('removed');
+
+    if (isBtmBtn) {
+      var initScroll = window.scrollY;
+      var initHeight = $(uniqueID).offsetHeight;
+    }
     $(uniqueID+'body').classList.add('removed');
+    if (isBtmBtn) {
+      if (initScroll === window.scrollY) {
+        window.scrollBy(0, $(uniqueID).offsetHeight - initHeight);
+      }
+    }
+
     var collapse = true;
     if (glo.collapsed) {glo.collapsed[postID] = true;}
   }
@@ -2846,7 +2866,7 @@ var backToLogInMenu = function () {
 }
 
 var makeKeys = function (pass, callback) {
-  openpgp.initWorker({ path:'openpgp.worker.min.js' });
+  openpgp.initWorker({ path:'/assets/openpgp.worker.min.js' });
   openpgp.generateKey({
     userIds: [{ name:'bob', email:'bob@example.com' }],
     curve: "curve25519",
