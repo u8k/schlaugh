@@ -30,10 +30,12 @@
     <%- include("editorButtons", {kind: "post"}) %>
     <textarea id="post-editor" class="editor" autocomplete="off"></textarea>
     <br><br>
-    <label for="tag-input">tags:</label>
-    <input id="tag-input" type="text" placeholder="milkshake,"><br>
-    <label for="title-input">title:</label>
-    <input id="title-input" type="text" placeholder="optional">
+    <div id="editor-post-meta">
+      <label for="tag-input">tags:</label>
+      <input id="tag-input" class="editor-input" type="text" placeholder="milkshake,"><br>
+      <label for="title-input">title:</label>
+      <input id="title-input" class="editor-input" type="text" placeholder="optional">
+    </div>
     <br><br>
     <button onclick="submitPost()">schlaubmit</button>
     <button onclick="cancelPost()">cancel</button>
@@ -282,7 +284,7 @@
     <div id="pending-post-edit" class="removed"></div>
     <div id="pending-header-preview" class="author-header removed">
       <div id="pending-left-preview" class="author-header-left">
-        <button id="preview-follow-button" onclick="alert(`Y'ALL<br>DONE<br>DID<br>GET<br>GOT<br>BY<br>A<br>FAKE BUTTON`,'doh')">follow</button>
+        <button id="preview-follow-button" onclick="uiAlert(`Y'ALL<br>DONE<br>DID<br>GET<br>GOT<br>BY<br>A<br>FAKE BUTTON`,'doh')">follow</button>
       </div>
       <div id="pending-right-preview" class="author-header-right"></div>
     </div>
@@ -297,10 +299,10 @@
     <br>
     <div id="old-tag-box">
       <label for="old-tag-input">tags:</label>
-      <input id="old-tag-input" type="text" placeholder="milkshake,">
+      <input id="old-tag-input" class="editor-input" type="text" placeholder="milkshake,">
       <br>
       <label for="old-title-input">title:</label>
-      <input id="old-title-input" type="text" placeholder="optional">
+      <input id="old-title-input" class="editor-input" type="text" placeholder="optional">
       <br><br>
     </div>
     <button id='submit-editing-old-post'>schlaubmit</button>
@@ -327,7 +329,7 @@
   <h2>PASSWORD RESET</h2><br><br>
   <form action="javascript:void(0);" id="pass-reset-form">
     <div id="recovery-username-box">
-      <text>username<clicky onclick="alert('this must match the account for which you had an email sent','got it')" class="special">(?)</clicky></text><br>
+      <text>username<clicky onclick="uiAlert('this must match the account for which you had an email sent','got it')" class="special">(?)</clicky></text><br>
       <input id="username-recovery" type="text" name="username" autocomplete="username"><br>
     </div>
     <div id="recovery-pass-box" class="removed">

@@ -383,7 +383,9 @@ var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   if (!newPath || newTitle === false) {
     newTitle = "s c h l a u g h";
   }
-  if (newPath !== window.location.pathname) {
+  if (newPath === true) {     //leave the path, still change the other stuff
+    document.title = newTitle;
+  } else if (newPath !== window.location.pathname) {
     history.pushState(null, null, "/"+newPath);
     if (!newTitle) {newTitle = newPath;}
     document.title = newTitle;
@@ -399,7 +401,7 @@ var changeFavicon = function (src) {
   link.rel = 'icon';
   link.type = "image/png";
   if (src) {link.href = src;}
-  else {link.href = "/favicon.png";}
+  else {link.href = "/assets/favicon.png";}
   if (oldLink) {document.head.removeChild(oldLink);}
   document.head.appendChild(link);
 }
@@ -748,13 +750,13 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
             var link = document.createElement("a");
             link.setAttribute('href', "/"+json.followingList[i].name);
             link.setAttribute('class', 'not-special');
-            (function (name) {
+            (function (id) {
               link.onclick = function(){
                 event.preventDefault();
-                openAuthorPanel(name);
+                openAuthorPanel(id);
                 followingListDisplay(false);
               }
-            })(json.followingList[i].name);
+            })(json.followingList[i]._id);
             var name = document.createElement("text");
             name.innerHTML = json.followingList[i].name;
             var pic = document.createElement("img");
@@ -864,15 +866,20 @@ var renderPostFeed = function (postList, date, tag) {
       }
     }
   }
-
   return bucket;
 }
 
-var renderOnePost = function (postData, type, typeName) {
+var renderOnePost = function (postData, type, typeName, postID) {
   // type = 'author','tag','feed','bookmark','sequence','preview'
   // postData needs fields: post_id, date, authorPic, author, body, tags, _id,
-  var post = document.createElement("div");
-  post.setAttribute('class', 'post');
+
+  if (postData === null && postID && glo.postStash) {
+    if (glo.postStash[postID]) {
+      postData = glo.postStash[postID];
+    } else {
+      return;
+    }
+  }
   // id
   if (type === 'tag') {var uniqueID = postData.post_id+"-"+postData.date+"-"+typeName+"-feed";}
   else if (type === 'author') {var uniqueID = 'author-'+postData.post_id}
@@ -881,6 +888,39 @@ var renderOnePost = function (postData, type, typeName) {
   else if (type === 'sequence') {var uniqueID = 'sequence-'+typeName+'-'+postData.post_id;}
   else if (type === 'preview') {var uniqueID = 'preview-'+typeName;}
   else {return uiAlert("error, sorry! render error, post is not of a valid type???, please show this to staff");}
+
+  // has post already been rendered?
+  if ($(uniqueID) && type !== 'preview') {
+    $(uniqueID).classList.remove('removed')
+    return $(uniqueID);
+  }
+
+  // add id to postRef
+  if (!glo.postRef) {glo.postRef = {}}
+  if (!glo.postRef[postData.post_id]) {glo.postRef[postData.post_id] = true;}
+
+  // add incoming post data to postStash
+  if (!glo.postStash) {glo.postStash = {}}
+  if (type !== 'preview') {
+    if (!glo.postStash[postData.post_id]) {
+      glo.postStash[postData.post_id] = {
+        post_id:postData.post_id,
+        date:postData.date,
+        body:postData.body,
+        tags:postData.tags,
+        title:postData.title,
+        authorPic:postData.authorPic,
+        author:postData.author,
+        _id:postData._id,
+        elemList: [],
+      };
+    }
+    // add elem to postStash
+    glo.postStash[postData.post_id].elemList.push(uniqueID);
+  }
+  //
+  var post = document.createElement("div");
+  post.setAttribute('class', 'post');
   post.setAttribute('id', uniqueID);
   // collapse button
   var collapseBtn = document.createElement("clicky");
@@ -915,12 +955,12 @@ var renderOnePost = function (postData, type, typeName) {
     if (postData.authorPic && postData.authorPic !== "") {
       var authorPic = document.createElement("img");
       authorPic.setAttribute('src', postData.authorPic);
-      (function (name) {
+      (function (id) {
         authorPic.onclick = function(event){
           event.preventDefault();
-          openAuthorPanel(name);
+          openAuthorPanel(id);
         }
-      })(postData.author);
+      })(postData._id);
       authorPic.setAttribute('href', "/"+postData.author);
       authorPic.setAttribute('class', 'author-pic clicky');
       authorBox.appendChild(authorPic);
@@ -929,12 +969,12 @@ var renderOnePost = function (postData, type, typeName) {
     }
     // authorName
     var author = document.createElement("a");
-    (function (name) {
+    (function (id) {
       author.onclick = function(event){
         event.preventDefault();
-        openAuthorPanel(name);
+        openAuthorPanel(id);
       }
-    })(postData.author);
+    })(postData._id);
     author.setAttribute('class', 'author-on-post special');
     // text sizing based on name length
     if (postData.author.length < 6) {author.classList.add('author-size-0')}
@@ -968,7 +1008,7 @@ var renderOnePost = function (postData, type, typeName) {
   post.appendChild(body);
   // tags
   var authorOption = null;
-  if (type === 'author' || (type === 'preview' && typeName === "edit")) {authorOption = postData.author}
+  if (type === 'author' || (type === 'preview' && typeName === "edit")) {authorOption = {_id:postData._id, name:postData.author}}
   var tagString = formatTags(postData.tags, authorOption);
   var tagElem = document.createElement("div");
   tagElem.setAttribute('class', 'tag-section');
@@ -979,16 +1019,14 @@ var renderOnePost = function (postData, type, typeName) {
     createPostFooter(post, {_id:postData._id, name:postData.author}, postData, type);
   }
   //
+  /* (from the old system of filteringPostsByAnAuthorByTag)
   if (type === 'author') {
     //create tag ref
     if (!glo.authors) {glo.authors = {};}
     if (!glo.authors[postData.author]) {glo.authors[postData.author] = {}}
     glo.authors[postData.author][postData.post_id] = postData.tags;
   }
-  // add elem to post ref
-  if (!glo.posts) {glo.posts = {}}
-  if (!glo.posts[postData.post_id]) {glo.posts[postData.post_id] = [];}
-  glo.posts[postData.post_id].push(uniqueID);
+  */
   //
   return post;
 }
@@ -1032,8 +1070,8 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
       //
     });
     // update all other rendered versions of the post
-    if (glo.posts && glo.posts[postID]) {
-      var posArr = glo.posts[postID];
+    if (glo.postStash && glo.postStash[postID]) {
+      var posArr = glo.postStash[postID].elemList;
       for (var i = 0; i < posArr.length; i++) {
         if (uniqueID !== posArr[i]) {
           if (!collapse) {
@@ -1236,7 +1274,7 @@ var createPostFooter = function (postElem, author, post, type) {
       permalink.title = "permalink";
       permalink.onclick = function(event) {
         event.preventDefault();
-        openPost(author.name, post.post_id);
+        openPost(author._id, post.post_id, post.date);
       }
       permalinkWrapper.appendChild(permalink);
       footerButtons.appendChild(permalinkWrapper);
@@ -1315,8 +1353,8 @@ var createBookmarkButton = function (parent, author_id, post) {
         }
       }
       // update bookmark buttons on all rendered versions of the post
-      if (glo.posts && glo.posts[post.post_id]) {
-        var posArr = glo.posts[post.post_id];
+      if (glo.postStash && glo.postStash[post.post_id]) {
+        var posArr = glo.postStash[post.post_id].elemList;
         for (var i = 0; i < posArr.length; i++) {
           var x = $(posArr[i]).childNodes;
           var y = x[x.length-1].childNodes[x[x.length-1].childNodes.length-1]
@@ -1359,8 +1397,8 @@ var deletePost = function (post) {
       ajaxCall('/deleteOldPost', 'POST', post, function(json) {
         loading(true);
         // remove the DOM elements of ALL instances of the post that may be floating about
-        if (glo.posts && glo.posts[post.post_id]) {
-          var posArr = glo.posts[post.post_id];
+        if (glo.postStash && glo.postStash[post.post_id]) {
+          var posArr = glo.postStash[post.post_id].elemList;
           for (var i = 0; i < posArr.length; i++) {
             $(posArr[i]).parentNode.removeChild($(posArr[i]));
           }
@@ -1510,7 +1548,7 @@ var updatePendingEdit = function (post, bio) {
   if (bio) {$('pending-right-preview').innerHTML = convertText(post.body, 'old-pending')}
   else {
     post.author = glo.username;
-    var newEditElem = renderOnePost(post, "preview", "edit")
+    var newEditElem = renderOnePost(post, "preview", "edit");
     if ($('pending-post-edit').childNodes[0]) {
       $('pending-post-edit').replaceChild(newEditElem, $('pending-post-edit').childNodes[0]);
     } else {
@@ -1619,37 +1657,45 @@ var userAndPostLinkHandler = function (author, post) { // not connected to anyth
 }
 */
 
-var openAuthorPanel = function (author, callback) {
+var clearAuthorPage = function (authorID) {
+  var children = $(authorID+'-posts').childNodes;
+  for (var i = 0; i < children.length; i++) {
+    children[i].classList.add('removed');
+  }
+}
+
+var openAuthorPanel = function (authorID, callback) {
   // see if a panel for the author already exists
-  if ($("user-"+author+"-panel")) {
-    switchPanel("user-"+author+"-panel");
-    $(author+'-tag-nav').classList.add('removed')
-    var children = $(author+'-posts').childNodes;
-    for (var i = 0; i < children.length; i++) {
-      children[i].classList.remove('removed');
-    }
-    if ($(author+'-panel-404')) {$(author+'-panel-404').classList.add('removed');}
-    $(author+'-panel-title').onclick = "";
-    $(author+'-panel-title').removeAttribute('href');
-    $(author+'-panel-title').classList.remove("clicky");
-    $(author+'-panel-title').classList.add("not-special");
+  if ($("user-"+authorID+"-panel")) {
+    switchPanel("user-"+authorID+"-panel");
+    $(authorID+'-tag-nav').classList.add('removed');
+    $(authorID+'-page-nav').classList.remove('removed');
+    turnAuthorPage(authorID, 0);
+    //clearAuthorPage(authorID);
+
+    if ($(authorID+'-panel-404')) {$(authorID+'-panel-404').classList.add('removed');}
+    $(authorID+'-panel-title').onclick = "";
+    $(authorID+'-panel-title').removeAttribute('href');
+    $(authorID+'-panel-title').classList.remove("clicky");
+    $(authorID+'-panel-title').classList.add("not-special");
     if (callback) {callback();}
     else {
-      simulatePageLoad(author, null, glo.authorPics[author]);
+      simulatePageLoad($(authorID+'-panel-title').innerHTML, null, glo.authorPics[authorID]);
     }
   } else {
     // call for data and render a new panel
     loading();
-    ajaxCall('/~getAuthor/'+author, 'GET', "", function(json) {
+    ajaxCall('/~getAuthor/'+authorID+'/1', 'POST', {postRef:glo.postRef}, function(json) {
       loading(true);
       if (json.four04) {
-        simulatePageLoad(author, "404s & Heartbreak");
-        open404author();
+        uiAlert("this shouldn't ever happen now, right?");
+        //simulatePageLoad(author, "404s & Heartbreak");
+        //open404author();
       } else {
         json = json.data;
         // panel
         var panel = document.createElement("div");
-        panel.setAttribute('id', "user-"+json.author+"-panel");
+        panel.setAttribute('id', "user-"+authorID+"-panel");
         $("main").appendChild(panel);
         // header
         var authorHeader = document.createElement("div");
@@ -1665,7 +1711,7 @@ var openAuthorPanel = function (author, callback) {
           var authorPic = document.createElement("img");
           authorPic.setAttribute('src', json.authorPic);
           authorPic.setAttribute('class', 'author-panel-pic');
-          glo.authorPics[json.author] = json.authorPic;
+          glo.authorPics[json._id] = json.authorPic;
           authorHeaderLeft.appendChild(authorPic);
           var x = authorPic.cloneNode();
           if (glo.username && glo.username === json.author) {
@@ -1686,7 +1732,7 @@ var openAuthorPanel = function (author, callback) {
         //
         title.innerHTML = json.author;
         var x = title.cloneNode(true);
-        title.setAttribute('id', json.author+'-panel-title');
+        title.setAttribute('id', json._id+'-panel-title');
         authorHeaderLeft.appendChild(title);
         if (glo.username && glo.username === json.author) {
           $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
@@ -1707,48 +1753,148 @@ var openAuthorPanel = function (author, callback) {
         // tag nav
         var tagNav = document.createElement("div");
         tagNav.setAttribute('class','removed')
-        tagNav.setAttribute('id', json.author+'-tag-nav')
+        tagNav.setAttribute('id', json._id+'-tag-nav')
         panel.appendChild(tagNav);
         tagNav.appendChild(document.createElement("br"));
         var tagText = document.createElement("h2");
-        tagText.setAttribute('id', json.author+'-tag-text')
+        tagText.setAttribute('id', json._id+'-tag-text')
         tagText.setAttribute('class','top-tag')
         tagNav.appendChild(tagText);
         var tagClear = document.createElement("button");
         tagClear.innerHTML = 'clear tag';
-        (function (author) {
-          tagClear.onclick = function(){openAuthorPanel(author);}
-        })(author);
+        (function (authorID) {
+          tagClear.onclick = function(){openAuthorPanel(authorID);}
+        })(authorID);
         tagNav.appendChild(tagClear);
         // post bucket
         var bucket = document.createElement("div");
-        bucket.setAttribute('id', json.author+'-posts');
+        bucket.setAttribute('id', json._id+'-posts');
         panel.appendChild(bucket);
-        // posts
-        if (json.posts.length === 0) {
-          bucket.appendChild(document.createElement("br"));
-          var text = document.createElement("h2");
-          text.innerHTML = "no posts!";
-          bucket.appendChild(text);
-        } else {
-          for(var i=json.posts.length-1; i > -1; i--) {
-            json.posts[i]._id = json._id;   // set authorID into the postData
-            json.posts[i].author = json.author;   // set authorName into the postData
-            json.posts[i].authorPic = json.authorPic;   // set authorPic into the postData
-            var postElem = renderOnePost(json.posts[i], 'author', json.author)
-            bucket.appendChild(postElem);
-            if (postElem.offsetHeight > window.innerHeight) {
-              $(postElem.id +'collapse-button-bottom').classList.remove("hidden");
-            }
-          }
+
+        renderAuthorPage(json, 1);
+
+        //page nav
+        var pageNav = document.createElement("div");
+        pageNav.setAttribute('class','author-page-nav');
+        pageNav.setAttribute('id', json._id+'-page-nav');
+        panel.appendChild(pageNav);
+        var arrowBox = document.createElement("div");
+        pageNav.appendChild(arrowBox);
+        var leftArrow = document.createElement("clicky");
+        leftArrow.setAttribute('class', "author-arrow");
+        leftArrow.setAttribute('id', json._id+"-left-arrow");
+        leftArrow.innerHTML = '<icon class="fas fa-caret-left"></icon>';
+        leftArrow.onclick = function () {
+          turnAuthorPage(json._id, 1);
         }
-        switchPanel("user-"+json.author+"-panel");
+        arrowBox.appendChild(leftArrow);
+        var rightArrow = document.createElement("clicky");
+        rightArrow.setAttribute('class', "author-arrow hidden");
+        rightArrow.setAttribute('id', json._id+"-right-arrow");
+        rightArrow.innerHTML = '<icon class="fas fa-caret-right"></icon>';
+        rightArrow.onclick = function () {
+          turnAuthorPage(json._id, -1);
+        }
+        arrowBox.appendChild(rightArrow);
+        var page = document.createElement('text');
+        page.innerHTML = "page<br>";
+        page.setAttribute('class', "monospace")
+        pageNav.appendChild(page);
+        var pageNumberLeft = document.createElement('text');
+        pageNumberLeft.innerHTML = 1;
+        pageNumberLeft.setAttribute('class', "monospace")
+        pageNumberLeft.setAttribute('id', json._id+ "-page-number-left")
+        pageNav.appendChild(pageNumberLeft);
+        var pageNumber = document.createElement('text');
+        pageNumber.innerHTML = " of ";
+        pageNumber.setAttribute('class', "monospace")
+        pageNav.appendChild(pageNumber);
+        var pageNumberRight = document.createElement('text');
+        pageNumberRight.innerHTML = json.pages;
+        pageNumberRight.setAttribute('class', "monospace")
+        pageNumberRight.setAttribute('id', json._id+ "-page-number-right")
+        pageNav.appendChild(pageNumberRight);
+        // put jump stuff here
+        //
+        switchPanel("user-"+json._id+"-panel");
         if (callback) {callback();}
         else {
           simulatePageLoad(json.author, null, json.authorPic);
         }
       }
     });
+  }
+}
+
+var turnAuthorPage = function (authorID, dir) {
+  var newPage = parseInt($(authorID+ "-page-number-left").innerHTML) + dir;
+  $(authorID+ "-page-number-left").innerHTML = newPage;
+  if (parseInt($(authorID+ "-page-number-right").innerHTML) === newPage) {
+    $(authorID+"-left-arrow").classList.add('hidden');
+  } else {
+    $(authorID+"-left-arrow").classList.remove('hidden');
+  }
+  if (newPage === 1) {
+    $(authorID+"-right-arrow").classList.add('hidden');
+  } else {
+    $(authorID+"-right-arrow").classList.remove('hidden');
+  }
+  clearAuthorPage(authorID);
+  if (glo.page && glo.page[authorID] && glo.page[authorID].num[newPage]) {
+    for (var i = 0; i < glo.page[authorID].num[newPage].length; i++) {
+      $("author-" +glo.page[authorID].num[newPage][i]).classList.remove('removed');
+    }
+  } else {
+    loading();
+    ajaxCall('/~getAuthor/'+authorID+'/'+newPage, 'POST', {postRef:glo.postRef}, function(json) {
+      loading(true);
+      renderAuthorPage(json.data, newPage)
+    });
+  }
+}
+
+var renderAuthorPage = function (data, pageNum, tag) {
+  // like 'page' as in a page of posts, on the author panel
+
+  // add incoming post data to postStash
+  for (var i = 0; i < data.posts.length; i++) {
+    if (!glo.postStash) {glo.postStash = {}}
+    if (!glo.postStash[data.posts[i].post_id]) {
+      glo.postStash[data.posts[i].post_id] = {
+        post_id:data.posts[i].post_id,
+        date:data.posts[i].date,
+        body:data.posts[i].body,
+        tags:data.posts[i].tags,
+        title:data.posts[i].title,
+        authorPic:data.authorPic,
+        author:data.author,
+        _id:data._id,
+        elemList: [],
+      };
+    }
+  }
+  if (!glo.page) {glo.page = {};}
+  if (!glo.page[data._id]) {glo.page[data._id] = {num:{}, tag: {}};}
+  if (tag === undefined) {
+    glo.page[data._id].num[pageNum] = data.list;
+  } else {
+    glo.page[data._id].tag[tag] = data.list;
+  }
+  var bucket = $(data._id+'-posts');
+  // posts
+  if (data.list.length === 0) {
+    bucket.appendChild(document.createElement("br"));
+    var text = document.createElement("h2");
+    text.innerHTML = "no posts!";
+    bucket.appendChild(text);
+  } else {
+    for (var i = 0; i < data.list.length; i++) {
+      var postElem = renderOnePost(null, 'author', data.author, data.list[i]);
+      bucket.appendChild(postElem);
+      if (postElem.offsetHeight > window.innerHeight) {
+        $(postElem.id +'collapse-button-bottom').classList.remove("hidden");
+      }
+    }
   }
 }
 
@@ -1761,8 +1907,8 @@ var open404author = function (ever) {
       panel.setAttribute('id', '404-panel-ever');
       $("main").appendChild(panel);
       // title
-      var title = document.createElement("h2");
-      title.setAttribute('class', 'author-page-title');
+      var title = document.createElement("text");
+      title.setAttribute('class', 'page-title-404 monospace');
       title.innerHTML = "once here<br>there was something<br><br>now here<br>there is nothing<br><br><i>time</i><br><br>";
       panel.appendChild(title);
       switchPanel("404-panel-ever");
@@ -1775,8 +1921,8 @@ var open404author = function (ever) {
       panel.setAttribute('id', '404-panel');
       $("main").appendChild(panel);
       // title
-      var title = document.createElement("h2");
-      title.setAttribute('class', 'author-page-title');
+      var title = document.createElement("text");
+      title.setAttribute('class', 'page-title-404 monospace');
       title.innerHTML = "<br>but there was nobody home<br><br>";
       panel.appendChild(title);
       switchPanel("404-panel");
@@ -1784,59 +1930,63 @@ var open404author = function (ever) {
   }
 }
 
-/*var postLookup = function () { //open post when we don't know the author
-  ajaxCall('/~getPost/'+post_id, 'GET', "", function(json) {
-    if (json.four04) {
-      simulatePageLoad("~/"+post_id, "404s & Heartbreak");
-      open404author();
-    }
-    else {openPost(json.author, post_id);}
-  });
-} can we avoid ever actually having to do this???*/
-
-var openPost = function (author, post_id, index) { //individual post on an author page
-  openAuthorPanel(author, function () {
-    // hide all posts
-    var children = $(author+'-posts').childNodes;
-    for (var i = 0; i < children.length; i++) {
-      children[i].classList.add('removed');
-    }
-    // open the One
-    if (post_id) {                                // by ID
-      simulatePageLoad("~/"+post_id, author, glo.authorPics[author]);
-      if ($('author-'+post_id)) {
-        $('author-'+post_id).classList.remove('removed');
-      } else {
-        open404post(author);
+var openPost = function (authorID, post_id, date) { //individual post on an author page
+  openAuthorPanel(authorID, function () {
+    clearAuthorPage(authorID);
+    $(authorID+'-page-nav').classList.add('removed');
+    //
+    if ($('author-'+post_id)) {                // is the post already rendered?
+      $('author-'+post_id).classList.remove('removed');
+      simPageLoadForSinglePost(post_id, authorID);
+    } else if (glo.postStash[post_id]) {         // can we render it from postStash?
+      var postElem = renderOnePost(null, 'author', null, post_id);
+      $(authorID+'-posts').appendChild(postElem);
+      if (postElem.offsetHeight > window.innerHeight) {
+        $(postElem.id +'collapse-button-bottom').classList.remove("hidden");
       }
-    } else if (index) {                          // by index
-      simulatePageLoad(author+"/"+index, author, glo.authorPics[author]);
-      if (!isNumeric(index) || index >= children.length || index<0) {
-        open404post(author);
-      } else {
-        children[children.length -1 - index].classList.remove('removed');
-      }
+      simPageLoadForSinglePost(post_id, authorID);
+    } else {                              // we don't have the post, call for it
+      loading();
+      ajaxCall('/~getPost/'+authorID+"/"+date, 'GET', "", function(json) {
+        if (json.four04) {return uiAlert("eRoRr! post not found???")}
+        loading(true);
+        json.post.date = date;
+        json.post._id = authorID;
+        var postElem = renderOnePost(json.post, 'author', json.post.username);
+        $(authorID+'-posts').appendChild(postElem);
+        if (postElem.offsetHeight > window.innerHeight) {
+          $(postElem.id +'collapse-button-bottom').classList.remove("hidden");
+        }
+        simPageLoadForSinglePost(post_id, authorID);
+      });
     }
     // set title
-    $(author+'-panel-title').onclick = function (event) {
+    $(authorID+'-panel-title').onclick = function (event) {
       event.preventDefault();
-      openAuthorPanel(author);
+      openAuthorPanel(authorID);
     }
-    $(author+'-panel-title').setAttribute('href', "/"+author);
-    $(author+'-panel-title').classList.add("clicky");
-    $(author+'-panel-title').classList.remove("not-special");
+    $(authorID+'-panel-title').setAttribute('href', "/"+$(authorID+'-panel-title').innerHTML);
+    $(authorID+'-panel-title').classList.add("clicky");
+    $(authorID+'-panel-title').classList.remove("not-special");
   });
 }
-
-var open404post = function (author) {
-  if ($(author+'-panel-404')) {$(author+'-panel-404').classList.remove('removed');}
-  else {
-    var e404 = document.createElement("h2")
-    e404.setAttribute('id', author+'-panel-404');
-    e404.innerHTML = "<c>not even a single thing</c>";
-    $("user-"+author+"-panel").appendChild(e404);
+var simPageLoadForSinglePost = function (post_id, authorID) {   // helper function for ^^^
+  if (glo.postStash[post_id].title !== undefined && glo.postStash[post_id].title !== "") {
+    simulatePageLoad("~/"+post_id, glo.postStash[post_id].title, glo.authorPics[authorID]);
+  } else {
+    simulatePageLoad("~/"+post_id, $(authorID+'-panel-title').innerHTML, glo.authorPics[authorID]);
   }
 }
+
+/*var open404post = function (authorID) {
+  if ($(authorID+'-panel-404')) {$(authorID+'-panel-404').classList.remove('removed');}
+  else {
+    var e404 = document.createElement("h2")
+    e404.setAttribute('id', authorID+'-panel-404');
+    e404.innerHTML = "<c>not even a single thing</c>";
+    $("user-"+authorID+"-panel").appendChild(e404);
+  }
+}*/
 
 var submitPost = function (remove) { //also handles editing and deleting
   var text = $('post-editor').value;
@@ -1893,6 +2043,7 @@ var updatePendingPost = function (newText, newTags, newTitle) {
     title: newTitle,
     author: glo.username,
     authorPic: glo.userPic,
+    _id: glo.userID,
   }
   var newPostElem = renderOnePost(postData, "preview", "new");
   if ($('pending-post').childNodes[0]) {
@@ -1959,8 +2110,8 @@ var formatTags = function (tagRef, author) {
   for (var tag in tagRef) {
     if (tagRef.hasOwnProperty(tag)) {
       if (author) {
-        tags += '<a onclick="filterAuthorByTag(`'+author+'`,`'+tag+
-          '`); return false;" href="'+author+'/~tagged/'+tag+'">'+tag+'</a>, ';
+        tags += '<a onclick="filterAuthorByTag(`'+author._id+'`,`'+tag+
+          '`); return false;" href="'+author.name+'/~tagged/'+tag+'">'+tag+'</a>, ';
       } else {
         tags += '<a onclick="loadPosts(0,`'+tag+
         '`); return false;" href="/~tagged/'+tag+'">'+tag+'</a>, ';
@@ -2030,30 +2181,32 @@ var toggleTaggedPostsInclusion = function () {
   });
 }
 
-var filterAuthorByTag = function (author, tag) {
-  openAuthorPanel(author, function () {
-    // hide all posts
-    var children = $(author+'-posts').childNodes;
-    for (var i = 0; i < children.length; i++) {
-      children[i].classList.add('removed');
-    }
-    // open the so tagged
-    var none = true;
-    var obj = glo.authors[author];
-    for (var post in obj) {
-      if (obj.hasOwnProperty(post)) {
-        if (obj[post]) {
-          if (obj[post][tag]) {
-            none = false;
-            $('author-'+post).classList.remove('removed');
-          }
-        }
+var filterAuthorByTag = function (authorID, tag) {
+  openAuthorPanel(authorID, function () {
+    clearAuthorPage(authorID);
+
+    if (glo.page && glo.page[authorID] && glo.page[authorID].tag[tag]) {
+      for (var i = 0; i < glo.page[authorID].tag[tag].length; i++) {
+        $("author-" +glo.page[authorID].tag[tag][i]).classList.remove('removed');
       }
+    } else {
+      var stuff = {
+        authorID:authorID,
+        tag:tag,
+        postRef:glo.postRef,
+      }
+      loading();
+      ajaxCall('/~getTaggedByAuthor', 'POST', stuff, function(json) {
+        loading(true);
+        if (json.four04) {return uiAlert("eRoRr! author not found???")}
+        renderAuthorPage(json.data, null, tag);
+      });
     }
-    if (none) {open404post(author);}
-    simulatePageLoad(author+"/~tagged/"+tag, author, glo.authorPics[author]);
-    $(author+'-tag-nav').classList.remove('removed');
-    $(author+'-tag-text').innerHTML = 'posts tagged "'+tag+'"';
+    $(authorID+'-page-nav').classList.add('removed');
+    var authorName = $(authorID+'-panel-title').innerHTML;
+    simulatePageLoad(authorName+"/~tagged/"+tag, authorName, glo.authorPics[authorID]);
+    $(authorID+'-tag-nav').classList.remove('removed');
+    $(authorID+'-tag-text').innerHTML = 'posts tagged "'+tag+'"';
   });
 }
 
@@ -2446,12 +2599,12 @@ var openThread = function (i) {
       $("back-arrow").classList.remove('removed');
       $("thread-title").innerHTML = glo.threads[i].name;
       $("thread-title").setAttribute('href', "/"+glo.threads[i].name);
-      (function (name) {
+      (function (id) {
         $("thread-title").onclick = function(event){
           event.preventDefault();
-          openAuthorPanel(name);
+          openAuthorPanel(id);
         }
-      })(glo.threads[i].name);
+      })(glo.threads[i]._id);
       $("thread-title").classList.remove('removed');
       $("thread-title-area").classList.remove('removed');
     }
@@ -2654,12 +2807,12 @@ var createThread = function (i, top) {
     authorPic.setAttribute('class', 'user-pic removed clicky');
     authorPic.setAttribute('id', i+'-thread-pic');
     var authorPicBox = document.createElement("a");
-    (function (name) {
+    (function (id) {
       authorPicBox.onclick = function(event){
         event.preventDefault();
-        openAuthorPanel(name);
+        openAuthorPanel(id);
       }
-    })(glo.threads[i].name);
+    })(glo.threads[i]._id);
     authorPicBox.setAttribute('href', "/"+glo.threads[i].name);
     authorPicBox.appendChild(authorPic);
     //authorPicBox.appendChild(document.createElement("br"));
@@ -2950,6 +3103,7 @@ var signIn = function (url, data, callback) {
 
 var parseUserData = function (data) {
   glo.username = data.username;
+  glo.userID = data.userID;
   glo.bio = data.bio;
   glo.unread = 0;
   glo.threads = data.threads;
@@ -2991,13 +3145,13 @@ var parseUserData = function (data) {
     $('username').setAttribute('href', "/"+glo.username);
     $("username").onclick = function () {
       event.preventDefault();
-      openAuthorPanel(glo.username);
+      openAuthorPanel(glo.userID);
     }
     $('edit-panel-title').innerHTML = glo.username;
     $('edit-panel-title').setAttribute('href', "/"+glo.username);
     $('edit-panel-title').onclick = function (event) {
       event.preventDefault();
-      openAuthorPanel(glo.username);
+      openAuthorPanel(glo.userID);
     }
     $("sign-out").classList.remove("removed");
     $("sign-in").classList.add("removed");

@@ -72,7 +72,7 @@ var checkFreshness = function (user) {  // pushes New pending posts to postlist
   }
 }
 
-var checkUpdates = function (user, callback) {  // pushes edits on OLD posts
+var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, and BIO
   var today = pool.getCurDate();        // "user"obj MUST have pendingUpdates, posts, bio, and _id props
   if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.lastUpdatedOn) {
     if (user.pendingUpdates.lastUpdatedOn !== today) {
@@ -133,7 +133,7 @@ var imageValidate = function (arr, res, callback) {
             if (error || resp.statusCode !== 200) {
               count = 0;
               return res.send({error:'the url for image '+(index+1)+' seems to be invalid<br><br>your post has not been saved'});
-            } else if (resp.headers['content-type'].substr(0,5) !== "image") {
+            } else if (resp.headers['content-type'].substr(0,5) !== "image" && resp.headers.server !== "AmazonS3") {
               count = 0;
               return res.send({error:'the url for image '+(index+1)+' is not a url for an image<br><br>your post has not been saved'});
             } else {bitCount -= resp.headers['content-length'];}
@@ -262,6 +262,7 @@ var getPayload = function (req, res, otherUserID, callback) {
         var payload = {
           keys: user.keys,
           username: user.username,
+          userID: req.session.user._id,
           userPic: getUserPic(user),
           settings: user.settings,
           following: user.following,
@@ -824,7 +825,7 @@ var devFlag = false;
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
   if (!req.session.user) {
-    renderLayout(req, res, {author:'admin'});
+    renderLayout(req, res, {post_id: false});
   } else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {_id:0, username:1, codes:1 }
@@ -832,7 +833,7 @@ var adminGate = function (req, res, callback) {
       if (err) {return sendError(res, err);}
       else if (user && user.username === "admin") {callback(res, user);} //no need to pass 'user' once we take out the code nonsense
       else {
-        renderLayout(req, res, {author:'admin'});
+        return renderLayout(req, res, {post_id: false});
       }
     });
   }
@@ -1248,11 +1249,12 @@ app.post('/editOldPost', function (req, res) {
   if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"you would seek to edit your future? fool!");}
   idCheck(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
-    , {posts:1, pendingUpdates:1, bio:1}
+    , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1}
     , function (err, user) {
       if (err) {return sendError(res, errMsg+err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
       else {
+        checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
         // pending updates MUST be fresh when we add to it, else all goes to shit
         checkUpdates(user, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
@@ -1344,7 +1346,8 @@ app.post('/deleteOldPost', function (req, res) {
 // get posts of following/with tracked tag, for a date
 app.post('/posts/:date', function(req, res) {
   var errMsg = "error retrieving the posts of following<br><br>";
-  if (!req.params.date || req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
+  if (!req.params.date) {return sendError(res, errMsg+"malformed request 412");}
+  else if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
   idCheck(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, following:1, savedTags:1}
@@ -2362,138 +2365,6 @@ app.post('/resetNameCheck', function (req, res) {
   });
 });
 
-// get all of a users posts
-app.get('/~getAuthor/:username', function(req, res) {
-  if (req.params.username === "admin" || req.params.username === "apwbd") {return res.send({error: false, four04: true});}
-  db.collection('users').findOne({username: req.params.username}
-  , { posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
-  , function (err, author) {
-    if (err) {return sendError(res, err);}
-    else {
-      if (author) {
-        checkFreshness(author);
-        checkUpdates(author, function (resp) {
-          if (resp.error) {return sendError(res, resp.error);}
-          author = resp.user;
-          var posts = [];
-          var pL = author.postList;
-          var tmrw = pool.getCurDate(-1);
-          for (var i = 0; i < pL.length; i++) {
-            if (pL[i].date !== tmrw) {
-              posts.push({
-                body: author.posts[pL[i].date][pL[i].num].body,
-                tags: author.posts[pL[i].date][pL[i].num].tags,
-                title: author.posts[pL[i].date][pL[i].num].title,
-                post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                date: pL[i].date,
-              });
-            }
-          }
-          var bio = author.bio;
-          if (typeof bio !== 'string') {bio = "";}
-          var key = null;
-          var authorPic = getUserPic(author);
-          if (req.session.user) {
-            var userID = ObjectId(req.session.user._id);
-            if (author.inbox && author.inbox.threads) {
-              if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
-                if (author.keys) {key = author.keys.pubKey}
-              }
-            }
-          }
-          res.send({
-            error: false,
-            four04: false,
-            data:{
-              author: req.params.username,
-              bio: bio,
-              posts: posts,
-              authorPic: authorPic,
-              _id: author._id,
-              key: key,
-            }
-          });
-        });
-      } else {
-        res.send({error: false, four04: true,});      //404
-      }
-    }
-  });
-});
-
-// get single post, from author/date
-app.get('/~getPost/:id/:date', function (req, res) {
-  var authorID = req.params.id;
-  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  db.collection('users').findOne({_id: authorID}
-  , { posts:1, pendingUpdates:1, bio:1}
-  , function (err, author) {
-    if (err) {return sendError(res, err);}
-    else {
-      if (author && author.posts[req.params.date]) {
-        checkUpdates(author, function (resp) {
-          if (resp.err) {return sendError(res, resp.err);}
-          author = resp.user;
-          res.send({error: false, post: author.posts[req.params.date][0]})
-        });
-      } else {
-        res.send({error: false, four04: true,});      //404
-      }
-    }
-  })
-});
-
-// get all posts with tag on date, "post" just so we can take characters like "?", but this is a get request in spirit
-app.post('/~getTag', function (req, res) {
-  var errMsg = "tag fetch error<br><br>"
-  if (!req.body.date || !req.body.tag) {return sendError(res, errMsg+"malformed request 712");}
-  if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
-  getAuthorListFromTagListAndDate([req.body.tag], req.body.date, function (resp) {
-    if (resp.error) {return sendError(res, resp.error);}
-    else {
-      if (resp.authorList.length === 0) {
-        return res.send({error:false, posts:[],});
-      } else {
-        postsFromAuthorListAndDate(resp.authorList, req.body.date, null, function (resp) {
-          if (resp.error) {return callback({error:err});}
-          else {return res.send({error:false, posts:resp.posts,});}
-        });
-      }
-    }
-  });
-});
-
-
-var renderLayout = function (req, res, data) {
-  if (!req.session.user) {
-    res.render('layout', {
-      user:false,
-      author:data.author,
-      post_index:data.post_index,
-      post_id:data.post_id,
-      tag:data.tag,
-      ever:data.ever,
-      about:data.about,
-      faq:data.faq,
-    });
-  } else {
-    getSettings(req, res, function (settings) {
-      res.render('layout', {
-        user:true,
-        settings:settings,
-        author:data.author,
-        post_index:data.post_index,
-        post_id:data.post_id,
-        tag:data.tag,
-        ever:data.ever,
-        about:data.about,
-        faq:data.faq,
-        panel:data.panel,
-      });
-    });
-  }
-}
-
 // view about page for site
 app.get('/~', function (req, res) {
   renderLayout(req, res, {about:true,});
@@ -2517,17 +2388,181 @@ app.get('/~faqText', function (req, res) {
   });
 });
 
-var authorFromPostID = function (post_id, callback) {
+var renderLayout = function (req, res, data) {
+  if (!req.session.user) {
+    res.render('layout', {
+      user:false,
+      author:data.author,
+      post_id:data.post_id,
+      date:data.date,
+      tag:data.tag,
+      ever:data.ever,
+      about:data.about,
+      faq:data.faq,
+    });
+  } else {
+    getSettings(req, res, function (settings) {
+      res.render('layout', {
+        user:true,
+        settings:settings,
+        author:data.author,
+        post_id:data.post_id,
+        date:data.date,
+        tag:data.tag,
+        ever:data.ever,
+        about:data.about,
+        faq:data.faq,
+        panel:data.panel,
+      });
+    });
+  }
+}
+
+// get author/post routes:
+// get 7 of a user,s posts, and authorInfo
+app.post('/~getAuthor/:id/:page', function(req, res) {
+  var errMsg = "author lookup error<br><br>";
+  if (req.params.page === undefined) {return sendError(res, errMsg+"malformed request 299");}
+  req.params.page = parseInt(req.params.page);
+  if (!Number.isInteger(req.params.page) || req.params.page < 1) {return sendError(res, errMsg+"malformed request 301");}
+  if (!req.params.id) {return sendError(res, errMsg+"malformed request 300");}
+  var authorID = req.params.id;
+  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
+  else {return sendError(res, errMsg+"invalid author id");}
+  db.collection('users').findOne({_id: authorID}
+  , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
+  , function (err, author) {
+    if (err) {return sendError(res, errMsg+err);}
+    else {
+      if (!author) {
+          res.send({error: false, four04: true,});      //404
+        } else {
+        checkFreshness(author);
+        checkUpdates(author, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          author = resp.user;
+          var authorPic = getUserPic(author);
+          var posts = [];
+          var pL = author.postList;
+          var list = [];
+          var page = req.params.page -1;
+          var start = (pL.length - 1) - (page * 7);
+          if (!req.body.postRef) {req.body.postRef = {}};
+          for (var i = start; i > start - 7; i--) {
+            if (pL[i]) {
+              list.push(author.posts[pL[i].date][pL[i].num].post_id);
+              if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
+                posts.push({
+                  body: author.posts[pL[i].date][pL[i].num].body,
+                  tags: author.posts[pL[i].date][pL[i].num].tags,
+                  title: author.posts[pL[i].date][pL[i].num].title,
+                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                  date: pL[i].date,
+                });
+              }
+            } else {break;}
+          }
+          if (page !== 0) {
+            return res.send({
+              error: false,
+              four04: false,
+              data:{
+                list: list,
+                author: author.username,
+                posts: posts,
+                _id: author._id,
+                authorPic: authorPic,
+              }
+            });
+          } else {
+            var pages = Math.ceil(pL.length /7);
+            var bio = author.bio;
+            if (typeof bio !== 'string') {bio = "";}
+            var key = null;
+            if (req.session.user) {
+              var userID = ObjectId(req.session.user._id);
+              if (author.inbox && author.inbox.threads) {
+                if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
+                  if (author.keys) {key = author.keys.pubKey}
+                }
+              }
+            }
+            return res.send({
+              error: false,
+              four04: false,
+              data:{
+                list: list,
+                author: author.username,
+                bio: bio,
+                posts: posts,
+                authorPic: authorPic,
+                _id: author._id,
+                key: key,
+                pages: pages,
+              }
+            });
+          }
+        });
+      }
+    }
+  });
+});
+
+// get single post, from authorID/date
+app.get('/~getPost/:id/:date', function (req, res) {
+  var errMsg = "post retrieval error<br><br>";
+  if (!req.params.date) {return sendError(res, errMsg+"malformed request 512");}
+  if (!req.params.id) {return sendError(res, errMsg+"malformed request 513");}
+  else if (req.params.date > pool.getCurDate()) {return res.send({error:false, post:{body: 'THE CHAMBER OF SECRETS HAS BEEN OPENED', tags:{"swiper no swiping":true}, post_id: "gotcha",}});}
+  var authorID = req.params.id;
+  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
+  else {return sendError(res, errMsg+"invalid author id");}
+  db.collection('users').findOne({_id: authorID}
+  , { posts:1, pendingUpdates:1, bio:1, username:1, iconURI:1}
+  , function (err, author) {
+    if (err) {return sendError(res, errMsg+err);}
+    else {
+      if (author && author.posts[req.params.date]) {
+        var authorPic = getUserPic(author);
+        checkUpdates(author, function (resp) {
+          if (resp.err) {return sendError(res, errMsg+resp.err);}
+          resp.user.posts[req.params.date][0].authorPic = authorPic;
+          resp.user.posts[req.params.date][0].author = author.username;
+          res.send({error: false, post: resp.user.posts[req.params.date][0]})
+        });
+      } else {
+        res.send({error: false, four04: true,});      //404
+      }
+    }
+  })
+});
+
+// view a single post, by id
+app.get('/~/:post_id', function (req, res) {
+  authorAndDateFromPostID(req.params.post_id, function (resp) {
+    if (resp.error) {sendError(res, resp.error);}
+    else {
+      renderLayout(req, res, {author:resp.author, post_id:req.params.post_id, date:resp.date, ever:resp.ever});
+    }
+  })
+});
+var authorAndDateFromPostID = function (post_id, callback) {
   if (ObjectId.isValid(post_id)) {post_id = ObjectId(post_id);}
-  db.collection('posts').findOne({_id: post_id}, {}
+  //else {return callback({error: "invalid post id"});}
+  db.collection('posts').findOne({_id: post_id,}, {date:1, authorID:1}
   , function (err, post) {
     if (err) {return callback({error:err});}
     else {
       if (!post) {    //404
-        return callback({error: false, four04: true,});
+        return callback({error: false,});
+      } else if (!post.authorID) {
+        return callback({error: false, ever: true});
       } else {
+        return callback({error: false, author:post.authorID, date:post.date});
+        /*
         var author_id = post.authorID;
         if (ObjectId.isValid(author_id)) {author_id = ObjectId(author_id);}
+        //else {return callback({error: "invalid author id"});}
         db.collection('users').findOne({_id: author_id}
         , { _id:0, username:1,}
         , function (err, author) {
@@ -2536,23 +2571,84 @@ var authorFromPostID = function (post_id, callback) {
             if (!author) {    //404
               return callback({error: false, ever: true,});
             } else {
-              return callback({error: false, four04: false, author:author.username});
+              return callback({error: false, four04: false, author:author.username, date:post.date});
             }
           }
         });
+        */
       }
     }
   });
 }
 
-// view a single post, by id
-app.get('/~/:post_id', function (req, res) {
-  authorFromPostID(req.params.post_id, function (resp) {
-    if (resp.error) {sendError(res, resp.error);}
+// get all of a user's posts with a tag
+app.post('/~getTaggedByAuthor', function (req, res) {
+  var errMsg = "author/tag lookup error<br><br>";
+  if (!req.body || !req.body.authorID || req.body.tag === undefined) {return sendError(res, errMsg+"malformed request 400");}
+  if (!req.body.postRef) {req.body.postRef = {}};
+  var authorID = req.body.authorID;
+  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
+  else {return sendError(res, errMsg+"invalid author id");}
+  db.collection('users').findOne({_id: authorID}
+  , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, pendingUpdates:1, bio:1}
+  , function (err, author) {
+    if (err) {return sendError(res, errMsg+err);}
     else {
-      renderLayout(req, res, {author:resp.author, post_id:req.params.post_id, ever:resp.ever});
+      if (!author) {
+          res.send({error: false, four04: true,});      //404
+        } else {
+        checkFreshness(author);
+        checkUpdates(author, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          author = resp.user;
+          var authorPic = getUserPic(author);
+          var posts = [];
+          var pL = author.postList;
+          var list = [];
+          for (var i = pL.length-1; i > -1; i--) {
+            if (author.posts[pL[i].date] && author.posts[pL[i].date][pL[i].num] && author.posts[pL[i].date][pL[i].num].tags && author.posts[pL[i].date][pL[i].num].tags[req.body.tag]) {
+              list.push(author.posts[pL[i].date][pL[i].num].post_id);
+              if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
+                posts.push({
+                  body: author.posts[pL[i].date][pL[i].num].body,
+                  tags: author.posts[pL[i].date][pL[i].num].tags,
+                  title: author.posts[pL[i].date][pL[i].num].title,
+                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                  date: pL[i].date,
+                });
+              }
+            }
+          }
+          return res.send({
+            error: false,
+            four04: false,
+            data:{
+              list: list,
+              author: author.username,
+              posts: posts,
+              _id: author._id,
+              authorPic: authorPic,
+            }
+          });
+        });
+      }
     }
-  })
+  });
+});
+
+// view a users posts, filtered by tag
+app.get('/:author/~tagged/:tag', function(req, res) {
+  var errMsg = "author lookup error<br><br>";
+  db.collection('users').findOne({username: req.params.author}, {},
+    function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      if (!user) {
+        renderLayout(req, res, {post_id: false});
+      } else {
+        renderLayout(req, res, {author:user._id, tag:req.params.tag});
+      }
+    }
+  );
 });
 
 // view a tag page
@@ -2560,19 +2656,41 @@ app.get('/~tagged/:tag', function(req, res) {
   renderLayout(req, res, {tag:req.params.tag});
 });
 
-// view a users posts, filtered by tag
-app.get('/:author/~tagged/:tag', function(req, res) {
-  renderLayout(req, res, {author:req.params.author, tag:req.params.tag});
+// get all posts with tag on date, "post" just so we can take characters like "?", but this is a get request in spirit
+app.post('/~getTag', function (req, res) {
+  var errMsg = "tag fetch error<br><br>"
+  if (!req.body.date || !req.body.tag) {return sendError(res, errMsg+"malformed request 712");}
+  if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'IT DOES NOT DO TO DWELL ON DREAMS AND FORGET TO LIVE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
+  getAuthorListFromTagListAndDate([req.body.tag], req.body.date, function (resp) {
+    if (resp.error) {return sendError(res, errMsg+resp.error);}
+    else {
+      if (resp.authorList.length === 0) {
+        return res.send({error:false, posts:[],});
+      } else {
+        postsFromAuthorListAndDate(resp.authorList, req.body.date, null, function (resp) {
+          if (resp.error) {return callback({error:err});}
+          else {return res.send({error:false, posts:resp.posts,});}
+        });
+      }
+    }
+  });
 });
 
-// view all of a users posts
+// view a user page
 app.get('/:author', function(req, res) {
-  renderLayout(req, res, {author:req.params.author});
-});
-
-// view a single post, by index
-app.get('/:author/:num', function(req, res) {
-  renderLayout(req, res, {author:req.params.author, post_index: req.params.num});
+  if (req.params.author === "admin" || req.params.author === "apwbd") {return renderLayout(req, res, {post_id: false});}
+  var errMsg = "author lookup error<br><br>";
+  db.collection('users').findOne({username: req.params.author}, {},
+    function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      if (!user) {
+        renderLayout(req, res, {post_id: false});
+      }
+      else {
+        renderLayout(req, res, {author: user._id});
+      }
+    }
+  );
 });
 
 

@@ -53,19 +53,14 @@
           <script type="text/javascript">
             var author = <%- JSON.stringify(author) %>;
             var post_id = <%- JSON.stringify(post_id) %>;
-            fetchData(function () {openPost(author, post_id)});
-          </script>
-        <% } else if (post_index) { %>
-          <script type="text/javascript">
-            var author = <%- JSON.stringify(author) %>;
-            var post_index = <%- JSON.stringify(post_index) %>;
-            fetchData(function () {openPost(author, null, post_index)});
+            var date = <%- JSON.stringify(date) %>;
+            fetchData(function () {openPost(author, post_id, date)});
           </script>
         <% } else if (tag) { %>
           <script type="text/javascript">
-            var author = <%- JSON.stringify(author) %>;
+            var authorID = <%- JSON.stringify(author) %>;
             var tag = <%- JSON.stringify(tag) %>;
-            fetchData(function () {filterAuthorByTag(author, tag)});
+            fetchData(function () {filterAuthorByTag(authorID, tag)});
           </script>
         <% } else { %>
           <script type="text/javascript">
@@ -78,6 +73,13 @@
             fetchData(function () {
               simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
               open404author(true);
+            });
+          </script>
+        <% } else if (post_id === false) { %>
+          <script type="text/javascript">
+            fetchData(function () {
+              simulatePageLoad(true, "404s & Heartbreak");
+              open404author();
             });
           </script>
         <% } else { %>
@@ -105,19 +107,14 @@
           <script type="text/javascript">
             var author = <%- JSON.stringify(author) %>;
             var post_id = <%- JSON.stringify(post_id) %>;
-            openPost(author, post_id);
-          </script>
-        <% } else if (post_index) { %>
-          <script type="text/javascript">
-            var author = <%- JSON.stringify(author) %>;
-            var post_index = <%- JSON.stringify(post_index) %>;
-            openPost(author, null, post_index);
+            var date = <%- JSON.stringify(date) %>;
+            openPost(author, post_id, date);
           </script>
         <% } else if (tag) { %>
           <script type="text/javascript">
-            var author = <%- JSON.stringify(author) %>;
+            var authorID = <%- JSON.stringify(author) %>;
             var tag = <%- JSON.stringify(tag) %>;
-            filterAuthorByTag(author, tag);
+            filterAuthorByTag(authorID, tag);
           </script>
         <% } else { %>
           <script type="text/javascript">
@@ -130,6 +127,13 @@
             simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
             open404author(true);
           </script>
+        <% } else if (post_id === false) { %>
+            <script type="text/javascript">
+              fetchData(function () {
+                simulatePageLoad(true, "404s & Heartbreak");
+                open404author();
+              });
+            </script>
         <% } else { %>
           <script type="text/javascript">
             simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");

@@ -67,6 +67,12 @@ h2 {
   .author-page-title-6 {font-size: .65em;}
 }
 
+.author-page-nav {font-size: 1.4em;}
+.author-arrow {
+  font-size: 1.7em;
+  margin: 0 10px;
+}
+
 nav {
   font-size: 2.4em
 }
@@ -106,7 +112,7 @@ footer {
   font-size: .85em;
 }
 
-postNav {
+postNav, .page-title-404 {
   font-size: 2em;
 }
 
@@ -143,6 +149,14 @@ clicky, .clicky {
 
 #editor-options {
   text-align: right;
+}
+
+#editor-post-meta {
+  /*text-align: left;*/
+}
+
+.editor-input {
+  width: 250px;
 }
 
 #thread-box {
