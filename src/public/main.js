@@ -1689,8 +1689,6 @@ var openAuthorPanel = function (authorID, callback) {
       loading(true);
       if (json.four04) {
         uiAlert("this shouldn't ever happen now, right?");
-        //simulatePageLoad(author, "404s & Heartbreak");
-        //open404author();
       } else {
         json = json.data;
         // panel
@@ -1898,8 +1896,8 @@ var renderAuthorPage = function (data, pageNum, tag) {
   }
 }
 
-var open404author = function (ever) {
-  if (ever) {
+var open404page = function (type) {
+  if (type === 'ever') {
     if ($('404-panel-ever')) {switchPanel("404-panel-ever");}
     else {
       // panel
@@ -1912,6 +1910,19 @@ var open404author = function (ever) {
       title.innerHTML = "once here<br>there was something<br><br>now here<br>there is nothing<br><br><i>time</i><br><br>";
       panel.appendChild(title);
       switchPanel("404-panel-ever");
+    }
+  } else if (type === 'post') {
+    if ($('404-panel-post')) {switchPanel("404-panel-post");}
+    else {
+      var panel = document.createElement("div")
+      panel.setAttribute('id', '404-panel-post');
+      $("main").appendChild(panel);
+      // title
+      var title = document.createElement("text");
+      title.setAttribute('class', 'page-title-404 monospace');
+      title.innerHTML = "<br>not even a single thing!<br><br>";
+      panel.appendChild(title);
+      switchPanel("404-panel-post");
     }
   } else {
     if ($('404-panel')) {switchPanel("404-panel");}
@@ -1977,16 +1988,6 @@ var simPageLoadForSinglePost = function (post_id, authorID) {   // helper functi
     simulatePageLoad("~/"+post_id, $(authorID+'-panel-title').innerHTML, glo.authorPics[authorID]);
   }
 }
-
-/*var open404post = function (authorID) {
-  if ($(authorID+'-panel-404')) {$(authorID+'-panel-404').classList.remove('removed');}
-  else {
-    var e404 = document.createElement("h2")
-    e404.setAttribute('id', authorID+'-panel-404');
-    e404.innerHTML = "<c>not even a single thing</c>";
-    $("user-"+authorID+"-panel").appendChild(e404);
-  }
-}*/
 
 var submitPost = function (remove) { //also handles editing and deleting
   var text = $('post-editor').value;

@@ -72,21 +72,21 @@
           <script type="text/javascript">
             fetchData(function () {
               simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
-              open404author(true);
+              open404page('ever');
             });
           </script>
         <% } else if (post_id === false) { %>
           <script type="text/javascript">
             fetchData(function () {
               simulatePageLoad(true, "404s & Heartbreak");
-              open404author();
+              open404page('author');
             });
           </script>
         <% } else { %>
           <script type="text/javascript">
             fetchData(function () {
               simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
-              open404author();
+              open404page('post');
             });
           </script>
         <% } %>
@@ -125,19 +125,17 @@
         <% if (typeof ever !== "undefined") { %>
           <script type="text/javascript">
             simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
-            open404author(true);
+            open404page('ever');
           </script>
         <% } else if (post_id === false) { %>
             <script type="text/javascript">
-              fetchData(function () {
-                simulatePageLoad(true, "404s & Heartbreak");
-                open404author();
-              });
+              simulatePageLoad(true, "404s & Heartbreak");
+              open404page('author');
             </script>
         <% } else { %>
           <script type="text/javascript">
             simulatePageLoad("~/"+<%- JSON.stringify(post_id) %>, "404s & Heartbreak");
-            open404author();
+            open404page('post');
           </script>
         <% } %>
       <% } else if (typeof tag !== "undefined") { %>
