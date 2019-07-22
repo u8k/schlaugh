@@ -121,13 +121,16 @@
 <div id="settings-panel" class="removed">
   <h2>schlettings</h2>
   <div id="settings-box">
-    <br><br>
+    <br><br>user image:
     <img id="user-pic" class="removed user-pic" src="">
+    <div id="no-user-pic"><br>(none)<br></div>
     <br>
-    <label for="pic-url">picURL</label><br>
-    <input id="pic-url" type="text" name="pic-url" value=""><br>
-    <button onclick="submitPic()">schlaubmit</button>
-    <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
+    <form action="javascript:void(0);">
+      <label for="pic-url">image url<clicky onclick="imageUploadingExplain()" class="special">(?)</clicky></label><br>
+      <input id="pic-url" type="text" name="pic-url" value=""><br>
+      <button type="submit" onclick="submitPic()">schlaubmit</button>
+      <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
+    </form>
     <br><br><br>
     <button onclick="followingListDisplay(true)">following list</button>
     <button onclick="displayBookmarks()">bookmarks</button>
@@ -273,7 +276,7 @@
 </div>
 
 <div id="o-panel" class="removed">
-  <img id="o-pic" src="https://upload.wikimedia.org/wikipedia/en/6/6a/Odessey_and_Oracle.jpg" alt="Odessey and Oracle">
+  <img id="o-pic" src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Oscar_Wilde_3g07095u-adjust.jpg/220px-Oscar_Wilde_3g07095u-adjust.jpg" alt="Oscar Wilde">
 </div>
 
 <div id="edit-panel" class="removed">

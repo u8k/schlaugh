@@ -817,6 +817,15 @@ var idCheck = function (req, res, errMsg, callback) {
   return callback(ObjectId(req.session.user._id));
 }
 
+var snakeBank = [
+  "https://i.imgur.com/2DEHbtK.png",
+  "https://i.imgur.com/3djrDDm.png",
+  "https://i.imgur.com/gocod1S.png",
+  "https://i.imgur.com/7EwkTXq.jpg",
+  "https://i.imgur.com/if3IEqG.jpg",
+  "https://i.imgur.com/NQOT1Fc.jpg",
+];
+
 //*******//ROUTING//*******//
 
 // admin
@@ -1921,7 +1930,7 @@ app.post('/register', function(req, res) {
               pending: {},
             },
             following: [],
-            iconURI: "",
+            iconURI: snakeBank[Math.floor(Math.random() * (snakeBank.length))],
             settings: {},
           }, {}, function (err, result) {
             if (err) {return sendError(res, err);}

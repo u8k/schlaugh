@@ -18,10 +18,13 @@ var updateUserPic = function (remove, picURL) {
   if (remove) {
     $("remove-pic").classList.add('removed');
     $("user-pic").classList.add('removed');
+    $("no-user-pic").classList.remove('removed');
   } else {
     $("user-pic").setAttribute('src', picURL);
     $("user-pic").classList.remove('removed');
+    $("no-user-pic").classList.add('removed');
     $("remove-pic").classList.remove('removed');
+    $('pic-url').value = picURL;
   }
 }
 
@@ -1247,17 +1250,27 @@ var createPostFooter = function (postElem, author, post, type) {
         quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
         quoteBtn.title = "quote";
         quoteBtn.onclick = function() {
-          loading();
-          ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
-            if (json.four04) {return uiAlert("eRoRr! post not found???")}
-            loading(true);
-            var text = "<quote>"+json.post.body+
+          if (glo.postStash && glo.postStash[post.post_id]) {     // is it already stashed?
+            console.log('toots');
+            var text = "<quote>"+glo.postStash[post.post_id].body+
             '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
             if ($('post-editor').value !== "") {text = '<br>'+text;}
             $('post-editor').value += prepTextForEditor(text);
             showWriter('post');
             switchPanel('write-panel');
-          });
+          } else {                                               // no, so make the call
+            loading();
+            ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
+              if (json.four04) {return uiAlert("eRoRr! post not found???")}
+              loading(true);
+              var text = "<quote>"+json.post.body+
+              '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
+              if ($('post-editor').value !== "") {text = '<br>'+text;}
+              $('post-editor').value += prepTextForEditor(text);
+              showWriter('post');
+              switchPanel('write-panel');
+            });
+          }
         }
         footerButtons.appendChild(quoteBtn);
       }
@@ -1444,22 +1457,36 @@ var editPost = function (post, author) {
     $('edit-post-button').innerHTML = "edit edit";
     switchPanel("edit-panel");
   } else {
-    loading();
-    ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
-      if (json.four04) {return uiAlert("eRoRr! post not found???")}
-      loading(true);
-      var tags = getTagString(json.post.tags);
-      glo.fetchedPosts[post.date] = [json.post];
+    if (glo.postStash && glo.postStash[post.post_id]) {     // is it already stashed?
+      var tags = getTagString(glo.postStash[post.post_id].tags);
+      glo.fetchedPosts[post.date] = [glo.postStash[post.post_id]];
       $('old-tag-input').value = tags;
-      if (json.post.title) {$('old-title-input').value = post.title;}
+      if (glo.postStash[post.post_id].title) {$('old-title-input').value = post.title;}
       $("old-post-status").innerHTML = "no pending edit for your post on "+post.date;
-      $('old-post-editor').value = prepTextForEditor(json.post.body);
+      $('old-post-editor').value = prepTextForEditor(glo.postStash[post.post_id].body);
       $('delete-pending-old-post').classList.add("removed");
       $('pending-post-edit').classList.add("removed");
       $('edit-post-button').innerHTML = "new edit";
       hideWriter('old-post');
       switchPanel("edit-panel");
-    });
+    } else {                                               // no, so make the call
+      loading();
+      ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
+        if (json.four04) {return uiAlert("eRoRr! post not found???")}
+        loading(true);
+        var tags = getTagString(json.post.tags);
+        glo.fetchedPosts[post.date] = [json.post];
+        $('old-tag-input').value = tags;
+        if (json.post.title) {$('old-title-input').value = post.title;}
+        $("old-post-status").innerHTML = "no pending edit for your post on "+post.date;
+        $('old-post-editor').value = prepTextForEditor(json.post.body);
+        $('delete-pending-old-post').classList.add("removed");
+        $('pending-post-edit').classList.add("removed");
+        $('edit-post-button').innerHTML = "new edit";
+        hideWriter('old-post');
+        switchPanel("edit-panel");
+      });
+    }
   }
   // set submit button
   var data = {date: post.date, post_id:post.post_id}
@@ -2310,7 +2337,7 @@ var styleText = function (tag, src, lineBreak) {
   var a = x.start;
   var b = x.end;
   var y = area.value;
-  if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
+  if (a !== b && y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   if (!lineBreak) {
     area.value = y.slice(0, a)+'<'+tag+'>'+y.slice(a, b)+'</'+tag+'>'+y.slice(b);
     setCursorPosition(area, a+2+tag.length, b+2+tag.length);
@@ -2372,7 +2399,7 @@ var insertImage = function (src) {
   var y = area.value;
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   uiPrompt({
-    label: "image url:",
+    label: `image url<clicky onclick="imageUploadingExplain()" class="special">(?)</clicky>`,
     value:"https://i.imgur.com/hDEXSt7.jpg",
     placeholder: "hiss",
     callback: function(target) {
@@ -3235,6 +3262,10 @@ var showPassword = function (bool, elemName, elemArr) {       //or hide pass, if
 
 var verifyEmailExplain = function () {
   uiAlert(`schlaugh stores your email in <a href="https://en.wikipedia.org/wiki/Cryptographic_hash_function#Password_verification" target="_blank">"hashed"</a> form, meaning we can't just tell you what email address you have on file with us. But you can input what you think it is and we can tell you if that's right. And it's good to have a good email address stored with us in case you need to reset your password. But please don't need to reset your password.`)
+}
+
+var imageUploadingExplain = function () {
+  uiAlert(`schlaugh does not support directly uploading images. You'll need to upload your image elsewhere(such as <a href="https://imgur.com/upload" target="_blank">imgur</a>), and then provide a link to the image file.<br><br>Please note that the link you provide must be directly to an image <i>file</i>, not a webpage. As in, right click on your image and click "copy image address", to get a link that ends with a file extension, like "png", "gif", "jpg" etc`);
 }
 
 var verifyEmail = function () {
