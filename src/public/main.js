@@ -3268,6 +3268,23 @@ var imageUploadingExplain = function () {
   uiAlert(`schlaugh does not support directly uploading images. You'll need to upload your image elsewhere(such as <a href="https://imgur.com/upload" target="_blank">imgur</a>), and then provide a link to the image file.<br><br>Please note that the link you provide must be directly to an image <i>file</i>, not a webpage. As in, right click on your image and click "copy image address", to get a link that ends with a file extension, like "png", "gif", "jpg" etc`);
 }
 
+var changeUsername = function () {
+  verify("you sure? This will change the url for your profile, breaking any links to your current username. And your current username will be up for grabs for anyone else to claim<br><br>also this will require a refresh(so just like don't have any unsaved text sitting in an editor)<br><br>go ahead?", "let's do it", "nevermind", function (resp) {
+    if (!resp) {return;}
+    else {
+      loading();
+      ajaxCall('/changeUsername', 'POST', {newName:$('change-username-input').value}, function(json) {
+        loading(true);
+        if (!json.error) {
+          uiAlert('your username has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
+            location.reload();
+          });
+        }
+      });
+    }
+  });
+}
+
 var verifyEmail = function () {
   loading();
   ajaxCall('/verifyEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
@@ -3439,6 +3456,7 @@ var makeResetCall = function (data) {
       loading(true);
       $("recovery-username-box").classList.add("removed");
       $("recovery-pass-box").classList.remove("removed");
+      $("submit-password-reset").classList.add("change-pass-button-bump");
     } else if (json.victory) {
       loading(true);
       $("pass-reset-form").classList.add("removed");

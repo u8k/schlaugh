@@ -162,6 +162,12 @@
     <button id="save-appearance" type="button" class="hidden" onclick="saveAppearance()">save</button>
 
     <br><br><hr><br>
+    <text>change username</text><br>
+    <form action="javascript:void(0);">
+      <input id="change-username-input" type="text" placeholder="new name"><br>
+      <button type="submit" onclick="changeUsername()">change</button>
+    </form>
+    <br><br><hr><br>
     <text>verify email<clicky onclick="verifyEmailExplain()" class="special">(?)</clicky></text><br>
     <form action="javascript:void(0);">
       <input id="email-verify-input" type="text" placeholder="email address"><br>
@@ -343,7 +349,7 @@
       <icon id="eye3" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye3', ['password-recovery1', 'password-recovery2'])"></icon>
       <icon id="eye3c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye3', ['password-recovery1', 'password-recovery2'])"></icon>
     </div>
-    <button type="submit" class="change-pass-button-bump" onclick="submitRecoveryName()">submit</button>
+    <button id="submit-password-reset" type="submit" onclick="submitRecoveryName()">submit</button>
   </form>
   <div id="pass-reset-success" class="removed">
     <text>your password has been successfully reset<br><br><clicky onclick="switchPanel('login-panel');simulatePageLoad();" class="special">please log in here</clicky></text>

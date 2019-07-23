@@ -369,6 +369,11 @@ input:-webkit-autofill {
   -webkit-text-fill-color: #D8D8D8;
 }
 
+.change-pass-button-bump {
+  position: relative;
+  bottom: 19px;
+}
+
 .eye {
   position: relative;
   left: 83px;

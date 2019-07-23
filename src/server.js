@@ -2154,6 +2154,53 @@ app.get('/~logout', function(req, res) {
   res.send({error: false});
 });
 
+// change user name
+app.post('/changeUsername', function (req, res) {
+  var errMsg = "username change error<br><br>";
+  if (!req.body.newName) {return sendError(res, errMsg+"malformed request 501");}
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}, {_id:0, settings:1, username:1}, function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      else if (!user) {return sendError(res, errMsg+"user account not found");}
+      else {
+        var x = pool.userNameValidate(req.body.newName);
+        if (x) {return res.send({error:x});}
+        else {
+          if (user.settings && user.settings.dateOfPreviousNameChange === pool.getCurDate()) {
+            return res.send({error:"seems you've aleady changed your name today...i think that's enough, try again tomorrow"});
+          } else {
+            db.collection('userUrls').findOne({_id: req.body.newName.toLowerCase()}, {authorID:1}, function (err, extant) {
+              if (err) {return sendError(res, errMsg+err);}
+              else if (extant && String(extant.authorID) !== String(userID)) {return res.send({error: "username is already taken"});}
+              else {
+                var oldName = user.username.toLowerCase();
+                user.username = req.body.newName;
+                if (!user.settings) {user.settings = {}};
+                user.settings.dateOfPreviousNameChange = pool.getCurDate();
+                writeToDB(userID, user, function (resp) {
+                  if (resp.error) {sendError(res, errMsg+resp.error);}
+                  else {
+                    if (req.body.newName.toLowerCase() !== oldName) {
+                      createUserUrl(req.body.newName.toLowerCase(), userID, function (resp) {
+                        db.collection('userUrls').remove({_id: oldName},
+                          function(err, url) {
+                            if (err) {return callback({error: errMsg+err});}
+                            else {res.send({error: false, name: req.body.newName});}
+                          }
+                        );
+                      });
+                    } else {res.send({error: false, name: req.body.newName});}
+                  }
+                });
+              }
+            });
+          }
+        }
+      }
+    });
+  });
+});
+
 // verify hashed email
 app.post('/verifyEmail', function (req, res) {
   var errMsg = "email verification error<br><br>"
