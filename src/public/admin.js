@@ -3,7 +3,10 @@
 var tests = [ //array of arrays, each inner array contains two statements that are supposed to be equal
   [pool.userNameValidate(), "empty string is not a valid username, sorry", "pool.userNameValidate()"],
   [pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
-  [pool.userNameValidate('6as5df4'), false, "pool.userNameValidate(0)"],
+  [pool.userNameValidate('6as5df4'), false, "pool.userNameValidate('6as5df4')"],
+  [pool.userNameValidate('AOEUHTS'), false, "pool.userNameValidate('AOEUHTS')"],
+  [pool.userNameValidate('--__'), false, "pool.userNameValidate('--__')"],
+  [pool.userNameValidate('--__?'), `invalid name<br><br> valid characters include letters, numbers, "-" and "_"`, "pool.userNameValidate('--__?')"],
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,
@@ -141,5 +144,17 @@ var publishFAQ = function () {
 var fetchFAQ = function () {
   ajaxCall('/~faqText', 'GET', {}, function(json) {
     $("faq-input").value = prepTextForEditor(json.text);
+  });
+}
+
+var getUserUrls = function () {
+  ajaxCall('/admin/getUserUrls', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var makeAllUserUrls = function () {
+  ajaxCall('/admin/makeAllUserUrls', 'POST', {}, function(json) {
+    console.log(json);
   });
 }

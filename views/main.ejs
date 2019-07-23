@@ -205,13 +205,13 @@
     <icon class="no-select clicky arrow fas fa-caret-left" onclick="backToLogInMenu()"></icon>
     <br><br>
     <form action="javascript:void(0);">
-      <input id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
+      <input class="login-input" id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
       <br>
-      <input id="email-input" type="text" name="email" autocomplete="email" placeholder="email address">
+      <input class="login-input" id="email-input" type="text" name="email" autocomplete="email" placeholder="(optional) recovery email address">
       <br>
-      <input id="pass-input" type="password" name="password" autocomplete="new-password" placeholder="password">
+      <input class="login-input" id="pass-input" type="password" name="password" autocomplete="new-password" placeholder="password">
       <br>
-      <input id="pass-input-two" type="password" name="password" autocomplete="new-password" placeholder="password">
+      <input class="login-input" id="pass-input-two" type="password" name="password" autocomplete="new-password" placeholder="password">
       <!--
       <br>
       <input id="secret-code" type="password" name="secretCode" placeholder="secret code">
@@ -228,9 +228,9 @@
     <icon class="no-select clicky arrow fas fa-caret-left" onclick="backToLogInMenu()"></icon>
     <br><br>
     <form action="javascript:void(0);">
-      <input id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
+      <input class="login-input" id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
       <br>
-      <input id="in-pass-input" type="password" name="password" autocomplete=“current-password” placeholder="password">
+      <input class="login-input" id="in-pass-input" type="password" name="password" autocomplete=“current-password” placeholder="password">
       <br>
       <icon id="eye1" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye1', ['in-pass-input'])"></icon>
       <icon id="eye1c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye1', ['in-pass-input'])"></icon>

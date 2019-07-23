@@ -360,6 +360,7 @@ input {
   outline-style: none;
   margin-bottom: 2px;
   padding: 3px 5px 3px 5px;
+  width: 200px;
 }
 
 /*hack to make Chrome not force formatting when it autofills*/
@@ -370,13 +371,8 @@ input:-webkit-autofill {
 
 .eye {
   position: relative;
-  left: 65px;
+  left: 83px;
   bottom: 23px;
-}
-
-.change-pass-button-bump {
-  position: relative;
-  bottom: 19px;
 }
 
 #color-settings-box {

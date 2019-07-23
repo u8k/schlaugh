@@ -22,11 +22,11 @@
     if (x === undefined || x === "") {
       return "empty string is not a valid username, sorry";
     }
-    if (x.length > 64) { //17
+    if (x.length > 64) {
       return 'name is too long';
     }
-    if (/[^a-z0-9-_]/.test(x)) {
-      return 'invalid name<br><br> valid characters include letters a-z(lowercase), numbers 0-9, "-" and "_"';
+    if (/[^a-zA-Z0-9-_]/.test(x)) {
+      return 'invalid name<br><br> valid characters include letters, numbers, "-" and "_"';
     }
     else {return false;}  // false indicates good, no problems
   }

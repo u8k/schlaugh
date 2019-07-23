@@ -371,6 +371,18 @@ var genID = function (clctn, length, callback) {
   });
 }
 
+var createUserUrl = function (username, authorID, callback) {    //creates a listing in the userUrl collection
+  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+  authorID = ObjectId(authorID);
+  db.collection('userUrls').insertOne({
+    _id: username.toLowerCase(),
+    authorID: authorID,
+  }, {}, function (err, result) {
+    if (err) {return callback({error:err});}
+    else {return callback({error:false});}
+  });
+}
+
 var createPost = function (authorID, callback, date) {    //creates a postID and ref in the postDB
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
   authorID = ObjectId(authorID);
@@ -901,10 +913,10 @@ app.post('/admin/posts', function(req, res) {
 
 app.post('/admin/resetCodes', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('resetCodes').find({},{code:1, username:1, attempts:1, creationTime:1}).toArray(function(err, posts) {
+    db.collection('resetCodes').find({},{code:1, username:1, attempts:1, creationTime:1}).toArray(function(err, codes) {
       if (err) {return sendError(res, err);}
       else {
-        return res.send(posts);
+        return res.send(codes);
       }
     });
   });
@@ -941,11 +953,53 @@ app.post('/admin/users', function(req, res) {
 
 app.post('/admin/user', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('users').findOne({username: req.body.name}, {}
+    db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return res.send({error:"user not found"});}
-      else {return res.send(user);}
+      else {
+        db.collection('users').findOne({_id: user.authorID}, {}, function (err, user) {
+          if (err) {return sendError(res, err);}
+          else if (!user) {return res.send({error:"user not found, 2"});}
+          else {return res.send(user);}
+        });
+      }
+    });
+  });
+});
+
+app.post('/admin/getUserUrls', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('userUrls').find({},{_id:1, authorID:1}).toArray(function(err, users) {
+      if (err) {return sendError(res, err);}
+      else {
+        return res.send(users);
+      }
+    });
+  });
+});
+
+app.post('/admin/makeAllUserUrls', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('users').find({}, {_id:1, username:1}).toArray(function(err, users) {
+      if (err) {return sendError(res, err);}
+      else {
+        var count = users.length;
+        for (var i = 0; i < users.length; i++) {
+          createUserUrl(users[i].username, users[i]._id, function (resp) {
+            if (resp.error && count > 0) {
+              count = -1;
+              return sendError(res, resp.error);
+            }
+            else {
+              count--;
+              if (count === 0) {
+                res.send({error:false});
+              }
+            }
+          });
+        }
+      }
     });
   });
 });
@@ -1031,14 +1085,17 @@ app.post('/admin/resetTest', function(req, res) {
 
 app.post('/admin/removeUser', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('users').remove({username: req.body.name},
-      function(err, user) {
-        if (err) {return sendError(res, err);}
-        else {
-          res.send({error:false});
-        }
+    db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
+    , function (err, user) {
+      if (err) {return sendError(res, err);}
+      else if (!user) {return res.send({error:"user not found"});}
+      else {
+        db.collection('users').remove({_id: user.authorID}, function(err, user) {
+          if (err) {return sendError(res, err);}
+          else {res.send({error:false});}
+        });
       }
-    );
+    });
   });
 });
 
@@ -1050,7 +1107,7 @@ app.post('/admin/removeUser', function(req, res) {
   });
 });*/
 
-app.post('/admin/makePostIDs', function(req, res) {
+/*app.post('/admin/makePostIDs', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('users').findOne({username: req.body.name}, {posts:1,}
     , function (err, user) {
@@ -1074,7 +1131,7 @@ app.post('/admin/makePostIDs', function(req, res) {
       }
     });
   });
-});
+});*/
 
 app.post('/admin/getPost', function(req, res) {
   adminGate(req, res, function (res, user) {
@@ -1781,7 +1838,7 @@ app.post('/collapse', function(req, res) {
 
 // toggle unread status of threads
 app.post('/unread', function(req, res) {
-  var errMsg = "unread property error<br><br>"
+  var errMsg = "unread property error<br><br>";
   if (!req.session.user) {return sendError(res, errMsg+ "no user session 4653");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
@@ -1910,10 +1967,10 @@ app.post('/register', function(req, res) {
     else {
       */
       //check if there is already a user w/ that name
-      db.collection('users').findOne({username: username}, {username:1}, function (err, user) {
+      db.collection('userUrls').findOne({_id: username.toLowerCase()}, {}, function (err, user) {
         if (err) {return sendError(res, err);}
-    		else if (user) {return res.send({error:"name taken"});}
-    		else {
+        else if (user) {return res.send({error:"name taken"});}
+        else {
           var today = pool.getCurDate();
           db.collection('users').insertOne({
             username: username,
@@ -1935,41 +1992,46 @@ app.post('/register', function(req, res) {
           }, {}, function (err, result) {
             if (err) {return sendError(res, err);}
             var newID = ObjectId(result.insertedId);
-            bcrypt.hash(password, 10, function(err, passHash){
-              if (err) {return sendError(res, err);}
+            createUserUrl(username, newID, function (resp) {
+              if (resp.error) {return sendError(res, resp.error);}
               else {
-                bcrypt.hash(email, 10, function(err, emailHash){
+                bcrypt.hash(password, 10, function(err, passHash){
                   if (err) {return sendError(res, err);}
                   else {
-                    var setValue = {
-                      password: passHash,
-                      email: emailHash,
-                      following: [
-                        ObjectId("5a0ea8429adb2100146f7568"), //staff
-                        newID, //self
-                    ],
-                    };
-                    db.collection('users').updateOne({_id: newID},
-                      {$set: setValue }, {},
-                      function(err, r) {
-                        if (err) {return sendError(res, err);}
-                        else {
-                          // "sign in" the user
-                          req.session.user = { _id: newID };
-                          return res.send({error:false, needKeys:true, newUser: true,
-                            message: `welcome to schlaugh!<br><br>i'll be your staff. can i get you started with something to drink?<br><br>please don't hesitate to ask any questions, that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. you can find the site FAQ <a href="https://www.schlaugh.com/~faq">here</a>.<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "schlaugh@protonmail.com"<br><br>&lt;3`,
-                          });
-                          /*
-                          // remove the code from the admin stash so it can't be used again
-                          delete admin.codes[secretCode];
-                          writeToDB(admin._id, admin, function () {res.send("success");});
-                          */
-                        }
+                    bcrypt.hash(email, 10, function(err, emailHash){
+                      if (err) {return sendError(res, err);}
+                      else {
+                        var setValue = {
+                          password: passHash,
+                          email: emailHash,
+                          following: [
+                            ObjectId("5a0ea8429adb2100146f7568"), //staff
+                            newID, //self
+                          ],
+                        };
+                        db.collection('users').updateOne({_id: newID},
+                          {$set: setValue }, {},
+                          function(err, r) {
+                            if (err) {return sendError(res, err);}
+                            else {
+                              // "sign in" the user
+                              req.session.user = { _id: newID };
+                              return res.send({error:false, needKeys:true, newUser: true,
+                                message: `welcome to schlaugh!<br><br>i'll be your staff. can i get you started with something to drink?<br><br>please don't hesitate to ask any questions, that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. you can find the site FAQ <a href="https://www.schlaugh.com/~faq">here</a>.<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "schlaugh@protonmail.com"<br><br>&lt;3`,
+                              });
+                              /*
+                              // remove the code from the admin stash so it can't be used again
+                              delete admin.codes[secretCode];
+                              writeToDB(admin._id, admin, function () {res.send("success");});
+                              */
+                            }
+                          }
+                        );
                       }
-                    );
-                  }
+                    });
+                  };
                 });
-              };
+              }
             });
           });
     		}
@@ -1982,46 +2044,50 @@ app.post('/register', function(req, res) {
 
 // log in (aslo password verify)
 app.post('/login', function(req, res) {
-  if (!req.body.username || !req.body.password) {return sendError(res, "malformed request 147")}
-  var username = req.body.username;
-	var password = req.body.password;
-  // validate
+  var errMsg = "login error<br><br>"
+  if (!req.body.username || !req.body.password) {return sendError(res, errMsg+"malformed request 147")}
   var nope = "invalid username/password";
-  db.collection('users').findOne({username: username}
-    , { password:1 }
-    , function (err, user) {
-      if (err) {return sendError(res, err);}
-      if (!user) {return res.send({error:nope});}
-      else {
-        // Match Password
-        bcrypt.compare(password, user.password, function(err, isMatch){
-          if (err) {return sendError(res, err);}
-          else if (isMatch) {
-            if (req.session.user) { // is there already a logged in user? (via cookie)
-              // this is a password check to unlock an inbox
-              if (String(req.session.user._id) !== String(user._id)) {
-                // valid username and pass, but for a different user than currently logged in
+  db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
+    if (err) {return sendError(res, errMsg+err);}
+    else if (!user) {return res.send({error:nope});}
+    else {
+      db.collection('users').findOne({_id: user.authorID}, {password:1}, function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        if (!user) {return res.send({error:nope});}
+        else {
+          // Match Password
+          bcrypt.compare(req.body.password, user.password, function(err, isMatch){
+            if (err) {return sendError(res, errMsg+err);}
+            else if (isMatch) {
+              if (req.session.user) { // is there already a logged in user? (via cookie)
+                // this is a password check to unlock an inbox
+                if (String(req.session.user._id) !== String(user._id)) {
+                  // valid username and pass, but for a different user than currently logged in
+                  req.session.user = { _id: ObjectId(user._id) };
+                  // switcheroo
+                  return res.send({switcheroo:true});
+                } else {
+                  return res.send({error:false});
+                }
+              } else { // this is an actual login
                 req.session.user = { _id: ObjectId(user._id) };
-                // switcheroo
-                return res.send({switcheroo:true});
-              } else {
-                return res.send({error:false});
+                if (req.body.authorID) {        // is this a login while viewing an author page?
+                  var authorID = ObjectId(req.body.authorID);
+                }
+                getPayload(req, res, authorID, function (payload) {
+                  return res.send({error:false, payload:payload});
+                });
               }
-            } else { // this is an actual login
-              req.session.user = { _id: ObjectId(user._id) };
-              if (req.body.authorID) {        // is this a login while viewing an author page?
-                var authorID = ObjectId(req.body.authorID);
-              }
-              getPayload(req, res, authorID, function (payload) {
-                return res.send({error:false, payload:payload});
-              });
+            } else {
+              return res.send({error:nope});
             }
-          } else {
-            return res.send({error:nope});
-          }
-        });
-      }
+          });
+        }
+      });
+    }
   });
+
+
 });
 
 // set keys
@@ -2204,59 +2270,67 @@ app.post('/changePasswordFin', function (req, res) {
 
 // request password reset code
 app.post('/passResetRequest', function (req, res) {
-  db.collection('users').findOne({username: req.body.username}, {email:1, settings:1}
-  , function (err, user) {
-    if (err) {return sendError(res, err);}
+  var errMsg = "password reset request error<br><br>";
+  if (!req.body.username || !req.body.email) {return sendError(res, errMsg+"malformed request 258")}
+  db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
+    if (err) {return sendError(res, errMsg+err);}
     else if (!user) {return res.send({error: false});}
-    else {            // first check if user already has an active reset code
-      var today = pool.getCurDate();
-      if (user.settings && user.settings.recovery && user.settings.recovery[today]) {
-        var arr = user.settings.recovery[today];
-        if (arr.length && arr.length > 6) {        // if they've already made 7 requests today,
-          return res.send({error: false});
-        }
-        var now = new Date();
-        if ((now - arr[arr.length-1]) < 600000) {  // if it's been < 10min since last request,
-          return res.send({error: false});
-        }
-      } else {
-        if (!user.settings.recovery) {user.settings.recovery = {};}
-        user.settings.recovery[today] = [];
-      }
-      bcrypt.compare(req.body.email, user.email, function(err, isMatch){
+    else {
+      db.collection('users').findOne({_id: user.authorID}, {email:1, settings:1}
+      , function (err, user) {
         if (err) {return sendError(res, err);}
-        else if (!isMatch) {res.send({error: false});}    // DO NOT send ANY indication of if there was a match
-        else {
-          // generate code, and send email
-          genID('resetCodes', 20, function (resp) {
-            if (resp.error) {return sendError(res, resp.err);}
+        else if (!user) {return res.send({error: false});}
+        else {            // first check if user already has an active reset code
+          var today = pool.getCurDate();
+          if (user.settings && user.settings.recovery && user.settings.recovery[today]) {
+            var arr = user.settings.recovery[today];
+            if (arr.length && arr.length > 6) {        // if they've already made 7 requests today,
+              return res.send({error: false});
+            }
+            var now = new Date();
+            if ((now - arr[arr.length-1]) < 600000) {  // if it's been < 10min since last request,
+              return res.send({error: false});
+            }
+          } else {
+            if (!user.settings.recovery) {user.settings.recovery = {};}
+            user.settings.recovery[today] = [];
+          }
+          bcrypt.compare(req.body.email, user.email, function(err, isMatch){
+            if (err) {return sendError(res, err);}
+            else if (!isMatch) {res.send({error: false});}    // DO NOT send ANY indication of if there was a match
             else {
-              bcrypt.hash(req.body.username, 10, function(err, usernameHash){
-                if (err) {return sendError(res, err);}
+              // generate code, and send email
+              genID('resetCodes', 20, function (resp) {
+                if (resp.error) {return sendError(res, resp.err);}
                 else {
-                  var msg = {
-                    to: req.body.email,
-                    from: 'schlaugh@protonmail.com',
-                    subject: 'schlaugh account recovery',
-                    text: `visit the following link to reset your schlaugh password: https://www.schlaugh.com/~recovery/`+resp._id+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
-                    html: `<a href="https://www.schlaugh.com/~recovery/`+resp._id+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+resp._id+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
-                  };
-                  sgMail.send(msg, (error, result) => {
-                    if (error) {return sendError(res, "email server malapropriationologification");}
+                  bcrypt.hash(req.body.username.toLowerCase(), 10, function(err, usernameHash){
+                    if (err) {return sendError(res, err);}
                     else {
-                      var newCode = {
-                        code: resp._id,
-                        username: usernameHash,
-                        attempts: 0,
-                        creationTime: new Date(),
-                      }
-                      db.collection('resetCodes').insertOne(newCode, {}, function (err, result) {
-                        if (err) {return sendError(res, err);}
+                      var msg = {
+                        to: req.body.email,
+                        from: 'schlaugh@protonmail.com',
+                        subject: 'schlaugh account recovery',
+                        text: `visit the following link to reset your schlaugh password: https://www.schlaugh.com/~recovery/`+resp._id+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
+                        html: `<a href="https://www.schlaugh.com/~recovery/`+resp._id+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+resp._id+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
+                      };
+                      sgMail.send(msg, (error, result) => {
+                        if (error) {return sendError(res, "email server malapropriationologification");}
                         else {
-                          user.settings.recovery[today].push(newCode.creationTime);
-                          writeToDB(user._id, user, function (dbResp) {
-                            if (dbResp.error) {sendError(res, dbResp.error);}
-                            else {res.send({error: false});}               // victory state
+                          var newCode = {
+                            code: resp._id,
+                            username: usernameHash,
+                            attempts: 0,
+                            creationTime: new Date(),
+                          }
+                          db.collection('resetCodes').insertOne(newCode, {}, function (err, result) {
+                            if (err) {return sendError(res, err);}
+                            else {
+                              user.settings.recovery[today].push(newCode.creationTime);
+                              writeToDB(user._id, user, function (dbResp) {
+                                if (dbResp.error) {sendError(res, dbResp.error);}
+                                else {res.send({error: false});}               // victory state
+                              });
+                            }
                           });
                         }
                       });
@@ -2301,47 +2375,58 @@ app.get('/~recovery/:code', function (req, res) {
 
 // recovery verify username/change pass
 app.post('/resetNameCheck', function (req, res) {
+  var errMsg = "password reset request error<br><br>";
+  if (!req.body.username || !req.body.code) {return sendError(res, errMsg+"malformed request 258")}
   db.collection('resetCodes').findOne({code: req.body.code}, {_id:1, code:1, creationTime:1, username:1, attempts:1}
   , function (err, code) {
-    if (err) {return sendError(res, err);}
+    if (err) {return sendError(res, errMsg+err);}
     else {
-      if (!code) {return sendError(res, 'code not found');}
+      if (!code) {return sendError(res, errMsg+'code not found');}
       else {
         var now = new Date();
         if ((now - code.creationTime) > 5000000) {  // code is too old, delete
           db.collection('resetCodes').remove({_id: code._id},
             function(err, post) {
-              if (err) {return sendError(res, err);}
-              else {return sendError(res, 'code has expired');}
+              if (err) {return sendError(res, errMsg+err);}
+              else {return sendError(res, errMsg+'code has expired');}
             }
           );
         } else {
-          bcrypt.compare(req.body.username, code.username, function(err, isMatch){
-            if (err) {return sendError(res, err);}
+          bcrypt.compare(req.body.username.toLowerCase(), code.username, function(err, isMatch) {
+            if (err) {return sendError(res, errMsg+err);}
             else if (isMatch) {
               if (req.body.password) {
                 var y = pool.passwordValidate(req.body.password);
-                if (y) {return res.send({error:y});}
+                if (y) {return res.send({error: errMsg+y});}
                 else {
                   bcrypt.hash(req.body.password, 10, function(err, passHash){
-                    if (err) {return sendError(res, err);}
+                    if (err) {return sendError(res, errMsg+err);}
                     else {
-                      var user = {password: passHash, keys:null}
                       // keys are tied to pass, clear keys, new keys created on sign in
-                      db.collection('users').updateOne({username: req.body.username},
-                        {$set: user},
-                        function(err, user) {
-                          if (err) {res.send({error:err});}
-                          else {
-                            db.collection('resetCodes').remove({_id: code._id},
-                              function(err, post) {
-                                if (err) {return sendError(res, err);}
-                                else {res.send({error: false, victory:true});}    //final victory state
+                      var userObj = {password: passHash, keys:null}
+
+                      db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
+                        if (err) {return sendError(res, errMsg+err);}
+                        else if (!user) {return res.send({error: errMsg+"user not found"});}
+                        else {
+                          db.collection('users').updateOne({_id: user.authorID},
+                            {$set: userObj},
+                            function(err, user) {
+                              if (err) {res.send({error: errMsg+err});}
+                              else {
+                                db.collection('resetCodes').remove({_id: code._id},
+                                  function(err, post) {
+                                    if (err) {return sendError(res, errMsg+err);}
+                                    else {res.send({error: false, victory:true});}    //final victory state
+                                  }
+                                );
                               }
-                            );
-                          }
+                            }
+                          );
                         }
-                      );
+                      });
+
+
                     }
                   });
                 }
@@ -2351,7 +2436,7 @@ app.post('/resetNameCheck', function (req, res) {
               if (code.attempts === 5) {
                 db.collection('resetCodes').remove({_id: code._id},
                   function(err, post) {
-                    if (err) {return sendError(res, err);}
+                    if (err) {return sendError(res, errMsg+err);}
                     else {res.send({error: false, attempt:5});}  // total fail state
                   }
                 );
@@ -2360,7 +2445,7 @@ app.post('/resetNameCheck', function (req, res) {
                 db.collection('resetCodes').updateOne({_id: ObjectId(code._id)},
                   {$set: code},
                   function(err, code) {
-                    if (err) {res.send({error:err});}
+                    if (err) {res.send({error: errMsg+err});}
                     else {
                       res.send({error: false, attempt:attempt});}  //fail state
                   }
@@ -2568,23 +2653,6 @@ var authorAndDateFromPostID = function (post_id, callback) {
         return callback({error: false, ever: true});
       } else {
         return callback({error: false, author:post.authorID, date:post.date});
-        /*
-        var author_id = post.authorID;
-        if (ObjectId.isValid(author_id)) {author_id = ObjectId(author_id);}
-        //else {return callback({error: "invalid author id"});}
-        db.collection('users').findOne({_id: author_id}
-        , { _id:0, username:1,}
-        , function (err, author) {
-          if (err) {return callback({error:err});}
-          else {
-            if (!author) {    //404
-              return callback({error: false, ever: true,});
-            } else {
-              return callback({error: false, four04: false, author:author.username, date:post.date});
-            }
-          }
-        });
-        */
       }
     }
   });
@@ -2647,14 +2715,16 @@ app.post('/~getTaggedByAuthor', function (req, res) {
 
 // view a users posts, filtered by tag
 app.get('/:author/~tagged/:tag', function(req, res) {
+  var author = req.params.author.toLowerCase();
+  if (author === "admin" || author === "apwbd") {return renderLayout(req, res, {post_id: false});}
   var errMsg = "author lookup error<br><br>";
-  db.collection('users').findOne({username: req.params.author}, {},
+  db.collection('userUrls').findOne({_id: author}, {authorID:1},
     function (err, user) {
       if (err) {return sendError(res, errMsg+err);}
       if (!user) {
         renderLayout(req, res, {post_id: false});
       } else {
-        renderLayout(req, res, {author:user._id, tag:req.params.tag});
+        renderLayout(req, res, {author:user.authorID, tag:req.params.tag});
       }
     }
   );
@@ -2687,16 +2757,17 @@ app.post('/~getTag', function (req, res) {
 
 // view a user page
 app.get('/:author', function(req, res) {
-  if (req.params.author === "admin" || req.params.author === "apwbd") {return renderLayout(req, res, {post_id: false});}
+  var author = req.params.author.toLowerCase();
+  if (author === "admin" || author === "apwbd") {return renderLayout(req, res, {post_id: false});}
   var errMsg = "author lookup error<br><br>";
-  db.collection('users').findOne({username: req.params.author}, {},
+  db.collection('userUrls').findOne({_id: author}, {authorID:1},
     function (err, user) {
       if (err) {return sendError(res, errMsg+err);}
       if (!user) {
         renderLayout(req, res, {post_id: false});
       }
       else {
-        renderLayout(req, res, {author: user._id});
+        renderLayout(req, res, {author: user.authorID});
       }
     }
   );
