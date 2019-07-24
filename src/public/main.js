@@ -58,7 +58,7 @@ var changeColor = function (colorCode, type) {
   var sheet = document.styleSheets[document.styleSheets.length-1];
   switch (type) {
     case "postBackground":                 //post background
-      var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up";
+      var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background";
       var attribute = "background-color";
       break;
     case "text":                        //text
@@ -1251,7 +1251,6 @@ var createPostFooter = function (postElem, author, post, type) {
         quoteBtn.title = "quote";
         quoteBtn.onclick = function() {
           if (glo.postStash && glo.postStash[post.post_id]) {     // is it already stashed?
-            console.log('toots');
             var text = "<quote>"+glo.postStash[post.post_id].body+
             '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
             if ($('post-editor').value !== "") {text = '<br>'+text;}
@@ -1712,7 +1711,7 @@ var openAuthorPanel = function (authorID, callback) {
   } else {
     // call for data and render a new panel
     loading();
-    ajaxCall('/~getAuthor/'+authorID+'/1', 'POST', {postRef:glo.postRef}, function(json) {
+    ajaxCall('/~getAuthor/'+authorID+'/0', 'POST', {postRef:glo.postRef}, function(json) {
       loading(true);
       if (json.four04) {
         uiAlert("this shouldn't ever happen now, right?");
@@ -1796,50 +1795,96 @@ var openAuthorPanel = function (authorID, callback) {
         bucket.setAttribute('id', json._id+'-posts');
         panel.appendChild(bucket);
 
-        renderAuthorPage(json, 1);
+        renderAuthorPage(json, json.pages);
 
         //page nav
         var pageNav = document.createElement("div");
         pageNav.setAttribute('class','author-page-nav');
         pageNav.setAttribute('id', json._id+'-page-nav');
         panel.appendChild(pageNav);
-        var arrowBox = document.createElement("div");
-        pageNav.appendChild(arrowBox);
-        var leftArrow = document.createElement("clicky");
-        leftArrow.setAttribute('class', "author-arrow");
-        leftArrow.setAttribute('id', json._id+"-left-arrow");
-        leftArrow.innerHTML = '<icon class="fas fa-caret-left"></icon>';
-        leftArrow.onclick = function () {
-          turnAuthorPage(json._id, 1);
+        if (json.pages > 1) {
+          var arrowBox = document.createElement("div");
+          pageNav.appendChild(arrowBox);
+          var leftArrow = document.createElement("clicky");
+          leftArrow.setAttribute('class', "author-arrow");
+          leftArrow.setAttribute('id', json._id+"-left-arrow");
+          leftArrow.innerHTML = '<icon class="fas fa-caret-left"></icon>';
+          leftArrow.onclick = function () {
+            turnAuthorPage(json._id, -1);
+          }
+          arrowBox.appendChild(leftArrow);
+          var rightArrow = document.createElement("clicky");
+          rightArrow.setAttribute('class', "author-arrow hidden");
+          rightArrow.setAttribute('id', json._id+"-right-arrow");
+          rightArrow.innerHTML = '<icon class="fas fa-caret-right"></icon>';
+          rightArrow.onclick = function () {
+            turnAuthorPage(json._id, 1);
+          }
+          arrowBox.appendChild(rightArrow);
         }
-        arrowBox.appendChild(leftArrow);
-        var rightArrow = document.createElement("clicky");
-        rightArrow.setAttribute('class', "author-arrow hidden");
-        rightArrow.setAttribute('id', json._id+"-right-arrow");
-        rightArrow.innerHTML = '<icon class="fas fa-caret-right"></icon>';
-        rightArrow.onclick = function () {
-          turnAuthorPage(json._id, -1);
-        }
-        arrowBox.appendChild(rightArrow);
         var page = document.createElement('text');
         page.innerHTML = "page<br>";
         page.setAttribute('class', "monospace")
         pageNav.appendChild(page);
-        var pageNumberLeft = document.createElement('text');
-        pageNumberLeft.innerHTML = 1;
-        pageNumberLeft.setAttribute('class', "monospace")
+
+        var pageForm = document.createElement('form');
+        pageForm.setAttribute('action', "javascript:void(0);");
+        pageNav.appendChild(pageForm);
+        if (json.pages > 1) {
+          var pageNumberLeft = document.createElement('input');
+          pageNumberLeft.value = json.pages;
+          pageNumberLeft.onmousedown = function () {$(json._id+ "-page-jump").classList.remove('hidden');}
+          pageNumberLeft.onclick = function () {$(json._id+ "-page-jump").classList.remove('hidden');}
+          if (json.pages < 10) {
+            pageNumberLeft.setAttribute('class', "monospace post-background page-number-left");
+          } else if (json.pages < 100) {
+            pageNumberLeft.setAttribute('class', "monospace post-background page-number-left-wide");
+          } else {
+            pageNumberLeft.setAttribute('class', "monospace post-background page-number-left-wider");
+          }
+        } else {
+          var pageNumberLeft = document.createElement('text');
+          pageNumberLeft.innerHTML = json.pages;
+          pageNumberLeft.setAttribute('class', "monospace");
+        }
         pageNumberLeft.setAttribute('id', json._id+ "-page-number-left")
-        pageNav.appendChild(pageNumberLeft);
+        pageForm.appendChild(pageNumberLeft);
+
         var pageNumber = document.createElement('text');
         pageNumber.innerHTML = " of ";
         pageNumber.setAttribute('class', "monospace")
-        pageNav.appendChild(pageNumber);
+        pageForm.appendChild(pageNumber);
+
         var pageNumberRight = document.createElement('text');
         pageNumberRight.innerHTML = json.pages;
-        pageNumberRight.setAttribute('class', "monospace")
+        if (json.pages < 2) {
+          pageNumberRight.setAttribute('class', "monospace");
+        } else if (json.pages < 10) {
+          pageNumberRight.setAttribute('class', "monospace page-number-right");
+        } else if (json.pages < 100) {
+          pageNumberRight.setAttribute('class', "monospace page-number-right-wide");
+        } else {
+          pageNumberRight.setAttribute('class', "monospace page-number-right-wider");
+        }
         pageNumberRight.setAttribute('id', json._id+ "-page-number-right")
-        pageNav.appendChild(pageNumberRight);
+        pageForm.appendChild(pageNumberRight);
         // put jump stuff here
+        if (json.pages > 2) {
+          pageForm.appendChild(document.createElement('br'));
+          var pageJump = document.createElement('button');
+          pageJump.innerHTML = 'jump';
+          pageJump.onclick = function () {
+            var newPage = parseInt(pageNumberLeft.value);
+            if (!Number.isInteger(newPage) || newPage < 1 || newPage > json.pages) {
+              uiAlert("positive integers less than the total number of pages,<br><i>please</i>");
+            } else {
+              turnAuthorPage(json._id, null, newPage);
+            }
+          }
+          pageJump.setAttribute('class', 'hidden')
+          pageJump.setAttribute('id', json._id+ "-page-jump")
+          pageForm.appendChild(pageJump);
+        }
         //
         switchPanel("user-"+json._id+"-panel");
         if (callback) {callback();}
@@ -1851,29 +1896,35 @@ var openAuthorPanel = function (authorID, callback) {
   }
 }
 
-var turnAuthorPage = function (authorID, dir) {
-  var newPage = parseInt($(authorID+ "-page-number-left").innerHTML) + dir;
-  $(authorID+ "-page-number-left").innerHTML = newPage;
+var turnAuthorPage = function (authorID, dir, num) {
+  if (!$(authorID+"-right-arrow")) {return simulatePageLoad($(authorID+'-panel-title').innerHTML, null, glo.authorPics[authorID]);}
+  if (num) {var newPage = num}
+  else {var newPage = parseInt($(authorID+ "-page-number-left").value) + dir;}
+  $(authorID+ "-page-number-left").value = newPage;
   if (parseInt($(authorID+ "-page-number-right").innerHTML) === newPage) {
-    $(authorID+"-left-arrow").classList.add('hidden');
-  } else {
-    $(authorID+"-left-arrow").classList.remove('hidden');
-  }
-  if (newPage === 1) {
     $(authorID+"-right-arrow").classList.add('hidden');
   } else {
     $(authorID+"-right-arrow").classList.remove('hidden');
+  }
+  if (newPage === 1) {
+    $(authorID+"-left-arrow").classList.add('hidden');
+  } else {
+    $(authorID+"-left-arrow").classList.remove('hidden');
   }
   clearAuthorPage(authorID);
   if (glo.page && glo.page[authorID] && glo.page[authorID].num[newPage]) {
     for (var i = 0; i < glo.page[authorID].num[newPage].length; i++) {
       $("author-" +glo.page[authorID].num[newPage][i]).classList.remove('removed');
     }
+    var authorName = $(authorID+'-panel-title').innerHTML;
+    simulatePageLoad(authorName+"/~page/"+newPage, authorName, glo.authorPics[authorID]);
   } else {
     loading();
     ajaxCall('/~getAuthor/'+authorID+'/'+newPage, 'POST', {postRef:glo.postRef}, function(json) {
       loading(true);
-      renderAuthorPage(json.data, newPage)
+      renderAuthorPage(json.data, newPage);
+      var authorName = $(authorID+'-panel-title').innerHTML;
+      simulatePageLoad(authorName+"/~page/"+newPage, authorName, glo.authorPics[authorID]);
     });
   }
 }

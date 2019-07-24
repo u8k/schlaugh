@@ -2537,6 +2537,7 @@ var renderLayout = function (req, res, data) {
       post_id:data.post_id,
       date:data.date,
       tag:data.tag,
+      page:data.page,
       ever:data.ever,
       about:data.about,
       faq:data.faq,
@@ -2550,6 +2551,7 @@ var renderLayout = function (req, res, data) {
         post_id:data.post_id,
         date:data.date,
         tag:data.tag,
+        page:data.page,
         ever:data.ever,
         about:data.about,
         faq:data.faq,
@@ -2560,12 +2562,12 @@ var renderLayout = function (req, res, data) {
 }
 
 // get author/post routes:
-// get 7 of a user,s posts, and authorInfo
+// get 7 of a user's posts, and authorInfo
 app.post('/~getAuthor/:id/:page', function(req, res) {
   var errMsg = "author lookup error<br><br>";
   if (req.params.page === undefined) {return sendError(res, errMsg+"malformed request 299");}
   req.params.page = parseInt(req.params.page);
-  if (!Number.isInteger(req.params.page) || req.params.page < 1) {return sendError(res, errMsg+"malformed request 301");}
+  if (!Number.isInteger(req.params.page) || req.params.page < 0) {return sendError(res, errMsg+"malformed request 301");}
   if (!req.params.id) {return sendError(res, errMsg+"malformed request 300");}
   var authorID = req.params.id;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
@@ -2585,8 +2587,13 @@ app.post('/~getAuthor/:id/:page', function(req, res) {
           var authorPic = getUserPic(author);
           var posts = [];
           var pL = author.postList;
+          var pages = Math.ceil(pL.length /7);
           var list = [];
-          var page = req.params.page -1;
+          if (req.params.page === 0) {
+            var page = 0;
+          } else {
+            var page = pages - req.params.page;
+          }
           var start = (pL.length - 1) - (page * 7);
           if (!req.body.postRef) {req.body.postRef = {}};
           for (var i = start; i > start - 7; i--) {
@@ -2616,7 +2623,6 @@ app.post('/~getAuthor/:id/:page', function(req, res) {
               }
             });
           } else {
-            var pages = Math.ceil(pL.length /7);
             var bio = author.bio;
             if (typeof bio !== 'string') {bio = "";}
             var key = null;
@@ -2704,6 +2710,26 @@ var authorAndDateFromPostID = function (post_id, callback) {
     }
   });
 }
+
+// view a page of an author's posts
+app.get('/:author/~page/:page', function(req, res) {
+  var author = req.params.author.toLowerCase();
+  if (author === "admin" || author === "apwbd") {return renderLayout(req, res, {post_id: false});}
+  var errMsg = "author lookup error<br><br>";
+  if (req.params.page === undefined) {return sendError(res, errMsg+"malformed request 298");}
+  req.params.page = parseInt(req.params.page);
+  if (!Number.isInteger(req.params.page) || req.params.page < 0) {return sendError(res, errMsg+"malformed request 302");}
+  db.collection('userUrls').findOne({_id: author}, {authorID:1},
+    function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      if (!user) {
+        renderLayout(req, res, {post_id: false});
+      } else {
+        renderLayout(req, res, {author:user.authorID, page:req.params.page});
+      }
+    }
+  );
+});
 
 // get all of a user's posts with a tag
 app.post('/~getTaggedByAuthor', function (req, res) {

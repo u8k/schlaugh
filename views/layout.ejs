@@ -14,7 +14,7 @@
 
     <% if (user && typeof settings !== "undefined" && typeof settings.colors !== "undefined") { %>
       <style media="screen">
-        .post, .message, .editor, #settings-box, #thread-list, button, .pop-up {
+        .post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background {
           background-color: <%= settings.colors.postBackground %>;
         }
         body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up {
@@ -61,6 +61,12 @@
             var authorID = <%- JSON.stringify(author) %>;
             var tag = <%- JSON.stringify(tag) %>;
             fetchData(function () {filterAuthorByTag(authorID, tag)});
+          </script>
+        <% } else if (page) { %>
+          <script type="text/javascript">
+            var authorID = <%- JSON.stringify(author) %>;
+            var page = <%- JSON.stringify(page) %>;
+            fetchData(function () {openAuthorPanel(authorID, function () {turnAuthorPage(authorID, null, page)})});
           </script>
         <% } else { %>
           <script type="text/javascript">
@@ -115,6 +121,12 @@
             var authorID = <%- JSON.stringify(author) %>;
             var tag = <%- JSON.stringify(tag) %>;
             filterAuthorByTag(authorID, tag);
+          </script>
+        <% } else if (page) { %>
+          <script type="text/javascript">
+            var authorID = <%- JSON.stringify(author) %>;
+            var page = <%- JSON.stringify(page) %>;
+            openAuthorPanel(authorID, function () {turnAuthorPage(authorID, null, page)})
           </script>
         <% } else { %>
           <script type="text/javascript">
