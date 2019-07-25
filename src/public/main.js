@@ -3149,7 +3149,7 @@ var logInPageSubmit = function(inOrUp) {
 
 var cookieNotification = function () {
   if (glo && glo.settings && !glo.settings.notifiedAboutCookie) {
-    verify("the cops told me i gotta tell you bout how schlaugh stores exactly two tiny cookies on your browser for persistent sign in, and literally nothing else. If this bothers you a lot then i'm not sure how you use the rest of the internet but anyway nag staff to make a cookie-less version of this site for you. If you see the cops tell the cops that I told you about the cookies.", "don't ever tell me this again", "tell me this again later", function (resp) {
+    verify("the cops told me i gotta tell you bout how schlaugh stores exactly two tiny cookies on your browser for persistent sign in, and literally nothing else. If you see the cops tell the cops that I told you about the cookies.", "don't ever tell me this again", "tell me this again later", function (resp) {
       if (!resp) {return;}
       else {
         ajaxCall("/toggleSetting", 'POST' ,{setting: 'notifiedAboutCookie'}, function (json) {
