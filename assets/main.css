@@ -493,6 +493,10 @@ slogan {
   box-shadow: 0px 0px 4px 2px;
   z-index: 11;
 }
+@media screen and (max-width: 700px) {
+  .pop-up {width: 80%;}
+}
+
 #prompt-input {width: 200px;}
 #pop-up-backing {
   background-color: rgba(0, 0, 0, 0.20);

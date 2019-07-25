@@ -62,7 +62,7 @@ var changeColor = function (colorCode, type) {
       var attribute = "background-color";
       break;
     case "text":                        //text
-      var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up";
+      var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up, .post-background";
       var attribute = "color";
       for (var i = sheet.cssRules.length-1; i > -1; i--) {
         if (sheet.cssRules[i].selectorText === 'button') {
@@ -1876,7 +1876,7 @@ var openAuthorPanel = function (authorID, callback) {
           pageJump.onclick = function () {
             var newPage = parseInt(pageNumberLeft.value);
             if (!Number.isInteger(newPage) || newPage < 1 || newPage > json.pages) {
-              uiAlert("positive integers less than the total number of pages,<br><i>please</i>");
+              uiAlert("positive integers less than or equal to the total number of pages,<br><i>please</i>");
             } else {
               turnAuthorPage(json._id, null, newPage);
             }
@@ -3147,6 +3147,19 @@ var logInPageSubmit = function(inOrUp) {
   }
 }
 
+var cookieNotification = function () {
+  if (glo && glo.settings && !glo.settings.notifiedAboutCookie) {
+    verify("the cops told me i gotta tell you bout how schlaugh stores exactly two tiny cookies on your browser for persistent sign in, and literally nothing else. If this bothers you a lot then i'm not sure how you use the rest of the internet but anyway nag staff to make a cookie-less version of this site for you. If you see the cops tell the cops that I told you about the cookies.", "don't ever tell me this again", "tell me this again later", function (resp) {
+      if (!resp) {return;}
+      else {
+        ajaxCall("/toggleSetting", 'POST' ,{setting: 'notifiedAboutCookie'}, function (json) {
+          // do nothing
+        });
+      }
+    });
+  }
+}
+
 var signIn = function (url, data, callback) {
   loading();
   ajaxCall(url, 'POST', data, function(json) {
@@ -3247,6 +3260,7 @@ var parseUserData = function (data) {
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
   if (glo.unread > 0) {$("inbox-panel-button").classList.add("special");}
+  cookieNotification();
 }
 
 var setAppearance = function () {

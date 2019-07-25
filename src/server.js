@@ -2590,11 +2590,11 @@ app.post('/~getAuthor/:id/:page', function(req, res) {
           var pages = Math.ceil(pL.length /7);
           var list = [];
           if (req.params.page === 0) {
-            var page = 0;
+            var page = pages;
           } else {
-            var page = pages - req.params.page;
+            var page = req.params.page;
           }
-          var start = (pL.length - 1) - (page * 7);
+          var start = (page * 7) - 1;
           if (!req.body.postRef) {req.body.postRef = {}};
           for (var i = start; i > start - 7; i--) {
             if (pL[i]) {
@@ -2608,9 +2608,9 @@ app.post('/~getAuthor/:id/:page', function(req, res) {
                   date: pL[i].date,
                 });
               }
-            } else {break;}
+            }
           }
-          if (page !== 0) {
+          if (page !== pages) {
             return res.send({
               error: false,
               four04: false,
