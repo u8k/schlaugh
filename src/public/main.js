@@ -28,29 +28,23 @@ var updateUserPic = function (remove, picURL) {
   }
 }
 
-var fontSelect = function () {
-  if (glo.settings.font !== $('font-select').value) {
-    changeFont($('font-select').value);
-  }
-}
+var styleFont = function (value, attribute) {
+  glo.settings[attribute] = value;
 
-var changeFont = function (font) {
+  if (attribute === "font-family" && fontBank[value]) {
+    value = value +", "+ fontBank[value];
+  }
   var sheet = document.styleSheets[document.styleSheets.length-1];
-  var selector = ".editor, .post, .message, .author-header-right";
-  var attribute = "font-family";
-  for (var i = sheet.cssRules.length-1; i > -1; i--) {
-    if (sheet.cssRules[i].selectorText === selector) {
-      sheet.deleteRule(i);
-      i = -1;
-    }
-  }
-  glo.settings.font = font;
-  sheet.insertRule(selector+" {"+attribute+": "+font+";}", sheet.cssRules.length);
+  sheet.insertRule(".reader-font"+" {"+attribute+": "+value+";}", sheet.cssRules.length);
 
-  $('save-appearance').classList.remove('hidden');
+  if (glo.username) {
+    //$('save-appearance').classList.remove('hidden');
+    $('save-appearance2').classList.remove('removed');
+    $('save-appearance3').classList.remove('removed');
+  }
 }
 
-var changeColor = function (colorCode, type) {
+var changeColor = function (colorCode, type, all) {
   colorCode = String(colorCode);
   if (colorCode.slice(0,3) !== "rgb" && colorCode.slice(0,1) !== "#") {
     colorCode = "#"+colorCode;
@@ -87,62 +81,224 @@ var changeColor = function (colorCode, type) {
       i = -1;
     }
   }
-  glo.settings.colors[type] = colorCode;
   sheet.insertRule(selector+" {"+attribute+": "+colorCode+";}", sheet.cssRules.length);
-  $('save-appearance').classList.remove('hidden');
+  glo.settings.colors[type] = colorCode;
+
+  //$(type+'-color-button').jscolor.fromString(String(colorCode).slice(1));
+  $(type+'-color-button2').jscolor.fromString(String(colorCode).slice(1));
+  if (glo.username) {
+    //$('save-appearance').classList.remove('hidden');
+    $('save-appearance2').classList.remove('removed');
+    $('save-appearance3').classList.remove('removed');
+  }
+  if (!all) {
+    //$('theme-select').value = "custom";
+    $('theme-select2').value = "custom";
+    glo.settings.preset = "custom";
+  }
 }
 
 var saveAppearance = function () {
-  ajaxCall('/saveAppearance', 'POST', glo.settings, function(json) {
-    $('save-appearance').classList.add('hidden');
-  });
+  if (glo.username) {
+    ajaxCall('/saveAppearance', 'POST', glo.settings, function(json) {
+      //$('save-appearance').classList.add('hidden');
+      $('save-appearance2').classList.add('removed');
+      $('save-appearance3').classList.add('removed');
+    });
+  }
 }
 
-var colorPreset = function (num) {
-  switch (num) {
-    case 1:           // classic
-      var colors = {
-        postBackground: '#32363F',
-        text: '#D8D8D8',
-        linkText: '#BFA5FF',
-        background: '#324144',
-      }
-      break;
-    case 2:          // slate
-      var colors = {
-        postBackground: '#3c4654',
-        text: '#FFFCEA',
-        linkText: '#9CB1FF',
-        background: '#1c1922',
-      }
-      break;
-    case 3:         // evan's theme
-      var colors = {
-        postBackground: '#0E0E0E',
-        text: '#FFFFFF',
-        linkText: '#64C6FF',
-        background: '#000000',
-      }
-      break;
-    case 4:         // definite
-      var colors = {
-        postBackground: '#FFFFFF',
-        text: '#000000',
-        linkText: '#0500FF',
-        background: '#E4E4E4',
-
-      }
-      break;
-    case 5:       // eyesore
-      var colors = {
-        postBackground: '#C6FFC1',
-        text: '#00518B',
-        linkText: '#A41A90',
-        background: '#BCFAFF',
-      }
-      break;
+var themeBank = {
+  "classic":{
+    postBackground: '#32363F',
+    text: '#D8D8D8',
+    linkText: '#BFA5FF',
+    background: '#324144',
+  },
+  "slate":{
+    postBackground: '#3c4654',
+    text: '#FFFCEA',
+    linkText: '#9CB1FF',
+    background: '#1c1922',
+  },
+  "evan's theme":{
+    postBackground: '#0E0E0E',
+    text: '#FFFFFF',
+    linkText: '#64C6FF',
+    background: '#000000',
+  },
+  "steve":{
+    postBackground: '#FFFFFF',
+    text: '#000000',
+    linkText: '#0500FF',
+    background: '#E4E4E4',
+  },
+  "duckling":{
+    postBackground: '#C6FFC1',
+    text: '#00518B',
+    linkText: '#A41A90',
+    background: '#BCFAFF',
+  },
+  "midnight":{
+    postBackground: '#000000',
+    text: '#FFFFFF',
+    linkText: '#FF3FF3',
+    background: '#4D3059',
+  },
+  "hoth":{
+    postBackground: '#CAD1D9',
+    text: '#383F45',
+    linkText: '#8B1313',
+    background: '#FAF8FA',
+  },
+  "valentine":{
+    postBackground: '#E66689',
+    text: '#543A3C',
+    linkText: '#A4009C',
+    background: '#DC4160',
+  },
+  "hot dog stand":{
+    postBackground: '#E0E000',
+    text: '#000000',
+    linkText: '#0077F6',
+    background: '#8A0000',
+  },
+  "shamrock":{
+    postBackground: '#F4FF78',
+    text: '#92800C',
+    linkText: '#28D800',
+    background: '#106926',
+  },
+  "rain":{
+    postBackground: '#B4E7DC',
+    text: '#464E74',
+    linkText: '#407FD6',
+    background: '#7B98A9',
+  },
+  "floral":{
+    postBackground: '#C4EB98',
+    text: '#6F0524',
+    linkText: '#72328E',
+    background: '#F9627D',
+  },
+  "purple":{
+    postBackground: '#EFE6F6',
+    text: '#401962',
+    linkText: '#5C45A9',
+    background: '#AB7DD2',
+  },
+  "campground":{
+    postBackground: '#E5D6AB',
+    text: '#074D07',
+    linkText: '#698C8E',
+    background: '#97BD74',
+  },
+  "seashore":{
+    postBackground: '#D8D0B9',
+    text: '#6E5E52',
+    linkText: '#B52F35',
+    background: '#92CBDB',
+  },
+  "schoolbus":{
+    postBackground: '#E1D800',
+    text: '#000000',
+    linkText: '#CE2029',
+    background: '#DCDCDC',
+  },
+  "jack-o-lantern":{
+    postBackground: '#FF7700',
+    text: '#000000',
+    linkText: '#FCF574',
+    background: '#BD6B19',
+  },
+  "wicked witch":{
+    postBackground: '#A5E058',
+    text: '#000000',
+    linkText: '#5E2C8B',
+    background: '#C6A6E2',
+  },
+  "turkey dinner":{
+    postBackground: '#FFFDB9',
+    text: '#884A3B',
+    linkText: '#AF9D6E',
+    background: '#D9C183',
+  },
+  "christmas tree":{
+    postBackground: '#085000',
+    text: '#E9E206',
+    linkText: '#2BFF00',
+    background: '#510000',
+  },
+  "lorelei":{
+    postBackground: '#CAD1D9',
+    text: '#383F45',
+    linkText: '#0004FF',
+    background: '#C9EAFA',
   }
-  changeAllColors(colors);
+}
+
+var themeSelect = function (elem) {
+  var theme = $(elem).value;
+  if (glo.settings.preset !== theme && theme !== "custom") {
+    changeAllColors(themeBank[theme]);
+    glo.settings.preset = theme;
+    //$('theme-select').value = theme;
+    $('theme-select2').value = theme;
+  }
+}
+
+var loadThemesFromBank = function () {
+  for (var theme in themeBank) {
+    if (themeBank.hasOwnProperty(theme)) {
+      //var option = document.createElement("option");
+      var option2 = document.createElement("option");
+      //option.text = theme;
+      option2.text = theme;
+      //$('theme-select').add(option);
+      $('theme-select2').add(option2);
+    }
+  }
+}
+
+var fontBank = {
+  'Roboto': 'sans-serif',
+  'Open Sans': 'sans-serif',
+  'Montserrat': 'sans-serif',
+  'Lora': 'serif',
+  'Crimson Pro': 'serif',
+  'Roboto Slab': 'serif',
+  'Space Mono': 'monospace',
+  'Source Code Pro': 'monospace',
+  'Rajdhani': 'sans-serif',
+  'Gurajada': 'serif',
+  'serif': 'serif',
+  'sans-serif': 'sans-serif',
+  'monospace': 'monospace',
+}
+
+var formatFont = function (elem, prop) {
+  var value = $(elem).value;
+  if (glo.settings.font !== value && value !== "*more*") {
+    styleFont(value, prop);
+    glo.settings.font = value;
+    //$(prop+'-select').value = value;
+    $(prop+'-select2').value = value;
+  }
+}
+
+var loadFontsFromBank = function () {
+  for (var font in fontBank) {
+    if (fontBank.hasOwnProperty(font)) {
+      /*
+      var option = document.createElement("option");
+      option.text = font;
+      $('font-family-select').add(option);
+      */
+      var option2 = document.createElement("option");
+      option2.text = font;
+      $('font-family-select2').add(option2);
+    }
+  }
 }
 
 var getCursorPosition = function (elem) {
@@ -567,7 +723,7 @@ var openFAQ = function () {
     ajaxCall('/~faqText', 'GET', {}, function(json) {
       var faqBody = document.createElement("div");
       faqBody.setAttribute('id', 'faq-body');
-      faqBody.setAttribute('class', 'post');
+      faqBody.setAttribute('class', 'post reader-font');
       faqBody.innerHTML = convertText(json.text, "~faq~");
       $("faq-bucket").appendChild(faqBody)
       switchPanel('~faq-panel');
@@ -837,7 +993,12 @@ var renderPostFeed = function (postList, date, tag) {
   // if there are no posts for the day/tag
   if (postList.length === 0) {
     var post = document.createElement("div");
-    post.innerHTML = "Not Schlaugh!";
+    if (tag) {
+      post.innerHTML = "~no posts~";
+    } else {
+      post.innerHTML = '~not schlaugh~<br><clicky onclick="uiAlert(`for the day you are viewing, '+date+', none of the people you are following have made posts`)" class="special">(?)</clicky>';
+    }
+    post.classList.add('not-schlaugh');
     bucket.appendChild(document.createElement("br"));
     bucket.appendChild(document.createElement("br"));
     bucket.appendChild(post);
@@ -922,6 +1083,7 @@ var renderOnePost = function (postData, type, typeName, postID) {
     glo.postStash[postData.post_id].elemList.push(uniqueID);
   }
   //
+  //make({elem:"div", class:'post', id: uniqueID})
   var post = document.createElement("div");
   post.setAttribute('class', 'post');
   post.setAttribute('id', uniqueID);
@@ -1004,7 +1166,7 @@ var renderOnePost = function (postData, type, typeName, postID) {
   }
   // actual post body
   var body = document.createElement("div");
-  body.setAttribute('class', 'body-text');
+  body.setAttribute('class', 'reader-font');
   body.setAttribute('id', uniqueID+'body');
   body.innerHTML = convertText(postData.body, uniqueID);
   if (glo.collapsed && glo.collapsed[postData.post_id]) {body.classList.add('removed');}
@@ -1014,7 +1176,7 @@ var renderOnePost = function (postData, type, typeName, postID) {
   if (type === 'author' || (type === 'preview' && typeName === "edit")) {authorOption = {_id:postData._id, name:postData.author}}
   var tagString = formatTags(postData.tags, authorOption);
   var tagElem = document.createElement("div");
-  tagElem.setAttribute('class', 'tag-section');
+  tagElem.setAttribute('class', 'tag-section reader-font');
   tagElem.innerHTML = tagString;
   post.appendChild(tagElem);
   //
@@ -1769,7 +1931,7 @@ var openAuthorPanel = function (authorID, callback) {
         // header-right
         if (json.bio && json.bio !== "") {
           var authorHeaderRight = document.createElement("div");
-          authorHeaderRight.setAttribute('class', 'author-header-right');
+          authorHeaderRight.setAttribute('class', 'author-header-right reader-font');
           authorHeaderRight.setAttribute('id', json.author+'-bio');
           authorHeaderRight.innerHTML = convertText(json.bio, json.author+"-bio");
           authorHeader.appendChild(authorHeaderRight);
@@ -2847,7 +3009,7 @@ var createMessage = function (i, j) {
     dateStamp.innerHTML = x.date;
     message.appendChild(dateStamp);
     var body = document.createElement("div");
-    body.setAttribute('class', 'message-body');
+    body.setAttribute('class', 'reader-font');
     body.innerHTML = convertText(x.body, glo.threads[i]._id+'-'+x.date+orri);
     message.appendChild(body);
   }
@@ -3149,7 +3311,7 @@ var logInPageSubmit = function(inOrUp) {
 
 var cookieNotification = function () {
   if (glo && glo.settings && !glo.settings.notifiedAboutCookie) {
-    verify("the cops told me i gotta tell you bout how schlaugh stores exactly two tiny cookies on your browser for persistent sign in, and literally nothing else. If you see the cops tell the cops that I told you about the cookies.", "don't ever tell me this again", "tell me this again later", function (resp) {
+    verify("the cops told me i gotta tell you bout how schlaugh stores exactly two tiny cookies on your browser for persistent sign in, and literally nothing else. If you see the cops tell the cops that I told you about the cookies.", "do not ever tell me this again", "tell me this again later", function (resp) {
       if (!resp) {return;}
       else {
         ajaxCall("/toggleSetting", 'POST' ,{setting: 'notifiedAboutCookie'}, function (json) {
@@ -3264,38 +3426,56 @@ var parseUserData = function (data) {
 }
 
 var setAppearance = function () {
-  if (glo.settings && glo.settings.colors) {
-    var savedColors = glo.settings.colors;
-    if (glo.settings.font) {
-      changeFont(glo.settings.font);
-    } else {
-      glo.settings.font = 'serif'
-    }
-    $('font-select').value = glo.settings.font;
+  if (!$('postBackground-color-button2').jscolor) {
+    setTimeout(function () {
+      setAppearance();
+    }, 10);
   } else {
-    if (!glo.settings) {glo.settings = {};}
-    var savedColors = {
-      postBackground: '#32363F',
-      text: '#D8D8D8',
-      linkText: '#BFA5FF',
-      background: '#324144',
+    loadThemesFromBank();
+    loadFontsFromBank();
+    if (glo.settings && glo.settings.colors) {
+      var savedColors = glo.settings.colors;
+    } else {
+      if (!glo.settings) {glo.settings = {};}
+      if (!glo.settings.colors) {glo.settings.colors = {};}
+      var savedColors = themeBank['classic'];
+      //glo.settings.colors = savedColors;
     }
-    glo.settings.colors = savedColors;
+    changeAllColors(savedColors);
+    //
+    var props = [['font-family', "Lora"], ['font-size', '16px'], ['line-height', 1], ['letter-spacing', '0px']];
+    for (var i = 0; i < props.length; i++) {
+      if (!glo.settings[props[i][0]]) {
+        glo.settings[props[i][0]] = props[i][1];
+      }
+      styleFont(glo.settings[props[i][0]], props[i][0]);
+      //$(props[i][0]+'-select').value = glo.settings[props[i][0]];
+      $(props[i][0]+'-select2').value = glo.settings[props[i][0]];
+    }
+    //
+    if (!glo.settings.preset) {
+      glo.settings.preset = "classic"
+    }
+    //$('theme-select').value = glo.settings.preset;
+    $('theme-select2').value = glo.settings.preset;
+    //$('save-appearance').classList.add('hidden');
+    $('save-appearance2').classList.add('removed');
+    $('save-appearance3').classList.add('removed');
   }
-  changeAllColors(savedColors);
-  $('save-appearance').classList.add('hidden');
 }
 
 var changeAllColors = function (colorObject) {
   for (var prop in colorObject) {
     if (colorObject.hasOwnProperty(prop)) {
-      changeColor(colorObject[prop], prop);
+      changeColor(colorObject[prop], prop, true);
       // set button
       if (colorObject[prop][0] === '#') {
-        $(prop+'-color-button').jscolor.fromString(String(colorObject[prop]).slice(1));
+        //$(prop+'-color-button').jscolor.fromString(String(colorObject[prop]).slice(1));
+        $(prop+'-color-button2').jscolor.fromString(String(colorObject[prop]).slice(1));
       } else {
         var arr = colorObject[prop].slice(4,-1).replace(/ /g, '').split(",");
-        $(prop+'-color-button').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
+        //$(prop+'-color-button').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
+        $(prop+'-color-button2').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
       }
     }
   }
@@ -3330,7 +3510,7 @@ var verifyEmailExplain = function () {
 }
 
 var imageUploadingExplain = function () {
-  uiAlert(`schlaugh does not support directly uploading images. You'll need to upload your image elsewhere(such as <a href="https://imgur.com/upload" target="_blank">imgur</a>), and then provide a link to the image file.<br><br>Please note that the link you provide must be directly to an image <i>file</i>, not a webpage. As in, right click on your image and click "copy image address", to get a link that ends with a file extension, like "png", "gif", "jpg" etc`);
+  uiAlert(`schlaugh does not support directly uploading images. You'll need to upload your image elsewhere(such as <a href="https://imgur.com/upload" target="_blank">imgur</a>), and then provide a link to the image file<br><br>please note that the link you provide must be directly to an image <i>file</i>, not a webpage. As in, right click on your image and click "copy image address", to get a link that ends with a file extension, like "png", "gif", "jpg", etc`);
 }
 
 var changeUsername = function () {

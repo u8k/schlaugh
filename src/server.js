@@ -1489,7 +1489,7 @@ app.post('/bookmarks', function(req, res) {
               }
             }
           }
-          if (!found && req.body.remove) {
+          if (!found && !req.body.remove) {
             user.bookmarks.push({
               author_id: ObjectId(req.body.author_id),
               date: req.body.date
@@ -1898,21 +1898,30 @@ app.post('/changePic', function(req, res) {
 
 // save custom display colors
 app.post('/saveAppearance', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, settings:1}
-  , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, "user not found");}
-    else {
-      user.settings.colors = req.body.colors;
-      user.settings.font = req.body.font;
-      writeToDB(userID, user, function (resp) {
-        if (resp.error) {sendError(res, resp.error);}
-        else {res.send({error: false});}
+  var errMsg = "appearance settings not successfully updated<br><br>";
+  if (!req.body) {return sendError(res, errMsg+"malformed request 991");}
+  idCheck(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, settings:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          if (req.body.colors && typeof req.body.colors === "object") {
+            user.settings.colors = req.body.colors;
+          }
+          var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
+          for (var i = 0; i < props.length; i++) {
+            if (req.body[props[i]] && typeof req.body[props[i]] === "string") {
+              user.settings[props[i]] = req.body[props[i]];
+            }
+          }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, errMsg+resp.error);}
+            else {res.send({error: false});}
+          });
+        }
       });
-    }
   });
 });
 

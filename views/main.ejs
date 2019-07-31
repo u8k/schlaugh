@@ -1,20 +1,12 @@
 <nav id="nav" class="removed">
-  <a href="/~writePanel" id="write-panel-button" class="clicky not-special" onclick="event.preventDefault(); switchPanel('write-panel')">
-    <icon class="fas fa-pencil-alt"></icon>
-  </a>
-  &nbsp;
-  <a href="/" id="posts-panel-button" class="clicky not-special" onclick="event.preventDefault(); switchPanel('posts-panel')">
-    <icon class="fas fa-book"></icon>
-  </a>
-  &nbsp;
-  <a href="/~inboxPanel" id="inbox-panel-button" class="clicky not-special" onclick="event.preventDefault(); switchPanel('inbox-panel')">
-    <icon class="fas fa-envelope"></icon>
-  </a>
-  &nbsp;
-  <a href="/~settingsPanel" id="settings-panel-button" class="clicky not-special" onclick="event.preventDefault(); switchPanel('settings-panel')">
-    <icon class="fas fa-cog"></icon>
-  </a>
-  <br><br>
+  <a href="/~writePanel" id="write-panel-button" class="clicky not-special panel-button" onclick="event.preventDefault(); switchPanel('write-panel')">
+    <icon class="fas fa-pencil-alt"></icon></a>
+  <a href="/" id="posts-panel-button" class="clicky not-special panel-button" onclick="event.preventDefault(); switchPanel('posts-panel')">
+    <icon class="fas fa-book"></icon></a>
+  <a href="/~inboxPanel" id="inbox-panel-button" class="clicky not-special panel-button" onclick="event.preventDefault(); switchPanel('inbox-panel')">
+    <icon class="fas fa-envelope"></icon></a>
+  <a href="/~settingsPanel" id="settings-panel-button" class="clicky not-special panel-button" onclick="event.preventDefault(); switchPanel('settings-panel')">
+    <icon class="fas fa-cog"></icon></a>
 </nav>
 
 <div id="write-panel" class="removed">
@@ -28,7 +20,7 @@
 
   <div id="post-writer" class="removed">
     <%- include("editorButtons", {kind: "post"}) %>
-    <textarea id="post-editor" class="editor" autocomplete="off"></textarea>
+    <textarea id="post-editor" class="editor reader-font" autocomplete="off"></textarea>
     <br><br>
     <div id="editor-post-meta">
       <label for="tag-input">tags:</label>
@@ -69,8 +61,9 @@
     <h2>saved tags:</h2>
     <text id="none-tags">(none)</text>
     <div id="tag-bucket"></div>
-    <text class="monospace">include tagged posts in main feed</text>
+    <text class="monospace">include tagged posts in feed</text>
     <text id="include-tagged-posts-toggle" onclick="toggleTaggedPostsInclusion()"></text>
+    <clicky onclick="uiAlert(`checking this box means that posts with tags you are tracking will show up in your main feed alongside posts of people you are following`, `aight`)" class="special"> (?)</clicky>
     <br><br>
     <form id="tag-search" action="javascript:void(0);">
       <input id="tag-picker" type="text" placeholder="milkshake">
@@ -109,7 +102,7 @@
   </div>
   <div id="message-writer" class="removed">
     <%- include("editorButtons", {kind: "message"}) %>
-    <textarea id="message-editor" autocomplete="off" class="editor"></textarea>
+    <textarea id="message-editor" autocomplete="off" class="editor reader-font"></textarea>
     <br>
     <button onclick="submitMessage()">schend</button>
     <button onclick="cancelMessage()">cancel</button>
@@ -136,32 +129,75 @@
     <button onclick="displayBookmarks()">bookmarks</button>
     <br><br><br><hr><br>
 
-    <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
-    <div id="color-settings-box">
-      <div id="color-presets-box">
-        <button class="preset-button" onclick="colorPreset(1)">classic</button><br>
-        <button class="preset-button" onclick="colorPreset(2)">slate</button><br>
-        <button class="preset-button" onclick="colorPreset(3)">evan's theme</button><br>
-        <button class="preset-button" onclick="colorPreset(4)">steve</button><br>
-        <button class="preset-button" onclick="colorPreset(5)">duckling</button>
+  <!--
+    <h2><u>appearance</u></h2>
+    <div id="appearance-settings-box">
+      <div id="color-settings-box-box">
+        <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
+        <div id="color-settings-box">
+          <div>
+            <text>presets:</text>
+            <select id="theme-select" onclick="themeSelect('theme-select');" name="color-presets">
+              <option>custom</option>
+            </select>
+          </div>
+          <br>
+          <div class="settings-box">
+            post background: <input id="postBackground-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+            text: <input id="text-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+            link text: <input id="linkText-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+            background: <input id="background-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+          </div>
+        </div>
       </div>
-      <div id="color-inputs-box">
-        post background: <input id="postBackground-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-        text: <input id="text-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-        link text: <input id="linkText-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-        background: <input id="background-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+      <div>
+        <h2>text</h2>
+        <div class="settings-box">
+          <text>post font: </text>
+          <select id="font-family-select" onclick="formatFont('font-family-select', 'font-family');">
+          </select>
+          <br><br>
+          <text>font size: </text>
+          <select id="font-size-select" onclick="formatFont('font-size-select', 'font-size')">
+            <option>8px</option>
+            <option>10px</option>
+            <option>12px</option>
+            <option>14px</option>
+            <option>16px</option>
+            <option>18px</option>
+            <option>20px</option>
+            <option>24px</option>
+            <option>30px</option>
+          </select>
+          <br><br>
+          <text>line spacing: </text>
+          <select id="line-height-select" onclick="formatFont('line-height-select', 'line-height')">
+            <option>.8</option>
+            <option>1</option>
+            <option>1.25</option>
+            <option>1.5</option>
+            <option>1.75</option>
+            <option>2</option>
+            <option>2.25</option>
+          </select>
+          <br><br>
+          <text>character spacing: </text>
+          <select id="letter-spacing-select" onclick="formatFont('letter-spacing-select', 'letter-spacing')">
+            <option>-1px</option>
+            <option>0px</option>
+            <option>1px</option>
+            <option>2px</option>
+            <option>3px</option>
+          </select>
+          <br>
+        </div>
       </div>
     </div>
     <br>
-    <text>post/message font: </text><select id="font-select" onclick="fontSelect();" name="fonts">
-      <option>serif</option>
-      <option>sans-serif</option>
-      <option>monospace</option>
-    </select>
-    <br><br>
     <button id="save-appearance" type="button" class="hidden" onclick="saveAppearance()">save</button>
-
     <br><br><hr><br>
+  -->
+
     <text>change username</text><br>
     <form action="javascript:void(0);">
       <input id="change-username-input" type="text" placeholder="new name"><br>
@@ -304,7 +340,7 @@
   <div id="old-post-writer" class="removed">
     <div id="old-post-editor-title"></div>
     <%- include("editorButtons", {kind: "old-post"}) %>
-    <textarea id="old-post-editor" class="editor" autocomplete="off"></textarea>
+    <textarea id="old-post-editor" class="editor reader-font" autocomplete="off"></textarea>
     <br>
     <div id="old-tag-box">
       <label for="old-tag-input">tags:<clicky onclick="uiAlert(`note that adding tags to an old post won't include the post in public searches of that tag, only in searches of posts written by you`, `got it`)" class="special">(?)</clicky></label>
@@ -364,6 +400,70 @@
   <clicky onclick="switchPanel('lost-panel');simulatePageLoad();" class="special">try again?</clicky><br><br>
 </div>
 
+<div id="display-button-box">
+  <icon onclick="$('text-options-pop-up').classList.remove('hidden')" class="clicky fas fa-font"></icon>
+  <icon onclick="$('color-options-pop-up').classList.remove('hidden')" class="clicky fas fa-palette"></icon>
+</div>
+
+<div id="text-options-pop-up" class="hidden post-background">
+  <h2 class="options-pop-up-title">font options</h2>
+  <div class="settings-box">
+    <text>post font: </text>
+    <select id="font-family-select2" onclick="formatFont('font-family-select2', 'font-family');">
+    </select><br>
+    <text>font size: </text>
+    <select id="font-size-select2" onclick="formatFont('font-size-select2', 'font-size')">
+      <option>8px</option>
+      <option>10px</option>
+      <option>12px</option>
+      <option>14px</option>
+      <option>16px</option>
+      <option>18px</option>
+      <option>20px</option>
+      <option>24px</option>
+      <option>30px</option>
+    </select><br>
+    <text>line spacing: </text>
+    <select id="line-height-select2" onclick="formatFont('line-height-select2', 'line-height')">
+      <option>.8</option>
+      <option>1</option>
+      <option>1.25</option>
+      <option>1.5</option>
+      <option>1.75</option>
+      <option>2</option>
+      <option>2.25</option>
+    </select><br>
+    <text>character spacing: </text>
+    <select id="letter-spacing-select2" onclick="formatFont('letter-spacing-select2', 'letter-spacing')">
+      <option>-1px</option>
+      <option>0px</option>
+      <option>1px</option>
+      <option>2px</option>
+      <option>3px</option>
+    </select>
+  </div>
+  <button id="save-appearance2" type="button" class="removed" onclick="saveAppearance()">save</button>
+  <button onclick="$('text-options-pop-up').classList.add('hidden')">close</button>
+</div>
+
+<div id="color-options-pop-up" class="hidden post-background">
+  <h2 class="options-pop-up-title">colors</h2>
+  <div>
+    <text>presets:</text>
+    <select id="theme-select2" onclick="themeSelect('theme-select2');" name="color-presets">
+      <option>custom</option>
+    </select>
+  </div>
+  <div class="settings-box">
+    post background: <input id="postBackground-color-button2" class="color-button jscolor {onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+    text: <input id="text-color-button2" class="color-button jscolor {onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+    link text: <input id="linkText-color-button2" class="color-button jscolor {onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+    background: <input id="background-color-button2" class="color-button jscolor {onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+  </div>
+  <button id="save-appearance3" type="button" class="removed" onclick="saveAppearance()">save</button>
+  <button onclick="$('color-options-pop-up').classList.add('hidden')">close</button>
+</div>
+
 <div id="pop-up-backing" class="hidden"></div>
 <div id="prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
@@ -407,7 +507,7 @@
   <form action="javascript:void(0);">
     <text id="confirm-text"></text>
     <br><br>
-    <button id="confirm-yes">yeah</button>
+    <button id="confirm-yes">yeah</button> &nbsp
     <button id="confirm-no" type="submit">nope</button>
   </form>
 </div>

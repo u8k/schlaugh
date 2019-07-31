@@ -1,16 +1,23 @@
 * {
   box-sizing: border-box;
   overflow-anchor: none;
+  font-family: 'Rajdhani', 'Consolas', Courier, monospace;
 }
 
 *:focus {outline:0;}
 
-h1, button, input, footer, header, postNav, .post-footer-left, h2, .author-page-title, .author-on-post, .thread-name, #thread-title, #pending-message-status, .monospace {font-family: monospace;}
+.reader-font {font-family: "LORA", "GEORGIA", serif;}
 
 body {
-  padding: 1.5vmin;
+  padding: 10px 20px;
   margin: 0;
   text-align: center;
+}
+@media screen and (max-width: 600px) {
+  body {padding: 10px 10px;}
+}
+@media screen and (max-width: 500px) {
+  body {padding: 10px 5px;}
 }
 
 p {margin: 0}
@@ -93,7 +100,12 @@ h2 {
 }
 
 nav {
-  font-size: 2.4em
+  font-size: 2.4em;
+  margin: 30px 0;
+}
+
+.panel-button {
+  margin: 1vw;
 }
 
 .user-info {
@@ -108,6 +120,7 @@ nav {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1;
 }
 
 header {
@@ -115,6 +128,7 @@ header {
   height: 50px;
   display: flex;
   justify-content: space-between;
+
 }
 
 main {
@@ -162,7 +176,6 @@ clicky, .clicky {
   height: 50vh;
   width: 100%;
   resize: vertical;
-  font-family: inherit;
   font-size: inherit;
 }
 
@@ -170,12 +183,12 @@ clicky, .clicky {
   text-align: right;
 }
 
-#editor-post-meta {
-  /*text-align: left;*/
+.editor-button  {
+  margin: 2px;
 }
 
-.editor-input {
-  width: 250px;
+#editor-post-meta {
+  /*text-align: left;*/
 }
 
 #thread-box {
@@ -224,6 +237,7 @@ img {
 
 a, a.visited, .special {
   text-decoration: none;
+  font-family: inherit;
   color: #BFA5FF;
 }
 
@@ -294,7 +308,6 @@ a, a.visited, .special {
 .post-title {
   font-size: 2em;
   font-weight: bold;
-  font-family: monospace;
   text-align: left;
   padding-right: 10px;
 }
@@ -337,7 +350,7 @@ footerButton {
 #pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
 
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .post, .author-header, #settings-box {width: 98%;}
+  .post, .author-header, #settings-box {width: 100%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
   #post-writer, #old-post-writer{width: 95%;}
@@ -371,6 +384,9 @@ button, .button {
   border-width: thin;
   border-radius: 3px;
   margin-bottom: 2px;
+  font-family: "Space Mono";
+  padding-top: 0px;
+  padding-bottom: 2.5px;
 }
 
 input {
@@ -379,13 +395,17 @@ input {
   outline-style: none;
   margin-bottom: 2px;
   padding: 3px 5px 3px 5px;
-  width: 200px;
+  width: 250px;
 }
 
 /*hack to make Chrome not force formatting when it autofills*/
 input:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 1000px #324144 inset;
   -webkit-text-fill-color: #D8D8D8;
+}
+
+.not-schlaugh {
+  font-size: 1.8em;
 }
 
 .change-pass-button-bump {
@@ -395,20 +415,28 @@ input:-webkit-autofill {
 
 .eye {
   position: relative;
-  left: 83px;
+  left: 110px;
   bottom: 23px;
 }
 
-#color-settings-box {
+#appearance-settings-box {
   display: flex;
-  justify-content: space-between;
-  width: 320px;
+  justify-content: space-evenly;
+  max-width: 600px;
   margin: auto;
+  flex-wrap: wrap;
 }
-#color-inputs-box {text-align: right;}
+.settings-box {
+  text-align: right;
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
 
 .color-button {
-  width: 65px;
+  width: 60px;
+  text-align: center;
+  cursor: pointer;
+  height: 22px;
 }
 .preset-button {
   width: 115px;
@@ -464,6 +492,7 @@ slogan {
 #about-text {
   text-align: center;
   font-size: 1.45em;
+  font-family: "LORA", "GEORGIA", serif;
 }
 
 .following-listing {
@@ -483,6 +512,20 @@ slogan {
   border-radius: 3px;
 }
 
+#display-button-box {
+  z-index: 8;
+  font-size: 1.3em;
+  position: fixed;
+  bottom: 10px;
+  right: 20px;
+}
+@media screen and (max-width: 600px) {
+  #display-button-box {right: 10px; bottom: 5px; font-size: 1.15em;}
+}
+@media screen and (max-width: 500px) {
+  #display-button-box {right: 5px; bottom: 5px; font-size: 1em;}
+}
+
 .pop-up {
   padding: 15px;
   position: fixed;
@@ -495,6 +538,21 @@ slogan {
 }
 @media screen and (max-width: 700px) {
   .pop-up {width: 80%;}
+}
+
+.options-pop-up-title {
+  margin: 0;
+  margin-bottom: 10px;
+}
+#color-options-pop-up, #text-options-pop-up {
+  padding: 10px;
+  position: fixed;
+  display: block;
+  right: -2.5px;
+  bottom: -2.5px;
+  border-radius: 4px;
+  box-shadow: 0px 0px 4px 2px;
+  z-index: 9;
 }
 
 #prompt-input {width: 200px;}
@@ -567,14 +625,13 @@ quote {
 }
 
 code {
-  font-family: monospace;
+  font-family: 'Consolas', Courier, monospace;
   box-shadow: inset 0px 0px 0px 20px rgba(0, 0, 0, .1);
   background-color: rgba(255, 255, 255, 0.2);
-  font-size: 15.55px;
 }
 
 ascii {
-  font-family: monospace;
+  font-family: 'Consolas', Courier, monospace;
   border-radius: 4px;
   display: block;
   padding: 15px;
@@ -588,6 +645,8 @@ ascii {
 }
 
 ul, ol {margin: 0}
+
+b, i, u, s, quote, li, ul, ol, l, c, r, div {font-family: inherit;}
 
 l {text-align: left;}
 c {text-align: center;}

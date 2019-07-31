@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>s c h l a u g h</title>
+    <link href="https://fonts.googleapis.com/css?family=Crimson+Pro|Gurajada|Lora|Montserrat|Open+Sans|Rajdhani|Roboto|Roboto+Slab|Source+Code+Pro|Space+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/main.css">
     <script src="/assets/openpgp.min.js"></script>
     <script src="/assets/jscolor.js"></script>
@@ -27,13 +28,17 @@
         body, h1, input, select {
           background-color: <%= settings.colors.background %>;
         }
+        input:-webkit-autofill {
+          -webkit-box-shadow: 0 0 0 1000px <%= settings.colors.background %> inset;
+          -webkit-text-fill-color: <%= settings.colors.text %>;
+        }
       </style>
     <% } %>
 
   </head>
   <body>
     <header>
-      <a href="/"><h1>schlaugh</h1></a>
+      <a href="/" onclick="event.preventDefault(); backToMain();"><h1>schlaugh</h1></a>
 
       <nav class="user-info">
         <a id="username" class="clicky removed special user-info-item"></a>
@@ -108,6 +113,9 @@
         <script type="text/javascript">fetchData(function () {switchPanel(<%- JSON.stringify(panel) %>+"-panel")});</script>
       <% } %>
     <% } else { %>
+        <script type="text/javascript">
+          setAppearance();
+        </script>
       <% if (typeof author !== "undefined") { %>
         <% if (post_id) { %>
           <script type="text/javascript">
@@ -115,6 +123,7 @@
             var post_id = <%- JSON.stringify(post_id) %>;
             var date = <%- JSON.stringify(date) %>;
             openPost(author, post_id, date);
+            //setAppearance();
           </script>
         <% } else if (tag) { %>
           <script type="text/javascript">
