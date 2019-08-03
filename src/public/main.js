@@ -28,52 +28,81 @@ var updateUserPic = function (remove, picURL) {
   }
 }
 
-var styleFont = function (value, attribute) {
-  glo.settings[attribute] = value;
-
-  if (attribute === "font-family" && fontBank[value]) {
-    value = value +", "+ fontBank[value];
-  }
-  var sheet = document.styleSheets[document.styleSheets.length-1];
-  sheet.insertRule(".reader-font"+" {"+attribute+": "+value+";}", sheet.cssRules.length);
-
+var saveAppearance = function () {
   if (glo.username) {
-    //$('save-appearance').classList.remove('hidden');
-    $('save-appearance2').classList.remove('removed');
-    $('save-appearance3').classList.remove('removed');
+    ajaxCall('/saveAppearance', 'POST', glo.newSettings, function(json) {
+      for (var prop in glo.newSettings.colors) {
+        if (glo.newSettings.colors.hasOwnProperty(prop)) {
+          glo.settings.colors[prop] = glo.newSettings.colors[prop];
+          delete glo.newSettings.colors[prop];
+        }
+      }
+      var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
+      for (var i = 0; i < props.length; i++) {
+        if (glo.newSettings[props[i]]) {
+          glo.settings[props[i]] = glo.newSettings[props[i]];
+          delete glo.newSettings[props[i]];
+        }
+      }
+      //$('save-appearance').classList.add('hidden');
+      $('save-appearance2').classList.add('removed');
+      $('save-appearance3').classList.add('removed');
+      $('revert-appearance2').classList.add('removed');
+      $('revert-appearance3').classList.add('removed');
+    });
   }
 }
 
-var changeColor = function (colorCode, type, all) {
-  colorCode = String(colorCode);
-  if (colorCode.slice(0,3) !== "rgb" && colorCode.slice(0,1) !== "#") {
-    colorCode = "#"+colorCode;
+var revertAppearance = function () {
+  for (var prop in glo.newSettings.colors) {
+    if (glo.newSettings.colors.hasOwnProperty(prop)) {
+      changeColor(glo.settings.colors[prop], prop);
+      $(prop+'-color-button2').jscolor.fromString(String(glo.settings.colors[prop]).slice(1));
+      delete glo.newSettings.colors[prop];
+    }
   }
+  var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
+  for (var i = 0; i < props.length; i++) {
+    if (glo.newSettings[props[i]]) {
+      changeFont(glo.settings[props[i]], props[i]);
+      $(props[i]+'-select2').value = glo.settings[props[i]];
+      delete glo.newSettings[props[i]];
+    }
+  }
+  $('save-appearance2').classList.add('removed');
+  $('save-appearance3').classList.add('removed');
+  $('revert-appearance2').classList.add('removed');
+  $('revert-appearance3').classList.add('removed');
+  $('sign-to-save2').classList.add('removed');
+  $('sign-to-save3').classList.add('removed');
+}
+
+var changeColor = function (colorCode, type) {          // makes the new CSS rule
   var sheet = document.styleSheets[document.styleSheets.length-1];
   switch (type) {
     case "postBackground":                 //post background
-      var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background";
-      var attribute = "background-color";
-      break;
+    var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background";
+    var attribute = "background-color";
+    break;
     case "text":                        //text
-      var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up, .post-background";
-      var attribute = "color";
-      for (var i = sheet.cssRules.length-1; i > -1; i--) {
-        if (sheet.cssRules[i].selectorText === 'button') {
-          sheet.deleteRule(i);
-          i = -1;
-        }
+    var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up, .post-background";
+    var attribute = "color";
+    for (var i = sheet.cssRules.length-1; i > -1; i--) {
+      if (sheet.cssRules[i].selectorText === 'button') {
+        sheet.deleteRule(i);
+        i = -1;
       }
-      sheet.insertRule("button {border-color: "+colorCode+";}", sheet.cssRules.length);
-      break;
+    }
+    sheet.insertRule("button {border-color: "+colorCode+";}", sheet.cssRules.length);
+    break;
     case "linkText":                 //link text
-      var selector = ".special, a, a.visited, a.hover";
-      var attribute = "color";
-      break;
+    var selector = ".special, a, a.visited, a.hover";
+    var attribute = "color";
+    break;
     case "background":                 //background
-      var selector = "body, h1, input, select";
-      var attribute = "background-color";
-      break;
+    var selector = "body, h1, input, select";
+    var attribute = "background-color";
+    break;
   }
   for (var i = sheet.cssRules.length-1; i > -1; i--) {
     if (sheet.cssRules[i].selectorText === selector) {
@@ -82,29 +111,78 @@ var changeColor = function (colorCode, type, all) {
     }
   }
   sheet.insertRule(selector+" {"+attribute+": "+colorCode+";}", sheet.cssRules.length);
-  glo.settings.colors[type] = colorCode;
+}
 
-  //$(type+'-color-button').jscolor.fromString(String(colorCode).slice(1));
-  $(type+'-color-button2').jscolor.fromString(String(colorCode).slice(1));
+var changeFont = function (value, attribute) {          // makes the new CSS rule
+  if (attribute === "font-family" && fontBank[value]) {
+    value = value +", "+ fontBank[value];
+  }
+  var sheet = document.styleSheets[document.styleSheets.length-1];
+  sheet.insertRule(".reader-font"+" {"+attribute+": "+value+";}", sheet.cssRules.length);
+}
+
+var selectColor = function (colorCode, type) {
+  colorCode = String(colorCode);
+  if (colorCode.slice(0,3) !== "rgb" && colorCode.slice(0,1) !== "#") {
+    colorCode = "#"+colorCode;
+  }
+  changeColor(colorCode, type);
+  glo.newSettings.colors[type] = colorCode;
   if (glo.username) {
     //$('save-appearance').classList.remove('hidden');
     $('save-appearance2').classList.remove('removed');
     $('save-appearance3').classList.remove('removed');
+  } else {
+    $('sign-to-save2').classList.remove('removed');
+    $('sign-to-save3').classList.remove('removed');
   }
-  if (!all) {
-    //$('theme-select').value = "custom";
-    $('theme-select2').value = "custom";
-    glo.settings.preset = "custom";
+  $('revert-appearance2').classList.remove('removed');
+  $('revert-appearance3').classList.remove('removed');
+  //$('preset-select').value = "custom";
+  $('preset-select2').value = "custom";
+  glo.newSettings.preset = "custom";
+}
+
+var selectFont = function (elem, prop) {
+  var value = $(elem).value;
+  if (!(!glo.newSettings[prop] && glo.settings[prop] === value) && glo.newSettings[prop] !== value && value !== "*more*") {
+    changeFont(value, prop);
+    glo.newSettings[prop] = value;
+    if (glo.username) {
+      //$('save-appearance').classList.remove('hidden');
+      $('save-appearance2').classList.remove('removed');
+      $('save-appearance3').classList.remove('removed');
+    } else {
+      $('sign-to-save2').classList.remove('removed');
+      $('sign-to-save3').classList.remove('removed');
+    }
+    $('revert-appearance2').classList.remove('removed');
+    $('revert-appearance3').classList.remove('removed');
+  } else if (value === "*more*") {
+
   }
 }
 
-var saveAppearance = function () {
-  if (glo.username) {
-    ajaxCall('/saveAppearance', 'POST', glo.settings, function(json) {
-      //$('save-appearance').classList.add('hidden');
-      $('save-appearance2').classList.add('removed');
-      $('save-appearance3').classList.add('removed');
-    });
+var themeSelect = function (elem) {
+  var theme = $(elem).value;
+  if (!(!glo.newSettings.preset && glo.settings.preset === theme) && glo.newSettings.preset !== theme && theme !== "custom") {
+    changeAllColors(themeBank[theme]);
+    glo.newSettings.preset = theme;
+    for (var prop in themeBank[theme]) {
+      if (themeBank[theme].hasOwnProperty(prop)) {
+        glo.newSettings.colors[prop] = themeBank[theme][prop];
+      }
+    }
+    if (glo.username) {
+      //$('save-appearance').classList.remove('hidden');
+      $('save-appearance2').classList.remove('removed');
+      $('save-appearance3').classList.remove('removed');
+    } else {
+      $('sign-to-save2').classList.remove('removed');
+      $('sign-to-save3').classList.remove('removed');
+    }
+    $('revert-appearance2').classList.remove('removed');
+    $('revert-appearance3').classList.remove('removed');
   }
 }
 
@@ -234,19 +312,44 @@ var themeBank = {
     text: '#383F45',
     linkText: '#0004FF',
     background: '#C9EAFA',
-  }
+  },
+  "pearl":{
+    postBackground: '#FFFFF1',
+    text: '#3E6897',
+    linkText: '#FDB6BC',
+    background: '#D6FFF5',
+  },
+  "steven":{
+    postBackground: '#2070A0',
+    text: '#FFCF50',
+    linkText: '#201000',
+    background: '#E25563',
+  },
+  "garnet":{
+    postBackground: '#0B0000',
+    text: '#F7BB22',
+    linkText: '#FF75A9',
+    background: '#72002A',
+  },
+  "amethyst":{
+    postBackground: '#C08FCA',
+    text: '#232228',
+    linkText: '#EAE0FF',
+    background: '#AC04F3',
+  },
+  "lapis":{
+    postBackground: '#1E1C51',
+    text: '#4FCAF3',
+    linkText: '#EBEBEB',
+    background: '#3268B3',
+  },
+  "peridot":{
+    postBackground: '#F4FDA4',
+    text: '#154F40',
+    linkText: '#11A44A',
+    background: '#98FF72',
+  },
 }
-
-var themeSelect = function (elem) {
-  var theme = $(elem).value;
-  if (glo.settings.preset !== theme && theme !== "custom") {
-    changeAllColors(themeBank[theme]);
-    glo.settings.preset = theme;
-    //$('theme-select').value = theme;
-    $('theme-select2').value = theme;
-  }
-}
-
 var loadThemesFromBank = function () {
   for (var theme in themeBank) {
     if (themeBank.hasOwnProperty(theme)) {
@@ -254,8 +357,8 @@ var loadThemesFromBank = function () {
       var option2 = document.createElement("option");
       //option.text = theme;
       option2.text = theme;
-      //$('theme-select').add(option);
-      $('theme-select2').add(option2);
+      //$('preset-select').add(option);
+      $('preset-select2').add(option2);
     }
   }
 }
@@ -275,17 +378,6 @@ var fontBank = {
   'sans-serif': 'sans-serif',
   'monospace': 'monospace',
 }
-
-var formatFont = function (elem, prop) {
-  var value = $(elem).value;
-  if (glo.settings.font !== value && value !== "*more*") {
-    styleFont(value, prop);
-    glo.settings.font = value;
-    //$(prop+'-select').value = value;
-    $(prop+'-select2').value = value;
-  }
-}
-
 var loadFontsFromBank = function () {
   for (var font in fontBank) {
     if (fontBank.hasOwnProperty(font)) {
@@ -2037,8 +2129,13 @@ var openAuthorPanel = function (authorID, callback) {
           pageJump.innerHTML = 'jump';
           pageJump.onclick = function () {
             var newPage = parseInt(pageNumberLeft.value);
-            if (!Number.isInteger(newPage) || newPage < 1 || newPage > json.pages) {
-              uiAlert("positive integers less than or equal to the total number of pages,<br><i>please</i>");
+            if (newPage === 69) {
+              uiAlert("<br>...<br><br>...<br><br>nice", "nice");
+              if (json.pages > 68) {
+                turnAuthorPage(json._id, null, newPage);
+              }
+            } else if (!Number.isInteger(newPage) || newPage < 1 || newPage > json.pages) {
+              uiAlert("oh do <i>please</i> at least would you <i>try</i> to only input integers between 1 and the total number of pages, inclusive?", "yes doctor i will try");
             } else {
               turnAuthorPage(json._id, null, newPage);
             }
@@ -2475,6 +2572,7 @@ var prepTextForEditor = function (text) {
   text = text.replace(/<l>/g, '<l><br>');
   text = text.replace(/<ol>/g, '<ol><br>');
   text = text.replace(/<ul>/g, '<ul><br>');
+  text = text.replace(/<ul>/g, '<hr><br>');
 
 
   var preTagLineBreakRecurse = function (pos, tag) {
@@ -2487,30 +2585,36 @@ var prepTextForEditor = function (text) {
       preTagLineBreakRecurse(pos+1, tag);
     }
   }
-  var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<ascii>/, /<r>/, /<c>/, /<l>/];
+  var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<ascii>/, /<r>/, /<c>/, /<l>/, /<hr>/];
   for (var i = 0; i < tagArr.length; i++) {
     preTagLineBreakRecurse(1, tagArr[i]);
   }
 
-  text = text.replace(/<br>/g, '\n');
-
   var imgRecurse = function (pos) {
     var next = text.substr(pos).search(/<img src="/);
     if (next !== -1) {
-      pos = pos+next+9;
-      var qPos = text.substr(pos+1).search(/"/)+2;
-      if (qPos === -1) {
+      pos = pos+next;
+      if (pos !== 0) {
+        if (text.substr(pos-4, 4) !== '<br>' && text.substr(pos-5, 5) !== '<cut>') {
+          text = text.substr(0,pos)+'<br>'+text.substr(pos);
+        }
+      }
+      pos = pos+9;
+      var closePos = text.substr(pos+1).search(/>/)+2;
+      if (closePos === -1) {
         text += '">';
         return;
       }
       else {
-        pos += qPos;
-        text = text.substr(0,pos+1) + '\n' + text.substr(pos+1);
+        pos += closePos;
+        text = text.substr(0,pos) + '<br>' + text.substr(pos);
       }
       imgRecurse(pos+1);
     }
   }
   imgRecurse(0);
+
+  text = text.replace(/<br>/g, '\n');
 
   var noteRecurse = function (pos) {
     var next = text.substr(pos).search(/<note linkText="/);
@@ -2611,22 +2715,38 @@ var insertImage = function (src) {
   var b = x.end;
   var y = area.value;
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
-  uiPrompt({
-    label: `image url<clicky onclick="imageUploadingExplain()" class="special">(?)</clicky>`,
-    value:"https://i.imgur.com/hDEXSt7.jpg",
-    placeholder: "hiss",
-    callback: function(target) {
-      if (target !== null) {
-        var openTag = '\n<img src="';
-        if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<img src="'}
-        var closeTag = '">\n';
-        if (y.substr(b,1) === "\n") {closeTag = '">'}
-        area.value = y.slice(0, a)+ openTag +target+ closeTag +y.slice(b);
-        var bump = a+target.length+ openTag.length + closeTag.length;
-        setCursorPosition(area, bump, bump);
-      }
+  $('img-input-prompt').classList.remove('hidden');
+  blackBacking();
+  setCursorPosition($("img-input-prompt-input"), 0, $("img-input-prompt-input").value.length);
+  var exit = function () {
+    blackBacking(true);
+    $('img-input-prompt').classList.add('hidden');
+  }
+  $("pop-up-backing").onclick = exit;
+  $("img-input-prompt-close").onclick = exit;
+
+  $("img-input-prompt-submit").onclick = function() {
+    var url = $('img-input-prompt-input').value;
+    var title = $('img-input-prompt-input2').value;
+    var alt = $('img-input-prompt-input3').value;
+    if (url) {
+      var openTag = '\n<img src="';
+      if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<img src="'}
+      url += '"';
+      if (title) {
+        title = ' title="' +title+ '"';
+      } else {title = "";}
+      if (alt) {
+        alt = ' alt="' +alt+ '"';
+      } else {alt = "";}
+      var closeTag = '>\n';
+      if (y.substr(b,1) === "\n") {closeTag = '>'}
+      area.value = y.slice(0, a)+ openTag + url + title + alt + closeTag +y.slice(b);
+      var bump = a +url.length+ title.length+ alt.length+ openTag.length + closeTag.length;
+      setCursorPosition(area, bump, bump);
     }
-  });
+    exit();
+  }
 }
 var insertHR = function (src) {
   var area = $(src+'-editor');
@@ -2634,9 +2754,14 @@ var insertHR = function (src) {
   var a = x.start;
   var b = x.end;
   var y = area.value;
+  var pre = "";
+  if (a !== 0 && y.substr(a-1,1) !== "\n") {pre = "\n"}
+  var post = "";
+  if (y.substr(b,1) !== "\n") {post = "\n"}
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
-  area.value = y.slice(0, a)+ "<hr>" +y.slice(b);
-  setCursorPosition(area, a+4, a+4);
+  area.value = y.slice(0, a)+ pre +"<hr>"+ post +y.slice(b);
+  var bump = a+4 +pre.length + post.length;
+  setCursorPosition(area, bump, bump);
 }
 var insertCut = function (src) {
   var area = $(src+'-editor');
@@ -3418,6 +3543,10 @@ var parseUserData = function (data) {
     } else {
       $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-square"></icon>';
     }
+    $('sign-to-save2').classList.add('removed');
+    $('sign-to-save3').classList.add('removed');
+    $('revert-appearance2').classList.add('removed');
+    $('revert-appearance3').classList.add('removed');
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
@@ -3433,22 +3562,27 @@ var setAppearance = function () {
   } else {
     loadThemesFromBank();
     loadFontsFromBank();
+    glo.newSettings = {colors:{}}
     if (glo.settings && glo.settings.colors) {
       var savedColors = glo.settings.colors;
     } else {
       if (!glo.settings) {glo.settings = {};}
       if (!glo.settings.colors) {glo.settings.colors = {};}
       var savedColors = themeBank['classic'];
-      //glo.settings.colors = savedColors;
+      for (var prop in savedColors) {
+        if (savedColors.hasOwnProperty(prop)) {
+          glo.settings.colors[prop] = savedColors[prop];
+        }
+      }
     }
     changeAllColors(savedColors);
     //
-    var props = [['font-family', "Lora"], ['font-size', '16px'], ['line-height', 1], ['letter-spacing', '0px']];
+    var props = [['font-family', "Lora"], ['font-size', '16px'], ['line-height', 1.25], ['letter-spacing', '0px']];
     for (var i = 0; i < props.length; i++) {
       if (!glo.settings[props[i][0]]) {
         glo.settings[props[i][0]] = props[i][1];
+        changeFont(glo.settings[props[i][0]], props[i][0]);
       }
-      styleFont(glo.settings[props[i][0]], props[i][0]);
       //$(props[i][0]+'-select').value = glo.settings[props[i][0]];
       $(props[i][0]+'-select2').value = glo.settings[props[i][0]];
     }
@@ -3456,18 +3590,15 @@ var setAppearance = function () {
     if (!glo.settings.preset) {
       glo.settings.preset = "classic"
     }
-    //$('theme-select').value = glo.settings.preset;
-    $('theme-select2').value = glo.settings.preset;
-    //$('save-appearance').classList.add('hidden');
-    $('save-appearance2').classList.add('removed');
-    $('save-appearance3').classList.add('removed');
+    //$('preset-select').value = glo.settings.preset;
+    $('preset-select2').value = glo.settings.preset;
   }
 }
 
 var changeAllColors = function (colorObject) {
   for (var prop in colorObject) {
     if (colorObject.hasOwnProperty(prop)) {
-      changeColor(colorObject[prop], prop, true);
+      changeColor(colorObject[prop], prop);
       // set button
       if (colorObject[prop][0] === '#') {
         //$(prop+'-color-button').jscolor.fromString(String(colorObject[prop]).slice(1));

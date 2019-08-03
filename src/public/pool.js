@@ -195,6 +195,7 @@
           pos += 3;
         } else if (string.substr(pos+1,3) === "hr>") {
           pos += 3;
+          removeExtraBreak(pos);
         } else if (string.substr(pos+1,4) === "br/>") {
           pos += 4;
         } else if (string.substr(pos+1,8) === 'a href="') {
@@ -234,20 +235,44 @@
           pos += 9;
           var qPos = string.substr(pos+1).search(/"/);
           if (qPos === -1) {
-            imgList.push(string.substr(pos+1))
+            imgList.push(string.substr(pos+1));
             string += '">';
             return buttonUp(b, i, a, u, s, cut, code, ascii, li, ul, ol, l, r, c, quote, note, imgList);
-          }
-          else {
+          } else {
             imgList.push(string.substr(pos+1,qPos))
-            pos += qPos;
+            pos += qPos+1;
           }
-          if (string[pos+2] !== ">") {
-            string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
+          if (string.substr(pos+1,8) === ' title="') {
+            pos += 8;
+            var qPos = string.substr(pos+1).search(/"/);
+            if (qPos === -1) {
+              imgList.push(string.substr(pos+1));
+              string += '">';
+              return buttonUp(b, i, a, u, s, cut, code, ascii, li, ul, ol, l, r, c, quote, note, imgList);
+            } else {
+              pos += qPos+1;
+            }
           }
-          else {pos += 2;}
+          if (string.substr(pos+1,6) === ' alt="') {
+            pos += 6;
+            var qPos = string.substr(pos+1).search(/"/);
+            if (qPos === -1) {
+              imgList.push(string.substr(pos+1));
+              string += '">';
+              return buttonUp(b, i, a, u, s, cut, code, ascii, li, ul, ol, l, r, c, quote, note, imgList);
+            } else {
+              pos += qPos+1;
+            }
+          }
+          if (string[pos+1] !== ">") {
+            string = string.substr(0,pos+1) + '>' + string.substr(pos+1);
+          }
+          else {pos += 1;}
           removeExtraBreak(pos);
-        } else {  // the found tag is not on the sanctioned list, so replace it
+
+
+
+        } else {  // the found tag is not on the sanctioned list, so kill it
           string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
         }
         return recurse(pos+1, b, i, a, u, s, cut, code, ascii, li, ul, ol, l, r, c, quote, note, imgList);

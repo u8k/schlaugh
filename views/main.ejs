@@ -137,16 +137,16 @@
         <div id="color-settings-box">
           <div>
             <text>presets:</text>
-            <select id="theme-select" onclick="themeSelect('theme-select');" name="color-presets">
+            <select id="preset-select" onclick="themeSelect('preset-select');" name="color-presets">
               <option>custom</option>
             </select>
           </div>
           <br>
           <div class="settings-box">
-            post background: <input id="postBackground-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-            text: <input id="text-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-            link text: <input id="linkText-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-            background: <input id="background-color-button" class="color-button jscolor {onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+            post background: <input id="postBackground-color-button" class="color-button jscolor {onFineChange:'selectColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+            text: <input id="text-color-button" class="color-button jscolor {onFineChange:'selectColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+            link text: <input id="linkText-color-button" class="color-button jscolor {onFineChange:'selectColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+            background: <input id="background-color-button" class="color-button jscolor {onFineChange:'selectColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
           </div>
         </div>
       </div>
@@ -154,11 +154,11 @@
         <h2>text</h2>
         <div class="settings-box">
           <text>post font: </text>
-          <select id="font-family-select" onclick="formatFont('font-family-select', 'font-family');">
+          <select id="font-family-select" onclick="selectFont('font-family-select', 'font-family');">
           </select>
           <br><br>
           <text>font size: </text>
-          <select id="font-size-select" onclick="formatFont('font-size-select', 'font-size')">
+          <select id="font-size-select" onclick="selectFont('font-size-select', 'font-size')">
             <option>8px</option>
             <option>10px</option>
             <option>12px</option>
@@ -171,7 +171,7 @@
           </select>
           <br><br>
           <text>line spacing: </text>
-          <select id="line-height-select" onclick="formatFont('line-height-select', 'line-height')">
+          <select id="line-height-select" onclick="selectFont('line-height-select', 'line-height')">
             <option>.8</option>
             <option>1</option>
             <option>1.25</option>
@@ -182,7 +182,7 @@
           </select>
           <br><br>
           <text>character spacing: </text>
-          <select id="letter-spacing-select" onclick="formatFont('letter-spacing-select', 'letter-spacing')">
+          <select id="letter-spacing-select" onclick="selectFont('letter-spacing-select', 'letter-spacing')">
             <option>-1px</option>
             <option>0px</option>
             <option>1px</option>
@@ -409,10 +409,10 @@
   <h2 class="options-pop-up-title">font options</h2>
   <div class="settings-box">
     <text>post font: </text>
-    <select id="font-family-select2" onclick="formatFont('font-family-select2', 'font-family');">
+    <select id="font-family-select2" onclick="selectFont('font-family-select2', 'font-family');">
     </select><br>
     <text>font size: </text>
-    <select id="font-size-select2" onclick="formatFont('font-size-select2', 'font-size')">
+    <select id="font-size-select2" onclick="selectFont('font-size-select2', 'font-size')">
       <option>8px</option>
       <option>10px</option>
       <option>12px</option>
@@ -424,7 +424,7 @@
       <option>30px</option>
     </select><br>
     <text>line spacing: </text>
-    <select id="line-height-select2" onclick="formatFont('line-height-select2', 'line-height')">
+    <select id="line-height-select2" onclick="selectFont('line-height-select2', 'line-height')">
       <option>.8</option>
       <option>1</option>
       <option>1.25</option>
@@ -434,7 +434,7 @@
       <option>2.25</option>
     </select><br>
     <text>character spacing: </text>
-    <select id="letter-spacing-select2" onclick="formatFont('letter-spacing-select2', 'letter-spacing')">
+    <select id="letter-spacing-select2" onclick="selectFont('letter-spacing-select2', 'letter-spacing')">
       <option>-1px</option>
       <option>0px</option>
       <option>1px</option>
@@ -443,25 +443,29 @@
     </select>
   </div>
   <button id="save-appearance2" type="button" class="removed" onclick="saveAppearance()">save</button>
-  <button onclick="$('text-options-pop-up').classList.add('hidden')">close</button>
+  <button id="revert-appearance2" type="button" class="removed" onclick="revertAppearance()">revert</button>
+  <button onclick="$('text-options-pop-up').classList.add('hidden')">close</button><br>
+  <text id="sign-to-save2" class="removed">(sign in to save settings)</text>
 </div>
 
 <div id="color-options-pop-up" class="hidden post-background">
   <h2 class="options-pop-up-title">colors</h2>
   <div>
     <text>presets:</text>
-    <select id="theme-select2" onclick="themeSelect('theme-select2');" name="color-presets">
+    <select id="preset-select2" onclick="themeSelect('preset-select2');" onchange="themeSelect('preset-select2');" name="color-presets">
       <option>custom</option>
     </select>
   </div>
   <div class="settings-box">
-    post background: <input id="postBackground-color-button2" class="color-button jscolor {onFineChange:'changeColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-    text: <input id="text-color-button2" class="color-button jscolor {onFineChange:'changeColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-    link text: <input id="linkText-color-button2" class="color-button jscolor {onFineChange:'changeColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-    background: <input id="background-color-button2" class="color-button jscolor {onFineChange:'changeColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+    post background: <input id="postBackground-color-button2" class="color-button jscolor {onFineChange:'selectColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+    text: <input id="text-color-button2" class="color-button jscolor {onFineChange:'selectColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+    link text: <input id="linkText-color-button2" class="color-button jscolor {onFineChange:'selectColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
+    background: <input id="background-color-button2" class="color-button jscolor {onFineChange:'selectColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
   </div>
   <button id="save-appearance3" type="button" class="removed" onclick="saveAppearance()">save</button>
-  <button onclick="$('color-options-pop-up').classList.add('hidden')">close</button>
+  <button id="revert-appearance3" type="button" class="removed" onclick="revertAppearance()">revert</button>
+  <button onclick="$('color-options-pop-up').classList.add('hidden')">close</button><br>
+  <text id="sign-to-save3" class="removed">(sign in to save settings)</text>
 </div>
 
 <div id="pop-up-backing" class="hidden"></div>
@@ -475,6 +479,21 @@
   </form>
   <br>
   <button id="prompt-close">x</button>
+</div>
+<div id="img-input-prompt" class="pop-up hidden">
+  <form action="javascript:void(0);">
+    <div class="img-input-box">
+      <text>image url<clicky onclick="imageUploadingExplain()" class="special">(?)</clicky>: </text>
+      <input id="img-input-prompt-input" value="https://i.imgur.com/hDEXSt7.jpg" placeholder="hiss"><br>
+      <text>"title"(hover text): </text>
+      <input id="img-input-prompt-input2" placeholder= "(optional)"><br>
+      <text>alt text: </text>
+      <input id="img-input-prompt-input3" placeholder= "(optional)">
+    </div>
+    <br>
+    <button id="img-input-prompt-submit" type="submit">submit</button> &nbsp &nbsp
+    <button id="img-input-prompt-close">x</button>
+  </form>
 </div>
 <div id="password-prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
