@@ -1908,7 +1908,11 @@ app.post('/saveAppearance', function(req, res) {
         else if (!user) {return sendError(res, errMsg+"user not found");}
         else {
           if (req.body.colors && typeof req.body.colors === "object") {
-            user.settings.colors = req.body.colors;
+            for (var prop in req.body.colors) {
+              if (req.body.colors.hasOwnProperty(prop)) {
+                user.settings.colors[prop] = req.body.colors[prop];
+              }
+            }
           }
           var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
           for (var i = 0; i < props.length; i++) {

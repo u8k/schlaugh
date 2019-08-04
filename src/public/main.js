@@ -3581,8 +3581,8 @@ var setAppearance = function () {
     for (var i = 0; i < props.length; i++) {
       if (!glo.settings[props[i][0]]) {
         glo.settings[props[i][0]] = props[i][1];
-        changeFont(glo.settings[props[i][0]], props[i][0]);
       }
+      changeFont(glo.settings[props[i][0]], props[i][0]);
       //$(props[i][0]+'-select').value = glo.settings[props[i][0]];
       $(props[i][0]+'-select2').value = glo.settings[props[i][0]];
     }
