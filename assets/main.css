@@ -6,7 +6,7 @@
 
 *:focus {outline:0;}
 
-.reader-font {font-family: "LORA", "GEORGIA", serif;}
+.reader-font {font-family: "Roboto", "Helvetica", sans-serif;;}
 
 body {
   padding: 10px 20px;
@@ -239,11 +239,11 @@ img {
 a, a.visited, .special {
   text-decoration: none;
   font-family: inherit;
-  color: #BFA5FF;
+  color: #0004FF;
 }
 
 .not-special {
-  color: #D8D8D8;
+  color: #383F45;
 }
 
 #pending-message {width: 65%}
@@ -378,9 +378,9 @@ footerButton {
 
 button, .button {
   cursor: pointer;
-  background-color: #32363F;
-  border-color: #D8D8D8;
-  color: #D8D8D8;
+  background-color: #B2C4D6;
+  border-color: #383F45;
+  color: #383F45;
   border-style: solid;
   border-width: thin;
   border-radius: 3px;
@@ -401,8 +401,8 @@ input {
 
 /*hack to make Chrome not force formatting when it autofills*/
 input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #324144 inset;
-  -webkit-text-fill-color: #D8D8D8;
+  -webkit-box-shadow: 0 0 0 1000px #AFDCFA inset;
+  -webkit-text-fill-color: #383F45;
 }
 
 .not-schlaugh {
@@ -450,12 +450,12 @@ input:-webkit-autofill {
 }
 
 body, h1, input, select {
-  color: #D8D8D8;
-  background-color: #324144;
+  color: #383F45;
+  background-color: #AFDCFA;
 }
 .post, .message, .editor, #settings-box, #thread-list, .pop-up, .post-background {
-  color: #D8D8D8;
-  background-color: #32363F;
+  color: #383F45;
+  background-color: #B2C4D6;
 }
 
 .arrow, #thread-title-area {

@@ -1907,6 +1907,8 @@ app.post('/saveAppearance', function(req, res) {
         if (err) {return sendError(res, errMsg+err);}
         else if (!user) {return sendError(res, errMsg+"user not found");}
         else {
+          if (!user.settings) {user.settings = {};}
+          if (!user.settings.colors) {user.settings.colors = {};}
           if (req.body.colors && typeof req.body.colors === "object") {
             for (var prop in req.body.colors) {
               if (req.body.colors.hasOwnProperty(prop)) {

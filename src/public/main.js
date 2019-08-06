@@ -87,6 +87,7 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     case "text":                        //text
     var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up, .post-background";
     var attribute = "color";
+    //
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
       if (sheet.cssRules[i].selectorText === 'button') {
         sheet.deleteRule(i);
@@ -94,6 +95,15 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
       }
     }
     sheet.insertRule("button {border-color: "+colorCode+";}", sheet.cssRules.length);
+    /*  // this is fine in chrome but is crashing firefox????
+    for (var i = sheet.cssRules.length-1; i > -1; i--) {
+      if (sheet.cssRules[i].selectorText === 'input:-webkit-autofill') {
+        sheet.deleteRule(i);
+        i = -1;
+      }
+    }
+    sheet.insertRule("input:-webkit-autofill {-webkit-text-fill-color: "+colorCode+";}", sheet.cssRules.length);
+    */
     break;
     case "linkText":                 //link text
     var selector = ".special, a, a.visited, a.hover";
@@ -102,6 +112,16 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     case "background":                 //background
     var selector = "body, h1, input, select";
     var attribute = "background-color";
+    //
+    /*  // this is fine in chrome but is crashing firefox????
+    for (var i = sheet.cssRules.length-1; i > -1; i--) {
+      if (sheet.cssRules[i].selectorText === 'input:-webkit-autofill') {
+        sheet.deleteRule(i);
+        i = -1;
+      }
+    }
+    sheet.insertRule("input:-webkit-autofill {-webkit-box-shadow: 0 0 0 1000px "+colorCode+" inset;}", sheet.cssRules.length);
+    */
     break;
   }
   for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -308,10 +328,10 @@ var themeBank = {
     background: '#510000',
   },
   "lorelei":{
-    postBackground: '#CAD1D9',
+    postBackground: '#B2C4D6',
     text: '#383F45',
     linkText: '#0004FF',
-    background: '#C9EAFA',
+    background: '#AFDCFA',
   },
   "pearl":{
     postBackground: '#FFFFF1',
@@ -338,10 +358,10 @@ var themeBank = {
     background: '#AC04F3',
   },
   "lapis":{
-    postBackground: '#1E1C51',
-    text: '#4FCAF3',
-    linkText: '#EBEBEB',
-    background: '#3268B3',
+    postBackground: '#3268B3',
+    text: '#EBEBEB',
+    linkText: '#4FCAF3',
+    background: '#1E1C51',
   },
   "peridot":{
     postBackground: '#F4FDA4',
@@ -2572,7 +2592,7 @@ var prepTextForEditor = function (text) {
   text = text.replace(/<l>/g, '<l><br>');
   text = text.replace(/<ol>/g, '<ol><br>');
   text = text.replace(/<ul>/g, '<ul><br>');
-  text = text.replace(/<ul>/g, '<hr><br>');
+  text = text.replace(/<hr>/g, '<hr><br>');
 
 
   var preTagLineBreakRecurse = function (pos, tag) {
@@ -3562,22 +3582,20 @@ var setAppearance = function () {
   } else {
     loadThemesFromBank();
     loadFontsFromBank();
+    var defaultTheme = 'lorelei';
     glo.newSettings = {colors:{}}
-    if (glo.settings && glo.settings.colors) {
-      var savedColors = glo.settings.colors;
-    } else {
-      if (!glo.settings) {glo.settings = {};}
-      if (!glo.settings.colors) {glo.settings.colors = {};}
-      var savedColors = themeBank['classic'];
-      for (var prop in savedColors) {
-        if (savedColors.hasOwnProperty(prop)) {
-          glo.settings.colors[prop] = savedColors[prop];
-        }
+    if (!glo.settings) {glo.settings = {};}
+    if (!glo.settings.colors) {glo.settings.colors = {};}
+
+    var colorProps = ['postBackground', 'text', 'linkText', 'background'];
+    for (var i = 0; i < colorProps.length; i++) {
+      if (!glo.settings.colors[colorProps[i]]) {
+        glo.settings.colors[colorProps[i]] = themeBank[defaultTheme][colorProps[i]];
       }
     }
-    changeAllColors(savedColors);
+    changeAllColors(glo.settings.colors);
     //
-    var props = [['font-family', "Lora"], ['font-size', '16px'], ['line-height', 1.25], ['letter-spacing', '0px']];
+    var props = [['font-family', "Roboto"], ['font-size', '16px'], ['line-height', 1.25], ['letter-spacing', '0px']];
     for (var i = 0; i < props.length; i++) {
       if (!glo.settings[props[i][0]]) {
         glo.settings[props[i][0]] = props[i][1];
@@ -3588,7 +3606,7 @@ var setAppearance = function () {
     }
     //
     if (!glo.settings.preset) {
-      glo.settings.preset = "classic"
+      glo.settings.preset = defaultTheme;
     }
     //$('preset-select').value = glo.settings.preset;
     $('preset-select2').value = glo.settings.preset;
