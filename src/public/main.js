@@ -371,14 +371,13 @@ var themeBank = {
   },
 }
 var loadThemesFromBank = function () {
-  for (var theme in themeBank) {
-    if (themeBank.hasOwnProperty(theme)) {
-      //var option = document.createElement("option");
-      var option2 = document.createElement("option");
-      //option.text = theme;
-      option2.text = theme;
-      //$('preset-select').add(option);
-      $('preset-select2').add(option2);
+  if ($('preset-select2').options.length < 2) { //check if already loaded
+    for (var theme in themeBank) {
+      if (themeBank.hasOwnProperty(theme)) {
+        var option = document.createElement("option");
+        option.text = theme;
+        $('preset-select2').add(option);
+      }
     }
   }
 }
@@ -399,16 +398,13 @@ var fontBank = {
   'monospace': 'monospace',
 }
 var loadFontsFromBank = function () {
-  for (var font in fontBank) {
-    if (fontBank.hasOwnProperty(font)) {
-      /*
-      var option = document.createElement("option");
-      option.text = font;
-      $('font-family-select').add(option);
-      */
-      var option2 = document.createElement("option");
-      option2.text = font;
-      $('font-family-select2').add(option2);
+  if ($('font-family-select2').options.length < 2) { //check if already loaded
+    for (var font in fontBank) {
+      if (fontBank.hasOwnProperty(font)) {
+        var option = document.createElement("option");
+        option.text = font;
+        $('font-family-select2').add(option);
+      }
     }
   }
 }
@@ -2661,6 +2657,8 @@ var prepTextForEditor = function (text) {
 var showWriter = function (kind) {
   $(kind+'-writer').classList.remove('removed');
   $(kind+'-preview').classList.add('removed');
+  var editor = $(kind+'-editor');
+  setCursorPosition(editor, editor.value.length, editor.value.length);
 }
 var hideWriter = function (kind) {
   //if ($(kind+'-editor').value !== prepTextForEditor(last.body)) {}  // later, for "revert"
@@ -3022,8 +3020,8 @@ var updatePendingMessage = function (index) {
     $('delete-message').classList.remove('removed');
     $('pending-message').classList.remove('removed');
     $('write-message-button').innerHTML = "edit message";
-    $('pending-message-status').innerHTML = "pending:";
-    $('pending-message').innerHTML = convertText(pending, 'pending'+glo.threads[index]._id);
+    $('pending-message-status').innerHTML = "pending message:";
+    $('pending-message').innerHTML = convertText(pending, 'pending-message');
   } else {
     $('delete-message').classList.add('removed');
     $('pending-message').classList.add('removed');
@@ -3145,9 +3143,10 @@ var createMessage = function (i, j) {
   } else {  // show the message
     var orri = "inbound";
     if (x.inbound === false) {orri = "outbound";}
+    var uniqueID = glo.threads[i]._id+'-'+x.date+orri;
     var message = document.createElement("div");
+    message.setAttribute('id', uniqueID);
     message.setAttribute('class', 'message '+orri);
-    //message.setAttribute('id', i+"-"+j+"-message");
     $(i+"-thread").appendChild(message);
     var dateStamp = document.createElement("div");
     dateStamp.setAttribute('class', 'date-stamp-box');
@@ -3155,7 +3154,7 @@ var createMessage = function (i, j) {
     message.appendChild(dateStamp);
     var body = document.createElement("div");
     body.setAttribute('class', 'reader-font');
-    body.innerHTML = convertText(x.body, glo.threads[i]._id+'-'+x.date+orri);
+    body.innerHTML = convertText(x.body, uniqueID);
     message.appendChild(body);
   }
 }

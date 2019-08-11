@@ -95,6 +95,7 @@
   <div id="thread-list"></div>
   <br>
   <div id="message-preview" class="removed">
+    <br>
     <p id="pending-message-status"></p>
     <div id="pending-message" class="message removed reader-font"></div>
     <button type="button" id='write-message-button' onclick="showWriter('message')"></button>
@@ -128,75 +129,6 @@
     <button onclick="followingListDisplay(true)">following list</button>
     <button onclick="displayBookmarks()">bookmarks</button>
     <br><br><br><hr><br>
-
-  <!--
-    <h2><u>appearance</u></h2>
-    <div id="appearance-settings-box">
-      <div id="color-settings-box-box">
-        <h2>col<clicky onclick="switchPanel('o-panel')" class="special">o</clicky>rs</h2>
-        <div id="color-settings-box">
-          <div>
-            <text>presets:</text>
-            <select id="preset-select" onclick="themeSelect('preset-select');" name="color-presets">
-              <option>custom</option>
-            </select>
-          </div>
-          <br>
-          <div class="settings-box">
-            post background: <input id="postBackground-color-button" class="color-button jscolor {onFineChange:'selectColor(this, `postBackground`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-            text: <input id="text-color-button" class="color-button jscolor {onFineChange:'selectColor(this, `text`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-            link text: <input id="linkText-color-button" class="color-button jscolor {onFineChange:'selectColor(this, `linkText`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-            background: <input id="background-color-button" class="color-button jscolor {onFineChange:'selectColor(this, `background`)', padding:0,  borderWidth:0, backgroundColor:'transparent'}"><br>
-          </div>
-        </div>
-      </div>
-      <div>
-        <h2>text</h2>
-        <div class="settings-box">
-          <text>post font: </text>
-          <select id="font-family-select" onclick="selectFont('font-family-select', 'font-family');">
-          </select>
-          <br><br>
-          <text>font size: </text>
-          <select id="font-size-select" onclick="selectFont('font-size-select', 'font-size')">
-            <option>8px</option>
-            <option>10px</option>
-            <option>12px</option>
-            <option>14px</option>
-            <option>16px</option>
-            <option>18px</option>
-            <option>20px</option>
-            <option>24px</option>
-            <option>30px</option>
-          </select>
-          <br><br>
-          <text>line spacing: </text>
-          <select id="line-height-select" onclick="selectFont('line-height-select', 'line-height')">
-            <option>.8</option>
-            <option>1</option>
-            <option>1.25</option>
-            <option>1.5</option>
-            <option>1.75</option>
-            <option>2</option>
-            <option>2.25</option>
-          </select>
-          <br><br>
-          <text>character spacing: </text>
-          <select id="letter-spacing-select" onclick="selectFont('letter-spacing-select', 'letter-spacing')">
-            <option>-1px</option>
-            <option>0px</option>
-            <option>1px</option>
-            <option>2px</option>
-            <option>3px</option>
-          </select>
-          <br>
-        </div>
-      </div>
-    </div>
-    <br>
-    <button id="save-appearance" type="button" class="hidden" onclick="saveAppearance()">save</button>
-    <br><br><hr><br>
-  -->
 
     <text>change username</text><br>
     <form action="javascript:void(0);">
@@ -249,7 +181,7 @@
     <form action="javascript:void(0);">
       <input class="login-input" id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
       <br>
-      <input class="login-input" id="email-input" type="text" name="email" autocomplete="email" placeholder="(optional) recovery email address">
+      <input class="login-input" id="email-input" type="text" name="email" autocomplete="email" placeholder="(optional) email address">
       <br>
       <input class="login-input" id="pass-input" type="password" name="password" autocomplete="new-password" placeholder="password">
       <br>
@@ -289,16 +221,16 @@
 
 <div id="~about-panel" class="removed">
   <div id="about-text"><br><br>
-    schlaugh is a quiet place for reading and writing
+    schlaugh&nbspis&nbspa&nbspquiet&nbspplace for reading&nbspand&nbspwriting
     <br><br>
-    schlaugh only updates once a day<br>
-    so you only check it once a day
+    schlaugh&nbsponly&nbspupdates once&nbspa&nbspday<br>
+    so&nbspyou&nbsponly&nbspcheck&nbspit once&nbspa&nbspday
     <br><br>
-    there is no liking, there is no commenting, there is no noise<br>
-    there is only reading and writing
+    there&nbspis&nbspno&nbspliking, there&nbspis&nbspno&nbspcommenting, there&nbspis&nbspno&nbspnoise<br>
+    there&nbspis&nbsponly reading&nbspand&nbspwriting
     <br><br>
-    you may make one post per day<br>
-    there is no rush<br><br>
+    you&nbspmay&nbspmake one&nbsppost&nbspper&nbspday<br>
+    there&nbspis&nbspno&nbsprush<br><br>
     <3
   </div>
   <br>
@@ -475,10 +407,9 @@
     <br><br>
     <input id="prompt-input">
     <br><br>
-    <button id="prompt-submit" type="submit">submit</button>
+    <button id="prompt-submit" type="submit">submit</button> &nbsp &nbsp
+    <button id="prompt-close">x</button>
   </form>
-  <br>
-  <button id="prompt-close">x</button>
 </div>
 <div id="img-input-prompt" class="pop-up hidden">
   <form action="javascript:void(0);">

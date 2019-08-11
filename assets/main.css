@@ -170,8 +170,7 @@ clicky, .clicky {
   user-select: none;
 }
 
-#post-writer, #old-post-writer {width: 75%; margin: auto;}
-#message-writer{width: 65%; margin: auto;}
+#post-writer, #old-post-writer, #message-writer {width: 75%; margin: auto;}
 
 .editor {
   height: 50vh;
@@ -284,7 +283,7 @@ a, a.visited, .special {
   position: absolute;
   left: 4px;
   top: 2px;
-  font-size: 1em;
+  font-size: 16px;
   opacity: .7;
 }
 .collapse-button-bottom {
@@ -354,8 +353,7 @@ footerButton {
   .post, .author-header, #settings-box {width: 100%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
-  #post-writer, #old-post-writer{width: 95%;}
-  #message-writer{width: 85%;}
+  #post-writer, #old-post-writer, #message-writer{width: 95%;}
   #o-pic {max-width: 95%;}
 }
 
@@ -376,6 +374,13 @@ footerButton {
   border-radius: 5px;
 }
 
+.color-button {
+  width: 60px;
+  text-align: center;
+  cursor: pointer;
+  height: 22px;
+}
+
 button, .button {
   cursor: pointer;
   background-color: #B2C4D6;
@@ -388,6 +393,11 @@ button, .button {
   font-family: "Space Mono";
   padding-top: 0px;
   padding-bottom: 2.5px;
+}
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  button, .button, input, color-button, select, footerButton {font-size: 1.2em;}
+  .collapse-button-top, .collapse-button-bottom {font-size: 20px;}
+  .color-button {width: 75px; height: 28px;}
 }
 
 input {
@@ -431,17 +441,6 @@ input:-webkit-autofill {
   text-align: right;
   margin-bottom: 10px;
   margin-top: 10px;
-}
-
-.color-button {
-  width: 60px;
-  text-align: center;
-  cursor: pointer;
-  height: 22px;
-}
-.preset-button {
-  width: 115px;
-  height: 18px;
 }
 
 .highlight {
@@ -534,7 +533,7 @@ slogan {
   top: 45%;
   transform: translate(-50%,-50%);
   border-radius: 4px;
-  box-shadow: 0px 0px 10px 0px;
+  box-shadow: 0px 0px 4px 0px;
   z-index: 11;
   min-width: 300px;
 }
@@ -553,7 +552,7 @@ slogan {
   right: -2.5px;
   bottom: -2.5px;
   border-radius: 4px;
-  box-shadow: 0px 0px 10px 0px;
+  box-shadow: 0px 0px 4px 0px;
   z-index: 9;
 }
 
@@ -652,7 +651,7 @@ ascii {
 
 ul, ol {margin: 0}
 
-b, i, u, s, quote, li, ul, ol, l, c, r, div {font-family: inherit;}
+b, i, u, s, quote, li, ul, ol, l, c, r, div, p {font-family: inherit;}
 
 l {text-align: left;}
 c {text-align: center;}
