@@ -2,5 +2,5 @@
 
 schlaugh is a quiet place for reading and writing
 
-schlaugh only updates once a day
+schlaugh only updates once a day,
 so you only check it once a day
