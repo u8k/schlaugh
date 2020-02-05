@@ -13,11 +13,18 @@ var adminB = require('./public/adminB.js');
 
 //connect and check mongoDB
 var db;
-var uri = process.env.MONGODB_URI || 'mongodb://mongo:27017/schlaugh';
+var uri = process.env.MONGODB_URI || `mongodb+srv://smee:Od6YbDZJLW0hXmYO@clustytheclusterer-fdeot.gcp.mongodb.net/schlaugh?retryWrites=true&w=majority`;
+
 MongoClient.connect(uri, function(err, database) {
   if (err) {throw err;}
-  else {console.log("MONGO IS ALIVE");
-  db = database;
+  else {
+    console.log("MONGO IS ALIVE");
+    if (process.env.MONGODB_URI) {
+      db = database;
+    } else {      // this is for dev on replit/atlas
+      db = database.db("schlaugh");
+    }
+  
   }
 });
 
