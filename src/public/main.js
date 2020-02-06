@@ -841,6 +841,19 @@ var openFAQ = function () {
   }
 }
 
+var modKeyCheck = function (event, callback) {
+  if (!event.ctrlKey && !event.metaKey && !event.shiftKey) {
+    event.preventDefault();
+    callback();
+  }
+}
+
+var navButtonClick = function (event, type) {
+  modKeyCheck(event, function() {
+    switchPanel(type + "-panel")
+  });
+}
+
 var switchPanel = function (panelName) {
   if (glo.openPanel) {
     $(glo.openPanel).classList.add('removed');
@@ -1019,9 +1032,10 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
             link.setAttribute('class', 'not-special');
             (function (id) {
               link.onclick = function(){
-                event.preventDefault();
-                openAuthorPanel(id);
-                followingListDisplay(false);
+                modKeyCheck(event, function(){
+                  openAuthorPanel(id);
+                  followingListDisplay(false);
+                });
               }
             })(json.followingList[i]._id);
             var name = document.createElement("text");
@@ -1230,7 +1244,7 @@ var renderOnePost = function (postData, type, typeName, postID) {
       authorPic.setAttribute('src', postData.authorPic);
       (function (id) {
         authorPic.onclick = function(event){
-          event.preventDefault();
+          //event.preventDefault();
           openAuthorPanel(id);
         }
       })(postData._id);
@@ -1243,9 +1257,8 @@ var renderOnePost = function (postData, type, typeName, postID) {
     // authorName
     var author = document.createElement("a");
     (function (id) {
-      author.onclick = function(event){
-        event.preventDefault();
-        openAuthorPanel(id);
+      author.onclick = function(event) {
+        modKeyCheck(event, function(){openAuthorPanel(id)});
       }
     })(postData._id);
     author.setAttribute('class', 'author-on-post special');
@@ -1555,8 +1568,9 @@ var createPostFooter = function (postElem, author, post, type) {
       permalink.innerHTML = '<i class="fas fa-link"></i>';
       permalink.title = "permalink";
       permalink.onclick = function(event) {
-        event.preventDefault();
-        openPost(author._id, post.post_id, post.date);
+        modKeyCheck(event, function(){
+          openPost(author._id, post.post_id, post.date);
+        });
       }
       permalinkWrapper.appendChild(permalink);
       footerButtons.appendChild(permalinkWrapper);
@@ -2326,8 +2340,9 @@ var openPost = function (authorID, post_id, date) { //individual post on an auth
     }
     // set title
     $(authorID+'-panel-title').onclick = function (event) {
-      event.preventDefault();
-      openAuthorPanel(authorID);
+      modKeyCheck(event, function(){
+        openAuthorPanel(authorID);
+      });
     }
     $(authorID+'-panel-title').setAttribute('href', "/"+$(authorID+'-panel-title').innerHTML);
     $(authorID+'-panel-title').classList.add("clicky");
@@ -2464,11 +2479,11 @@ var formatTags = function (tagRef, author) {
   for (var tag in tagRef) {
     if (tagRef.hasOwnProperty(tag)) {
       if (author) {
-        tags += '<a onclick="filterAuthorByTag(`'+author._id+'`,`'+tag+
-          '`); return false;" href="'+author.name+'/~tagged/'+tag+'">'+tag+'</a>, ';
+        tags += '<a onclick="modKeyCheck(event, function(){filterAuthorByTag(`'+author._id+'`,`'+tag+
+          '`);});" href="'+author.name+'/~tagged/'+tag+'">'+tag+'</a>, ';
       } else {
-        tags += '<a onclick="loadPosts(0,`'+tag+
-        '`); return false;" href="/~tagged/'+tag+'">'+tag+'</a>, ';
+        tags += '<a onclick="modKeyCheck(event, function(){loadPosts(0,`'+tag+
+        '`);});" href="/~tagged/'+tag+'">'+tag+'</a>, ';
       }
     }
   }
@@ -2985,8 +3000,9 @@ var openThread = function (i) {
       $("thread-title").setAttribute('href', "/"+glo.threads[i].name);
       (function (id) {
         $("thread-title").onclick = function(event){
-          event.preventDefault();
-          openAuthorPanel(id);
+          modKeyCheck(event, function(){
+            openAuthorPanel(id);
+          });
         }
       })(glo.threads[i]._id);
       $("thread-title").classList.remove('removed');
@@ -3194,8 +3210,9 @@ var createThread = function (i, top) {
     var authorPicBox = document.createElement("a");
     (function (id) {
       authorPicBox.onclick = function(event){
-        event.preventDefault();
-        openAuthorPanel(id);
+        modKeyCheck(event, function(){
+          openAuthorPanel(id);
+        });
       }
     })(glo.threads[i]._id);
     authorPicBox.setAttribute('href', "/"+glo.threads[i].name);
@@ -3542,14 +3559,16 @@ var parseUserData = function (data) {
     $("username").classList.remove("removed");
     $('username').setAttribute('href', "/"+glo.username);
     $("username").onclick = function () {
-      event.preventDefault();
-      openAuthorPanel(glo.userID);
+      modKeyCheck(event, function(){
+        openAuthorPanel(glo.userID);
+      });
     }
     $('edit-panel-title').innerHTML = glo.username;
     $('edit-panel-title').setAttribute('href', "/"+glo.username);
     $('edit-panel-title').onclick = function (event) {
-      event.preventDefault();
-      openAuthorPanel(glo.userID);
+      modKeyCheck(event, function(){
+        openAuthorPanel(glo.userID);
+      });
     }
     $("sign-out").classList.remove("removed");
     $("sign-in").classList.add("removed");
