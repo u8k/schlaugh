@@ -637,6 +637,7 @@ var signOut = function() {
   loading();
   ajaxCall('/~logout', 'GET', {}, function(json) {
     location.reload();
+    console.log("hizzy?")
   });
 }
 
@@ -659,6 +660,11 @@ var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   }
   if (faviconSrc) {changeFavicon(faviconSrc);}
   else {changeFavicon(null);}
+}
+
+window.onpopstate = function(event) {
+  //window.history.back();
+  location.reload();
 }
 
 var changeFavicon = function (src) {
@@ -814,12 +820,15 @@ var collapseNote = function (id, dir, postID) {
   }
 }
 
-var backToMain = function () {
-  if (glo.username) {
-    switchPanel("posts-panel");
-  } else {
-    switchPanel('login-panel');simulatePageLoad();
-  }
+var backToMain = function (event) {
+  modKeyCheck(event, function () {
+    if (glo.username) {
+      switchPanel("posts-panel");
+    } else {
+    switchPanel('login-panel');
+    }
+    simulatePageLoad();
+  });
 }
 
 var openFAQ = function () {
@@ -850,7 +859,8 @@ var modKeyCheck = function (event, callback) {
 
 var navButtonClick = function (event, type) {
   modKeyCheck(event, function() {
-    switchPanel(type + "-panel")
+    simulatePageLoad("~"+type, false);
+    switchPanel(type + "-panel");
   });
 }
 
@@ -860,7 +870,6 @@ var switchPanel = function (panelName) {
     if ($(glo.openPanel+"-button")) {$(glo.openPanel+"-button").classList.remove('highlight');}
   }
   if ($(panelName+"-button")) {
-    simulatePageLoad();
     $(panelName+"-button").classList.add('highlight');
   }
   if (panelName === "login-panel" || panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
@@ -994,7 +1003,10 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
         loadManage();
       });
     }
-    if (glo.openPanel !== 'posts-panel') {switchPanel('posts-panel');}
+    if (glo.openPanel !== 'posts-panel') {
+      switchPanel('posts-panel');
+      simulatePageLoad();
+    }
   } else {  //no tag, load posts by following
     // check if we already have the data
     if ($('posts-for-'+date)) {
@@ -1240,17 +1252,18 @@ var renderOnePost = function (postData, type, typeName, postID) {
     postHeader.appendChild(authorBox);
     // authorPic
     if (postData.authorPic && postData.authorPic !== "") {
+      var authorPicWrapper = document.createElement("a");
       var authorPic = document.createElement("img");
       authorPic.setAttribute('src', postData.authorPic);
       (function (id) {
-        authorPic.onclick = function(event){
-          //event.preventDefault();
-          openAuthorPanel(id);
+        authorPicWrapper.onclick = function(event){
+          modKeyCheck(event, function(){openAuthorPanel(id)});
         }
       })(postData._id);
-      authorPic.setAttribute('href', "/"+postData.author);
+      authorPicWrapper.setAttribute('href', "/"+postData.author);
       authorPic.setAttribute('class', 'author-pic clicky');
-      authorBox.appendChild(authorPic);
+      authorPicWrapper.appendChild(authorPic);
+      authorBox.appendChild(authorPicWrapper);
       //
       authorBox.appendChild(document.createElement("br"));
     }
@@ -1517,6 +1530,7 @@ var createPostFooter = function (postElem, author, post, type) {
       dateStamp.onclick = function(){
         dateJump(post.date);
         switchPanel('posts-panel');
+        simulatePageLoad();
       }
     }
     footerLeft.appendChild(dateStamp);
@@ -1540,6 +1554,7 @@ var createPostFooter = function (postElem, author, post, type) {
             $('post-editor').value += prepTextForEditor(text);
             showWriter('post');
             switchPanel('write-panel');
+            simulatePageLoad("~write", false);
           } else {                                               // no, so make the call
             loading();
             ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
@@ -1551,6 +1566,7 @@ var createPostFooter = function (postElem, author, post, type) {
               $('post-editor').value += prepTextForEditor(text);
               showWriter('post');
               switchPanel('write-panel');
+              simulatePageLoad("~write", false);
             });
           }
         }
@@ -3143,6 +3159,7 @@ var checkForThread = function (user) {
     openThread(index);
   }
   switchPanel('inbox-panel');
+  simulatePageLoad("~inbox", false);
   //showWriter('message');
 }
 
@@ -3465,6 +3482,7 @@ var logInPageSubmit = function(inOrUp) {
     }
     signIn(url, data, function () {
       switchPanel('posts-panel');
+      simulatePageLoad();
       loading(true);
     })
   }

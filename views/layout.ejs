@@ -38,7 +38,7 @@
   </head>
   <body>
     <header>
-      <a href="/" onclick="event.preventDefault(); backToMain();"><h1>schlaugh</h1></a>
+      <a href="/" onclick="backToMain(event);"><h1>schlaugh</h1></a>
 
       <nav class="user-info">
         <a id="username" class="clicky removed special user-info-item"></a>
@@ -174,7 +174,7 @@
       <% } else if (typeof faq !== "undefined") { %>
         <script type="text/javascript">openFAQ();</script>
       <% } else { %>
-        <script type="text/javascript">switchPanel("login-panel");</script>
+        <script type="text/javascript">simulatePageLoad(); switchPanel("login-panel");</script>
       <% } %>
     <% } %>
 

@@ -1,11 +1,11 @@
 <nav id="nav" class="removed">
-  <a href="/~writePanel" id="write-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'write')">
+  <a href="/~write" id="write-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'write')">
     <icon class="fas fa-pencil-alt"></icon></a>
   <a href="/" id="posts-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'posts')">
     <icon class="fas fa-book"></icon></a>
-  <a href="/~inboxPanel" id="inbox-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'inbox')">
+  <a href="/~inbox" id="inbox-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'inbox')">
     <icon class="fas fa-envelope"></icon></a>
-  <a href="/~settingsPanel" id="settings-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'settings')">
+  <a href="/~settings" id="settings-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'settings')">
     <icon class="fas fa-cog"></icon></a>
 </nav>
 
@@ -236,7 +236,7 @@
   <br>
   <h2 class="clicky special" onclick="openFAQ();">faq</h2>
   <br>
-  <a href="/" id="posts-panel-button" class="clicky" onclick="event.preventDefault(); backToMain();">
+  <a href="/" class="clicky" onclick="backToMain(event);">
     <h2>back</h2>
   </a>
 </div>
@@ -244,7 +244,7 @@
 <div id="~faq-panel" class="removed">
   <h2>faq</h2>
   <div id="faq-bucket"></div>
-  <a href="/" id="posts-panel-button" class="clicky" onclick="event.preventDefault(); backToMain();">
+  <a href="/" class="clicky" onclick="backToMain(event);">
     <h2>back</h2>
   </a>
 </div>

@@ -1257,13 +1257,16 @@ app.post('/admin/testEmail', function(req, res) {
 app.get('/', function(req, res) {
   renderLayout(req, res, {panel:"posts"});
 });
-app.get('/~writePanel', function(req, res) {
+app.get('/~posts', function(req, res) {
+  renderLayout(req, res, {panel:"posts"});
+});
+app.get('/~write', function(req, res) {
   renderLayout(req, res, {panel:"write"});
 });
-app.get('/~inboxPanel', function(req, res) {
+app.get('/~inbox', function(req, res) {
   renderLayout(req, res, {panel:"inbox"});
 });
-app.get('/~settingsPanel', function(req, res) {
+app.get('/~settings', function(req, res) {
   renderLayout(req, res, {panel:"settings"});
 });
 
