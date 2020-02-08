@@ -186,9 +186,9 @@
       <text><%= hoursRemaining %></text>
       <br>
       <div id="footer-footer" class="removed">
-        <a href="/~" class="clicky footer-text" onclick="event.preventDefault(); switchPanel('~about-panel'); simulatePageLoad('~', false);">about</a>
+        <a href="/~" class="clicky footer-text" onclick="modKeyCheck(event, function () {switchPanel('~about-panel'); simulatePageLoad('~', false);});">about</a>
         •
-        <a href="/~faq" class="clicky footer-text" onclick="event.preventDefault(); openFAQ();">faq</a>
+        <a href="/~faq" class="clicky footer-text" onclick="modKeyCheck(event, function () {openFAQ();});">faq</a>
       </div>
     </footer>
 

@@ -637,7 +637,6 @@ var signOut = function() {
   loading();
   ajaxCall('/~logout', 'GET', {}, function(json) {
     location.reload();
-    console.log("hizzy?")
   });
 }
 
@@ -985,7 +984,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
     if ($('date-jump').classList.contains('removed')) {
       $("jump-open").classList.remove("removed");
     }
-    $("tag-display").innerHTML = 'posts tagged "'+tag+'" on';
+    $("tag-display").innerHTML = 'posts tagged <i>"'+tag+'"</i> on';
     $("tag-menu").classList.add("removed");
     $("tag-menu-open").classList.add("removed");
     $("clear-tag").classList.remove("removed");
@@ -2591,7 +2590,7 @@ var filterAuthorByTag = function (authorID, tag) {
     var authorName = $(authorID+'-panel-title').innerHTML;
     simulatePageLoad(authorName+"/~tagged/"+tag, authorName, glo.authorPics[authorID]);
     $(authorID+'-tag-nav').classList.remove('removed');
-    $(authorID+'-tag-text').innerHTML = 'posts tagged "'+tag+'"';
+    $(authorID+'-tag-text').innerHTML = 'posts tagged <i>"'+tag+'"<i>';
   });
 }
 
