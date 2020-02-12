@@ -3472,7 +3472,7 @@ var logInPageSubmit = function(inOrUp) {
       var url = '/login';
     } else {
       var url = '/register';
-      data.email = $('email-input').value;
+      data.email = $('email-input').value.toLowerCase();
       //data.secretCode = $('secret-code').value;
       if (data.password !== $('pass-input-two').value) {
         uiAlert('passwords are not the same');
@@ -3697,6 +3697,10 @@ var imageUploadingExplain = function () {
   uiAlert(`schlaugh does not support directly uploading images. You'll need to upload your image elsewhere(such as <a href="https://imgur.com/upload" target="_blank">imgur</a>), and then provide a link to the image file<br><br>please note that the link you provide must be directly to an image <i>file</i>, not a webpage. As in, right click on your image and click "copy image address", to get a link that ends with a file extension, like "png", "gif", "jpg", etc`);
 }
 
+var optionalEmailExplain = function () {
+  uiAlert(`the ONLY time schlaugh will <i>ever</i> email you is if you lose your password and need to recover it via email. In fact, we only store a hashed form of your email, so we couldn't email you if we tried, and if our database gets hacked your email address won't be compromised. If you still don't want to provide an email, that's fine, it just means we can't help you gain access to your account in the event of a lost or stolen password.`);
+}
+
 var changeUsername = function () {
   verify("you sure? This will change the url for your profile, breaking any links to your current username. And your current username will be up for grabs for anyone else to claim<br><br>also this will require a refresh(so just like don't have any unsaved text sitting in an editor)<br><br>go ahead?", "let's do it", "nevermind", function (resp) {
     if (!resp) {return;}
@@ -3716,7 +3720,7 @@ var changeUsername = function () {
 
 var verifyEmail = function () {
   loading();
-  ajaxCall('/verifyEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
+  ajaxCall('/verifyEmail', 'POST', {email:$("email-verify-input").value.toLowerCase()}, function(json) {
     if (json.match) {
       uiAlert('a perfect match!<br><br>in the event of a lost password, "'+$("email-verify-input").value+'" is your recovery email', "aye, aye, captain!");
     } else {
@@ -3837,7 +3841,7 @@ var makePassFinCall = function (newData) {
 
 var submitRecoveryRequest = function () {
   if ($("username-lost").value !== "" && $("email-lost").value !== "") {
-    var data = {username: $("username-lost").value, email: $("email-lost").value,}
+    var data = {username: $("username-lost").value, email: $("email-lost").value.toLowerCase(),}
     loading();
     ajaxCall('/passResetRequest', 'POST', data, function(json) {
       loading(true);

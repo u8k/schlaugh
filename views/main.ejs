@@ -191,8 +191,9 @@
       <input id="secret-code" type="password" name="secretCode" placeholder="secret code">
       -->
       <br>
-      <icon id="eye2" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
-      <icon id="eye2c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
+      <icon><i onclick="optionalEmailExplain()" class="far fa-question-circle optional-email-splain clicky"></i></icon>
+      <icon id="eye2" class="far fa-eye clicky eye-on-main" onclick="showPassword(true, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
+      <icon id="eye2c" class="far fa-eye-slash clicky removed eye-on-main" onclick="showPassword(false, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
       <br>
       <button type="submit" class="change-pass-button-bump" onclick="logInPageSubmit('up')">schlaugh up</button>
     </form>

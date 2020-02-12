@@ -39,7 +39,7 @@
       return 'password is too long';
     }
     if (/[^ a-zA-Z0-9-_!@#$%&*?]/.test(x)) {
-      return 'invalid password<br><br> valid characters include letters A-Z(upper/lowercase), numbers 0-9, spaces, and the following special characters: -_!@#$%&*?';
+      return 'invalid password<br><br> valid characters include letters(upper and lowercase), numbers, spaces, and the following special characters: -_!@#$%&*?';
     }
     else {return false;}  // false indicates good, no problems
   }

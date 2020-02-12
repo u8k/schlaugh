@@ -406,7 +406,7 @@ input {
   outline-style: none;
   margin-bottom: 2px;
   padding: 3px 5px 3px 5px;
-  width: 250px;
+  width: 280px;
 }
 
 /*hack to make Chrome not force formatting when it autofills*/
@@ -426,8 +426,24 @@ input:-webkit-autofill {
 
 .eye {
   position: relative;
+  left: 122px;
+  bottom: 25px;
+}
+.eye-on-main {
+  position: relative;
   left: 110px;
-  bottom: 23px;
+  bottom: 25px;
+}
+.optional-email-splain{
+  position: relative;
+  left: 137px;
+  bottom: 87px;
+  font-size: .94em;
+}
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  .eye {font-size: 1.4em; bottom: 35px; left: 118px;}
+  .eye-on-main {font-size: 1.4em; bottom: 36px; left: 100px;}
+  .optional-email-splain{font-size: 1.4em; bottom: 121px;}
 }
 
 #appearance-settings-box {
