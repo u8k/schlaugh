@@ -129,7 +129,7 @@ var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, an
 }
 
 var imageValidate = function (arr, res, callback) {
-  if (arr.length !== 0) {       // does the post contain images?
+  if (arr && arr.length !== 0) {       // does the post contain images?
     var count = arr.length;
     var bitCount = 104857600;   // 100mb(-ish...maybe)
     for (var i = 0; i < arr.length; i++) {

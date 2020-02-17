@@ -665,6 +665,8 @@ ascii {
   text-align: left;
 }
 
+secret {display: none;}
+
 ul, ol {margin: 0}
 
 b, i, u, s, quote, li, ul, ol, l, c, r, div, p {font-family: inherit;}
