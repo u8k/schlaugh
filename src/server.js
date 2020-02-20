@@ -129,7 +129,8 @@ var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, an
 }
 
 var imageValidate = function (arr, res, callback) {
-  if (arr && arr.length !== 0) {       // does the post contain images?
+  if (!arr) {return res.send({error:'"""type error""" on the "imageValidate" probably because staff is a dingus'})}
+  if (arr.length !== 0) {       // does the post contain images?
     var count = arr.length;
     var bitCount = 104857600;   // 100mb(-ish...maybe)
     for (var i = 0; i < arr.length; i++) {
@@ -388,6 +389,44 @@ var createUserUrl = function (username, authorID, callback) {    //creates a lis
     if (err) {return callback({error:err});}
     else {return callback({error:false});}
   });
+}
+
+var createStat = function (date, callback) {
+  db.collection('stats').insertOne({
+    _id: date,
+  }, {}, function (err, result) {
+    if (err) {return callback({error:err});}
+    else {return callback({error:false, statID:result.insertedId});}
+  });
+}
+
+var incrementStat = function (kind) {
+  var date = pool.getCurDate();
+  // does statBucket already exist for day?
+  db.collection('stats').findOne({_id: date},  
+    function(err, stat) {
+      if (err) {return console.log(err);}
+      if (!stat) {createStat(date, function () {
+        updateStat(date, kind, 1);
+      })} else {
+        var x = 1;
+        if (stat[kind]) {x = stat[kind] + 1;}
+        updateStat(date, kind, x);
+      }
+    }
+  );
+}
+
+var updateStat = function (date, kind, val) {
+  var obj = {};
+  obj[kind] = val;
+  db.collection('stats').updateOne({_id: date},
+    {$set: obj},
+    function(err, stat) {
+      if (err) {return console.log(err);}
+      if (!stat) {return console.log("statBucket not found???");}
+    }
+  );
 }
 
 var createPost = function (authorID, callback, date) {    //creates a postID and ref in the postDB
@@ -958,6 +997,19 @@ app.post('/admin/users', function(req, res) {
   });
 });
 
+app.post('/admin/stats', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    //var fields = {_id:1, username:1};
+    //fields[req.body.text] = 1;
+    db.collection('stats').find({}, {}).toArray(function(err, stats) {
+      if (err) {return sendError(res, err);}
+      else {
+        return res.send(stats);
+      }
+    });
+  });
+});
+
 app.post('/admin/user', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
@@ -1255,6 +1307,9 @@ app.post('/admin/testEmail', function(req, res) {
 
 // main page, and panels
 app.get('/', function(req, res) {
+  if (!req.session.user) {
+    incrementStat("rawLoads");
+  }
   renderLayout(req, res, {panel:"posts"});
 });
 app.get('/~posts', function(req, res) {
@@ -2039,6 +2094,7 @@ app.post('/register', function(req, res) {
                           function(err, r) {
                             if (err) {return sendError(res, err);}
                             else {
+                              incrementStat("signUps");
                               // "sign in" the user
                               req.session.user = { _id: newID };
                               return res.send({error:false, needKeys:true, newUser: true,
@@ -2098,6 +2154,8 @@ app.post('/login', function(req, res) {
                 req.session.user = { _id: ObjectId(user._id) };
                 if (req.body.authorID) {        // is this a login while viewing an author page?
                   var authorID = ObjectId(req.body.authorID);
+                } else {
+                  incrementStat("logIns");
                 }
                 getPayload(req, res, authorID, function (payload) {
                   return res.send({error:false, payload:payload});
