@@ -409,6 +409,14 @@ var loadFontsFromBank = function () {
   }
 }
 
+var getStats = function () {
+  ajaxCall('/admin/stats', 'POST', {}, function(json) {
+    console.log(json);
+    var latest = json[json.length-1];
+    console.log(String(latest.signUps) +" of "+ String(latest.rawLoads-latest.logIns))
+  });
+}
+
 var getCursorPosition = function (elem) {
 	// IE < 9 Support
 	if (document.selection) {

@@ -998,15 +998,11 @@ app.post('/admin/users', function(req, res) {
 });
 
 app.post('/admin/stats', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    //var fields = {_id:1, username:1};
-    //fields[req.body.text] = 1;
-    db.collection('stats').find({}, {}).toArray(function(err, stats) {
-      if (err) {return sendError(res, err);}
-      else {
-        return res.send(stats);
-      }
-    });
+  db.collection('stats').find({}, {}).toArray(function(err, stats) {
+    if (err) {return sendError(res, err);}
+    else {
+      return res.send(stats);
+    }
   });
 });
 

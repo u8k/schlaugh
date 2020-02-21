@@ -42,12 +42,6 @@ var getUsers = function () {
   });
 }
 
-var getStats = function () {
-  ajaxCall('/admin/stats', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
 var getPosts = function () {
   ajaxCall('/admin/posts', 'POST', {}, function(json) {
     console.log(json);
