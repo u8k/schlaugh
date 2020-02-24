@@ -58,8 +58,6 @@
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
     if (typeof string !== "string") {return {error:"not string"}}
 
-    string = string.replace(/\r?\n|\r/g, '<br>');   //change /n for <br>
-
     var buttonUp = function (b, i, a, u, s, cut, code, ascii, secret, li, ul, ol, l, r, c, quote, note, imgList) {
       if (b) {string += "</b>"}
       if (i) {string += "</i>"}

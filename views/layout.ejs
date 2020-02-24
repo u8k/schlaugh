@@ -32,6 +32,10 @@
           -webkit-box-shadow: 0 0 0 1000px <%= settings.colors.background %> inset;
           -webkit-text-fill-color: <%= settings.colors.text %>;
         }
+        ::selection {
+          color: <%= settings.colors.postBackground %>;
+          background-color: <%= settings.colors.text %>;
+        }
       </style>
     <% } %>
 

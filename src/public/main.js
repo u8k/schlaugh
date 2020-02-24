@@ -79,15 +79,21 @@ var revertAppearance = function () {
 
 var changeColor = function (colorCode, type) {          // makes the new CSS rule
   var sheet = document.styleSheets[document.styleSheets.length-1];
-  switch (type) {
-    case "postBackground":                 //post background
+  if (type === "postBackground") {
     var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background";
     var attribute = "background-color";
-    break;
-    case "text":                        //text
+    // selected(highlighted) text color
+    for (var i = sheet.cssRules.length-1; i > -1; i--) {
+      if (sheet.cssRules[i].selectorText === '::selection, .fake-text-color-class') {
+        sheet.deleteRule(i);
+        i = -1;
+      }
+    }
+    sheet.insertRule("::selection, .fake-text-color-class {color: "+colorCode+";}", sheet.cssRules.length);
+  } else if (type === "text") {
     var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up, .post-background";
     var attribute = "color";
-    //
+    // border color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
       if (sheet.cssRules[i].selectorText === 'button') {
         sheet.deleteRule(i);
@@ -95,35 +101,42 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
       }
     }
     sheet.insertRule("button {border-color: "+colorCode+";}", sheet.cssRules.length);
-    /*  // this is fine in chrome but is crashing firefox????
+    // selected(highlighted) background
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
-      if (sheet.cssRules[i].selectorText === 'input:-webkit-autofill') {
+      if (sheet.cssRules[i].selectorText === '::selection, .fake-background-class') {
         sheet.deleteRule(i);
         i = -1;
       }
     }
-    sheet.insertRule("input:-webkit-autofill {-webkit-text-fill-color: "+colorCode+";}", sheet.cssRules.length);
+    sheet.insertRule("::selection, .fake-background-class {background-color: "+colorCode+";}", sheet.cssRules.length);
+    // this is fine in chrome but is crashing firefox????
+    /*
+    for (var i = sheet.cssRules.length-1; i > -1; i--) {
+      if (sheet.cssRules[i].selectorText === 'input:-webkit-autofill, .fake-input-text-color') {
+        sheet.deleteRule(i);
+        i = -1;
+      }
+    }
+    sheet.insertRule("input:-webkit-autofill, .fake-input-text-color {-webkit-text-fill-color: "+colorCode+";}", sheet.cssRules.length);
     */
-    break;
-    case "linkText":                 //link text
+  } else if (type === "linkText") {
     var selector = ".special, a, a.visited, a.hover";
     var attribute = "color";
-    break;
-    case "background":                 //background
+  } else if (type === "background") {
     var selector = "body, h1, input, select";
     var attribute = "background-color";
-    //
-    /*  // this is fine in chrome but is crashing firefox????
+    // this is fine in chrome but is crashing firefox????
+    /*
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
-      if (sheet.cssRules[i].selectorText === 'input:-webkit-autofill') {
+      if (sheet.cssRules[i].selectorText === 'input:-webkit-autofill, .fake-input-shadow-class') {
         sheet.deleteRule(i);
         i = -1;
       }
     }
-    sheet.insertRule("input:-webkit-autofill {-webkit-box-shadow: 0 0 0 1000px "+colorCode+" inset;}", sheet.cssRules.length);
+    sheet.insertRule("input:-webkit-autofill, .fake-input-shadow-class {-webkit-box-shadow: 0 0 0 1000px "+colorCode+" inset;}", sheet.cssRules.length);
     */
-    break;
   }
+  // actually do the main rule swap w/ the above set variables
   for (var i = sheet.cssRules.length-1; i > -1; i--) {
     if (sheet.cssRules[i].selectorText === selector) {
       sheet.deleteRule(i);
@@ -413,7 +426,7 @@ var getStats = function () {
   ajaxCall('/admin/stats', 'POST', {}, function(json) {
     console.log(json);
     var latest = json[json.length-1];
-    console.log(String(latest.signUps) +" of "+ String(latest.rawLoads-latest.logIns))
+    console.log(latest._id +": "+ String(latest.signUps) +" of "+ String(latest.rawLoads-latest.logIns))
   });
 }
 
@@ -797,6 +810,33 @@ var convertLinks = function (string) {
 
 var convertText = function (string, id) {
   return convertLinks(convertNotes(convertCuts(string, id), id));
+}
+
+var preCleanText = function (string) {  //prep editor text for backEnd, prior to cleanse
+  if (typeof string !== "string") {return;}
+  // check the text between code tags,
+  //    replacing "&" with "&amp;"
+  //    and THEN replace "<" with "&lt;"
+  var recurse = function (pos) {
+    var next = string.substr(pos).search(/<code>/);
+    if (next === -1) {return string;}
+    else {
+      pos += next+6;
+      var endPos = string.substr(pos).search("</code>");
+      if (endPos === -1) { //unpaired code tag
+        var newString = string.substr(pos).replace(/&/g, '&amp;');
+        newString = newString.replace(/</g, '&lt;');
+        string = string.substr(0,pos)+newString+"</code>";
+      } else {
+        var newString = string.substr(pos, endPos).replace(/&/g, '&amp;');
+        newString = newString.replace(/</g, '&lt;');
+        string = string.substr(0,pos)+newString+string.substr(pos+endPos);
+        pos += endPos+1;
+      }
+      return recurse(pos+1);
+    }
+  }                               //change /n for <br>
+  return recurse(0).replace(/\r?\n|\r/g, '<br>');
 }
 
 var collapseNote = function (id, dir, postID) {
@@ -1812,6 +1852,7 @@ var editPost = function (post, author) {
       }
     }
     loading();
+    data.text = preCleanText(data.text);
     ajaxCall("/editOldPost", 'POST', data, function(json) {
       updatePendingEdit(json);
       if (!glo.pendingUpdates[post.date]) {glo.pendingUpdates[post.date] = [{}];}
@@ -1927,6 +1968,7 @@ var editBio = function () {
       return hideWriter('old-post');
     }
     loading();
+    data.text = preCleanText(data.text);
     ajaxCall("/editOldPost", 'POST', data, function(json) {
       updatePendingEdit(json, true);
       glo.pendingUpdates['bio'] = json.body;
@@ -2403,6 +2445,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     });
   } else {
     loading();
+    text = preCleanText(text);
     ajaxCall("/", 'POST', {text:text, tags:tags, title:title}, function(json) {
       updatePendingPost(json.text, json.tags, json.title);
     });
@@ -2609,15 +2652,15 @@ var prepTextForEditor = function (text) {
   // a bunch garbage hacking of html whitespace handling
 
   //
-  text = text.replace(/\/cut>/g, '/cut><br>');
-  text = text.replace(/\/ascii>/g, '/ascii><br>');
-  text = text.replace(/\/li>/g, '/li><br>');
-  text = text.replace(/\/quote>/g, '/quote><br>');
-  text = text.replace(/\/r>/g, '/r><br>');
-  text = text.replace(/\/c>/g, '/c><br>');
-  text = text.replace(/\/l>/g, '/l><br>');
-  text = text.replace(/\/ol>/g, '/ol><br>');
-  text = text.replace(/\/ul>/g, '/ul><br>');
+  text = text.replace(/<\/cut>/g, '</cut><br>');
+  text = text.replace(/<\/ascii>/g, '</ascii><br>');
+  text = text.replace(/<\/li>/g, '</li><br>');
+  text = text.replace(/<\/quote>/g, '</quote><br>');
+  text = text.replace(/<\/r>/g, '</r><br>');
+  text = text.replace(/<\/c>/g, '</c><br>');
+  text = text.replace(/<\/l>/g, '</l><br>');
+  text = text.replace(/<\/ol>/g, '</ol><br>');
+  text = text.replace(/<\/ul>/g, '</ul><br>');
   //
   text = text.replace(/<quote>/g, '<quote><br>');
   text = text.replace(/<ascii>/g, '<ascii><br>');
@@ -2669,6 +2712,24 @@ var prepTextForEditor = function (text) {
   imgRecurse(0);
 
   text = text.replace(/<br>/g, '\n');
+
+  var codeRecurse = function (pos) {
+    var next = text.substr(pos).search(/<code>/);
+    if (next !== -1) {
+      pos += next+6;
+      var endPos = text.substr(pos).search("</code>");
+      if (endPos === -1) { // 'should' never be the case since "cleanse" has already ran
+        return uiAlert(`error, sorry! unpaired code tag on "prepText", please show this to staff`);
+      } else {
+        var newString = text.substr(pos, endPos).replace(/&lt;/g, '<');
+        newString = newString.replace(/&amp;/g, '&');
+        text = text.substr(0,pos)+newString+text.substr(pos+endPos);
+        pos += endPos+1;
+      }
+      codeRecurse(pos+1);
+    }
+  }
+  codeRecurse (0);
 
   var noteRecurse = function (pos) {
     var next = text.substr(pos).search(/<note linkText="/);
@@ -3143,7 +3204,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     }
 
     // cleanse and image validate
-    var x = pool.cleanseInputText(text);
+    var x = pool.cleanseInputText(preCleanText(text));
     text = x[1];
     if (x[0].length !== 0) {
       ajaxCall('/image', 'POST', x[0], function(json) {
@@ -3401,7 +3462,7 @@ var unlockInbox = function (pass, callback) {     // decrypts all messages
             if (err) {
               glo.threads[i].thread[j].body = "<c>***unable to decrypt message***</c>";
             } else {
-              glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
+              glo.threads[i].thread[j].body = pool.cleanseInputText(preCleanText(text))[1];
             }
             // image validation
             //(goes here)

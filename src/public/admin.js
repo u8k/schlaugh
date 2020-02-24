@@ -89,7 +89,7 @@ var allFollowStaff = function () {
 
 /*var letStaffCheat = function () {
   if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
-  ajaxCall('/admin/staffCheat', 'POST', {text:$('staffCheatText').value}, function(json) {
+  ajaxCall('/admin/staffCheat', 'POST', {text:preCleanText($('staffCheatText').value)}, function(json) {
     console.log(json);
   });
 }*/
@@ -136,7 +136,7 @@ var createPostID = function () {
 }
 
 var publishFAQ = function () {
-  ajaxCall('/admin/faq', 'POST', {text: $("faq-input").value}, function(json) {
+  ajaxCall('/admin/faq', 'POST', {text: preCleanText($("faq-input").value)}, function(json) {
     console.log(json);
   });
 }
