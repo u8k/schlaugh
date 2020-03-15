@@ -2251,21 +2251,30 @@ var openAuthorPanel = function (authorID, callback) {
 }
 
 var turnAuthorPage = function (authorID, dir, num) {
-  if (!$(authorID+"-right-arrow")) {return simulatePageLoad($(authorID+'-panel-title').innerHTML, null, glo.authorPics[authorID]);}
+  // was a dir or num given?
   if (num) {var newPage = num}
-  else {var newPage = parseInt($(authorID+ "-page-number-left").value) + dir;}
-  $(authorID+ "-page-number-left").value = newPage;
-  if (parseInt($(authorID+ "-page-number-right").innerHTML) === newPage) {
-    $(authorID+"-right-arrow").classList.add('hidden');
-  } else {
-    $(authorID+"-right-arrow").classList.remove('hidden');
+  else {
+    // "right-arrow" is just an indicator of if this author has multiple pages
+    if ($(authorID+"-right-arrow")) {var newPage = parseInt($(authorID+ "-page-number-left").value) + dir;}
+    else {var newPage = parseInt($(authorID+ "-page-number-left").innerHTML) + dir;}
   }
-  if (newPage === 1) {
-    $(authorID+"-left-arrow").classList.add('hidden');
-  } else {
-    $(authorID+"-left-arrow").classList.remove('hidden');
+  // is updating the arrows/page numbers is even a thing?
+  if ($(authorID+"-right-arrow")) {
+    $(authorID+ "-page-number-left").value = newPage;
+    if (parseInt($(authorID+ "-page-number-right").innerHTML) === newPage) {
+      $(authorID+"-right-arrow").classList.add('hidden');
+    } else {
+      $(authorID+"-right-arrow").classList.remove('hidden');
+    }
+    if (newPage === 1) {
+      $(authorID+"-left-arrow").classList.add('hidden');
+    } else {
+      $(authorID+"-left-arrow").classList.remove('hidden');
+    }
   }
+  //
   clearAuthorPage(authorID);
+  // do we already have the data for this page?
   if (glo.page && glo.page[authorID] && glo.page[authorID].num[newPage]) {
     for (var i = 0; i < glo.page[authorID].num[newPage].length; i++) {
       $("author-" +glo.page[authorID].num[newPage][i]).classList.remove('removed');
@@ -2273,6 +2282,7 @@ var turnAuthorPage = function (authorID, dir, num) {
     var authorName = $(authorID+'-panel-title').innerHTML;
     simulatePageLoad(authorName+"/~page/"+newPage, authorName, glo.authorPics[authorID]);
   } else {
+  // make the call to get the data for this page
     loading();
     ajaxCall('/~getAuthor/'+authorID+'/'+newPage, 'POST', {postRef:glo.postRef}, function(json) {
       loading(true);

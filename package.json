@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "a quiet place to write",
   "engines": {
-	"node": "10.17.0"
+	"node": "10.19.0"
   },
   "license": "UNLICENSED",
   "private": true,
