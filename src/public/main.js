@@ -1300,6 +1300,7 @@ var renderOnePost = function (postData, type, typeName, postID) {
     // authorPic
     if (postData.authorPic && postData.authorPic !== "") {
       var authorPicWrapper = document.createElement("a");
+      //authorPic.setAttribute('id', uniqueID+"-authorPic");
       var authorPic = document.createElement("img");
       authorPic.setAttribute('src', postData.authorPic);
       (function (id) {
@@ -1310,6 +1311,11 @@ var renderOnePost = function (postData, type, typeName, postID) {
       authorPicWrapper.setAttribute('href', "/"+postData.author);
       authorPic.setAttribute('class', 'author-pic clicky');
       authorPicWrapper.appendChild(authorPic);
+      /*
+      if (glo.collapsed && glo.collapsed[postData.post_id]) {
+        authorPicWrapper.classList.add('removed');
+      }
+      */
       authorBox.appendChild(authorPicWrapper);
       //
       authorBox.appendChild(document.createElement("br"));
@@ -1350,7 +1356,10 @@ var renderOnePost = function (postData, type, typeName, postID) {
   body.setAttribute('class', 'reader-font');
   body.setAttribute('id', uniqueID+'body');
   body.innerHTML = convertText(postData.body, uniqueID);
-  if (glo.collapsed && glo.collapsed[postData.post_id]) {body.classList.add('removed');}
+  if (glo.collapsed && glo.collapsed[postData.post_id]) {
+    post.classList.add('faded');
+    body.classList.add('removed');
+  }
   post.appendChild(body);
   // tags
   var authorOption = null;
@@ -1381,6 +1390,8 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
   var btnElem = $(uniqueID+'collapse-button-top');
   var btnElem2 = $(uniqueID+'collapse-button-bottom');
   if (btnElem.title === 'expand') {     // expand the post
+    $(uniqueID).classList.remove('faded');
+    //$(uniqueID+"-authorPic").classList.remove('removed');
     btnElem.title = 'collapse';
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
     btnElem2.title = 'collapse';
@@ -1393,6 +1404,8 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     var collapse = false;
     if (glo.collapsed) {glo.collapsed[postID] = false;}
   } else {                             // collapse the post
+    $(uniqueID).classList.add('faded');
+    //$(uniqueID+"-authorPic").classList.add('removed');
     btnElem.title = 'expand';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
     btnElem2.classList.add('removed');
@@ -1421,6 +1434,8 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
       for (var i = 0; i < posArr.length; i++) {
         if (uniqueID !== posArr[i]) {
           if (!collapse) {
+            $(posArr[i]).classList.remove('faded');
+            //$(posArr[i]+"-authorPic").classList.remove('removed');
             $(posArr[i]+'collapse-button-top').title = 'collapse';
             $(posArr[i]+'collapse-button-top').innerHTML = '<i class="far fa-minus-square"></i>';
             $(posArr[i]+'collapse-button-bottom').title = 'collapse';
@@ -1431,6 +1446,8 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
               $(posArr[i] +'collapse-button-bottom').classList.remove("hidden");
             }
           } else {
+            $(posArr[i]).classList.add('faded');
+            //$(posArr[i]+"-authorPic").classList.add('removed');
             $(posArr[i]+'collapse-button-top').title = 'expand';
             $(posArr[i]+'collapse-button-top').innerHTML = '<i class="far fa-plus-square"></i>';
             $(posArr[i]+'collapse-button-bottom').classList.add('removed');
