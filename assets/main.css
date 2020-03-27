@@ -194,6 +194,7 @@ clicky, .clicky {
 #thread-box {
   width: 80%;
   margin: auto;
+  max-width: 900px;
 }
 
 .thread-name {font-size: 1.8em}
@@ -211,7 +212,7 @@ clicky, .clicky {
   text-align: left;
   position: relative;
 }
-.message {width: 85%;}
+.message {width: 85%; max-width: 800px;}
 #settings-box, #thread-list {text-align: center;}
 
 .post, .message, #tag-display, .top-tag, .author-header-right, .author-on-post, #thread-list {

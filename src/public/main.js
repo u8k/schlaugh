@@ -1177,7 +1177,7 @@ var renderPostFeed = function (postList, date, tag) {
     if (tag) {
       post.innerHTML = "~no posts~";
     } else {
-      post.innerHTML = '~not schlaugh~<br><clicky onclick="uiAlert(`for the day you are viewing, '+date+', none of the people you are following have made posts`)" class="special">(?)</clicky>';
+      post.innerHTML = '~not schlaugh~<br><clicky onclick="uiAlert(`for the day you are viewing, '+date+', none of the people or tags you are following have made posts`)" class="special">(?)</clicky>';
     }
     post.classList.add('not-schlaugh');
     bucket.appendChild(document.createElement("br"));
@@ -1617,6 +1617,7 @@ var createPostFooter = function (postElem, author, post, type) {
             if ($('post-editor').value !== "") {text = '<br>'+text;}
             $('post-editor').value += prepTextForEditor(text);
             showWriter('post');
+            addTag(author.name);
             switchPanel('write-panel');
             simulatePageLoad("~write", false);
           } else {                                               // no, so make the call
@@ -1629,6 +1630,7 @@ var createPostFooter = function (postElem, author, post, type) {
               if ($('post-editor').value !== "") {text = '<br>'+text;}
               $('post-editor').value += prepTextForEditor(text);
               showWriter('post');
+              addTag(author.name);
               switchPanel('write-panel');
               simulatePageLoad("~write", false);
             });
@@ -1675,6 +1677,10 @@ var createPostFooter = function (postElem, author, post, type) {
       footerButtons.appendChild(deleteBtn);
     }
   }
+}
+
+var addTag = function (author) {
+  $('tag-input').value = $('tag-input').value + "@"+author;
 }
 
 var createBookmarkButton = function (parent, author_id, post) {
@@ -2601,7 +2607,9 @@ var openTagMenu = function (close) {
 }
 
 var tagSearch = function () {
-  loadPosts(0, $("tag-picker").value);
+  var tag = $("tag-picker").value;
+  if (tag === "") {return uiAlert("ya can't search for nothin!");}
+  loadPosts(0, tag);
 }
 
 var saveTag = function (remove, tag) {
@@ -3602,6 +3610,7 @@ var signIn = function (url, data, callback) {
     if (json.needKeys) {
       makeKeys(data.password, function (keys) {
         if (json.newUser) {
+          // key stuff, and opening staff message
           openpgp.encrypt({
             data: json.message,
             publicKeys: openpgp.key.readArmored(keys.pubKey).keys,

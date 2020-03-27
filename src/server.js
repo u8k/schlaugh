@@ -24,7 +24,7 @@ MongoClient.connect(uri, function(err, database) {
     } else {      // this is for dev on replit/atlas
       db = database.db("schlaugh");
     }
-  
+
   }
 });
 
@@ -403,7 +403,7 @@ var createStat = function (date, callback) {
 var incrementStat = function (kind) {
   var date = pool.getCurDate();
   // does statBucket already exist for day?
-  db.collection('stats').findOne({_id: date},  
+  db.collection('stats').findOne({_id: date},
     function(err, stat) {
       if (err) {return console.log(err);}
       if (!stat) {createStat(date, function () {
@@ -2064,7 +2064,8 @@ app.post('/register', function(req, res) {
             },
             following: [],
             iconURI: snakeBank[Math.floor(Math.random() * (snakeBank.length))],
-            settings: {},
+            settings: {includeTaggedPosts:true},
+            savedTags: ["@"+username, "milkshake"],
           }, {}, function (err, result) {
             if (err) {return sendError(res, err);}
             var newID = ObjectId(result.insertedId);
