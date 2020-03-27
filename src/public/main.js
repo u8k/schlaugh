@@ -1680,7 +1680,7 @@ var createPostFooter = function (postElem, author, post, type) {
 }
 
 var addTag = function (author) {
-  $('tag-input').value = $('tag-input').value + "@"+author;
+  $('tag-input').value = $('tag-input').value + "@"+author+", ";
 }
 
 var createBookmarkButton = function (parent, author_id, post) {
