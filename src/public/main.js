@@ -1013,6 +1013,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
     glo.tag = null;
     $("tag-display").classList.add("removed");
     $("clear-tag").classList.add("removed");
+    //$("all-days").classList.add("removed");
     $("save-tag").classList.add("removed");
     $("tag-menu-open").classList.remove("removed");
     $('date-jump').classList.add("removed");
@@ -1036,6 +1037,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
     $("tag-menu").classList.add("removed");
     $("tag-menu-open").classList.add("removed");
     $("clear-tag").classList.remove("removed");
+    //$("all-days").classList.remove("removed");
     $("tag-display").classList.remove("removed");
     // check if we already have the data
     if ($('posts-for-'+ date +'-'+tag)) {
@@ -1044,7 +1046,7 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
     } else {
       // we don't, so make the ajax call
       $('loading').classList.remove('removed');
-      ajaxCall('/~getTag', 'POST', {date:date, tag:tag,}, function(json) {
+      ajaxCall('/~getTagByDate', 'POST', {date:date, tag:tag,}, function(json) {
         renderPostFeed(json.posts, date, tag);
         $('loading').classList.add('removed');
         loadManage();
@@ -1384,6 +1386,39 @@ var renderOnePost = function (postData, type, typeName, postID) {
   */
   //
   return post;
+}
+
+var viewAllDaysOfTag = function (tag, pageNum) {
+  uiAlert('coming soon<br><br>to a theater near you');
+  /*
+  if (!tag) {tag = glo.tag;}
+  if (!pageNum || !Number.isInteger(pageNum)) {pageNum = 1;}
+
+  $("tag-display").innerHTML = 'posts tagged <i>"'+tag+'"</i>';
+
+  //simulatePageLoad(authorName+"/~page/"+pageNum, authorName, glo.authorPics[authorID]);
+
+  //clearAuthorPage(authorID);
+
+  // do we already have the data for this page?
+  if (glo.tagPage && glo.tagPage[tag] && glo.tagPage[tag].num[pageNum]) {  // do we already have this rendered/loaded?
+      for (var i = 0; i < glo.tagPage[authorID].num[pageNum].length; i++) {
+
+      //  $("author-" +glo.tagPage[authorID].num[pageNum][i]).classList.remove('removed');
+      }
+
+    } else {
+    // make the call to get the data for this page
+      loading();
+      ajaxCall('/~getTagByPage/'+authorID+'/'+pageNum, 'POST', {postRef:glo.postRef}, function(json) {
+        loading(true);
+
+        //renderAuthorPage(json.data, pageNum);
+
+        if (!glo.tagPage) {glo.tagPage = {};}
+      });
+  }
+  */
 }
 
 var collapsePost = function (uniqueID, postID, isBtmBtn) {
@@ -2298,9 +2333,9 @@ var turnAuthorPage = function (authorID, dir, num) {
   //
   clearAuthorPage(authorID);
   // do we already have the data for this page?
-  if (glo.page && glo.page[authorID] && glo.page[authorID].num[newPage]) {
-    for (var i = 0; i < glo.page[authorID].num[newPage].length; i++) {
-      $("author-" +glo.page[authorID].num[newPage][i]).classList.remove('removed');
+  if (glo.authorPage && glo.authorPage[authorID] && glo.authorPage[authorID].num[newPage]) {
+    for (var i = 0; i < glo.authorPage[authorID].num[newPage].length; i++) {
+      $("author-" +glo.authorPage[authorID].num[newPage][i]).classList.remove('removed');
     }
     var authorName = $(authorID+'-panel-title').innerHTML;
     simulatePageLoad(authorName+"/~page/"+newPage, authorName, glo.authorPics[authorID]);
@@ -2336,12 +2371,12 @@ var renderAuthorPage = function (data, pageNum, tag) {
       };
     }
   }
-  if (!glo.page) {glo.page = {};}
-  if (!glo.page[data._id]) {glo.page[data._id] = {num:{}, tag: {}};}
+  if (!glo.authorPage) {glo.authorPage = {};}
+  if (!glo.authorPage[data._id]) {glo.authorPage[data._id] = {num:{}, tag: {}};}
   if (tag === undefined) {
-    glo.page[data._id].num[pageNum] = data.list;
+    glo.authorPage[data._id].num[pageNum] = data.list;
   } else {
-    glo.page[data._id].tag[tag] = data.list;
+    glo.authorPage[data._id].tag[tag] = data.list;
   }
   var bucket = $(data._id+'-posts');
   // posts
@@ -2655,9 +2690,9 @@ var filterAuthorByTag = function (authorID, tag) {
   openAuthorPanel(authorID, function () {
     clearAuthorPage(authorID);
 
-    if (glo.page && glo.page[authorID] && glo.page[authorID].tag[tag]) {
-      for (var i = 0; i < glo.page[authorID].tag[tag].length; i++) {
-        $("author-" +glo.page[authorID].tag[tag][i]).classList.remove('removed');
+    if (glo.authorPage && glo.authorPage[authorID] && glo.authorPage[authorID].tag[tag]) {
+      for (var i = 0; i < glo.authorPage[authorID].tag[tag].length; i++) {
+        $("author-" +glo.authorPage[authorID].tag[tag][i]).classList.remove('removed');
       }
     } else {
       var stuff = {

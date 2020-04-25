@@ -153,8 +153,64 @@ var getUserUrls = function () {
   });
 }
 
-var makeAllUserUrls = function () {
-  ajaxCall('/admin/makeAllUserUrls', 'POST', {}, function(json) {
+var getTagIndex = function () {
+  ajaxCall('/admin/getTagIndex', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var buildTagIndex = function () {
+  ajaxCall('/admin/buildTagIndex', 'POST', {}, function(json) {
+    console.log(json.tagArr.length);
+    buildTagIndexBounce(0, json.tagArr);
+  });
+}
+
+var buildTagIndexBounce = function (progress, tagArr) {
+  ajaxCall('/admin/buildTagIndexBounce', 'POST', {progress:progress, tagArr:tagArr}, function(json) {
+    console.log(json.progress+" of "+json.tagArr.length);
+    if (json.progress < json.tagArr.length) {
+      buildTagIndexBounce(json.progress, json.tagArr);
+    } else {
+      console.log('done!');
+      getTagIndex();
+    }
+  });
+}
+
+var genShitPosts = function (total) {
+  ajaxCall('/admin/genPosts', 'POST', {}, function(json) {
+    json.progress = 0;
+    json.total = total;
+    genShitPostsBounce(json);
+  });
+}
+
+var genShitPostsBounce = function (data) {
+  ajaxCall('/admin/genPostsBounce', 'POST', data, function(json) {
+    console.log(json.progress+" of "+json.total);
+    if (json.progress < json.total) {
+      genShitPostsBounce(json);
+    } else {
+      console.log('done!');
+    }
+  });
+}
+
+var testCreateTagIndexItem = function (obj) {
+  ajaxCall('/admin/testCreateTagIndexItem', 'POST', obj, function(json) {
+    console.log(json);
+  });
+}
+
+var setDelayTest = function (obj) {
+  ajaxCall('/admin/setDelayTest', 'POST', obj, function(json) {
+    console.log(json);
+  });
+}
+
+var tripDelayTest = function () {
+  ajaxCall('/admin/tripDelayTest', 'POST', {}, function(json) {
     console.log(json);
   });
 }

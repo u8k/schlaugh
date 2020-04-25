@@ -82,7 +82,7 @@ var checkFreshness = function (user) {  // pushes New pending posts to postlist
 var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, and BIO
   var today = pool.getCurDate();        // "user"obj MUST have pendingUpdates, posts, bio, and _id props
   if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.lastUpdatedOn) {
-    if (user.pendingUpdates.lastUpdatedOn !== today) {
+    if (!safeMode && user.pendingUpdates.lastUpdatedOn !== today) {
       user.pendingUpdates.lastUpdatedOn = today;
       var ref = user.pendingUpdates.updates;
       var count = 0;
@@ -128,8 +128,8 @@ var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, an
   } else {return callback({change:false, user:user});}
 }
 
-var imageValidate = function (arr, res, callback) {
-  if (!arr) {return res.send({error:'"""type error""" on the "imageValidate" probably because staff is a dingus'})}
+var imageValidate = function (arr, callback) {
+  if (!arr) {return callback({error:'"""type error""" on the "imageValidate" probably because staff is a dingus'})}
   if (arr.length !== 0) {       // does the post contain images?
     var count = arr.length;
     var bitCount = 104857600;   // 100mb(-ish...maybe)
@@ -140,21 +140,21 @@ var imageValidate = function (arr, res, callback) {
             count -=1;
             if (error || resp.statusCode !== 200) {
               count = 0;
-              return res.send({error:'the url for image '+(index+1)+' seems to be invalid<br><br>your post has not been saved'});
+              return callback({error:'the url for image '+(index+1)+' seems to be invalid<br><br>your post has not been saved'});
             } else if (resp.headers['content-type'].substr(0,5) !== "image" && resp.headers.server !== "AmazonS3") {
               count = 0;
-              return res.send({error:'the url for image '+(index+1)+' is not a url for an image<br><br>your post has not been saved'});
+              return callback({error:'the url for image '+(index+1)+' is not a url for an image<br><br>your post has not been saved'});
             } else {bitCount -= resp.headers['content-length'];}
             if (count === 0) {
               if (bitCount < 0) {
-                return res.send({error:"your image(s) exceed the byte limit by "+(-bitCount)+" bytes<br><br>your post has not been saved"});
-              } else {return callback(res);}
+                return callback({error:"your image(s) exceed the byte limit by "+(-bitCount)+" bytes<br><br>your post has not been saved"});
+              } else {return callback({error:false});}
             }
           }
         });
       })(i);
     }     // no images to check
-  } else {return callback(res);}
+  } else {return callback({error:false});}
 }
 
 var writeToDB = function (userID, data, callback) { // to the USER collection
@@ -470,8 +470,12 @@ var nullPostFromPosts = function (postID, callback) {
   );
 }
 
-var updateUserPost = function (text, newTags, title, userID, user, res, errMsg, callback) {
+var updateUserPost = function (text, newTags, title, userID, user, callback, daysAgo) {
+  if (safeMode) {return callback({error:safeMode});}
   var tmrw = pool.getCurDate(-1);
+  if (devFlag && daysAgo) { // CHEATING, for local testing only
+    var tmrw = pool.getCurDate(daysAgo);
+  }
   if (user.posts[tmrw]) {                               //edit existing
     // check existing tags
     var badTagArr = [];
@@ -483,7 +487,7 @@ var updateUserPost = function (text, newTags, title, userID, user, res, errMsg, 
       }
     }
     deleteTagRefs(badTagArr, tmrw, userID, function (resp) {
-      if (resp.error) {return sendError(res, errMsg+resp.error);}
+      if (resp.error) {return callback({error: resp.error});}
       else {
         var newTagArr = [];
         for (var tag in newTags) {
@@ -494,19 +498,19 @@ var updateUserPost = function (text, newTags, title, userID, user, res, errMsg, 
           }
         }
         createTagRefs(newTagArr, tmrw, userID, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return callback({error: resp.error});}
           else {
             user.posts[tmrw][0].body = text;
             user.posts[tmrw][0].tags = newTags;
             user.posts[tmrw][0].title = title;
-            return callback();
+            return callback({error:false});
           }
         });
       }
     });
   } else {                                  //create new
     createPost(userID, function (resp) {
-      if (resp.error) {return sendError(res, errMsg+resp.error);}
+      if (resp.error) {return callback({error: resp.error});}
       else {
         user.posts[tmrw] = [{
             body: text,
@@ -521,8 +525,9 @@ var updateUserPost = function (text, newTags, title, userID, user, res, errMsg, 
           if (newTags.hasOwnProperty(tag)) {tagArr.push(tag)}
         }
         createTagRefs(tagArr, tmrw, userID, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
-          else {return callback();}
+          if (resp.error) {
+            return callback({error: resp.error});}
+          else {return callback({error:false});}
         });
       }
     });
@@ -530,6 +535,7 @@ var updateUserPost = function (text, newTags, title, userID, user, res, errMsg, 
 }
 
 var deletePost = function (res, errMsg, userID, user, date, callback) {
+  if (safeMode) {return callback({error:safeMode});}
   if (!user.posts[date]) {return sendError(res, errMsg+"post not found");}
   var deadTags = [];
   for (var tag in user.posts[date][0].tags) {
@@ -578,77 +584,191 @@ var deletePost = function (res, errMsg, userID, user, date, callback) {
   });
 }
 
+// **** tagINDEX is where we store references to posts, indexed by tag, and in arrays sorted by date, oldest to newest
+var multitagIndexAddOrRemove = function (tagArr, date, authorID, creating, callback) {
+  var count = tagArr.length;
+  for (var i = 0; i < tagArr.length; i++) {
+    tagIndexAddOrRemove(tagArr[i], date, authorID, creating, function (resp) {
+      if (resp.error && count > 0) {
+        count = -1;
+        return callback({error:resp.error});
+      } else {
+        count--;
+        if (count === 0) {
+          callback({error:false,});
+        }
+      }
+    })
+  }
+}
+var tagIndexAddOrRemove = function (tag, date, authorID, creating, callback) {
+  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+  authorID = ObjectId(authorID);
+  tag = tag.toLowerCase();
+  var postItem = {date:date, authorID:authorID, num:0};
+
+  var nextInLine = 0;
+  if (tagIndexOccupiedSign[tag]) {              // if there line, how long it?
+    nextInLine = tagIndexOccupiedSign[tag].length +1;
+  }
+
+  var lineDecisions = function (resp) {
+    if (tagIndexOccupiedSign[tag]) {  // on way out, if line, then tap person after you
+      if (tagIndexOccupiedSign[tag][nextInLine]) {
+        tagIndexOccupiedSign[tag][nextInLine]();
+      } else {  // you are last in line, close the line
+        delete tagIndexOccupiedSign[tag];
+      }
+    }
+    if (resp.error) {return callback(resp);}
+    else {return callback({error:false});}
+  }
+
+  var execute = function () {
+    if (creating) {
+      createTagIndexItem(tag, postItem, lineDecisions)
+    } else {
+      removeTagIndexItem(tag, postItem, lineDecisions)
+    }
+  }
+
+  if (tagIndexOccupiedSign[tag]) {      // if there is a line, then get in line
+    tagIndexOccupiedSign[tag].push(execute);
+  } else {
+    tagIndexOccupiedSign[tag] = [];
+    execute();
+  }
+}
+var tagIndexOccupiedSign = {};
+var createTagIndexItem = function (tag, postItem, callback) {
+  // check if tag listing is extant
+  db.collection('tagIndex').findOne({tag: tag}, {list:1},
+    function (err, tagListing) {
+      if (err) {return callback({error:err});}
+      else if (!tagListing) {  // tag does not exist, make it
+        var newTag = {tag: tag};
+        newTag.list = [postItem];
+        db.collection('tagIndex').insertOne(newTag, {}, function (err, result) {
+          if (err) {return callback({error:err});}
+          else {return callback({error:false});}
+        });
+      } else {  // tag exists, add to it
+        tagListing.list.push(postItem);
+        db.collection('tagIndex').updateOne({_id: ObjectId(tagListing._id)},
+        {$set: tagListing},
+        function(err, newTagListing) {
+          if (err) {return callback({error:err});}
+          else {return callback({error:false});}
+        });
+      }
+    }
+  );
+}
+var removeTagIndexItem = function (tag, postItem, callback) {
+  // check if tag listing is extant
+  db.collection('tagIndex').findOne({tag: tag}, {list:1},
+    function (err, tagListing) {
+      if (err) {return callback({error:err});}
+      else if (!tagListing) {  // tag does not exist, so can't be deleted...but it doesn't exist, so we're good?
+        return callback({error:false});
+      } else {  // tag exists, find the item to be removed
+        for (var i = 0; i < tagListing.list.length; i++) {
+          if (tagListing.list[i].date === postItem.date && String(tagListing.list[i].authorID) === String(postItem.authorID)) {
+            tagListing.list.splice(i, 1);
+            break;
+          }
+        }
+        db.collection('tagIndex').updateOne({_id: ObjectId(tagListing._id)},
+        {$set: tagListing},
+        function(err, newTagListing) {
+          if (err) {return callback({error:err});}
+          else {return callback({error:false});}
+        });
+      }
+    }
+  );
+}
+
+// **** the TAGS db is where we store references to posts, indexed by DATE, then by tag for each day, then unsorted arrays for each date[tag]
 var createTagRefs = function (tagArr, date, authorID, callback) {
+  if (safeMode) {return callback({error:safeMode});}
   if (tagArr.length === 0) {return callback({error:false});}
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
   authorID = ObjectId(authorID);
-  // check if dateBucket is extant
-  db.collection('tags').findOne({date: date}, {ref:1}
-  , function (err, dateBucket) {
-    if (err) {return callback({error:err});}
-    else if (!dateBucket) {  // dateBucket does not exist, make it
-      var newDateBucket = {date: date,};
-      newDateBucket.ref = {};
-      for (var i = 0; i < tagArr.length; i++) {
-        newDateBucket.ref[tagArr[i]] = [authorID];
-      }
-      db.collection('tags').insertOne(newDateBucket, {}, function (err, result) {
+  multitagIndexAddOrRemove(tagArr, date, authorID, true, function (resp) {
+    if (resp.error) {return callback({error:resp.error});}
+    // check if dateBucket is extant
+    db.collection('tags').findOne({date: date}, {ref:1}
+      , function (err, dateBucket) {
         if (err) {return callback({error:err});}
-        else {return callback({error:false});}
-      });
-    } else {  // dateBucket exists, add to it
-      var tagObject = [authorID];
-      for (var i = 0; i < tagArr.length; i++) {
-        if (!checkObjForProp(dateBucket.ref, tagArr[i], tagObject)) { // is tag extant?
-          dateBucket.ref[tagArr[i]].push(authorID);
-        }
+        else if (!dateBucket) {                // dateBucket does not exist, make it
+          var newDateBucket = {date: date,};
+          newDateBucket.ref = {};
+          for (var i = 0; i < tagArr.length; i++) {
+            newDateBucket.ref[tagArr[i]] = [authorID];
+          }
+          db.collection('tags').insertOne(newDateBucket, {}, function (err, result) {
+            if (err) {return callback({error:err});}
+            else {return callback({error:false});}
+          });
+        } else {                                     // dateBucket exists, add to it
+          var tagObject = [authorID];
+          for (var i = 0; i < tagArr.length; i++) {
+            if (!checkObjForProp(dateBucket.ref, tagArr[i], tagObject)) { // is tag extant?
+              dateBucket.ref[tagArr[i]].push(authorID);
+            }
+          }
+          db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
+          {$set: dateBucket},
+          function(err, tag) {
+            if (err) {return callback({error:err});}
+            else {return callback({error:false});}
+          }
+        );
       }
-      db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
-        {$set: dateBucket},
-        function(err, tag) {
-          if (err) {return callback({error:err});}
-          else {return callback({error:false});}
-        }
-      );
-    }
+    });
   });
 }
 
 var deleteTagRefs = function (tagArr, date, authorID, callback) {
+  if (safeMode) {return callback({error:safeMode});}
   if (tagArr.length === 0) {return callback({error:false, date:date});}
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
   authorID = ObjectId(authorID);
-  db.collection('tags').findOne({date: date}, {ref:1, top:1}
-  , function (err, dateBucket) {
-    if (err) {return callback({error:err});}
-    if (!dateBucket) {return callback({error:false, date:date});}
-    // for each tag to be deleted,
-    for (var i = 0; i < tagArr.length; i++) {
-      if (dateBucket.ref[tagArr[i]]) {
-        var array = dateBucket.ref[tagArr[i]];
-        for (var j = 0; j < array.length; j++) {
-          if (String(array[j]) === String(authorID)) {
-            array.splice(j, 1);
-            break;
-          }
-        }
-        if (array.length === 0) {
-          if (dateBucket.top && dateBucket.top.length) { //check for extant top tags
-            for (var j = 0; j < dateBucket.top.length; j++) {
-              if (dateBucket.top[j] === tagArr[j]) {
-                dateBucket.top.splice(j, 1);
+  multitagIndexAddOrRemove(tagArr, date, authorID, false, function (resp) {
+    if (resp.error) {return callback({error:resp.error});}
+    db.collection('tags').findOne({date: date}, {ref:1, top:1}
+      , function (err, dateBucket) {
+        if (err) {return callback({error:err});}
+        if (!dateBucket) {return callback({error:false, date:date});}
+        // for each tag to be deleted,
+        for (var i = 0; i < tagArr.length; i++) {
+          if (dateBucket.ref[tagArr[i]]) {
+            var array = dateBucket.ref[tagArr[i]];
+            for (var j = 0; j < array.length; j++) {
+              if (String(array[j]) === String(authorID)) {
+                array.splice(j, 1);
+                break;
+              }
+            }
+            if (array.length === 0) {
+              if (dateBucket.top && dateBucket.top.length) { //check for extant top tags
+                for (var j = 0; j < dateBucket.top.length; j++) {
+                  if (dateBucket.top[j] === tagArr[j]) {
+                    dateBucket.top.splice(j, 1);
+                  }
+                }
               }
             }
           }
         }
-      }
-    }
-    db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
-    {$set: dateBucket},
-    function(err, resp) {
-      if (err) {return callback({error:err});}
-      else {return callback({error:false, date:date});}
-    });
+        db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
+        {$set: dateBucket},
+        function(err, resp) {
+          if (err) {return callback({error:err});}
+          else {return callback({error:false, date:date});}
+        });
+      });
   });
 }
 
@@ -831,7 +951,7 @@ var getAuthorListFromTagListAndDate = function (tagList, date, callback) {
   });
 }
 
-var insertIntoArray = function (array, index, item) {
+var insertIntoArray = function (array, index, item) { // array.sPlice already does that, accepts a 3rd parameter that is inserted this, swap this at some point
   var before = array.slice(0,index);
   before.push(item);
   var after = array.slice(index);
@@ -889,6 +1009,7 @@ var snakeBank = [
 // admin
 var devFlag = false;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
+var safeMode = "you've caught schlaugh performing a SECRET update! Some functionality, apparently including whatever you just tried to do, will be down briefly. Please try again a bit later";
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
   if (!req.session.user) {
@@ -1034,30 +1155,133 @@ app.post('/admin/getUserUrls', function(req, res) {
   });
 });
 
-app.post('/admin/makeAllUserUrls', function(req, res) {
+app.post('/admin/buildTagIndex', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('users').find({}, {_id:1, username:1}).toArray(function(err, users) {
+    db.collection('tags').find({}, {_id:0,}).toArray(function(err, tags) {
       if (err) {return sendError(res, err);}
       else {
-        var count = users.length;
-        for (var i = 0; i < users.length; i++) {
-          createUserUrl(users[i].username, users[i]._id, function (resp) {
-            if (resp.error && count > 0) {
-              count = -1;
-              return sendError(res, resp.error);
-            }
-            else {
-              count--;
-              if (count === 0) {
-                res.send({error:false});
+        var ref = {};
+        for (var i = 0; i < tags.length; i++) {
+          ref[tags[i].date] = tags[i].ref;
+        }
+        var daysAgo = 900;    // how many days back the tag thing checks
+        var tagArr = [];
+        for (var i = daysAgo; i > -3; i--) {
+          var date = pool.getCurDate(i);
+          if (ref[date]) {
+            for (var tag in ref[date]) {
+              if (ref[date].hasOwnProperty(tag)) {
+                for (var j = 0; j < ref[date][tag].length; j++) {
+                  tagArr.push({
+                    authorID: ref[date][tag][j],
+                    tag: tag,
+                    date: date,
+                  });
+                }
               }
             }
+          }
+        }
+        res.send({tagArr:tagArr,});
+      }
+    });
+  });
+});
+
+app.post('/admin/buildTagIndexBounce', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var tagArr = req.body.tagArr;
+    var countSet = 10;
+    var count = countSet;
+    if (req.body.progress+count > tagArr.length) {
+      count = tagArr.length - req.body.progress;
+    }
+    for (var i = req.body.progress; i < tagArr.length && i < req.body.progress+countSet; i++) {
+      (function (i) {
+        tagIndexAddOrRemove(tagArr[i].tag, tagArr[i].date, tagArr[i].authorID, true, function (resp) {
+          if (resp.error && count > 0) {
+            count = -1;
+            return sendError(res, resp.error);
+          } else {
+            count--;
+            if (count === 0) {
+              res.send({error:false, progress:req.body.progress+countSet, tagArr:tagArr});
+            }
+          }
+        });
+      })(i)
+    }
+  });
+});
+
+app.post('/admin/testCreateTagIndexItem', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    tagIndexAddOrRemove(req.body.tag, req.body.date, req.body.authorID, true, function (resp) {
+      return res.send({error:resp.error});
+    });
+  });
+});
+
+app.post('/admin/getTagIndex', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('tagIndex').find({},{_id:0,}).toArray(function(err, tags) {
+      if (err) {return sendError(res, err);}
+      else {
+        return res.send(tags);
+      }
+    });
+  });
+});
+
+app.post('/admin/genPosts', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var shitPost = {
+      text: 'on my own dick',
+      tags: "poop, milkshake",
+      title: "",
+    }
+    var userID = ObjectId("5e3a6bdc2e765f018dbb0953");  // smee
+    //var userID = ObjectId("5e3a70eae2bbd801dd24b57e");  // mrah
+    if (!ObjectId.isValid(userID)) {return callback({error:"invalid authorID format"});}
+    db.collection('users').findOne({_id: userID}
+    , {_id:0, posts:1, postList:1, postListPending:1}
+    , function (err, user) {
+      if (err) {return callback({error: err});}
+      else if (!user) {return callback({error:"user not found"});}
+      else {
+        checkFreshness(user);
+        var x = pool.cleanseInputText(shitPost.text);
+        if (x.error || x[1] === "") {                 //remove pending post, do not replace
+          return callback({error:"invalid 5726"});
+        } else {
+          var tags = parseInboundTags(shitPost.tags);
+          if (typeof tags === 'string') {return callback({error:"bad tags"});}
+          var title = validatePostTitle(shitPost.title);
+          if (title.error) {return callback({error:"bad title"});}
+          imageValidate(x[0], function (resp) {
+            if (resp.error) {return sendError(res, resp.error);}
+            return res.send({text:x[1], tags:tags, title:title, userID:userID, user:user});
           });
         }
       }
     });
   });
 });
+
+app.post('/admin/genPostsBounce', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    req.body.progress++;
+    updateUserPost(req.body.text, req.body.tags, req.body.title, req.body.userID, req.body.user, function (resp) {
+      if (resp.error) {return sendError(res, resp.error);}
+      return writeToDB(req.body.userID, req.body.user, function (resp) {
+        if (resp.error) {return callback({error: resp.error});}
+        return res.send(req.body);
+      });
+    }, req.body.progress);
+  });
+});
+
+
 
 app.post('/admin/faq', function(req, res) {
   adminGate(req, res, function (res, user) {
@@ -1356,8 +1580,10 @@ app.post('/', function(req, res) {
         if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
         var title = validatePostTitle(req.body.title);
         if (title.error) {return sendError(res, errMsg+title.error);}
-        imageValidate(x[0], res, function (res) {
-          updateUserPost(x[1], tags, title, userID, user, res, errMsg, function () {
+        imageValidate(x[0], function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          updateUserPost(x[1], tags, title, userID, user, function (resp) {
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
             return writeToDB(userID, user, function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
               else {return res.send({error:false, text:x[1], tags:tags, title:title});}
@@ -1412,7 +1638,8 @@ app.post('/editOldPost', function (req, res) {
                 var tags = {};
                 var title = "";
               }
-              imageValidate(x[0], res, function (res) {
+              imageValidate(x[0], function (resp) {
+                if (resp.error) {return sendError(res, errMsg+resp.error);}
                 if (req.body.post_id === "bio") {
                   var newPost = x[1];
                 } else {
@@ -1474,7 +1701,7 @@ app.post('/deleteOldPost', function (req, res) {
 app.post('/posts/:date', function(req, res) {
   var errMsg = "error retrieving the posts of following<br><br>";
   if (!req.params.date) {return sendError(res, errMsg+"malformed request 412");}
-  else if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
+  else if (req.params.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}],followingList:[], tagList:[]});}
   idCheck(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, following:1, savedTags:1}
@@ -1840,7 +2067,8 @@ app.post('/block', function(req, res) {
 app.post('/image', function(req, res) {
   // cant do this on the FE cause CORS
   if (req.body) {
-    imageValidate(req.body, res, function () {
+    imageValidate(req.body, function (resp) {
+      if (resp.error) {return sendError(res, resp.error);}
       res.send({error:false});
     });
   } else {sendError(res,"boy i hope no one ever sees this error message!");}
@@ -2883,13 +3111,40 @@ app.get('/:author/~tagged/:tag', function(req, res) {
   );
 });
 
-// view a tag page
-app.get('/~tagged/:tag', function(req, res) {
-  renderLayout(req, res, {tag:req.params.tag});
+// view a tag, by date or page
+app.get('/~tagged/:tag/:num', function(req, res) {
+  console.log('make this actually work');
+  renderLayout(req, res, {tag:req.params.tag, num:req.params.num});
+});
+
+// get nth page of tagged posts by any author, "post" just so we can take characters like "?", but this is a get request in spirit
+app.post('/~getTagByPage', function (req, res) {
+  var errMsg = "tag by page fetch error<br><br>"
+  req.body.page = parseInt(req.body.page);
+  if (!req.body.tag || !req.body.page || !Number.isInteger(req.body.page) || req.body.page < 1) {return sendError(res, errMsg+"malformed request 710");}
+
+
+
+  getAuthorListFromTagListAndDate([req.body.tag], req.body.date, function (resp) {
+    if (resp.error) {return sendError(res, errMsg+resp.error);}
+    else {
+      if (resp.authorList.length === 0) {
+        return res.send({error:false, posts:[],});
+      } else {
+        postsFromAuthorListAndDate(resp.authorList, req.body.date, null, function (resp) {
+          if (resp.error) {return callback({error:err});}
+          else {return res.send({error:false, posts:resp.posts,});}
+        });
+      }
+    }
+  });
+
+
+
 });
 
 // get all posts with tag on date, "post" just so we can take characters like "?", but this is a get request in spirit
-app.post('/~getTag', function (req, res) {
+app.post('/~getTagByDate', function (req, res) {
   var errMsg = "tag fetch error<br><br>"
   if (!req.body.date || !req.body.tag) {return sendError(res, errMsg+"malformed request 712");}
   if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'IT DOES NOT DO TO DWELL ON DREAMS AND FORGET TO LIVE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
@@ -2900,7 +3155,7 @@ app.post('/~getTag', function (req, res) {
         return res.send({error:false, posts:[],});
       } else {
         postsFromAuthorListAndDate(resp.authorList, req.body.date, null, function (resp) {
-          if (resp.error) {return callback({error:err});}
+          if (resp.error) {return res.send({error:resp.error});}
           else {return res.send({error:false, posts:resp.posts,});}
         });
       }
