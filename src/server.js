@@ -1009,7 +1009,8 @@ var snakeBank = [
 // admin
 var devFlag = false;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
-var safeMode = "you've caught schlaugh performing a SECRET update! Some functionality, apparently including whatever you just tried to do, will be down briefly. Please try again a bit later";
+var safeMode = false;
+//var safeMode = "you've caught schlaugh performing a SECRET update! Some functionality, apparently including whatever you just tried to do, will be down briefly. Please try again a bit later";
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
   if (!req.session.user) {
