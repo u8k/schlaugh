@@ -859,15 +859,19 @@ var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
 }
 
 var postsFromListOfAuthorsAndDates = function (postList, callback) {
-  // this is for bookmarkLists and sequences
+  // this is for bookmarkLists and sequences and tagPages
+  if (postList.length === 0) {return callback({error:false, posts:[],});}
+  // garbage to cover my inconsistent choice of author_id AND authorID
+  var aID = "authorID";
+  if (postList[0].author_id) {aID = "author_id"}
   // parse postList into authorList and postRef
   var postRef = {}
   for (var i = 0; i < postList.length; i++) {
     var listing = {date:postList[i].date ,pos:i};
-    if (postRef[postList[i].author_id]) {
-      postRef[postList[i].author_id].push(listing)
+    if (postRef[postList[i][aID]]) {
+      postRef[postList[i][aID]].push(listing)
     } else {
-      postRef[postList[i].author_id] = [listing];
+      postRef[postList[i][aID]] = [listing];
     }
   }
   var authorList = [];
@@ -902,6 +906,16 @@ var postsFromListOfAuthorsAndDates = function (postList, callback) {
                 _id: resp.user._id,
                 date: date,
               };
+            } else if (resp.user.posts[date]) {
+              posts[postRef[resp.user._id][j].pos] = {
+                body: "<c><b><i>***g e t  f u c k e d***</i></b></c>",
+                tags: {},
+                post_id: genRandString(8),
+                author: resp.user.username,
+                authorPic: authorPic,
+                _id: resp.user._id,
+                date: date,
+              };
             } else {  // post not found
               posts[postRef[resp.user._id][j].pos] = {
                 body: "<c><b>***post has been deleted by author***</b></c>",
@@ -929,6 +943,7 @@ var postsFromListOfAuthorsAndDates = function (postList, callback) {
 }
 
 var getAuthorListFromTagListAndDate = function (tagList, date, callback) {
+  // takes list of tags and a single date, returns list of authors with posts using at least one of the tags, on the date
   var authorList = [];
   if (!tagList || !tagList.length || !date) {
     return callback({error: false, authorList: authorList});
@@ -2898,7 +2913,7 @@ app.post('/~getAuthor/:id/:page', function(req, res) {
           var pL = author.postList;
           var pages = Math.ceil(pL.length /7);
           var list = [];
-          if (req.params.page === 0) {
+          if (req.params.page === 0) {  // 0 indicates no page number given, open the last/most recent page
             var page = pages;
           } else {
             var page = req.params.page;
@@ -2919,7 +2934,7 @@ app.post('/~getAuthor/:id/:page', function(req, res) {
               }
             }
           }
-          if (page !== pages) {
+          if (page !== pages) {       // author data has already been sent, just send the posts
             return res.send({
               error: false,
               four04: false,
@@ -2931,7 +2946,7 @@ app.post('/~getAuthor/:id/:page', function(req, res) {
                 authorPic: authorPic,
               }
             });
-          } else {
+          } else {          // loading the last page indicates this is the firs page loaded, so we need author data too
             var bio = author.bio;
             if (typeof bio !== 'string') {bio = "";}
             var key = null;
@@ -3112,36 +3127,86 @@ app.get('/:author/~tagged/:tag', function(req, res) {
   );
 });
 
+var isNumeric = function (n) {
+  return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
 // view a tag, by date or page
 app.get('/~tagged/:tag/:num', function(req, res) {
-  console.log('make this actually work');
-  renderLayout(req, res, {tag:req.params.tag, num:req.params.num});
+  var target = req.params.num;
+  if (target.length !== 10 || target[4] !== "-" || target[7] !== "-" || !isNumeric(target.slice(0,4)) || !isNumeric(target.slice(5,7)) || !isNumeric(target.slice(8,10))) {
+    target = parseInt(target);
+    if (Number.isInteger(target) && target >= -1) {
+      renderLayout(req, res, {tag:req.params.tag, page:target});
+    } else {
+      return renderLayout(req, res, {post_id: false});
+    }
+  } else {
+    renderLayout(req, res, {tag:req.params.tag, date:target});
+  }
+});
+app.get('/~tagged/:tag', function(req, res) {
+  renderLayout(req, res, {tag:req.params.tag, page:0});
 });
 
 // get nth page of tagged posts by any author, "post" just so we can take characters like "?", but this is a get request in spirit
 app.post('/~getTagByPage', function (req, res) {
   var errMsg = "tag by page fetch error<br><br>"
   req.body.page = parseInt(req.body.page);
-  if (!req.body.tag || !req.body.page || !Number.isInteger(req.body.page) || req.body.page < 1) {return sendError(res, errMsg+"malformed request 710");}
-
-
-
-  getAuthorListFromTagListAndDate([req.body.tag], req.body.date, function (resp) {
-    if (resp.error) {return sendError(res, errMsg+resp.error);}
-    else {
-      if (resp.authorList.length === 0) {
-        return res.send({error:false, posts:[],});
-      } else {
-        postsFromAuthorListAndDate(resp.authorList, req.body.date, null, function (resp) {
-          if (resp.error) {return callback({error:err});}
-          else {return res.send({error:false, posts:resp.posts,});}
-        });
+  if (!req.body.tag || !Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(res, errMsg+"malformed request 710");}
+  db.collection('tagIndex').findOne({tag: req.body.tag}, {list:1}, function (err, tagListing) {
+    if (err) {return callback({error:err});}
+    else if (!tagListing || !tagListing.list || !tagListing.list.length) {  // tag does not exist/is empty
+      return res.send({
+        error:false,
+        posts: [],
+        list: [],
+        pages: 0,
+      });
+    } else {
+      var dateFilter = function (i) {
+        if (tagListing.list[i] && tagListing.list[i].date > pool.getCurDate()) {
+          tagListing.list.splice(i,1);
+          dateFilter(i-1);
+        }
       }
+      dateFilter(tagListing.list.length-1)
+
+      var lookUpList = [];
+      var totalPageCount = Math.ceil(tagListing.list.length /7);
+      if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
+        var page = totalPageCount;
+      } else {
+        var page = req.body.page;
+      }
+      var start = (page * 7) - 1;
+      for (var i = start; i > start - 7; i--) {
+        if (tagListing.list[i]) {
+          lookUpList.push(tagListing.list[i]);
+        }
+      }
+      if (!req.body.postRef) {req.body.postRef = {}};
+      postsFromListOfAuthorsAndDates(lookUpList, function (resp) {
+        if (resp.error) {return sendError(res, errMsg+resp.error);}
+        else {
+          var list = [];
+          var posts = [];
+          for (var i = 0; i < resp.posts.length; i++) {
+            list.push(resp.posts[i].post_id);
+            if (!req.body.postRef[resp.posts[i].post_id]) {
+              posts.push(resp.posts[i]);
+            }
+          }
+          return res.send({
+            error:false,
+            posts: posts,
+            list: list,
+            pages: totalPageCount,
+          });
+        }
+      });
     }
   });
-
-
-
 });
 
 // get all posts with tag on date, "post" just so we can take characters like "?", but this is a get request in spirit

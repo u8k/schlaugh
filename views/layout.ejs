@@ -106,9 +106,20 @@
           </script>
         <% } %>
       <% } else if (typeof tag !== "undefined") { %>
+        <% if (typeof date !== "undefined") { %>
         <script type="text/javascript">
-          fetchData(function () {loadPosts(0, <%- JSON.stringify(tag) %>)});
+          fetchData(function () {
+            dateJump(<%- JSON.stringify(date) %>, <%- JSON.stringify(tag) %>);
+          });
         </script>
+        <% } else { %>
+        <script type="text/javascript">
+          fetchData(function () {
+            viewPageOfTag(<%- JSON.stringify(tag) %>, <%- JSON.stringify(page) %>);
+            switchPanel("posts-panel");
+          });
+        </script>
+        <% } %>
       <% } else if (typeof about !== "undefined") { %>
         <script type="text/javascript">fetchData(function () {switchPanel("~about-panel")});</script>
       <% } else if (typeof faq !== "undefined") { %>
@@ -164,9 +175,16 @@
           </script>
         <% } %>
       <% } else if (typeof tag !== "undefined") { %>
+        <% if (typeof date !== "undefined") { %>
         <script type="text/javascript">
-          loadPosts(0, <%- JSON.stringify(tag) %>);
+            dateJump(<%- JSON.stringify(date) %>, <%- JSON.stringify(tag) %>);
         </script>
+        <% } else { %>
+        <script type="text/javascript">
+            viewPageOfTag(<%- JSON.stringify(tag) %>, <%- JSON.stringify(page) %>);
+            switchPanel("posts-panel");
+        </script>
+        <% } %>
       <% } else if (typeof recovery !== "undefined") { %>
         <% if (recovery) { %>
           <script type="text/javascript">switchPanel("recovery-panel"); glo.resetCode = <%- JSON.stringify(recovery) %>;</script>

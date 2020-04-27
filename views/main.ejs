@@ -39,14 +39,14 @@
     <text id="tag-display" class="removed"></text><br>
     <text id="date-display"></text><br>
     <div id="date-arrow-box" class="no-select">
-      <icon class="clicky fas fa-caret-left" onclick="loadPosts(1)"></icon>
-      <icon id="day-forward" class="clicky hidden fas fa-caret-right" onclick="loadPosts(-1)"></icon>
+      <icon id="left-nav-arrow" class="clicky fas fa-caret-left" onclick="loadPosts(1)"></icon>
+      <icon id="right-nav-arrow" class="clicky hidden fas fa-caret-right" onclick="loadPosts(-1)"></icon>
     </div>
   </postNav>
-  <button id="jump-open" onclick="openDateJump()">jump</button>
+  <button id="jump-open" onclick="openDateJump()">date</button>
   <button id="tag-menu-open" onclick="openTagMenu()">tags</button>
-  <button id="all-days" onclick="viewAllDaysOfTag()" class="removed">all days</button>
-  <button id="clear-tag" onclick="loadPosts(0, false); openTagMenu()" class="removed">clear tag</button>
+  <button id="all-days" onclick="viewPageOfTag()" class="removed">all days</button>
+  <button id="clear-tag" onclick="loadPosts(0, false); openTagMenu(); simulatePageLoad();" class="removed">clear tag</button>
   <button id="save-tag" onclick="saveTag(false, glo.tag)" class="removed">save tag</button>
   <form id="date-jump" class="removed" action="javascript:void(0);">
     <input id="date-picker" type="text" placeholder="date">

@@ -870,7 +870,11 @@ var collapseNote = function (id, dir, postID) {
 var backToMain = function (event) {
   modKeyCheck(event, function () {
     if (glo.username) {
-      switchPanel("posts-panel");
+      if (glo.openPanel === "posts-panel") {
+        dateJump(pool.getCurDate(), false);
+      } else {
+        switchPanel("posts-panel");
+      }
     } else {
     switchPanel('login-panel');
     }
@@ -907,7 +911,11 @@ var modKeyCheck = function (event, callback) {
 var navButtonClick = function (event, type) {
   modKeyCheck(event, function() {
     simulatePageLoad("~"+type, false);
-    switchPanel(type + "-panel");
+    if (type === "posts" && glo.openPanel === "posts-panel") {
+      dateJump(pool.getCurDate(), false);
+    } else {
+      switchPanel(type + "-panel");
+    }
   });
 }
 
@@ -961,7 +969,8 @@ var openDateJump = function (close) {
   }
 }
 
-var dateJump = function (input) {
+var dateJump = function (input, tag) {
+  if (!tag) {tag = false}
   var target = input;
   if (!target) {target = $("date-picker").value;}
   if (!target) {target = pool.getCurDate();}
@@ -972,11 +981,9 @@ var dateJump = function (input) {
     if (target > getEpochSeconds(pool.getCurDate())) {
       return uiAlert("and no future vision either!");
     } else {
-      if (input) {
-        loadPosts(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)), false);
-      } else {
-        loadPosts(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)));
-      }
+      clearOutCurrentlyDisplayedBucket();
+      glo.pageOfTag = null;
+      loadPosts(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)), tag);
     }
   }
 }
@@ -990,6 +997,21 @@ var getEpochSeconds = function (dateStamp) {
   }
 }
 
+var clearOutCurrentlyDisplayedBucket = function () {
+  var date = pool.getCurDate(glo.dateOffset);
+  //
+  if (glo.tag) {
+    if (glo.pageOfTag || glo.pageOfTag === 0) {
+      if ($('posts-tagged-'+glo.tag+'-page-'+glo.pageOfTag)) {$('posts-tagged-'+glo.tag+'-page-'+glo.pageOfTag).classList.add("removed")}
+    } else {
+      if ($('posts-for-'+ date +'-'+glo.tag)) {$('posts-for-'+ date +'-'+glo.tag).classList.add('removed');}
+    }
+  } else {
+    if ($('posts-for-'+ date)) {$('posts-for-'+ date).classList.add('removed');}
+    if ($('tags-for-'+ date)) {$('tags-for-'+ date).classList.add('removed');}
+  }
+}
+
 var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
   if (glo.loading) {
     if (!glo.queue) {glo.queue = [];}
@@ -1000,49 +1022,53 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
     glo.loading = true;
     loading();
   }
-  var date = pool.getCurDate(glo.dateOffset);
-  // clear out currently displayed posts
-  if (glo.tag) {
-    if ($('posts-for-'+ date +'-'+glo.tag)) {$('posts-for-'+ date +'-'+glo.tag).classList.add('removed');}
-  } else {
-    if ($('posts-for-'+ date)) {$('posts-for-'+ date).classList.add('removed');}
-    if ($('tags-for-'+ date)) {$('tags-for-'+ date).classList.add('removed');}
+
+  if (glo.pageOfTag && dir) {
+    return viewPageOfTag(null, glo.pageOfTag-dir);
   }
+
+  clearOutCurrentlyDisplayedBucket();
   //
   if (tag === false) {
     glo.tag = null;
     $("tag-display").classList.add("removed");
     $("clear-tag").classList.add("removed");
-    //$("all-days").classList.add("removed");
+    $("all-days").classList.add("removed");
     $("save-tag").classList.add("removed");
     $("tag-menu-open").classList.remove("removed");
-    $('date-jump').classList.add("removed");
+  //  $('date-jump').classList.add("removed");
   } else if (!tag) {
     tag = glo.tag;
   }
+  glo.pageOfTag = false;
   glo.dateOffset += dir;
-  date = pool.getCurDate(glo.dateOffset);
-  // hide/unhide nextDay button as needed
-  if (glo.dateOffset === 0) {$("day-forward").classList.add("hidden");}
-  else {$("day-forward").classList.remove("hidden");}
+  var date = pool.getCurDate(glo.dateOffset);
+  // hide/unhide nextDay buttons as needed
+  if (glo.dateOffset === 0) {$("right-nav-arrow").classList.add("hidden");}
+  else {$("right-nav-arrow").classList.remove("hidden");}
+  $("left-nav-arrow").classList.remove("hidden");
+
+
   $('date-display').innerHTML = date;
+  $('date-display').classList.remove('removed');
+  if ($('date-jump').classList.contains('removed')) {
+    $("jump-open").classList.remove("removed");
+  }
   if (tag) {
     glo.tag = tag;
-    if (!glo.savedTags[tag]) {$("save-tag").classList.remove("removed");}
+    if (glo.savedTags && !glo.savedTags[tag]) {$("save-tag").classList.remove("removed");}
     else {$("save-tag").classList.add("removed");}
-    if ($('date-jump').classList.contains('removed')) {
-      $("jump-open").classList.remove("removed");
-    }
     $("tag-display").innerHTML = 'posts tagged <i>"'+tag+'"</i> on';
     $("tag-menu").classList.add("removed");
     $("tag-menu-open").classList.add("removed");
     $("clear-tag").classList.remove("removed");
-    //$("all-days").classList.remove("removed");
+    $("all-days").classList.remove("removed");
     $("tag-display").classList.remove("removed");
     // check if we already have the data
     if ($('posts-for-'+ date +'-'+tag)) {
       $('posts-for-'+ date +'-'+tag).classList.remove('removed');
       loadManage();
+      simulatePageLoad("~tagged/"+tag+"/"+date);
     } else {
       // we don't, so make the ajax call
       $('loading').classList.remove('removed');
@@ -1050,14 +1076,18 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
         renderPostFeed(json.posts, date, tag);
         $('loading').classList.add('removed');
         loadManage();
+        simulatePageLoad("~tagged/"+tag+"/"+date);
       });
     }
     if (glo.openPanel !== 'posts-panel') {
       switchPanel('posts-panel');
-      simulatePageLoad();
     }
+  } else if (glo.username === undefined) {
+    loadManage();
+    simulatePageLoad();
   } else {  //no tag, load posts by following
     // check if we already have the data
+    simulatePageLoad();
     if ($('posts-for-'+date)) {
       $('posts-for-'+date).classList.remove('removed');
       if ($('tags-for-'+date)) {$('tags-for-'+date).classList.remove('removed');}
@@ -1229,6 +1259,7 @@ var renderOnePost = function (postData, type, typeName, postID) {
   }
   // id
   if (type === 'tag') {var uniqueID = postData.post_id+"-"+postData.date+"-"+typeName+"-feed";}
+  else if (type === 'tagAll') {var uniqueID = postData.post_id+"-tag-all-for-"+typeName;}
   else if (type === 'author') {var uniqueID = 'author-'+postData.post_id}
   else if (type === 'bookmark') {var uniqueID = 'bookmarkFeed-'+postData.post_id;}
   else if (type === 'feed') {var uniqueID = postData.post_id+"-"+postData.date+"-feed"}
@@ -1388,37 +1419,110 @@ var renderOnePost = function (postData, type, typeName, postID) {
   return post;
 }
 
-var viewAllDaysOfTag = function (tag, pageNum) {
-  uiAlert('coming soon<br><br>to a theater near you');
-  /*
+var viewPageOfTag = function (tag, pageNum) {
+  openDateJump(true);
+  $("all-days").classList.add("removed");
   if (!tag) {tag = glo.tag;}
-  if (!pageNum || !Number.isInteger(pageNum)) {pageNum = 1;}
-
+  if (!pageNum || !Number.isInteger(pageNum)) {pageNum = 0;}
   $("tag-display").innerHTML = 'posts tagged <i>"'+tag+'"</i>';
+  $("tag-display").classList.remove('removed');
+  $("tag-menu-open").classList.add("removed");
+  $("clear-tag").classList.remove("removed");
 
-  //simulatePageLoad(authorName+"/~page/"+pageNum, authorName, glo.authorPics[authorID]);
+  if (glo.tagPage && glo.tagPage[tag] && pageNum === 0) {
+    pageNum = glo.tagPage[tag].total;
+  }
 
-  //clearAuthorPage(authorID);
+  /*
+  if (glo.tagPage && glo.tagPage[tag] && glo.tagPage[tag].num[pageNum]) {
+    for (var i = 0; i < glo.tagPage[tag].num[pageNum].length; i++) {
 
-  // do we already have the data for this page?
-  if (glo.tagPage && glo.tagPage[tag] && glo.tagPage[tag].num[pageNum]) {  // do we already have this rendered/loaded?
-      for (var i = 0; i < glo.tagPage[authorID].num[pageNum].length; i++) {
-
-      //  $("author-" +glo.tagPage[authorID].num[pageNum][i]).classList.remove('removed');
-      }
-
-    } else {
-    // make the call to get the data for this page
-      loading();
-      ajaxCall('/~getTagByPage/'+authorID+'/'+pageNum, 'POST', {postRef:glo.postRef}, function(json) {
-        loading(true);
-
-        //renderAuthorPage(json.data, pageNum);
-
-        if (!glo.tagPage) {glo.tagPage = {};}
-      });
+    }
   }
   */
+
+  // do we already have the data for this page?
+  if ($('posts-tagged-'+tag+'-page-'+pageNum)) {
+    clearOutCurrentlyDisplayedBucket();
+    glo.pageOfTag = pageNum;
+    glo.tag = tag;
+    $('posts-tagged-'+tag+'-page-'+pageNum).classList.remove("removed")
+    $('date-display').innerHTML = 'page '+pageNum+" of "+glo.tagPage[tag].total;
+    // hide/unhide nextDay buttons as needed
+    displayArrowsNextPrevPageOfTaggedPosts();
+    simulatePageLoad('~tagged/'+glo.tag+"/"+glo.pageOfTag, false);
+    loadManage();
+  } else {
+    // make the call to get the data for this page
+    loading();
+    ajaxCall('/~getTagByPage/', 'POST', {postRef:glo.postRef, page:pageNum ,tag:tag}, function(json) {
+      loadManage();
+      if (!glo.postStash) {glo.postStash = {}}
+      for (var i = 0; i < json.posts.length; i++) {
+        if (!glo.postStash[json.posts[i].post_id]) {
+          glo.postStash[json.posts[i].post_id] = {
+            post_id:json.posts[i].post_id,
+            date:json.posts[i].date,
+            body:json.posts[i].body,
+            tags:json.posts[i].tags,
+            title:json.posts[i].title,
+            authorPic:json.posts[i].authorPic,
+            author:json.posts[i].author,
+            _id:json.posts[i]._id,
+            elemList: [],
+          };
+        }
+      }
+      clearOutCurrentlyDisplayedBucket();
+      glo.pageOfTag = pageNum;
+      glo.tag = tag;
+
+      if (!glo.tagPage) {glo.tagPage = {}};
+      if (!glo.tagPage[tag]) {glo.tagPage[tag] = {total: json.pages}}
+
+      if (pageNum === 0) {
+        pageNum = json.pages;
+        glo.pageOfTag = pageNum;
+        simulatePageLoad('~tagged/'+glo.tag, false);
+      } else {
+        simulatePageLoad('~tagged/'+glo.tag+"/"+glo.pageOfTag, false);
+      }
+
+      $('date-display').innerHTML = 'page '+pageNum+" of "+glo.tagPage[tag].total;
+      var bucket = document.createElement("div");
+      bucket.setAttribute('id', 'posts-tagged-'+tag+'-page-'+pageNum);
+      $('posts').appendChild(bucket);
+      displayArrowsNextPrevPageOfTaggedPosts();
+
+      if (json.list.length === 0) {
+        var post = document.createElement("div");
+        post.innerHTML = "~no posts~";
+        post.classList.add('not-schlaugh');
+        bucket.appendChild(document.createElement("br"));
+        bucket.appendChild(document.createElement("br"));
+        bucket.appendChild(post);
+      } else {
+        for (var i = 0; i < json.list.length; i++) {
+          bucket.appendChild(renderOnePost(null, 'tagAll', tag, json.list[i]));
+        }
+      }
+
+
+      /*
+      if (!glo.tagPage) {glo.tagPage = {};}
+      if (!glo.tagPage[tag]) {glo.tagPage[tag] = {};}
+      if (!glo.tagPage[tag].num) {glo.tagPage[tag].num = {};}
+      glo.tagPage[tag].num[pageNum] = json.list;
+      */
+    });
+  }
+}
+
+var displayArrowsNextPrevPageOfTaggedPosts = function () {
+  if (glo.pageOfTag === glo.tagPage[glo.tag].total) {$("right-nav-arrow").classList.add("hidden");}
+  else {$("right-nav-arrow").classList.remove("hidden");}
+  if (glo.pageOfTag <= 1) {$("left-nav-arrow").classList.add("hidden");}
+  else {$("left-nav-arrow").classList.remove("hidden");}
 }
 
 var collapsePost = function (uniqueID, postID, isBtmBtn) {
@@ -2355,8 +2459,8 @@ var renderAuthorPage = function (data, pageNum, tag) {
   // like 'page' as in a page of posts, on the author panel
 
   // add incoming post data to postStash
+  if (!glo.postStash) {glo.postStash = {}}
   for (var i = 0; i < data.posts.length; i++) {
-    if (!glo.postStash) {glo.postStash = {}}
     if (!glo.postStash[data.posts[i].post_id]) {
       glo.postStash[data.posts[i].post_id] = {
         post_id:data.posts[i].post_id,
