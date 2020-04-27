@@ -938,6 +938,9 @@ var switchPanel = function (panelName) {
   if (glo.openPanel && glo.openPanel === "write-panel" && panelName === "write-panel") {
     showWriter('post');
   }
+  if (panelName === "posts-panel" && glo.dateOffset === -1) {
+    loadPosts(1, null, true);
+  }
   glo.openPanel = panelName;
 }
 
@@ -1021,6 +1024,10 @@ var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
   else {
     glo.loading = true;
     loading();
+  }
+
+  if (glo.dateOffset === -1 && dir === 0) {
+    loadPosts(1, null, true);
   }
 
   if (glo.pageOfTag && dir) {
@@ -1523,6 +1530,16 @@ var displayArrowsNextPrevPageOfTaggedPosts = function () {
   else {$("right-nav-arrow").classList.remove("hidden");}
   if (glo.pageOfTag <= 1) {$("left-nav-arrow").classList.add("hidden");}
   else {$("left-nav-arrow").classList.remove("hidden");}
+  //
+  if (glo.openPanel && glo.openPanel !== "posts-panel") {
+    $(glo.openPanel).classList.add('removed');
+    if ($(glo.openPanel+"-button")) {$(glo.openPanel+"-button").classList.remove('highlight');}
+  }
+  if ($("posts-panel-button")) {
+    $("posts-panel-button").classList.add('highlight');
+  }
+  $("posts-panel").classList.remove('removed');
+  glo.openPanel = "posts-panel";
 }
 
 var collapsePost = function (uniqueID, postID, isBtmBtn) {
@@ -3810,7 +3827,7 @@ var parseUserData = function (data) {
     glo.collapsed[data.collapsed[i]] = true;
   }
   // init stuff
-  loadPosts(1, null, true);
+//  loadPosts(1, null, true);
   if (glo.pending) {updatePendingPost(glo.pending.body, glo.pending.tags, glo.pending.title);}
   populateThreadlist();
   setAppearance();
