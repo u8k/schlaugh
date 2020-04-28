@@ -141,7 +141,7 @@ var imageValidate = function (arr, callback) {
             if (error || resp.statusCode !== 200) {
               count = 0;
               return callback({error:'the url for image '+(index+1)+' seems to be invalid<br><br>your post has not been saved'});
-            } else if (resp.headers['content-type'].substr(0,5) !== "image" && resp.headers.server !== "AmazonS3") {
+            } else if (!resp.headers['content-type'] || (resp.headers['content-type'].substr(0,5) !== "image" && resp.headers.server !== "AmazonS3")) {
               count = 0;
               return callback({error:'the url for image '+(index+1)+' is not a url for an image<br><br>your post has not been saved'});
             } else {bitCount -= resp.headers['content-length'];}
