@@ -2624,7 +2624,7 @@ var submitPost = function (remove) { //also handles editing and deleting
       }
     }
   }
-  if (remove || text === "") {
+  if (remove || (text === "" && tags === "" && title === "")) {
     verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
       loading();
@@ -2633,6 +2633,7 @@ var submitPost = function (remove) { //also handles editing and deleting
       });
     });
   } else {
+    if (text === "") {text = "</b>"}
     loading();
     text = preCleanText(text);
     ajaxCall("/", 'POST', {text:text, tags:tags, title:title}, function(json) {
@@ -2660,7 +2661,8 @@ var updatePendingPost = function (newText, newTags, newTitle) {
   }
   var tags = getTagString(newTags);
   $('tag-input').value = tags;
-  if (newTitle) {$('title-input').value = newTitle;}
+  if (newTitle === undefined) {newTitle = ""}
+  $('title-input').value = newTitle;
   var postData = {
     body: newText,
     tags: newTags,
