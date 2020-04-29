@@ -808,22 +808,24 @@ var sendError = function (res, msg) {
   res.send({error: msg});
 }
 
-var postsFromAuthorListAndDate = function (authorList, date, init, callback) {
+var postsFromAuthorListAndDate = function (authorList, date, followingRef, callback) {
   // for getting posts by following for main feed, and all posts with tag on date
   db.collection('users').find({_id: {$in: authorList}}
     ,{posts:1, username:1, iconURI:1, pendingUpdates:1, bio:1}).toArray(function(err, users) {
     if (err) {return callback({error:err});}
     else {
       var followingList = [];
-      if (init) {
+      if (followingRef) {
         for (var i = 0; i < users.length; i++) {
-          var pic = users[i].iconURI;
-          if (typeof pic !== 'string') {pic = "";}
-          followingList.push({
-            name: users[i].username,
-            _id: users[i]._id,
-            pic: pic,
-          });
+          if (followingRef[users[i]._id]) {
+            var pic = users[i].iconURI;
+            if (typeof pic !== 'string') {pic = "";}
+            followingList.push({
+              name: users[i].username,
+              _id: users[i]._id,
+              pic: pic,
+            });
+          }
         }
       }
       var posts = [];
@@ -1725,16 +1727,21 @@ app.post('/posts/:date', function(req, res) {
       if (err) {return sendError(res, errMsg+err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
       else {
-        //
-        if (req.body.init) {var init = true;}
-        else {var init = false;}
         if (!user.following || !user.following.length) {user.following = [];}
         if (!user.savedTags || !user.savedTags.length) {user.savedTags = [];}
+        //
+        var followingRef = null;
+        if (req.body.init) {
+          followingRef = {};
+          for (var i = 0; i < user.following.length; i++) {
+            followingRef[user.following[i]] = true;
+          }
+        }
         getAuthorListFromTagListAndDate(user.savedTags, req.params.date, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
           else {
             var authorList = resp.authorList.concat(user.following);
-            postsFromAuthorListAndDate(authorList, req.params.date, init, function (resp) {
+            postsFromAuthorListAndDate(authorList, req.params.date, followingRef, function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
               else {
                 return res.send({error:false, posts:resp.posts, followingList:resp.followingList, tagList:user.savedTags});

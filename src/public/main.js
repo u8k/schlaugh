@@ -945,16 +945,21 @@ var switchPanel = function (panelName) {
 }
 
 var followingListDisplay = function (open) {
-  if (open) {
-    $('following-list').classList.remove('hidden');
-    blackBacking();
-    $("pop-up-backing").onclick = function () {
-      followingListDisplay(false);
+  if (glo.dateOffset !== -1) {
+    if (open) {
+      $('following-list').classList.remove('hidden');
+      blackBacking();
+      $("pop-up-backing").onclick = function () {
+        followingListDisplay(false);
+      }
     }
-  }
-  else {
-    $('following-list').classList.add('hidden');
-    blackBacking(true);
+    else {
+      $('following-list').classList.add('hidden');
+      blackBacking(true);
+    }
+  } else {  // following list has not been fetched/rendered, so do that
+    loadPosts(1, null, true);
+    followingListDisplay(open);
   }
 }
 
