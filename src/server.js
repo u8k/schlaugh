@@ -3161,7 +3161,7 @@ app.post('/~getTagByPage', function (req, res) {
   var errMsg = "tag by page fetch error<br><br>"
   req.body.page = parseInt(req.body.page);
   if (!req.body.tag || !Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(res, errMsg+"malformed request 710");}
-  db.collection('tagIndex').findOne({tag: req.body.tag}, {list:1}, function (err, tagListing) {
+  db.collection('tagIndex').findOne({tag: req.body.tag.toLowerCase()}, {list:1}, function (err, tagListing) {
     if (err) {return callback({error:err});}
     else if (!tagListing || !tagListing.list || !tagListing.list.length) {  // tag does not exist/is empty
       return res.send({
