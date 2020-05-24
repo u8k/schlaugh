@@ -1,6 +1,6 @@
 "use strict";
 
-var glo = {dateOffset: -1, authorPics:{}};
+var glo = {};
 
 var $ = function (id) {return document.getElementById(id);}
 
@@ -160,7 +160,7 @@ var selectColor = function (colorCode, type) {
     colorCode = "#"+colorCode;
   }
   changeColor(colorCode, type);
-  glo.newSettings.colors[type] = colorCode;
+  _npa(['glo', 'newSettings', 'colors', type], colorCode);
   if (glo.username) {
     //$('save-appearance').classList.remove('hidden');
     $('save-appearance2').classList.remove('removed');
@@ -548,22 +548,9 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
     callback: function(data) {
       if (data === null) {return;}
       else {
-        if (glo.currentAuthor && glo.currentAuthor._id) {
-          data.authorID = glo.currentAuthor._id;
-        }
+        data.fromPopUp = true;
         signIn('/login', data, function (resp) {
-          if (glo.currentAuthor) {
-            if (resp && resp.otherKey) {glo.currentAuthor.key = resp.otherKey;}
-            createFollowButton($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
-            createMessageButton($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
-            createEditBioButtons($(glo.currentAuthor.author+"-header-left"), glo.currentAuthor);
-            var postArr = glo.currentAuthor.posts;
-            for (var i = 0; i < postArr.length; i++) {
-              if (postArr[i].post_id && postArr[i].date) {
-                createPostFooter($("author-"+postArr[i].post_id), {_id:glo.currentAuthor._id, name:glo.currentAuthor.author}, postArr[i], 'author');
-              }
-            }
-          }
+          fetchPosts(true);
           loading(true);
         });
       }
@@ -664,7 +651,9 @@ var signOut = function() {
 var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   // scrolls to top, updates the url, and the browser/tab title
   // defaults to home if no args given, second arg defaults to first if not given
-  window.scroll(0, 0);
+  setTimeout(function () {
+    window.scroll(0, 0);
+  }, 100);
   if (!newPath) {
     newPath = "";
   }
@@ -673,7 +662,7 @@ var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   }
   if (newPath === true) {     //leave the path, still change the other stuff
     document.title = newTitle;
-  } else if (newPath !== window.location.pathname) {
+  } else if ("/"+newPath !== window.location.pathname) {
     history.pushState(null, null, "/"+newPath);
     if (!newTitle) {newTitle = newPath;}
     document.title = newTitle;
@@ -846,7 +835,7 @@ var collapseNote = function (id, dir, postID) {
     if ($(id+"-br")) {
       $(id+"-br").classList.add('removed');
     }
-    if ($(id).offsetHeight > window.innerHeight) {
+    if ($(id).offsetHeight > (.75 * window.innerHeight)) {
       $(id +'-note-close').classList.remove("hidden");
     }
   } else {  // collapse
@@ -870,15 +859,12 @@ var collapseNote = function (id, dir, postID) {
 var backToMain = function (event) {
   modKeyCheck(event, function () {
     if (glo.username) {
-      if (glo.openPanel === "posts-panel") {
-        dateJump(pool.getCurDate(), false);
-      } else {
-        switchPanel("posts-panel");
-      }
+      panelButtonClick(event, "posts");
+      //fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
     } else {
-    switchPanel('login-panel');
+      switchPanel('login-panel');
+      simulatePageLoad();
     }
-    simulatePageLoad();
   });
 }
 
@@ -908,44 +894,52 @@ var modKeyCheck = function (event, callback) {
   }
 }
 
-var navButtonClick = function (event, type) {
+var panelButtonClick = function (event, type) {
   modKeyCheck(event, function() {
-    simulatePageLoad("~"+type, false);
-    if (type === "posts" && glo.openPanel === "posts-panel") {
-      dateJump(pool.getCurDate(), false);
+    if (type === "posts") {
+      fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
     } else {
+      simulatePageLoad("~"+type, false);
       switchPanel(type + "-panel");
     }
   });
 }
 
-var switchPanel = function (panelName) {
+var switchPanel = function (panelName, noPanelButtonHighlight) {
+  if (glo.openPanel && glo.openPanel === panelName) {
+    if (panelName === "write-panel") {
+      // open the editor if editPanelButton is clicked when editPanel is already open
+      showWriter('post');
+    }
+    return; // panel is already open, do nothing
+  }
+  // hide the old stuff
   if (glo.openPanel) {
     $(glo.openPanel).classList.add('removed');
     if ($(glo.openPanel+"-button")) {$(glo.openPanel+"-button").classList.remove('highlight');}
   }
-  if ($(panelName+"-button")) {
+  // highlight the new panel button
+  if ($(panelName+"-button") && !noPanelButtonHighlight) {
     $(panelName+"-button").classList.add('highlight');
   }
+  // remove header/user stuff in special cases
   if (panelName === "login-panel" || panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
     $("sign-in").classList.add('removed');
     $("username-recovery").value = "";
     $("password-recovery1").value = "";
     $("password-recovery2").value = "";
   }
+  // the one actual line that displays the panel
   $(panelName).classList.remove('removed');
-  // open the editor if editPanelButton is clicked when editPanel is already open
-  if (glo.openPanel && glo.openPanel === "write-panel" && panelName === "write-panel") {
-    showWriter('post');
-  }
-  if (panelName === "posts-panel" && glo.dateOffset === -1) {
-    loadPosts(1, null, true);
+  // init
+  if (panelName === "posts-panel" && !glo.postPanelStatus) {
+    fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
   }
   glo.openPanel = panelName;
 }
 
 var followingListDisplay = function (open) {
-  if (glo.dateOffset !== -1) {
+  if (_npa(['glo','pRef','date'])) {
     if (open) {
       $('following-list').classList.remove('hidden');
       blackBacking();
@@ -958,366 +952,746 @@ var followingListDisplay = function (open) {
       blackBacking(true);
     }
   } else {  // following list has not been fetched/rendered, so do that
-    loadPosts(1, null, true);
-    followingListDisplay(open);
+    fetchPosts(false, {postCode:"FFTF", date:pool.getCurDate(),}, function () {
+      followingListDisplay(open);
+    });
   }
 }
 
 var openDateJump = function (close) {
   if (close) {
-    if (!glo.tag) {
-      $('tag-menu-open').classList.remove('removed');
-    }
-    $('jump-open').classList.remove('removed');
     $('date-jump').classList.add('removed');
+    $('bryce-buttons').classList.remove('removed');
   } else {
     $('date-jump').classList.remove('removed');
-    $('tag-menu-open').classList.add('removed');
-    $('jump-open').classList.add('removed');
+    $('bryce-buttons').classList.add('removed');
   }
 }
 
-var dateJump = function (input, tag) {
-  if (!tag) {tag = false}
-  var target = input;
+var dateJump = function (target) {
   if (!target) {target = $("date-picker").value;}
-  if (!target) {target = pool.getCurDate();}
   if (target.length !== 10 || target[4] !== "-" || target[7] !== "-" || !isNumeric(target.slice(0,4)) || !isNumeric(target.slice(5,7)) || !isNumeric(target.slice(8,10))) {
     return uiAlert("date must be formatted YYYY-MM-DD");
   } else {
-    target = getEpochSeconds(target);
-    if (target > getEpochSeconds(pool.getCurDate())) {
+    var year = target.slice(0,4);
+    var month = target.slice(5,7)-1;
+    var day = Number(target.slice(8,10));
+    var computedDate = new Date(year,month,day);
+    //
+    var newYear = computedDate.getUTCFullYear();
+    var newMon = computedDate.getUTCMonth()+1;
+    if (newMon < 10) {newMon = "0"+newMon}
+    var newDay = computedDate.getUTCDate();
+    if (newDay < 10) {newDay = "0"+newDay}
+    var newDateString = newYear+"-"+newMon+"-"+newDay;
+
+    if (newDateString > pool.getCurDate()) {
       return uiAlert("and no future vision either!");
     } else {
-      clearOutCurrentlyDisplayedBucket();
-      glo.pageOfTag = null;
-      loadPosts(Math.floor((getEpochSeconds(pool.getCurDate(glo.dateOffset)) - target) /(24*3600000)), tag);
+      if (glo.postPanelStatus.date) {   // this is already a dated post, and the only thing we need to change is the date
+        glo.postPanelStatus.date = newDateString;
+        fetchPosts(true);
+      } else {            // we're coming from an "All days" tag page, and need to change postCode
+        fetchPosts(true, {date:newDateString, postCode:"FTTF", tag: glo.postPanelStatus.tag});
+      }
     }
   }
 }
 
-var getEpochSeconds = function (dateStamp) {
-  if (typeof dateStamp === 'string' && dateStamp.length === 10) {
-    var year = dateStamp.slice(0,4);
-    var month = dateStamp.slice(5,7)-1;
-    var day = dateStamp.slice(8,10);
-    return new Date(year,month,day).getTime();
+var moveDateByOneDay = function (dir, input) {
+  if (glo.postPanelStatus.date) {
+    var curDateStamp = glo.postPanelStatus.date}
+  if (typeof curDateStamp === 'string' && curDateStamp.length === 10) {
+    var year = curDateStamp.slice(0,4);
+    var month = curDateStamp.slice(5,7)-1;
+    var day = Number(curDateStamp.slice(8,10))+ Number(dir);
+    var computedDate = new Date(year,month,day);
+    //
+    var newYear = computedDate.getUTCFullYear();
+    var newMon = computedDate.getUTCMonth()+1;
+    if (newMon < 10) {newMon = "0"+newMon}
+    var newDay = computedDate.getUTCDate();
+    if (newDay < 10) {newDay = "0"+newDay}
+    var newDateString = newYear+"-"+newMon+"-"+newDay;
+    //
+    glo.postPanelStatus.date = newDateString;
+    fetchPosts(true);
   }
 }
 
-var clearOutCurrentlyDisplayedBucket = function () {
-  var date = pool.getCurDate(glo.dateOffset);
-  //
-  if (glo.tag) {
-    if (glo.pageOfTag || glo.pageOfTag === 0) {
-      if ($('posts-tagged-'+glo.tag+'-page-'+glo.pageOfTag)) {$('posts-tagged-'+glo.tag+'-page-'+glo.pageOfTag).classList.add("removed")}
+var pageJump = function (input, loc) {
+  if (input) {
+    var newPage = glo.postPanelStatus.page + input;
+  } else {
+    var newPage = parseInt($(loc+'-page-number-left-input').value);
+    if (newPage === 69) {uiAlert("<br>...<br><br>...<br><br>nice", "nice");}
+  }
+  if (!Number.isInteger(newPage) || newPage < 1 || newPage > glo.postPanelStatus.totalPages) {
+    uiAlert("oh do <i>please</i> at least would you <i>try</i> to only input integers between 1 and the total number of pages, inclusive?", "yes doctor i will try");
+  } else {
+    glo.postPanelStatus.page = newPage;
+    if (glo.postPanelStatus.postCode.slice(3) === "F") {
+      glo.postPanelStatus.postCode = glo.postPanelStatus.postCode.slice(0,3) + "T";
+    }
+    fetchPosts(true);
+  }
+}
+
+var _npa = function (arr, item, i, cur) { //(safe) NestedPropertyAccess
+  // optional "item", designates to write(and overwrite) to the property specified by path in arr
+  if (!arr) {return false;}
+  if (!i) {i = 0;}
+  if (!cur) {if (window) {cur = window} else {cur = global}}
+  if (arr[i+1] === undefined) {
+    if (item !== undefined) {
+      cur[arr[i]] = item;
+    }
+    return cur[arr[i]];
+  } else if (!cur[arr[i]]) {
+    if (item !== undefined) {cur[arr[i]] = {};} else {return false;}
+  }
+  return _npa(arr, item, i+1, cur[arr[i]]);
+}
+
+var open404 = function (display, input, callback) {
+  if (input.postCode === 'TFTF') {
+    if (input.existed) {
+      if (display) {switchPanel('404-panel-existed');}
+      if (callback) {return callback();} else {return;}
     } else {
-      if ($('posts-for-'+ date +'-'+glo.tag)) {$('posts-for-'+ date +'-'+glo.tag).classList.add('removed');}
+      if (display) {switchPanel('404-panel-post');}
+      if (callback) {return callback();} else {return;}
     }
   } else {
-    if ($('posts-for-'+ date)) {$('posts-for-'+ date).classList.add('removed');}
-    if ($('tags-for-'+ date)) {$('tags-for-'+ date).classList.add('removed');}
+    if (display) {switchPanel('404-panel-author');}
+    if (callback) {return callback();} else {return;}
   }
 }
 
-var loadPosts = function (dir, tag, init) { // load all posts for a day/tag
-  if (glo.loading) {
-    if (!glo.queue) {glo.queue = [];}
-    glo.queue.push({dir:dir,tag:tag});
-    return;
+var fetchPosts = function (display, input, callback) {
+  if (!input) {input = glo.postPanelStatus;}
+  //404
+  if (input.notFound) {
+    return open404(display, input, callback);
   }
-  else {
-    glo.loading = true;
-    loading();
-  }
-
-  if (glo.dateOffset === -1 && dir === 0) {
-    loadPosts(1, null, true);
-  }
-
-  if (glo.pageOfTag && dir) {
-    return viewPageOfTag(null, glo.pageOfTag-dir);
-  }
-
-  clearOutCurrentlyDisplayedBucket();
   //
-  if (tag === false) {
-    glo.tag = null;
-    $("tag-display").classList.add("removed");
-    $("clear-tag").classList.add("removed");
-    $("all-days").classList.add("removed");
-    $("save-tag").classList.add("removed");
-    $("tag-menu-open").classList.remove("removed");
-  //  $('date-jump').classList.add("removed");
-  } else if (!tag) {
-    tag = glo.tag;
+  var pc = input.postCode;
+  // do we have the data already?   ...what data?
+  if (pc === "FTTT") {var arr = ['glo','pRef','tag',input.tag,'date',input.date,'page',input.page];}
+  else if (pc === "FTTF") {var arr = ['glo','pRef','tag',input.tag,'date',input.date,];}
+  else if (pc === "FTFT") {var arr = ['glo','pRef','tag',input.tag,'page',input.page];}
+  else if (pc === "FTFF") {var arr = ['glo','pRef','tag',input.tag,'page',0];}
+  else if (pc === "FFTT") {var arr = ['glo','pRef','date',input.date,'page',input.page];}
+  else if (pc === "FFTF") {var arr = ['glo','pRef','date',input.date];}
+  else if (pc === "TTFT") {var arr = ['glo','pRef','author',input.author,'tag',input.tag,'page',input.page];}
+  else if (pc === "TTFF") {var arr = ['glo','pRef','author',input.author,'tag',input.tag,]}
+  else if (pc === "TFTF") {
+    if (input.post_id) {var arr = ['glo','pRef','post',input.post_id,];}
   }
-  glo.pageOfTag = false;
-  glo.dateOffset += dir;
-  var date = pool.getCurDate(glo.dateOffset);
-  // hide/unhide nextDay buttons as needed
-  if (glo.dateOffset === 0) {$("right-nav-arrow").classList.add("hidden");}
-  else {$("right-nav-arrow").classList.remove("hidden");}
-  $("left-nav-arrow").classList.remove("hidden");
-
-
-  $('date-display').innerHTML = date;
-  $('date-display').classList.remove('removed');
-  if ($('date-jump').classList.contains('removed')) {
-    $("jump-open").classList.remove("removed");
+  else if (pc === "TFFT") {var arr = ['glo','pRef','author',input.author,'page',input.page];}
+  else if (pc === "TFFF") {var arr = ['glo','pRef','author',input.author,'page', 0];}
+  else if (pc === "MARK") {var arr = ['glo','pRef','bookmarks'];}
+  else {return uiAlert('eerrrrrrrrrrrrrr')}
+  //
+  var x = _npa(arr);
+  // if perma post and i already have the post, do i already have the author data?
+  if (x && pc === "TFTF" && input.post_id) {
+    var authorID = _npa(['glo', 'postStash', input.post_id, '_id']);
+    if (authorID && !_npa(['glo','pRef','author',authorID,'info'])) {
+      x = false;
+      input.author = authorID;
+    } else {
+      x = [input.post_id];
+    }
   }
-  if (tag) {
-    glo.tag = tag;
-    if (glo.savedTags && !glo.savedTags[tag]) {$("save-tag").classList.remove("removed");}
-    else {$("save-tag").classList.add("removed");}
-    $("tag-display").innerHTML = 'posts tagged <i>"'+tag+'"</i> on';
-    $("tag-menu").classList.add("removed");
-    $("tag-menu-open").classList.add("removed");
-    $("clear-tag").classList.remove("removed");
-    $("all-days").classList.remove("removed");
-    $("tag-display").classList.remove("removed");
-    // check if we already have the data
-    if ($('posts-for-'+ date +'-'+tag)) {
-      $('posts-for-'+ date +'-'+tag).classList.remove('removed');
-      loadManage();
-      simulatePageLoad("~tagged/"+tag+"/"+date);
-    } else {
-      // we don't, so make the ajax call
-      $('loading').classList.remove('removed');
-      ajaxCall('/~getTagByDate', 'POST', {date:date, tag:tag,}, function(json) {
-        renderPostFeed(json.posts, date, tag);
-        $('loading').classList.add('removed');
-        loadManage();
-        simulatePageLoad("~tagged/"+tag+"/"+date);
-      });
+  // total page number shiz
+  if (pc === "FTTT" || pc === "FTTF") {var totalPageNumberPointer = ['glo','pRef','tag',input.tag,'date',input.date,'totalPages'];} //not actualy paginated currently
+  else if (pc === "FTFT" || pc === "FTFF") {var totalPageNumberPointer = ['glo','pRef','tag',input.tag,'totalPages'];}
+  else if (pc === "FFTT" || pc === "FFTF") {var totalPageNumberPointer = ['glo','pRef','date',input.date,'totalPages'];}             //not actualy paginated currently
+  else if (pc === "TTFT" || pc === "TTFF") {var totalPageNumberPointer = ['glo','pRef','author',input.author,'tag',input.tag,'totalPages'];}   //not actualy paginated currently
+  else if (pc === "TFFT" || pc === "TFFF") {var totalPageNumberPointer = ['glo','pRef','author',input.author,'totalPages'];}
+
+  if (x) {          // we got it
+    input.totalPages = _npa(totalPageNumberPointer);
+
+    if (display) {displayPosts(x, input, callback);}
+    else if (callback) {callback();}
+  } else {          //  call for it
+    if (display || callback) {loading();}
+    // send the postRef
+    if (_npa(['glo','pRef','post'])) {input.postRef = glo.pRef.post;}
+    // do we need author data?
+    if (input.author && !_npa(['glo','pRef','author',input.author,'info'])) {
+      input.needAuthorInfo = true;
     }
-    if (glo.openPanel !== 'posts-panel') {
-      switchPanel('posts-panel');
+    // do we need the followingList?
+    if ((pc === 'FFTT' || pc === 'FFTF') && !_npa(['glo','pRef','date'])) {
+      input.getFollowingList = true;
     }
-  } else if (glo.username === undefined) {
-    loadManage();
-    simulatePageLoad();
-  } else {  //no tag, load posts by following
-    // check if we already have the data
-    simulatePageLoad();
-    if ($('posts-for-'+date)) {
-      $('posts-for-'+date).classList.remove('removed');
-      if ($('tags-for-'+date)) {$('tags-for-'+date).classList.remove('removed');}
-      loadManage();
-    } else {
-      // we don't, so make the ajax call
-      $('loading').classList.remove('removed');
-      if (init) {var data = {init:true};}
-      else {var data = {};}
-      ajaxCall('/posts/'+date, 'POST', data, function(json) {
-        var filteredPosts = [];
-        if (!glo.settings || !glo.settings.includeTaggedPosts) {
-          for (var i = 0; i < json.posts.length; i++) {
-            if (glo.followingRef) {
-              if (glo.followingRef[json.posts[i]._id]) {
-                filteredPosts.push(json.posts[i]);
-              }
-            }
-          }
-        } else {
-          filteredPosts = json.posts;
-        }
-        renderPostFeed(filteredPosts, date);
-        $('loading').classList.add('removed');
-        //following list, if this is the first call for posts,
-        if (init) {
-          var followingBucket = $("following-bucket");
-          for (var i = 0; i < json.followingList.length; i++) {
-            var listing = document.createElement("div");
-            listing.setAttribute('class', 'following-listing');
-            var link = document.createElement("a");
-            link.setAttribute('href', "/"+json.followingList[i].name);
-            link.setAttribute('class', 'not-special');
-            (function (id) {
-              link.onclick = function(){
-                modKeyCheck(event, function(){
-                  openAuthorPanel(id);
-                  followingListDisplay(false);
-                });
-              }
-            })(json.followingList[i]._id);
-            var name = document.createElement("text");
-            name.innerHTML = json.followingList[i].name;
-            var pic = document.createElement("img");
-            pic.setAttribute('class', 'little-pic');
-            pic.setAttribute('src', json.followingList[i].pic);
-            link.appendChild(pic);
-            link.appendChild(name);
-            listing.appendChild(link);
-            followingBucket.appendChild(listing);
-          }
-        }
-        // render saved tags, with counts for that day, and tag feeds for each
-        var tagArr = json.tagList;
-        if (!tagArr || tagArr.length === 0) {
-          $("none-tags").classList.remove('removed');
-        } else {
-          $("none-tags").classList.add('removed');
-          var bucket = document.createElement("div");
-          bucket.setAttribute('id', 'tags-for-'+date);
-          for (var i = 0; i < tagArr.length; i++) {
-            var count = 0;
-            var taggedPosts = [];
+    ajaxCall('/getPosts', 'POST', input, function(json) {
+      if (!json.posts || json.four04) {
+        loading(true);
+        return open404(display, input, callback);
+      }
+      var postList = [];
+      for (var i = 0; i < json.posts.length; i++) {
+        addToPostStash(json.posts[i], json.authorData);
+        postList.push(json.posts[i].post_id);
+      }
+      // sort the postList by the postIDs to randomize for dated feeds
+      if (pc === "FTTT" || pc === "FTTF" || pc === "FFTT" || pc === "FFTF") {
+        postList.sort();
+        var freshPosts = [];
+      }
+      if (input.needAuthorInfo) {
+        _npa(['glo','pRef','author',input.author,'info'], json.authorInfo);
+        input.needAuthorInfo = undefined;
+      }
+      if (input.getFollowingList && json.followingList) {
+        renderFollowingList(json.followingList);
+        input.getFollowingList = undefined;
+      }
+      // store the total number of available pages of a thing, to use in pagination displays later
+      if (json.pages) {
+        _npa(totalPageNumberPointer, json.pages);
+        input.totalPages = json.pages;
+      }
+      if (input.page === 0 && json.pages) {
+        if (pc === "FTTT" || pc === "FTTF") {arr = ['glo','pRef','tag',input.tag,'date',input.date,'page',json.pages];}
+        else if (pc === "FTFT" || pc === "FTFF") {arr = ['glo','pRef','tag',input.tag,'page',json.pages];}
+        else if (pc === "FFTT" || pc === "FFTF") {arr = ['glo','pRef','date',input.date,'page',json.pages];}
+        else if (pc === "TTFT" || pc === "TTFF") {arr = ['glo','pRef','author',input.author,'tag',input.tag,'page',json.pages];}
+        else if (pc === "TFFT" || pc === "TFFF") {arr = ['glo','pRef','author',input.author,'page',json.pages];}
+        else {return uiAlert('eerrrrrrrrrrrrrr2')}
+      }
+      if (pc === 'FFTT' || pc === 'FFTF') { //    date only "feed" posts
+        // from returned post list, parse into lists for each tag
+        for (var i = 0; i < json.tagList.length; i++) {
+          var zarr = ['glo','pRef','tag',json.tagList[i],'date',input.date,];
+          if (!_npa(zarr)) {
+            var tagArr = _npa(zarr, []);
             for (var j = 0; j < json.posts.length; j++) {
-              if (json.posts[j].tags && json.posts[j].tags[tagArr[i]]) {
-                taggedPosts.push(json.posts[j]);
-                count++;
+              if (json.posts[j].tags && json.posts[j].tags[json.tagList[i]]) {
+                tagArr.push(json.posts[j].post_id);
               }
             }
-            renderPostFeed(taggedPosts, date, tagArr[i]).classList.add('removed');
-            var tagShell = document.createElement("div");
-            var tag = document.createElement("text");
-            tag.setAttribute('class', 'clicky top-tag special');
-            tag.innerHTML = tagArr[i] + "("+count+")";
-            (function (tagName) {
-              tag.onclick = function(){
-                loadPosts(0, tagName);
-              }
-            })(tagArr[i]);
-            var detag = document.createElement("text");
-            detag.setAttribute('class', 'clicky de-tag-button special');
-            detag.innerHTML = ' &nbsp; <icon class="fas fa-trash-alt"></icon>';
-            (function (tagName) {
-              detag.onclick = function(){
-                saveTag(true, tagName);
-              }
-            })(tagArr[i]);
-            tagShell.appendChild(tag);
-            tagShell.appendChild(detag);
-            bucket.appendChild(tagShell);
           }
-          $("tag-bucket").appendChild(bucket);
         }
-        loadManage();
+      }
+      //
+      _npa(arr, postList);
+      if (display) {
+        displayPosts(postList, input, callback);
+        loading(true);
+      } else if (callback) {
+        callback();
+        loading(true);
+      }
+    });
+  }
+}
+
+var displayPosts = function (idArr, input, callback) {
+  $("post-bucket").classList.add("removed");
+  destroyAllChildrenOfElement($("post-bucket"));
+
+  var pc = input.postCode;
+  // filter out posts from non-followers, if feed and not includeTaggedPosts
+  if ((pc === 'FFTT' || pc === 'FFTF') && !_npa(['glo','settings','includeTaggedPosts'])) {
+    var filtered = [];
+    for (var i = 0; i < idArr.length; i++) {
+      if (_npa(['glo','followingRef', _npa(['glo','postStash', idArr[i], '_id'])])) {
+        filtered.push(idArr[i]);
+      }
+    }
+    idArr = filtered;
+  }
+
+  var postType = null;
+  if (pc === "TTFT" || pc === "TTFF" || pc === "TFFT" || pc === "TFFF") {
+    postType = "author";
+  } else if (pc === "FTTT" || pc === "FTTF" || pc === "FFTT" || pc === "FFTF") {
+    postType = "dated";
+  } else if (pc === "TFTF") {
+    postType = "perma"
+  }
+
+  // the actual display of the literal posts
+  for (var i = 0; i < idArr.length; i++) {
+    $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
+  }
+  if (idArr.length === 0) {
+    $("post-bucket").appendChild(notSchlaugh(pc, input.date));
+    $("bot-page-and-date-nav").classList.add("removed");
+  } else {
+    $("bot-page-and-date-nav").classList.remove("removed");
+  }
+
+  $("post-bucket").classList.remove("removed");
+  //
+  glo.postPanelStatus = input;
+  if (postType === 'author' || pc === "FTFF" || pc === "FTFT") {
+    switchPanel('posts-panel', true);
+  } else {
+    switchPanel('posts-panel');
+  }
+
+
+  ///////////////////////// pagination stuff
+  if (input.totalPages) {
+    if (input.page === undefined || input.page === 0) {input.page = input.totalPages}
+    setPageNumbersAndArrows(input.page, input.totalPages, "top");
+    setPageNumbersAndArrows(input.page, input.totalPages, "bot");
+
+    $("top-page-box").classList.remove("removed")
+    $("bot-page-box").classList.remove("removed")
+  } else {
+    $("top-page-box").classList.add("removed")
+    $("bot-page-box").classList.add("removed")
+  }
+
+/////////////////////////////////////// date display / arrows
+  if (postType === "dated") {      //"dated"/feed posts
+    $("top-date-box").classList.remove('removed');
+    $("bot-date-box").classList.remove('removed');
+    $("top-date-display").innerHTML = input.date;
+    $("bot-date-display").innerHTML = input.date;
+    if (input.date >= pool.getCurDate()) {
+      $("top-right-date-arrow").classList.add('hidden');
+      $("bot-right-date-arrow").classList.add('hidden');
+    } else {
+      $("top-right-date-arrow").classList.remove('hidden');
+      $("bot-right-date-arrow").classList.remove('hidden');
+    }
+  } else {
+    $("top-date-box").classList.add('removed');
+    $("bot-date-box").classList.add('removed');
+  }
+
+
+///////////////////////////////////// tag option stuff
+  if (input.author || pc === "MARK") {              // don't display any tag/date option stuff
+    $("date-and-tag-options").classList.add("removed");
+    $("posts-panel-button").classList.remove('highlight');
+    if (pc === "MARK") {
+      $("top-tag-display").innerHTML = 'bookmarked posts';
+      $("bot-tag-display").innerHTML = 'bookmarked posts';
+      $("top-tag-display").classList.remove("removed");
+      $("bot-tag-display").classList.remove("removed");
+    } else {
+      if (input.tag) {                    // but if tag filtering, then show that/clear button
+        $("top-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i>';
+        $("bot-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i>';
+        $("top-tag-display").classList.remove("removed");
+        $("bot-tag-display").classList.remove("removed");
+        $("author-clear-tag-top").classList.remove("removed");
+        $("author-clear-tag-bot").classList.remove("removed");
+      } else {
+        $("top-tag-display").classList.add("removed");
+        $("bot-tag-display").classList.add("removed");
+        $("author-clear-tag-top").classList.add("removed");
+        $("author-clear-tag-bot").classList.add("removed");
+      }
+    }
+  } else {
+    $("posts-panel-button").classList.add('highlight');
+    $("date-and-tag-options").classList.remove("removed");
+    $("author-clear-tag-top").classList.add("removed");
+    $("author-clear-tag-bot").classList.add("removed");
+    if ((pc === 'FFTT' || pc === 'FFTF') && !input.tag) {          //dateFeeds, no tag, so tag option
+      renderAllTagListings(input.date);
+
+      $("top-tag-display").classList.add("removed");
+      $("bot-tag-display").classList.add("removed");
+
+      $("clear-tag").classList.add("removed");
+      $("all-days").classList.add("removed");
+      $("save-tag").classList.add("removed");
+    } else {
+      if (input.date && input.tag) {                            ////////// tag by date,
+        renderAllTagListings(input.date);
+
+        $("top-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i> on';
+        $("bot-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i> on';
+        $("all-days").classList.remove("removed");
+      } else if (pc === "FTFT" || pc === "FTFF") {                  ///// all days tag page
+        renderAllTagListings();
+
+        $("top-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i>';
+        $("bot-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i>';
+        $("all-days").classList.add("removed");
+      }
+      $("clear-tag").classList.remove("removed");
+      if (glo.savedTags && !glo.savedTags[input.tag]) {$("save-tag").classList.remove("removed");}
+      else {$("save-tag").classList.add("removed");}
+      $("top-tag-display").classList.remove('removed');
+      $("bot-tag-display").classList.remove('removed');
+    }
+    if (!glo.username) {
+      $("clear-tag").classList.add("removed");
+      $("save-tag").classList.add("removed");
+    }
+  }
+
+//////////////////////////////////         bios
+  if (input.author) {
+    var authorInfo = _npa(['glo','pRef','author',input.author,'info']);
+    if (authorInfo) {
+      var authorPicUrl = authorInfo.authorPic;
+      var authorName = authorInfo.author;
+    }
+  }
+  if (pc === "TFTF") { // perma, solo post
+    // show author bio on bottom
+    setAuthorHeader('bot', authorInfo);
+    $("author-header-top").classList.add("removed");
+  } else if (postType === "author") {  // author, not perma
+    // show author stuff on top
+    setAuthorHeader('top', authorInfo);
+    $("author-header-bot").classList.add("removed");
+  } else {
+    $("author-header-top").classList.add("removed");
+    $("author-header-bot").classList.add("removed");
+  }
+
+/////////////////////////////////////stuff for updating the address bar, browser history, favicon, page title, etc
+
+  if (pc === "FTTT") {simulatePageLoad("~tagged/"+input.tag+"/"+input.date+"/"+input.page, false, false)}
+  else if (pc === "FTTF") {simulatePageLoad("~tagged/"+input.tag+"/"+input.date, false, false)}
+  else if (pc === "FTFT") {simulatePageLoad("~tagged/"+input.tag+"/"+input.page, false, false)}
+  else if (pc === "FTFF") {simulatePageLoad("~tagged/"+input.tag, false, false)}
+  else if (pc === "MARK") {simulatePageLoad("~bookmarks", false, false)}
+  else if (pc === "FFTT") {simulatePageLoad("~posts/"+input.date+"/"+input.page, false, false)}
+  else if (pc === "FFTF") {
+    if (input.date === pool.getCurDate()) {simulatePageLoad("~posts", false, false)}
+    else {simulatePageLoad("~posts/"+input.date, false, false)}
+  }
+  else if (pc === "TTFT") {simulatePageLoad(authorName+"/~tagged/"+input.tag+"/"+input.page, authorName, authorPicUrl)}
+  else if (pc === "TTFF") {simulatePageLoad(authorName+"/~tagged/"+input.tag, authorName, authorPicUrl)}
+  else if (pc === "TFTF") {
+    var postTitle = _npa(['glo','postStash', idArr[0], 'title']);
+    if (!postTitle) {postTitle = authorName}
+    if (input.post_id) {
+      simulatePageLoad("~/"+input.post_id, postTitle, authorPicUrl)
+    } else {
+      simulatePageLoad(authorName+"/~/"+input.date, postTitle, authorPicUrl)
+    }
+  }
+  else if (pc === "TFFT") {simulatePageLoad(authorName+"/~/"+input.page, authorName, authorPicUrl)}
+  else if (pc === "TFFF") {simulatePageLoad(authorName, authorName, authorPicUrl)}
+  else {return uiAlert('eerrrrrrrrrrrrrr3')}
+  //
+  if (callback) {callback();}
+}
+
+var notSchlaugh = function (postCode, date) {
+  var div = document.createElement("div");
+  div.classList.add('not-schlaugh');
+  div.appendChild(document.createElement("br"));
+  div.appendChild(document.createElement("br"));
+  var post = document.createElement("div");
+  if ((postCode === "FFTF" || postCode === "FFTT") && date) {
+    post.innerHTML = '~not schlaugh~<br><clicky onclick="uiAlert(`for the day you are viewing, '+date+', none of the people or tags you are following have made posts`)" class="special">(?)</clicky>';
+  } else {
+    post.innerHTML = "~no posts~";
+  }
+  div.appendChild(post);
+  div.appendChild(document.createElement("br"));
+  div.appendChild(document.createElement("br"));
+  return div;
+}
+
+var setAuthorHeader = function (loc, aInfo) {
+  // pic
+  if (aInfo.authorPic !== "") {
+    $("author-panel-pic-"+loc).setAttribute('src', aInfo.authorPic);
+    $("author-panel-pic-"+loc).classList.remove('removed');
+  } else {
+    $("author-panel-pic-"+loc).classList.add('removed');
+  }
+
+  // title
+  var title = $("author-page-title-"+loc);
+  // text sizing based on name length
+  if (aInfo.author.length < 6) {title.setAttribute('class','author-page-title-0 not-special')}
+  else if (aInfo.author.length < 12) {title.setAttribute('class','author-page-title-1 not-special')}
+  else if (aInfo.author.length < 20) {title.setAttribute('class','author-page-title-2 not-special')}
+  else if (aInfo.author.length < 30) {title.setAttribute('class','author-page-title-3 not-special')}
+  else if (aInfo.author.length < 40) {title.setAttribute('class','author-page-title-4 not-special')}
+  else if (aInfo.author.length < 50) {title.setAttribute('class','author-page-title-5 not-special')}
+  else {title.setAttribute('class','author-page-title-6 not-special')}
+  //
+  if (loc === "bot") {
+    title.onclick = function (event) {
+      modKeyCheck(event, function(){
+        fetchPosts(true, {postCode:'TFFF', author:aInfo._id});
       });
     }
+    title.classList.add("clicky");
+    title.classList.remove('not-special');
+    title.setAttribute('href', "/"+aInfo.author);
   }
-}
+  title.innerHTML = aInfo.author;
 
-var loadManage = function () {
-  glo.loading = false;
-  if (glo.queue && glo.queue.length !== 0) {
-    var obj = glo.queue[glo.queue.length-1];
-    loadPosts(obj.dir, obj.tag);
-    glo.queue.pop();
+  // follow and message and bio buttons
+  setFollowButton(loc, aInfo);
+  setMessageButton(loc, aInfo);
+  setEditBioButtons(loc, aInfo);
+
+  // header-right
+  if (aInfo.bio && aInfo.bio !== "") {
+    $("author-header-right-"+loc).innerHTML = convertText(aInfo.bio, aInfo.author+"-bio");
+    $("author-header-right-"+loc).classList.remove('removed');
   } else {
-    loading(true);
+    $("author-header-right-"+loc).classList.add('removed');
   }
+  $("author-header-"+loc).classList.remove("removed")
 }
 
-var renderPostFeed = function (postList, date, tag) {
-  var bucket = document.createElement("div");
-  bucket.setAttribute('class', 'post-bucket monospace');
-  if (tag) {bucket.setAttribute('id', 'posts-for-'+date+'-'+tag);}
-  else {bucket.setAttribute('id', 'posts-for-'+date);}
-  // if there are no posts for the day/tag
-  if (postList.length === 0) {
-    var post = document.createElement("div");
-    if (tag) {
-      post.innerHTML = "~no posts~";
+var setFollowButton = function (loc, authInf) {
+  var follow = $("follow-button-"+loc);
+  follow.classList.remove("removed")
+  if (glo.username && authInf._id) {
+    // is the user already following the author?
+    if (glo.followingRef[authInf._id]) {
+      follow.innerHTML = "defollow";
+      var remove = true;
     } else {
-      post.innerHTML = '~not schlaugh~<br><clicky onclick="uiAlert(`for the day you are viewing, '+date+', none of the people or tags you are following have made posts`)" class="special">(?)</clicky>';
+      follow.innerHTML = "follow";
+      var remove = false;
     }
-    post.classList.add('not-schlaugh');
-    bucket.appendChild(document.createElement("br"));
-    bucket.appendChild(document.createElement("br"));
-    bucket.appendChild(post);
+    if (loc === "edit") {
+      follow.onclick= function () {
+        uiAlert(`Y'ALL<br>DONE<br>DID<br>GET<br>GOT<br>BY<br>A<br>FAKE BUTTON`,'doh');
+      }
+    } else {
+      follow.onclick = function(){
+        ajaxCall('/follow', 'POST', {id:authInf._id, remove:remove}, function(json) {
+          if (remove) {glo.followingRef[authInf._id] = false;}
+          else {glo.followingRef[authInf._id] = true;}
+          // refresh button
+          setFollowButton(loc, authInf);
+        });
+      }
+    }
   } else {
-    postList.sort(function(a, b) {
-        if(a.post_id < b.post_id) { return -1; }
-        if(a.post_id > b.post_id) { return 1; }
-        return 0;
-    });
-    var freshPosts = [];
-    // create posts
-    for (var i = 0; i < postList.length; i++) {
-      //postList[i]
-      if (tag) {
-        var post = renderOnePost(postList[i], 'tag', tag)
-        bucket.appendChild(post);
-      } else {
-        var post = renderOnePost(postList[i], 'feed', null)
-        bucket.appendChild(post);
-      }
-      freshPosts.push(post)
-    }
+    follow.classList.add("removed")
   }
-  $('posts').appendChild(bucket);
-  if (freshPosts) {
-    for (var i = 0; i < freshPosts.length; i++) {
-      if (freshPosts[i].offsetHeight > window.innerHeight) {
-        $(freshPosts[i].id +'collapse-button-bottom').classList.remove("hidden");
-      }
-    }
-  }
-  return bucket;
 }
 
-var renderOnePost = function (postData, type, typeName, postID) {
-  // type = 'author','tag','feed','bookmark','sequence','preview'
+var setMessageButton = function (loc, authInf) {
+  var message = $("message-button-"+loc);
+  message.classList.add('removed');
+  if (glo.username && authInf.author !== glo.username && authInf.key) {
+    message.onclick = function(){
+      //look for a thread btwn the author and logged in user
+      checkForThread({
+        name: authInf.author,
+        _id: authInf._id,
+        key: authInf.key,
+        image: authInf.authorPic,
+      });
+    }
+    message.classList.remove('removed');
+  } else {
+    message.classList.add('removed');
+  }
+}
+
+var setEditBioButtons = function (loc, authInf) {
+  // edit bio button,
+  if (loc !== "edit" && glo.username && glo.username === authInf.author) {
+    $("edit-bio-button-"+loc).classList.remove('removed');
+  } else {
+    $("edit-bio-button-"+loc).classList.add('removed');
+  }
+  // delete bio button
+  if (loc !== "edit" && glo.username && glo.username === authInf.author && authInf.bio && authInf.bio !== "") {
+    $("delete-bio-button-"+loc).classList.remove('removed');
+  } else {
+    $("delete-bio-button-"+loc).classList.add('removed');
+  }
+}
+
+var setPageNumbersAndArrows = function (page, totalPages, macguffin) {
+  $(macguffin+"-page-jump").classList.add('hidden')
+  // page numbers
+  if (totalPages > 1) {
+    $(macguffin+'-page-number-left-text').classList.add('removed');
+    var pageNumberLeft = $(macguffin+'-page-number-left-input');
+    pageNumberLeft.value = page;
+    if (totalPages < 10) {
+      pageNumberLeft.setAttribute('class', "monospace post-background page-number-left");
+    } else if (totalPages < 100) {
+      pageNumberLeft.setAttribute('class', "monospace post-background page-number-left-double-digit");
+    } else {
+      pageNumberLeft.setAttribute('class', "monospace post-background page-number-left-triple-digit");
+    }
+  } else {
+    var pageNumberLeft = $(macguffin+'-page-number-left-text');
+    pageNumberLeft.innerHTML = page;
+    pageNumberLeft.classList.remove('removed');
+    $(macguffin+'-page-number-left-input').classList.add('removed');
+  }
+  var pageNumberRight = $(macguffin+"-page-number-right");
+  pageNumberRight.innerHTML = totalPages;
+  if (totalPages < 2) {
+    pageNumberRight.setAttribute('class', "monospace");
+  } else if (totalPages < 10) {
+    pageNumberRight.setAttribute('class', "monospace page-number-right");
+  } else if (totalPages < 100) {
+    pageNumberRight.setAttribute('class', "monospace page-number-right-double-digit");
+  } else {
+    pageNumberRight.setAttribute('class', "monospace page-number-right-triple-digit");
+  }
+  // arrow visibility
+  if (page == 1) {
+    $(macguffin+"-left-page-arrow").classList.add('hidden');
+  } else {
+    $(macguffin+"-left-page-arrow").classList.remove('hidden');
+  }
+  if (page == totalPages) {
+    $(macguffin+"-right-page-arrow").classList.add('hidden');
+  } else {
+    $(macguffin+"-right-page-arrow").classList.remove('hidden');
+  }
+}
+
+var renderAllTagListings = function (date) {
+  destroyAllChildrenOfElement($("tag-bucket"));
+  var noTags = true;
+  if (glo.savedTags) {
+    for (var tagName in glo.savedTags) {
+      if (glo.savedTags.hasOwnProperty(tagName) && glo.savedTags[tagName] === true) {
+        noTags = false;
+        if (date) {
+          var arrOfPostsForTagOnDate = _npa(['glo','pRef','tag',tagName,'date',date,]);
+          if (arrOfPostsForTagOnDate) {
+            renderTagListing(tagName, arrOfPostsForTagOnDate.length)
+          }
+        } else {
+          renderTagListing(tagName)
+        }
+      }
+    }
+  }
+  if (noTags) {$("none-tags").classList.remove('removed');}
+  else {$("none-tags").classList.add('removed');}
+}
+
+var renderTagListing = function (tagName, count) {
+  var tagShell = document.createElement("div");
+  var tagElem = document.createElement("text");
+  tagElem.setAttribute('class', 'clicky top-tag special');
+  if (count !== undefined) {
+    tagElem.innerHTML = tagName + "("+count+")";
+  } else {
+    tagElem.innerHTML = tagName;
+  }
+  (function (tagString) {
+    tagElem.onclick = function(){
+      openTagMenu(true);
+      if (glo.postPanelStatus.date) {
+        fetchPosts(true, {postCode: "FTTF", tag:tagString, date:glo.postPanelStatus.date});
+      } else {
+        fetchPosts(true, {postCode: "FTFF", tag:tagString,});
+      }
+    }
+  })(tagName);
+  var detag = document.createElement("text");
+  detag.setAttribute('class', 'clicky de-tag-button special');
+  detag.innerHTML = ' &nbsp; <icon class="fas fa-trash-alt"></icon>';
+  (function (tagString) {
+    detag.onclick = function(){
+      saveTag(true, tagString);
+    }
+  })(tagName);
+  tagShell.appendChild(tagElem);
+  tagShell.appendChild(detag);
+  $("tag-bucket").appendChild(tagShell);
+}
+
+var renderFollowingList = function (followingList) {
+  var followingBucket = $("following-bucket");
+  for (var i = 0; i < followingList.length; i++) {
+    var listing = document.createElement("div");
+    listing.setAttribute('class', 'following-listing');
+    var link = document.createElement("a");
+    link.setAttribute('href', "/"+followingList[i].name);
+    link.setAttribute('class', 'not-special');
+    (function (id) {
+      link.onclick = function(){
+        modKeyCheck(event, function(){
+          fetchPosts(true, {postCode:'TFFF', author:id});
+          followingListDisplay(false);
+        });
+      }
+    })(followingList[i]._id);
+    var name = document.createElement("text");
+    name.innerHTML = followingList[i].name;
+    var pic = document.createElement("img");
+    pic.setAttribute('class', 'little-pic');
+    pic.setAttribute('src', followingList[i].pic);
+    link.appendChild(pic);
+    link.appendChild(name);
+    listing.appendChild(link);
+    followingBucket.appendChild(listing);
+  }
+}
+
+var addToPostStash = function (postData, authorData) {
+  // no no no, i said poststash, not mustache!
+  if (!glo.postStash) {glo.postStash = {}}
+  var ps = glo.postStash;
+  if (!ps[postData.post_id]) {
+    ps[postData.post_id] = {
+      post_id:postData.post_id,
+      date:postData.date,
+      body:postData.body,
+      tags:postData.tags,
+      title:postData.title,
+    };
+    if (authorData) {
+      ps[postData.post_id].authorPic = authorData.authorPic;
+      ps[postData.post_id].author = authorData.author;
+      ps[postData.post_id]._id = authorData._id;
+    } else {
+      ps[postData.post_id].authorPic = postData.authorPic;
+      ps[postData.post_id].author = postData.author;
+      ps[postData.post_id]._id = postData._id;
+    }
+  }
+  // add id to pRef.post
+  _npa(['glo','pRef','post',postData.post_id,], true);
+}
+
+var renderOnePost = function (postData, type, postID) {
+  // type = 'author', 'preview', 'preview-edit', "dated", "perma" or NULL
   // postData needs fields: post_id, date, authorPic, author, body, tags, _id,
 
   if (postData === null && postID && glo.postStash) {
     if (glo.postStash[postID]) {
       postData = glo.postStash[postID];
     } else {
-      return;
+      var tombstone = document.createElement("noPost");
+      return tombstone;
     }
   }
-  // id
-  if (type === 'tag') {var uniqueID = postData.post_id+"-"+postData.date+"-"+typeName+"-feed";}
-  else if (type === 'tagAll') {var uniqueID = postData.post_id+"-tag-all-for-"+typeName;}
-  else if (type === 'author') {var uniqueID = 'author-'+postData.post_id}
-  else if (type === 'bookmark') {var uniqueID = 'bookmarkFeed-'+postData.post_id;}
-  else if (type === 'feed') {var uniqueID = postData.post_id+"-"+postData.date+"-feed"}
-  else if (type === 'sequence') {var uniqueID = 'sequence-'+typeName+'-'+postData.post_id;}
-  else if (type === 'preview') {var uniqueID = 'preview-'+typeName;}
-  else {return uiAlert("error, sorry! render error, post is not of a valid type???, please show this to staff");}
 
-  // has post already been rendered?
-  if ($(uniqueID) && type !== 'preview') {
-    $(uniqueID).classList.remove('removed')
-    return $(uniqueID);
+  if (type !== 'preview' && type !== 'preview-edit') {
+    addToPostStash(postData);
   }
 
-  // add id to postRef
-  if (!glo.postRef) {glo.postRef = {}}
-  if (!glo.postRef[postData.post_id]) {glo.postRef[postData.post_id] = true;}
-
-  // add incoming post data to postStash
-  if (!glo.postStash) {glo.postStash = {}}
-  if (type !== 'preview') {
-    if (!glo.postStash[postData.post_id]) {
-      glo.postStash[postData.post_id] = {
-        post_id:postData.post_id,
-        date:postData.date,
-        body:postData.body,
-        tags:postData.tags,
-        title:postData.title,
-        authorPic:postData.authorPic,
-        author:postData.author,
-        _id:postData._id,
-        elemList: [],
-      };
-    }
-    // add elem to postStash
-    glo.postStash[postData.post_id].elemList.push(uniqueID);
-  }
-  //
-  //make({elem:"div", class:'post', id: uniqueID})
+  var uniqueID = 'post-'+postData.post_id;
   var post = document.createElement("div");
-  post.setAttribute('class', 'post');
   post.setAttribute('id', uniqueID);
-  // collapse button
+  post.setAttribute('class', 'post');
+
+  // collapse button(s)
   var collapseBtn = document.createElement("clicky");
   collapseBtn.setAttribute('class', 'collapse-button-top');
-  collapseBtn.setAttribute('id', uniqueID+'collapse-button-top');
-  if (glo.collapsed && glo.collapsed[postData.post_id]) {
+  collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
+  if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit') {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
     collapseBtn.title = 'expand';
   } else {
@@ -1328,29 +1702,25 @@ var renderOnePost = function (postData, type, typeName, postID) {
   post.appendChild(collapseBtn);
   var collapseBtn2 = collapseBtn.cloneNode(true);
   collapseBtn2.setAttribute('class', 'collapse-button-bottom hidden');
-  collapseBtn2.setAttribute('id', uniqueID+'collapse-button-bottom');
-  if (glo.collapsed && glo.collapsed[postData.post_id]) {
-    collapseBtn2.classList.add('removed');
-  }
+  collapseBtn2.setAttribute('id', uniqueID+'-collapse-button-bottom');
   collapseBtn2.onclick = function () {collapsePost(uniqueID, postData.post_id, true);}
   post.appendChild(collapseBtn2);
   // post header
   var postHeader = document.createElement("div");
   post.appendChild(postHeader);
   // author stuff in header
-  if (type !== 'author' && (type !== 'preview' || typeName !== "edit")) {
+  if (type !== 'author' && type !== 'preview-edit') {
     postHeader.setAttribute('class', 'post-header-feed');
     var authorBox = document.createElement("div");
     postHeader.appendChild(authorBox);
     // authorPic
     if (postData.authorPic && postData.authorPic !== "") {
       var authorPicWrapper = document.createElement("a");
-      //authorPic.setAttribute('id', uniqueID+"-authorPic");
       var authorPic = document.createElement("img");
       authorPic.setAttribute('src', postData.authorPic);
       (function (id) {
         authorPicWrapper.onclick = function(event){
-          modKeyCheck(event, function(){openAuthorPanel(id)});
+          modKeyCheck(event, function(){fetchPosts(true, {postCode:'TFFF', author:id});});
         }
       })(postData._id);
       authorPicWrapper.setAttribute('href', "/"+postData.author);
@@ -1369,7 +1739,7 @@ var renderOnePost = function (postData, type, typeName, postID) {
     var author = document.createElement("a");
     (function (id) {
       author.onclick = function(event) {
-        modKeyCheck(event, function(){openAuthorPanel(id)});
+        modKeyCheck(event, function(){fetchPosts(true, {postCode:'TFFF', author:id});});
       }
     })(postData._id);
     author.setAttribute('class', 'author-on-post special');
@@ -1408,159 +1778,56 @@ var renderOnePost = function (postData, type, typeName, postID) {
   post.appendChild(body);
   // tags
   var authorOption = null;
-  if (type === 'author' || (type === 'preview' && typeName === "edit")) {authorOption = {_id:postData._id, name:postData.author}}
-  var tagString = formatTags(postData.tags, authorOption);
+  var datedOption = null;
+  if (type === 'author' || type === 'preview-edit') {authorOption = {_id:postData._id, name:postData.author}}
+  if (type === 'dated') {datedOption = postData.date;}
+  var tagString = formatTags(postData.tags, authorOption, datedOption);
   var tagElem = document.createElement("div");
   tagElem.setAttribute('class', 'tag-section reader-font');
   tagElem.innerHTML = tagString;
   post.appendChild(tagElem);
-  //
-  if (type !== 'preview') {
-    createPostFooter(post, {_id:postData._id, name:postData.author}, postData, type);
+  // footer
+  if (type !== 'preview' && type !== 'preview-edit') {
+    createPostFooter(post, postData, type);
   }
-  //
-  /* (from the old system of filteringPostsByAnAuthorByTag)
-  if (type === 'author') {
-    //create tag ref
-    if (!glo.authors) {glo.authors = {};}
-    if (!glo.authors[postData.author]) {glo.authors[postData.author] = {}}
-    glo.authors[postData.author][postData.post_id] = postData.tags;
-  }
-  */
+
+  // give a bit for images to load then check if posts are long enough for bottom collapse button
+  setTimeout(function () {
+    if ($(uniqueID).offsetHeight > (.75 * window.innerHeight)) {
+      $(uniqueID +'-collapse-button-bottom').classList.remove("hidden");
+    }
+  }, 500);
   //
   return post;
 }
 
-var viewPageOfTag = function (tag, pageNum) {
-  openDateJump(true);
-  $("all-days").classList.add("removed");
-  if (!tag) {tag = glo.tag;}
-  if (!pageNum || !Number.isInteger(pageNum)) {pageNum = 0;}
-  $("tag-display").innerHTML = 'posts tagged <i>"'+tag+'"</i>';
-  $("tag-display").classList.remove('removed');
-  $("tag-menu-open").classList.add("removed");
-  $("clear-tag").classList.remove("removed");
-
-  if (glo.tagPage && glo.tagPage[tag] && pageNum === 0) {
-    pageNum = glo.tagPage[tag].total;
-  }
-
-  /*
-  if (glo.tagPage && glo.tagPage[tag] && glo.tagPage[tag].num[pageNum]) {
-    for (var i = 0; i < glo.tagPage[tag].num[pageNum].length; i++) {
-
-    }
-  }
-  */
-
-  // do we already have the data for this page?
-  if ($('posts-tagged-'+tag+'-page-'+pageNum)) {
-    clearOutCurrentlyDisplayedBucket();
-    glo.pageOfTag = pageNum;
-    glo.tag = tag;
-    $('posts-tagged-'+tag+'-page-'+pageNum).classList.remove("removed")
-    $('date-display').innerHTML = 'page '+pageNum+" of "+glo.tagPage[tag].total;
-    // hide/unhide nextDay buttons as needed
-    displayArrowsNextPrevPageOfTaggedPosts();
-    simulatePageLoad('~tagged/'+glo.tag+"/"+glo.pageOfTag, false);
-    loadManage();
-  } else {
-    // make the call to get the data for this page
-    loading();
-    ajaxCall('/~getTagByPage/', 'POST', {postRef:glo.postRef, page:pageNum ,tag:tag}, function(json) {
-      loadManage();
-      if (!glo.postStash) {glo.postStash = {}}
-      for (var i = 0; i < json.posts.length; i++) {
-        if (!glo.postStash[json.posts[i].post_id]) {
-          glo.postStash[json.posts[i].post_id] = {
-            post_id:json.posts[i].post_id,
-            date:json.posts[i].date,
-            body:json.posts[i].body,
-            tags:json.posts[i].tags,
-            title:json.posts[i].title,
-            authorPic:json.posts[i].authorPic,
-            author:json.posts[i].author,
-            _id:json.posts[i]._id,
-            elemList: [],
-          };
-        }
-      }
-      clearOutCurrentlyDisplayedBucket();
-      glo.pageOfTag = pageNum;
-      glo.tag = tag;
-
-      if (!glo.tagPage) {glo.tagPage = {}};
-      if (!glo.tagPage[tag]) {glo.tagPage[tag] = {total: json.pages}}
-
-      if (pageNum === 0) {
-        pageNum = json.pages;
-        glo.pageOfTag = pageNum;
-        simulatePageLoad('~tagged/'+glo.tag, false);
-      } else {
-        simulatePageLoad('~tagged/'+glo.tag+"/"+glo.pageOfTag, false);
-      }
-
-      $('date-display').innerHTML = 'page '+pageNum+" of "+glo.tagPage[tag].total;
-      var bucket = document.createElement("div");
-      bucket.setAttribute('id', 'posts-tagged-'+tag+'-page-'+pageNum);
-      $('posts').appendChild(bucket);
-      displayArrowsNextPrevPageOfTaggedPosts();
-
-      if (json.list.length === 0) {
-        var post = document.createElement("div");
-        post.innerHTML = "~no posts~";
-        post.classList.add('not-schlaugh');
-        bucket.appendChild(document.createElement("br"));
-        bucket.appendChild(document.createElement("br"));
-        bucket.appendChild(post);
-      } else {
-        for (var i = 0; i < json.list.length; i++) {
-          bucket.appendChild(renderOnePost(null, 'tagAll', tag, json.list[i]));
-        }
-      }
-
-
-      /*
-      if (!glo.tagPage) {glo.tagPage = {};}
-      if (!glo.tagPage[tag]) {glo.tagPage[tag] = {};}
-      if (!glo.tagPage[tag].num) {glo.tagPage[tag].num = {};}
-      glo.tagPage[tag].num[pageNum] = json.list;
-      */
-    });
-  }
+var allDaysButton = function () {
+  fetchPosts(true, {postCode: 'FTFF', tag: glo.postPanelStatus.tag})
 }
 
-var displayArrowsNextPrevPageOfTaggedPosts = function () {
-  if (glo.pageOfTag === glo.tagPage[glo.tag].total) {$("right-nav-arrow").classList.add("hidden");}
-  else {$("right-nav-arrow").classList.remove("hidden");}
-  if (glo.pageOfTag <= 1) {$("left-nav-arrow").classList.add("hidden");}
-  else {$("left-nav-arrow").classList.remove("hidden");}
-  //
-  if (glo.openPanel && glo.openPanel !== "posts-panel") {
-    $(glo.openPanel).classList.add('removed');
-    if ($(glo.openPanel+"-button")) {$(glo.openPanel+"-button").classList.remove('highlight');}
+var clearTagButton = function () {
+  if (!glo.postPanelStatus.date) {
+    glo.postPanelStatus.date = pool.getCurDate();
   }
-  if ($("posts-panel-button")) {
-    $("posts-panel-button").classList.add('highlight');
-  }
-  $("posts-panel").classList.remove('removed');
-  glo.openPanel = "posts-panel";
+  fetchPosts(true, {postCode:'FFTF', date:glo.postPanelStatus.date});
+}
+var clearAuthorTagButton = function () {
+  fetchPosts(true, {postCode:'TFFF', author:glo.postPanelStatus.author});
 }
 
 var collapsePost = function (uniqueID, postID, isBtmBtn) {
-  var btnElem = $(uniqueID+'collapse-button-top');
-  var btnElem2 = $(uniqueID+'collapse-button-bottom');
+  var btnElem = $(uniqueID+'-collapse-button-top');
+  var btnElem2 = $(uniqueID+'-collapse-button-bottom');
   if (btnElem.title === 'expand') {     // expand the post
     $(uniqueID).classList.remove('faded');
+    $(uniqueID+'body').classList.remove('removed');
     //$(uniqueID+"-authorPic").classList.remove('removed');
     btnElem.title = 'collapse';
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
     btnElem2.title = 'collapse';
     btnElem2.innerHTML = '<i class="far fa-minus-square"></i>';
-    btnElem2.classList.remove('removed');
-    $(uniqueID+'body').classList.remove('removed');
-    if ($(uniqueID).offsetHeight > window.innerHeight) {
-      $(uniqueID +'collapse-button-bottom').classList.remove("hidden");
+    if ($(uniqueID).offsetHeight > (.75 * window.innerHeight)) {
+      btnElem2.classList.remove("hidden");
     }
     var collapse = false;
     if (glo.collapsed) {glo.collapsed[postID] = false;}
@@ -1569,7 +1836,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     //$(uniqueID+"-authorPic").classList.add('removed');
     btnElem.title = 'expand';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
-    btnElem2.classList.add('removed');
+    btnElem2.classList.add('hidden');
 
     if (isBtmBtn) {
       var initScroll = window.scrollY;
@@ -1577,7 +1844,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     }
     $(uniqueID+'body').classList.add('removed');
     if (isBtmBtn) {
-      if (initScroll === window.scrollY) {
+      if (initScroll === window.scrollY) {  //huh? "6435886"
         window.scrollBy(0, $(uniqueID).offsetHeight - initHeight);
       }
     }
@@ -1589,173 +1856,29 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     ajaxCall('/collapse', 'POST', {id:postID, collapse:collapse}, function(json) {
       //
     });
-    // update all other rendered versions of the post
-    if (glo.postStash && glo.postStash[postID]) {
-      var posArr = glo.postStash[postID].elemList;
-      for (var i = 0; i < posArr.length; i++) {
-        if (uniqueID !== posArr[i]) {
-          if (!collapse) {
-            $(posArr[i]).classList.remove('faded');
-            //$(posArr[i]+"-authorPic").classList.remove('removed');
-            $(posArr[i]+'collapse-button-top').title = 'collapse';
-            $(posArr[i]+'collapse-button-top').innerHTML = '<i class="far fa-minus-square"></i>';
-            $(posArr[i]+'collapse-button-bottom').title = 'collapse';
-            $(posArr[i]+'collapse-button-bottom').innerHTML = '<i class="far fa-minus-square"></i>';
-            $(posArr[i]+'collapse-button-bottom').classList.remove('removed');
-            $(posArr[i]+'body').classList.remove('removed');
-            if ($(posArr[i]).offsetHeight > window.innerHeight) {
-              $(posArr[i] +'collapse-button-bottom').classList.remove("hidden");
-            }
-          } else {
-            $(posArr[i]).classList.add('faded');
-            //$(posArr[i]+"-authorPic").classList.add('removed');
-            $(posArr[i]+'collapse-button-top').title = 'expand';
-            $(posArr[i]+'collapse-button-top').innerHTML = '<i class="far fa-plus-square"></i>';
-            $(posArr[i]+'collapse-button-bottom').classList.add('removed');
-            $(posArr[i]+'body').classList.add('removed');
-          }
-        }
-      }
-    }
   }
 }
 
 var displayBookmarks = function () {
-  if (glo.bookmarksFetched) {
-    switchPanel('bookmarks-panel');
-  } else {
-    loading();
-    ajaxCall('/bookmarks', 'GET', {}, function(json) {
-      glo.bookmarksFetched = true;
-      var bucket = $("bookmark-bucket");
-      // if there are no posts
-      if (json.posts.length === 0) {
-        renderNoMarks();
-      } else {
-        for (var i=json.posts.length-1; i > -1; i--) {
-          bucket.appendChild(renderOnePost(json.posts[i], 'bookmark', null));
-        }
-      }
-      loading(true);
-      switchPanel('bookmarks-panel');
-    });
-  }
+  fetchPosts(true, {postCode:"MARK"});
 }
 
-var renderNoMarks = function () {
-  var bucket = $("bookmark-bucket");
-  var post = document.createElement("div");
-  bucket.appendChild(document.createElement("br"));
-  bucket.appendChild(document.createElement("br"));
-  post.innerHTML = "None Marked!";
-  bucket.appendChild(post);
-}
-
-var createMessageButton = function (parent, author, insert) {
-  // OPTIONAL 'insert' is the element before which the button is to be inserted
-  if (glo.username && author.author !== glo.username && author.key) {
-    var message = document.createElement("button");
-    message.innerHTML = "message";
-    message.onclick = function(){
-      //look for a thread btwn the author and logged in user
-      checkForThread({
-        name: author.author,
-        _id: author._id,
-        key: author.key,
-        image: author.authorPic,
-      });
-    }
-    if (insert) {
-      parent.insertBefore(document.createElement("br"), insert);
-      parent.insertBefore(message, insert);
-    } else {
-      parent.appendChild(document.createElement("br"));
-      parent.appendChild(message);
-    }
-  } else if (!glo.username) { // not logged in, store the info in case they log in
-    glo.currentAuthor = author;
-  }
-}
-
-var createFollowButton = function (parent, author, insert) {
-  // OPTIONAL 'insert' is the element before which the button is to be inserted
-  if (glo.username && author._id) {
-    var follow = document.createElement("button");
-    // is the user already following the author?
-    if (glo.followingRef[author._id]) {
-      follow.innerHTML = "defollow";
-      var remove = true;
-    } else {
-      follow.innerHTML = "follow";
-      var remove = false;
-    }
-    follow.onclick = function(){
-      ajaxCall('/follow', 'POST', {id:author._id, remove:remove}, function(json) {
-        if (remove) {glo.followingRef[author._id] = false;}
-        else {glo.followingRef[author._id] = true;}
-        // refresh button(by hiding and creating new)
-        follow.classList.add('removed');
-        createFollowButton(parent, author, follow);
-      });
-    }
-    if (insert) {
-      parent.insertBefore(follow, insert);
-    } else {
-      parent.appendChild(follow);
-    }
-  }
-}
-
-var createEditBioButtons = function (parent, data) {
-  // edit bio button,
-  if (glo.username && glo.username === data.author) {
-    parent.appendChild(document.createElement("br"));
-    var editButton = document.createElement("button");
-    editButton.innerHTML = "edit bio";
-    editButton.onclick = function(){
-      editBio();
-    }
-    parent.appendChild(editButton);
-    // delete bio button
-    if (data.bio && data.bio !== "") {
-      parent.appendChild(document.createElement("br"));
-      var deleteButton = document.createElement("button");
-      deleteButton.innerHTML = "delete bio";
-      deleteButton.setAttribute('id', data.author+'-delete-bio-button');
-      deleteButton.onclick = function(){
-        deleteBio();
-      }
-      parent.appendChild(deleteButton);
-    }
-  }
-}
-
-var createPostFooter = function (postElem, author, post, type) {
-  // is there an extant footer?
-  if (postElem.childNodes[postElem.childNodes.length-1].classList[0] === "post-footer") {
-    var footer = postElem.childNodes[postElem.childNodes.length-1];
-    // remove the sub-sections
-    footer.removeChild(footer.childNodes[footer.childNodes.length-1]);
-    footer.removeChild(footer.childNodes[footer.childNodes.length-1]);
-  } else {
-    var footer = document.createElement("div");
-    footer.setAttribute('class', 'post-footer');
-    postElem.appendChild(footer);
-  }
-  // footer left
-  if (type !== 'feed' && type !== 'tag') {
+var createPostFooter = function (postElem, postData, type) {
+  var footer = document.createElement("div");
+  footer.setAttribute('class', 'post-footer');
+  postElem.appendChild(footer);
+  // footer left, datestamp
+  if (type !== 'dated') {
     var footerLeft = document.createElement("div");
     footerLeft.setAttribute('class', 'post-footer-left');
     footer.appendChild(footerLeft);
     var dateStamp = document.createElement("text");
-    dateStamp.innerHTML = post.date;
+    dateStamp.innerHTML = postData.date;
     dateStamp.setAttribute('class', 'date-stamp');
     if (glo.username) {
       dateStamp.setAttribute('class', 'clicky special date-stamp');
       dateStamp.onclick = function(){
-        dateJump(post.date);
-        switchPanel('posts-panel');
-        simulatePageLoad();
+        fetchPosts(true, {postCode:"FFTF", date:postData.date,});
       }
     }
     footerLeft.appendChild(dateStamp);
@@ -1766,66 +1889,54 @@ var createPostFooter = function (postElem, author, post, type) {
     footerButtons.setAttribute('class', 'post-footer-right');
     footer.appendChild(footerButtons);
     if (glo.username) {
-      if (post.post_id && post.post_id.length !== 8) {
+      if (postData.post_id && postData.post_id.length !== 8) {  // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
         // quote button
         var quoteBtn = document.createElement("footerButton");
         quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
         quoteBtn.title = "quote";
         quoteBtn.onclick = function() {
-          if (glo.postStash && glo.postStash[post.post_id]) {     // is it already stashed?
-            var text = "<quote>"+glo.postStash[post.post_id].body+
-            '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
+          if (glo.postStash && glo.postStash[postData.post_id]) {     // is it already stashed?
+            var text = "<quote>"+glo.postStash[postData.post_id].body+
+            '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>"
             if ($('post-editor').value !== "") {text = '<br>'+text;}
             $('post-editor').value += prepTextForEditor(text);
             showWriter('post');
-            addTag(author.name);
+            addTag(postData.author);
             switchPanel('write-panel');
             simulatePageLoad("~write", false);
-          } else {                                               // no, so make the call
-            loading();
-            ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
-              if (json.four04) {return uiAlert("eRoRr! post not found???")}
-              loading(true);
-              var text = "<quote>"+json.post.body+
-              '<r><a href="/~/'+post.post_id+'">-'+author.name+"</a></r></quote>"
-              if ($('post-editor').value !== "") {text = '<br>'+text;}
-              $('post-editor').value += prepTextForEditor(text);
-              showWriter('post');
-              addTag(author.name);
-              switchPanel('write-panel');
-              simulatePageLoad("~write", false);
-            });
+          } else {
+            return uiAlert("eRoRr! post not found???<br>how did you even get here?");
           }
         }
         footerButtons.appendChild(quoteBtn);
       }
       //
-      createBookmarkButton(footerButtons, author._id, post);
+      createBookmarkButton(footerButtons, postData);
     }
     // perma-link
-    if (post.post_id && post.post_id.length !== 8) {
+    if (postData.post_id && postData.post_id.length !== 8) { // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
       var permalinkWrapper = document.createElement("a");
-      permalinkWrapper.setAttribute('href', "/~/"+post.post_id);
+      permalinkWrapper.setAttribute('href', "/~/"+postData.post_id);
       permalinkWrapper.setAttribute('class', 'not-special');
       var permalink = document.createElement("footerButton");
       permalink.innerHTML = '<i class="fas fa-link"></i>';
       permalink.title = "permalink";
       permalink.onclick = function(event) {
         modKeyCheck(event, function(){
-          openPost(author._id, post.post_id, post.date);
+          fetchPosts(true, {postCode:"TFTF", author:postData._id , date:postData.date , post_id:postData.post_id})
         });
       }
       permalinkWrapper.appendChild(permalink);
       footerButtons.appendChild(permalinkWrapper);
     }
     //
-    if (type === 'author' && glo.username && glo.username === author.name) {
+    if ((type === 'author' || type === 'perma') && glo.username && glo.username === postData.author) {
       //edit button
       var editBtn = document.createElement("footerButton");
       editBtn.innerHTML = '<i class="fas fa-pen"></i>';
       editBtn.title = "edit";
       editBtn.onclick = function() {
-        editPost(post, author);
+        editPost(postData);
       }
       footerButtons.appendChild(editBtn);
       // delete button
@@ -1833,19 +1944,20 @@ var createPostFooter = function (postElem, author, post, type) {
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
       deleteBtn.title = "delete";
       deleteBtn.onclick = function() {
-        deletePost(post);
+        deletePost(postData);
       }
       footerButtons.appendChild(deleteBtn);
     }
   }
 }
 
-var addTag = function (author) {
-  $('tag-input').value = $('tag-input').value + "@"+author+", ";
+var addTag = function (authorName) {
+  $('tag-input').value = $('tag-input').value + "@"+authorName+", ";
 }
 
-var createBookmarkButton = function (parent, author_id, post) {
-  if (!parent || !author_id || !post.date || !post.post_id) {return;}
+var createBookmarkButton = function (parent, post) {
+  if (!parent || !post._id || !post.date || !post.post_id) {return;}
+  var author_id = post._id;
   // is there an extant bookmark button?
   var x = parent.childNodes;
   if (x[x.length-2] && x[1].classList[0] === "bookmark-button") {
@@ -1854,7 +1966,8 @@ var createBookmarkButton = function (parent, author_id, post) {
   var elem = document.createElement("footerButton");
   elem.setAttribute('class', "bookmark-button");
   var alreadyMarked = false;
-  if (glo.bookmarks && glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
+  if (!glo.bookmarks) {glo.bookmarks = {}}
+  if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
     alreadyMarked = true;
     elem.innerHTML = '<icon class="fas fa-bookmark"></icon>';
     elem.title = "un-bookmark";
@@ -1863,72 +1976,42 @@ var createBookmarkButton = function (parent, author_id, post) {
     elem.title = "bookmark";
   }
   elem.onclick = function() {
-    ajaxCall('/bookmarks', 'POST', {author_id:author_id, date:post.date, remove:alreadyMarked}, function(json) {
-      if (!glo.bookmarks) {glo.bookmarks = {}}
-      if (alreadyMarked) {
-        if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
-          glo.bookmarks[author_id][post.date] = false;
-        }
-        // check if bookmarks have been rendered and if so, remove!
-        if (glo.bookmarksFetched) {
-          $('bookmarkFeed-'+post.post_id).classList.add('removed');
-          // if the bookmark list is now empty, indicate
-          if (isBookmarkListEmpty()) {
-            renderNoMarks();
-          }
-        }
-      } else {
-        // check if bookmarks have been rendered and if so, add!
-        if (glo.bookmarksFetched) {
-          // check if list was previously empty, and remove the empty indicator
-          if (isBookmarkListEmpty()) {
-            var childrenCount = $("bookmark-bucket").childNodes.length;
-            for (var i = 0; i < childrenCount; i++) {
-              $("bookmark-bucket").removeChild($("bookmark-bucket").childNodes[0]);
-            }
-          }
-          if (!glo.bookmarks[author_id]) {glo.bookmarks[author_id] = {}}
-          glo.bookmarks[author_id][post.date] = true;
-          $("bookmark-bucket").insertBefore(renderOnePost(post, 'bookmark', null), $("bookmark-bucket").childNodes[0]);
-        } else {
-          if (!glo.bookmarks[author_id]) {glo.bookmarks[author_id] = {}}
-          glo.bookmarks[author_id][post.date] = true;
-        }
+    if (alreadyMarked) {    // so we're removing it
+      if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
+        glo.bookmarks[author_id][post.date] = false;
       }
-      // update bookmark buttons on all rendered versions of the post
-      if (glo.postStash && glo.postStash[post.post_id]) {
-        var posArr = glo.postStash[post.post_id].elemList;
-        for (var i = 0; i < posArr.length; i++) {
-          var x = $(posArr[i]).childNodes;
-          var y = x[x.length-1].childNodes[x[x.length-1].childNodes.length-1]
-          if (y && y.classList[0] === "post-footer-right") {
-            createBookmarkButton(y, author_id, post);
-          }
-        }
+      //
+      _npa(['glo','pRef','bookmarks'], false);
+    } else {
+      if (!glo.bookmarks[author_id]) {glo.bookmarks[author_id] = {}}
+      glo.bookmarks[author_id][post.date] = true;
+      //
+      var markArray = _npa(['glo','pRef','bookmarks']);
+      if (markArray && markArray.length !== undefined) {
+        markArray.push(post.post_id);
+      } else {
+        markArray = [post.post_id];
+      }
+      if (glo.postPanelStatus.postCode === "MARK") {
+        fetchPosts(true);
+      }
+    }
+    // update bookmark button
+    createBookmarkButton(parent, post);
+    //
+    ajaxCall('/bookmarks', 'POST', {author_id:author_id, date:post.date, remove:alreadyMarked}, function(json) {
+      // are we looking at the page of bookmarked posts right NOW??
+      if (alreadyMarked && glo.postPanelStatus.postCode === "MARK") {
+        fetchPosts(true);
       }
     });
   }
   if (insert) {
     parent.insertBefore(elem, insert);
-    insert.parentNode.removeChild(insert);
+    removeElement(insert);
   } else {
     parent.appendChild(elem);
   }
-}
-
-var isBookmarkListEmpty = function () {
-  for (var auth in glo.bookmarks) {
-    if (glo.bookmarks.hasOwnProperty(auth)) {
-      for (var mark in glo.bookmarks[auth]) {
-        if (glo.bookmarks[auth].hasOwnProperty(mark)) {
-          if (glo.bookmarks[auth][mark]) {
-            return false;
-          }
-        }
-      }
-    }
-  }
-  return true;
 }
 
 var deletePost = function (post) {
@@ -1939,13 +2022,8 @@ var deletePost = function (post) {
       loading();
       ajaxCall('/deleteOldPost', 'POST', post, function(json) {
         loading(true);
-        // remove the DOM elements of ALL instances of the post that may be floating about
-        if (glo.postStash && glo.postStash[post.post_id]) {
-          var posArr = glo.postStash[post.post_id].elemList;
-          for (var i = 0; i < posArr.length; i++) {
-            $(posArr[i]).parentNode.removeChild($(posArr[i]));
-          }
-        }
+        glo.postStash[post.post_id] = undefined;
+        fetchPosts(true);
       });
     });
   });
@@ -1960,17 +2038,17 @@ var deleteBio = function () {
       var data = {post_id:'bio' ,date:'bio'};
       ajaxCall('/deleteOldPost', 'POST', data, function(json) {
         loading(true);
+        _npa(['glo','pRef','author',glo.userID,'info',"bio"], "");
         glo.bio = "";
-        $(glo.username+'-bio').parentNode.removeChild($(glo.username+'-bio'));
-        $(glo.username+'-delete-bio-button').parentNode.removeChild($(glo.username+'-delete-bio-button'));
+        fetchPosts(true);
       });
     });
   });
 }
 
-var editPost = function (post, author) {
+var editPost = function (post) {
   $('pending-post-edit').classList.remove("removed");
-  $('pending-header-preview').classList.add("removed");
+  $('author-header-edit').classList.add("removed");
   //
   $("old-post-editor-title").innerHTML = "<l>editing your post for "+post.date+'</l>';
   $('edit-post-button').onclick = function () {
@@ -1999,23 +2077,8 @@ var editPost = function (post, author) {
       $('edit-post-button').innerHTML = "new edit";
       hideWriter('old-post');
       switchPanel("edit-panel");
-    } else {                                               // no, so make the call
-      loading();
-      ajaxCall('/~getPost/'+author._id+"/"+post.date, 'GET', "", function(json) {
-        if (json.four04) {return uiAlert("eRoRr! post not found???")}
-        loading(true);
-        var tags = getTagString(json.post.tags);
-        glo.fetchedPosts[post.date] = [json.post];
-        $('old-tag-input').value = tags;
-        if (json.post.title) {$('old-title-input').value = post.title;}
-        $("old-post-status").innerHTML = "no pending edit for your post on "+post.date;
-        $('old-post-editor').value = prepTextForEditor(json.post.body);
-        $('delete-pending-old-post').classList.add("removed");
-        $('pending-post-edit').classList.add("removed");
-        $('edit-post-button').innerHTML = "new edit";
-        hideWriter('old-post');
-        switchPanel("edit-panel");
-      });
+    } else {
+      return uiAlert("eRoRr! post not found???<br>how did you even get here?");
     }
   }
   // set submit button
@@ -2076,7 +2139,7 @@ var editPost = function (post, author) {
         glo.fetchedPosts[post.date] = null;
         updatePendingEdit(json);
         $('edit-post-button').onclick = function () {
-          editPost(post, author);
+          editPost(post);
           showWriter('old-post');
         }
       });
@@ -2088,14 +2151,14 @@ var updatePendingEdit = function (post, bio) {
   if (post.body === "") {
     $('old-post-status').innerHTML = "no "+$('old-post-status').innerHTML;
     $('delete-pending-old-post').classList.add("removed");
-    if (bio) {$('pending-header-preview').classList.add("removed");}
+    if (bio) {$('author-header-edit').classList.add("removed");}
     else {$('pending-post-edit').classList.add("removed");}
     $('edit-post-button').innerHTML = "new edit";
   } else {
     var str = $('old-post-status').innerHTML;
     if (str.substr(0,3) === "no ") {$('old-post-status').innerHTML = str.substr(3);}
     $('delete-pending-old-post').classList.remove("removed");
-    if (bio) {$('pending-header-preview').classList.remove("removed");}
+    if (bio) {$('author-header-edit').classList.remove("removed");}
     else {$('pending-post-edit').classList.remove("removed");}
     $('edit-post-button').innerHTML = "edit edit";
   }
@@ -2103,10 +2166,17 @@ var updatePendingEdit = function (post, bio) {
   $('old-tag-input').value = tags;
   if (post.title) {$('old-title-input').value = post.title;}
   $('old-post-editor').value = prepTextForEditor(post.body);
-  if (bio) {$('pending-right-preview').innerHTML = convertText(post.body, 'old-pending')}
+  if (bio) {
+    setAuthorHeader('edit', {
+      _id: glo.userID,
+      author: glo.username,
+      authorPic: glo.userPic,
+      bio: convertText(post.body, 'old-pending'),
+    });
+  }
   else {
     post.author = glo.username;
-    var newEditElem = renderOnePost(post, "preview", "edit");
+    var newEditElem = renderOnePost(post, "preview-edit");
     if ($('pending-post-edit').childNodes[0]) {
       $('pending-post-edit').replaceChild(newEditElem, $('pending-post-edit').childNodes[0]);
     } else {
@@ -2119,7 +2189,7 @@ var updatePendingEdit = function (post, bio) {
 
 var editBio = function () {
   $('pending-post-edit').classList.add("removed");
-  $('pending-header-preview').classList.remove("removed");
+  $('author-header-edit').classList.remove("removed");
   //
   $("old-post-editor-title").innerHTML = "<l>editing bio</l>";
   $('edit-post-button').onclick = function () {
@@ -2138,7 +2208,7 @@ var editBio = function () {
     $("old-post-status").innerHTML = "no pending bio edit";
     $('old-post-editor').value = prepTextForEditor(glo.bio);
     $('delete-pending-old-post').classList.add("removed");
-    $('pending-header-preview').classList.add("removed");
+    $('author-header-edit').classList.add("removed");
     $('edit-post-button').innerHTML = "new edit";
     hideWriter('old-post');
     switchPanel("edit-panel");
@@ -2198,421 +2268,14 @@ var getTagString = function (tagObj) {
   return tags;
 }
 
-/* userAndPostLinkHandler, not connected to anything
-var userAndPostLinkHandler = function (author, post) { // not connected to anything
-  if (glo.username) {
-    if (post !== null) {
-      openPost(author, post);
-    } else {
-      openAuthorPanel(author);
-    }
-  } else {
-    if (post !== null) {
-      window.location.href = "/"+author+"/"+post;
-    } else {
-      window.location.href = "/"+author;
-    }
-  }
-}
-*/
-
-var clearAuthorPage = function (authorID) {
-  var children = $(authorID+'-posts').childNodes;
-  for (var i = 0; i < children.length; i++) {
-    children[i].classList.add('removed');
-  }
+var removeElement = function (elem) {
+  elem.parentNode.removeChild(elem);
 }
 
-var openAuthorPanel = function (authorID, callback) {
-  // see if a panel for the author already exists
-  if ($("user-"+authorID+"-panel")) {
-    switchPanel("user-"+authorID+"-panel");
-    $(authorID+'-tag-nav').classList.add('removed');
-    $(authorID+'-page-nav').classList.remove('removed');
-    turnAuthorPage(authorID, 0);
-    //clearAuthorPage(authorID);
-
-    if ($(authorID+'-panel-404')) {$(authorID+'-panel-404').classList.add('removed');}
-    $(authorID+'-panel-title').onclick = "";
-    $(authorID+'-panel-title').removeAttribute('href');
-    $(authorID+'-panel-title').classList.remove("clicky");
-    $(authorID+'-panel-title').classList.add("not-special");
-    if (callback) {callback();}
-    else {
-      simulatePageLoad($(authorID+'-panel-title').innerHTML, null, glo.authorPics[authorID]);
-    }
-  } else {
-    // call for data and render a new panel
-    loading();
-    ajaxCall('/~getAuthor/'+authorID+'/0', 'POST', {postRef:glo.postRef}, function(json) {
-      loading(true);
-      if (json.four04) {
-        uiAlert("this shouldn't ever happen now, right?");
-      } else {
-        json = json.data;
-        // panel
-        var panel = document.createElement("div");
-        panel.setAttribute('id', "user-"+authorID+"-panel");
-        $("main").appendChild(panel);
-        // header
-        var authorHeader = document.createElement("div");
-        authorHeader.setAttribute('class', 'author-header');
-        panel.appendChild(authorHeader);
-        // header-left
-        var authorHeaderLeft = document.createElement("div");
-        authorHeaderLeft.setAttribute('class', 'author-header-left');
-        authorHeaderLeft.setAttribute('id', json.author+'-header-left');
-        authorHeader.appendChild(authorHeaderLeft);
-        // pic
-        if (json.authorPic !== "") {
-          var authorPic = document.createElement("img");
-          authorPic.setAttribute('src', json.authorPic);
-          authorPic.setAttribute('class', 'author-panel-pic');
-          glo.authorPics[json._id] = json.authorPic;
-          authorHeaderLeft.appendChild(authorPic);
-          var x = authorPic.cloneNode();
-          if (glo.username && glo.username === json.author) {
-            $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
-          }
-        }
-        // title
-        var title = document.createElement("a");
-        title.setAttribute('class', 'author-page-title not-special');
-        // text sizing based on name length
-        if (json.author.length < 6) {title.classList.add('author-page-title-0')}
-        else if (json.author.length < 12) {title.classList.add('author-page-title-1')}
-        else if (json.author.length < 20) {title.classList.add('author-page-title-2')}
-        else if (json.author.length < 30) {title.classList.add('author-page-title-3')}
-        else if (json.author.length < 40) {title.classList.add('author-page-title-4')}
-        else if (json.author.length < 50) {title.classList.add('author-page-title-5')}
-        else {title.classList.add('author-page-title-6')}
-        //
-        title.innerHTML = json.author;
-        var x = title.cloneNode(true);
-        title.setAttribute('id', json._id+'-panel-title');
-        authorHeaderLeft.appendChild(title);
-        if (glo.username && glo.username === json.author) {
-          $("pending-left-preview").insertBefore(x, $("preview-follow-button"));
-          $("pending-left-preview").insertBefore(document.createElement("br"), $("preview-follow-button"));
-        }
-        // follow and message and bio buttons
-        createFollowButton(authorHeaderLeft, json);
-        createMessageButton(authorHeaderLeft, json);
-        createEditBioButtons(authorHeaderLeft, json);
-        // header-right
-        if (json.bio && json.bio !== "") {
-          var authorHeaderRight = document.createElement("div");
-          authorHeaderRight.setAttribute('class', 'author-header-right reader-font');
-          authorHeaderRight.setAttribute('id', json.author+'-bio');
-          authorHeaderRight.innerHTML = convertText(json.bio, json.author+"-bio");
-          authorHeader.appendChild(authorHeaderRight);
-        }
-        // tag nav
-        var tagNav = document.createElement("div");
-        tagNav.setAttribute('class','removed')
-        tagNav.setAttribute('id', json._id+'-tag-nav')
-        panel.appendChild(tagNav);
-        tagNav.appendChild(document.createElement("br"));
-        var tagText = document.createElement("h2");
-        tagText.setAttribute('id', json._id+'-tag-text')
-        tagText.setAttribute('class','top-tag')
-        tagNav.appendChild(tagText);
-        var tagClear = document.createElement("button");
-        tagClear.innerHTML = 'clear tag';
-        (function (authorID) {
-          tagClear.onclick = function(){openAuthorPanel(authorID);}
-        })(authorID);
-        tagNav.appendChild(tagClear);
-        // post bucket
-        var bucket = document.createElement("div");
-        bucket.setAttribute('id', json._id+'-posts');
-        panel.appendChild(bucket);
-
-        renderAuthorPage(json, json.pages);
-
-        //page nav
-        var pageNav = document.createElement("div");
-        pageNav.setAttribute('class','author-page-nav');
-        pageNav.setAttribute('id', json._id+'-page-nav');
-        panel.appendChild(pageNav);
-        if (json.pages > 1) {
-          var arrowBox = document.createElement("div");
-          pageNav.appendChild(arrowBox);
-          var leftArrow = document.createElement("clicky");
-          leftArrow.setAttribute('class', "author-arrow");
-          leftArrow.setAttribute('id', json._id+"-left-arrow");
-          leftArrow.innerHTML = '<icon class="fas fa-caret-left"></icon>';
-          leftArrow.onclick = function () {
-            turnAuthorPage(json._id, -1);
-          }
-          arrowBox.appendChild(leftArrow);
-          var rightArrow = document.createElement("clicky");
-          rightArrow.setAttribute('class', "author-arrow hidden");
-          rightArrow.setAttribute('id', json._id+"-right-arrow");
-          rightArrow.innerHTML = '<icon class="fas fa-caret-right"></icon>';
-          rightArrow.onclick = function () {
-            turnAuthorPage(json._id, 1);
-          }
-          arrowBox.appendChild(rightArrow);
-        }
-        var page = document.createElement('text');
-        page.innerHTML = "page<br>";
-        page.setAttribute('class', "monospace")
-        pageNav.appendChild(page);
-
-        var pageForm = document.createElement('form');
-        pageForm.setAttribute('action', "javascript:void(0);");
-        pageNav.appendChild(pageForm);
-        if (json.pages > 1) {
-          var pageNumberLeft = document.createElement('input');
-          pageNumberLeft.value = json.pages;
-          pageNumberLeft.onmousedown = function () {$(json._id+ "-page-jump").classList.remove('hidden');}
-          pageNumberLeft.onclick = function () {$(json._id+ "-page-jump").classList.remove('hidden');}
-          if (json.pages < 10) {
-            pageNumberLeft.setAttribute('class', "monospace post-background page-number-left");
-          } else if (json.pages < 100) {
-            pageNumberLeft.setAttribute('class', "monospace post-background page-number-left-wide");
-          } else {
-            pageNumberLeft.setAttribute('class', "monospace post-background page-number-left-wider");
-          }
-        } else {
-          var pageNumberLeft = document.createElement('text');
-          pageNumberLeft.innerHTML = json.pages;
-          pageNumberLeft.setAttribute('class', "monospace");
-        }
-        pageNumberLeft.setAttribute('id', json._id+ "-page-number-left")
-        pageForm.appendChild(pageNumberLeft);
-
-        var pageNumber = document.createElement('text');
-        pageNumber.innerHTML = " of ";
-        pageNumber.setAttribute('class', "monospace")
-        pageForm.appendChild(pageNumber);
-
-        var pageNumberRight = document.createElement('text');
-        pageNumberRight.innerHTML = json.pages;
-        if (json.pages < 2) {
-          pageNumberRight.setAttribute('class', "monospace");
-        } else if (json.pages < 10) {
-          pageNumberRight.setAttribute('class', "monospace page-number-right");
-        } else if (json.pages < 100) {
-          pageNumberRight.setAttribute('class', "monospace page-number-right-wide");
-        } else {
-          pageNumberRight.setAttribute('class', "monospace page-number-right-wider");
-        }
-        pageNumberRight.setAttribute('id', json._id+ "-page-number-right")
-        pageForm.appendChild(pageNumberRight);
-        // put jump stuff here
-        if (json.pages > 2) {
-          pageForm.appendChild(document.createElement('br'));
-          var pageJump = document.createElement('button');
-          pageJump.innerHTML = 'jump';
-          pageJump.onclick = function () {
-            var newPage = parseInt(pageNumberLeft.value);
-            if (newPage === 69) {
-              uiAlert("<br>...<br><br>...<br><br>nice", "nice");
-              if (json.pages > 68) {
-                turnAuthorPage(json._id, null, newPage);
-              }
-            } else if (!Number.isInteger(newPage) || newPage < 1 || newPage > json.pages) {
-              uiAlert("oh do <i>please</i> at least would you <i>try</i> to only input integers between 1 and the total number of pages, inclusive?", "yes doctor i will try");
-            } else {
-              turnAuthorPage(json._id, null, newPage);
-            }
-          }
-          pageJump.setAttribute('class', 'hidden')
-          pageJump.setAttribute('id', json._id+ "-page-jump")
-          pageForm.appendChild(pageJump);
-        }
-        //
-        switchPanel("user-"+json._id+"-panel");
-        if (callback) {callback();}
-        else {
-          simulatePageLoad(json.author, null, json.authorPic);
-        }
-      }
-    });
-  }
-}
-
-var turnAuthorPage = function (authorID, dir, num) {
-  // was a dir or num given?
-  if (num) {var newPage = num}
-  else {
-    // "right-arrow" is just an indicator of if this author has multiple pages
-    if ($(authorID+"-right-arrow")) {var newPage = parseInt($(authorID+ "-page-number-left").value) + dir;}
-    else {var newPage = parseInt($(authorID+ "-page-number-left").innerHTML) + dir;}
-  }
-  // is updating the arrows/page numbers is even a thing?
-  if ($(authorID+"-right-arrow")) {
-    $(authorID+ "-page-number-left").value = newPage;
-    if (parseInt($(authorID+ "-page-number-right").innerHTML) === newPage) {
-      $(authorID+"-right-arrow").classList.add('hidden');
-    } else {
-      $(authorID+"-right-arrow").classList.remove('hidden');
-    }
-    if (newPage === 1) {
-      $(authorID+"-left-arrow").classList.add('hidden');
-    } else {
-      $(authorID+"-left-arrow").classList.remove('hidden');
-    }
-  }
-  //
-  clearAuthorPage(authorID);
-  // do we already have the data for this page?
-  if (glo.authorPage && glo.authorPage[authorID] && glo.authorPage[authorID].num[newPage]) {
-    for (var i = 0; i < glo.authorPage[authorID].num[newPage].length; i++) {
-      $("author-" +glo.authorPage[authorID].num[newPage][i]).classList.remove('removed');
-    }
-    var authorName = $(authorID+'-panel-title').innerHTML;
-    simulatePageLoad(authorName+"/~page/"+newPage, authorName, glo.authorPics[authorID]);
-  } else {
-  // make the call to get the data for this page
-    loading();
-    ajaxCall('/~getAuthor/'+authorID+'/'+newPage, 'POST', {postRef:glo.postRef}, function(json) {
-      loading(true);
-      renderAuthorPage(json.data, newPage);
-      var authorName = $(authorID+'-panel-title').innerHTML;
-      simulatePageLoad(authorName+"/~page/"+newPage, authorName, glo.authorPics[authorID]);
-    });
-  }
-}
-
-var renderAuthorPage = function (data, pageNum, tag) {
-  // like 'page' as in a page of posts, on the author panel
-
-  // add incoming post data to postStash
-  if (!glo.postStash) {glo.postStash = {}}
-  for (var i = 0; i < data.posts.length; i++) {
-    if (!glo.postStash[data.posts[i].post_id]) {
-      glo.postStash[data.posts[i].post_id] = {
-        post_id:data.posts[i].post_id,
-        date:data.posts[i].date,
-        body:data.posts[i].body,
-        tags:data.posts[i].tags,
-        title:data.posts[i].title,
-        authorPic:data.authorPic,
-        author:data.author,
-        _id:data._id,
-        elemList: [],
-      };
-    }
-  }
-  if (!glo.authorPage) {glo.authorPage = {};}
-  if (!glo.authorPage[data._id]) {glo.authorPage[data._id] = {num:{}, tag: {}};}
-  if (tag === undefined) {
-    glo.authorPage[data._id].num[pageNum] = data.list;
-  } else {
-    glo.authorPage[data._id].tag[tag] = data.list;
-  }
-  var bucket = $(data._id+'-posts');
-  // posts
-  if (data.list.length === 0) {
-    bucket.appendChild(document.createElement("br"));
-    var text = document.createElement("h2");
-    text.innerHTML = "no posts!";
-    bucket.appendChild(text);
-  } else {
-    for (var i = 0; i < data.list.length; i++) {
-      var postElem = renderOnePost(null, 'author', data.author, data.list[i]);
-      bucket.appendChild(postElem);
-      if (postElem.offsetHeight > window.innerHeight) {
-        $(postElem.id +'collapse-button-bottom').classList.remove("hidden");
-      }
-    }
-  }
-}
-
-var open404page = function (type) {
-  if (type === 'ever') {
-    if ($('404-panel-ever')) {switchPanel("404-panel-ever");}
-    else {
-      // panel
-      var panel = document.createElement("div");
-      panel.setAttribute('id', '404-panel-ever');
-      $("main").appendChild(panel);
-      // title
-      var title = document.createElement("text");
-      title.setAttribute('class', 'page-title-404 monospace');
-      title.innerHTML = "once here<br>there was something<br><br>now here<br>there is nothing<br><br><i>time</i><br><br>";
-      panel.appendChild(title);
-      switchPanel("404-panel-ever");
-    }
-  } else if (type === 'post') {
-    if ($('404-panel-post')) {switchPanel("404-panel-post");}
-    else {
-      var panel = document.createElement("div")
-      panel.setAttribute('id', '404-panel-post');
-      $("main").appendChild(panel);
-      // title
-      var title = document.createElement("text");
-      title.setAttribute('class', 'page-title-404 monospace');
-      title.innerHTML = "<br>not even a single thing!<br><br>";
-      panel.appendChild(title);
-      switchPanel("404-panel-post");
-    }
-  } else {
-    if ($('404-panel')) {switchPanel("404-panel");}
-    else {
-      // panel
-      var panel = document.createElement("div");
-      panel.setAttribute('id', '404-panel');
-      $("main").appendChild(panel);
-      // title
-      var title = document.createElement("text");
-      title.setAttribute('class', 'page-title-404 monospace');
-      title.innerHTML = "<br>but there was nobody home<br><br>";
-      panel.appendChild(title);
-      switchPanel("404-panel");
-    }
-  }
-}
-
-var openPost = function (authorID, post_id, date) { //individual post on an author page
-  openAuthorPanel(authorID, function () {
-    clearAuthorPage(authorID);
-    $(authorID+'-page-nav').classList.add('removed');
-    //
-    if ($('author-'+post_id)) {                // is the post already rendered?
-      $('author-'+post_id).classList.remove('removed');
-      simPageLoadForSinglePost(post_id, authorID);
-    } else if (glo.postStash[post_id]) {         // can we render it from postStash?
-      var postElem = renderOnePost(null, 'author', null, post_id);
-      $(authorID+'-posts').appendChild(postElem);
-      if (postElem.offsetHeight > window.innerHeight) {
-        $(postElem.id +'collapse-button-bottom').classList.remove("hidden");
-      }
-      simPageLoadForSinglePost(post_id, authorID);
-    } else {                              // we don't have the post, call for it
-      loading();
-      ajaxCall('/~getPost/'+authorID+"/"+date, 'GET', "", function(json) {
-        if (json.four04) {return uiAlert("eRoRr! post not found???")}
-        loading(true);
-        json.post.date = date;
-        json.post._id = authorID;
-        var postElem = renderOnePost(json.post, 'author', json.post.username);
-        $(authorID+'-posts').appendChild(postElem);
-        if (postElem.offsetHeight > window.innerHeight) {
-          $(postElem.id +'collapse-button-bottom').classList.remove("hidden");
-        }
-        simPageLoadForSinglePost(post_id, authorID);
-      });
-    }
-    // set title
-    $(authorID+'-panel-title').onclick = function (event) {
-      modKeyCheck(event, function(){
-        openAuthorPanel(authorID);
-      });
-    }
-    $(authorID+'-panel-title').setAttribute('href', "/"+$(authorID+'-panel-title').innerHTML);
-    $(authorID+'-panel-title').classList.add("clicky");
-    $(authorID+'-panel-title').classList.remove("not-special");
-  });
-}
-var simPageLoadForSinglePost = function (post_id, authorID) {   // helper function for ^^^
-  if (glo.postStash[post_id].title !== undefined && glo.postStash[post_id].title !== "") {
-    simulatePageLoad("~/"+post_id, glo.postStash[post_id].title, glo.authorPics[authorID]);
-  } else {
-    simulatePageLoad("~/"+post_id, $(authorID+'-panel-title').innerHTML, glo.authorPics[authorID]);
+var destroyAllChildrenOfElement = function (elem) {
+  var children = elem.childNodes;
+  while (children.length !== 0) {
+    removeElement(children[0]);
   }
 }
 
@@ -2676,7 +2339,7 @@ var updatePendingPost = function (newText, newTags, newTitle) {
     authorPic: glo.userPic,
     _id: glo.userID,
   }
-  var newPostElem = renderOnePost(postData, "preview", "new");
+  var newPostElem = renderOnePost(postData, "preview");
   if ($('pending-post').childNodes[0]) {
     $('pending-post').replaceChild(newPostElem, $('pending-post').childNodes[0]);
   } else {
@@ -2736,16 +2399,16 @@ var cancelMessage = function () {
   });
 }
 
-var formatTags = function (tagRef, author) {
+var formatTags = function (tagRef, author, dated) {
   var tags = "";
   for (var tag in tagRef) {
     if (tagRef.hasOwnProperty(tag)) {
       if (author) {
-        tags += '<a onclick="modKeyCheck(event, function(){filterAuthorByTag(`'+author._id+'`,`'+tag+
-          '`);});" href="'+author.name+'/~tagged/'+tag+'">'+tag+'</a>, ';
+        tags += '<a onclick="tagClickHandler(event,`'+tag+'`,`'+author._id+'`,null);" href="/'+author.name+'/~tagged/'+tag+'">'+tag+'</a>, ';
+      } else if (dated) {
+        tags += '<a onclick="tagClickHandler(event,`'+tag+'`,null,`'+dated+'`);" href="/~tagged/'+tag+"/"+dated+'">'+tag+'</a>, ';
       } else {
-        tags += '<a onclick="modKeyCheck(event, function(){loadPosts(0,`'+tag+
-        '`);});" href="/~tagged/'+tag+'">'+tag+'</a>, ';
+        tags += '<a onclick="tagClickHandler(event,`'+tag+'`,null,null);" href="/~tagged/'+tag+'">'+tag+'</a>, ';
       }
     }
   }
@@ -2757,48 +2420,60 @@ var formatTags = function (tagRef, author) {
   else {return "";}
 }
 
+var tagClickHandler = function (event, tag, author, date) {
+  modKeyCheck(event, function () {
+    if (author) {
+      var postCode = "TTFF";
+    } else if (date) {
+      var postCode = "FTTF";
+    } else {
+      var postCode = "FTFF";
+    }
+    fetchPosts(true, {postCode:postCode, tag:tag, date:date, author:author});
+  });
+}
+
 var openTagMenu = function (close) {
   if (close) {
-    $('jump-open').classList.remove('removed');
-    $('tag-menu-open').classList.remove('removed');
+    $('bryce-buttons').classList.remove('removed');
     $('tag-menu').classList.add('removed');
   } else {
     $('tag-menu').classList.remove('removed');
-    $('tag-menu-open').classList.add('removed');
-    $('jump-open').classList.add('removed');
+    $('bryce-buttons').classList.add('removed');
   }
 }
 
 var tagSearch = function () {
   var tag = $("tag-picker").value;
   if (tag === "") {return uiAlert("ya can't search for nothin!");}
-  loadPosts(0, tag);
+  openTagMenu(true);
+  fetchPosts(true, {postCode: "FTTF", tag: tag, date: glo.postPanelStatus.date});
 }
 
 var saveTag = function (remove, tag) {
-  if (tag === undefined) {
-    tag = $("tag-picker").value;
-    if (tag === "") {return uiAlert("ya can't track nothin!");}
-  }
-  loading();
+  if (tag === undefined) {tag = $("tag-picker").value;}
+  if (!tag) {tag = glo.postPanelStatus.tag}
+  if (tag === "") {return uiAlert("ya can't save nothin!");}
   ajaxCall("/saveTag", 'POST', {tag, remove:remove}, function(json) {
     if (remove) {glo.savedTags[tag] = false;}
     else {glo.savedTags[tag] = true;}
-    destroyCurrentBucketsAndReload();
+
+    flushPostListAndReloadCurrentDate();
   });
 }
 
-var destroyCurrentBucketsAndReload = function () {
-  // Let the past die, kill it if you have to
-  var children = $("tag-bucket").childNodes;
-  for (var i = children.length-1; i > -1; i--) {
-    $("tag-bucket").removeChild(children[i]);
+var flushPostListAndReloadCurrentDate = function () {
+  var parms = glo.postPanelStatus;
+  //    if (parms.postCode === "FFTT") {var arr = ['glo','pRef','date',parms.date,'page',parms.page];}
+  //    alter this for pagination if we do that later
+  _npa(['glo','pRef','date',parms.date], false);
+  var x = _npa(['glo','pRef','date']);
+  for (var dateObj in x) {
+    if (x.hasOwnProperty(dateObj)) {
+      delete x[dateObj];
+    }
   }
-  var oldPostArr = document.getElementsByClassName('post-bucket');
-  for (var i = oldPostArr.length-1; i > -1; i--) {
-    oldPostArr[i].parentNode.removeChild(oldPostArr[i]);
-  }
-  loadPosts(0, glo.tag);
+  fetchPosts(true);
 }
 
 var toggleTaggedPostsInclusion = function () {
@@ -2810,36 +2485,7 @@ var toggleTaggedPostsInclusion = function () {
       $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
       glo.settings.includeTaggedPosts = true;
     }
-    destroyCurrentBucketsAndReload();
-  });
-}
-
-var filterAuthorByTag = function (authorID, tag) {
-  openAuthorPanel(authorID, function () {
-    clearAuthorPage(authorID);
-
-    if (glo.authorPage && glo.authorPage[authorID] && glo.authorPage[authorID].tag[tag]) {
-      for (var i = 0; i < glo.authorPage[authorID].tag[tag].length; i++) {
-        $("author-" +glo.authorPage[authorID].tag[tag][i]).classList.remove('removed');
-      }
-    } else {
-      var stuff = {
-        authorID:authorID,
-        tag:tag,
-        postRef:glo.postRef,
-      }
-      loading();
-      ajaxCall('/~getTaggedByAuthor', 'POST', stuff, function(json) {
-        loading(true);
-        if (json.four04) {return uiAlert("eRoRr! author not found???")}
-        renderAuthorPage(json.data, null, tag);
-      });
-    }
-    $(authorID+'-page-nav').classList.add('removed');
-    var authorName = $(authorID+'-panel-title').innerHTML;
-    simulatePageLoad(authorName+"/~tagged/"+tag, authorName, glo.authorPics[authorID]);
-    $(authorID+'-tag-nav').classList.remove('removed');
-    $(authorID+'-tag-text').innerHTML = 'posts tagged <i>"'+tag+'"<i>';
+    fetchPosts(true);
   });
 }
 
@@ -3283,7 +2929,7 @@ var openThread = function (i) {
       (function (id) {
         $("thread-title").onclick = function(event){
           modKeyCheck(event, function(){
-            openAuthorPanel(id);
+            fetchPosts(true, {postCode:'TFFF', author:id});
           });
         }
       })(glo.threads[i]._id);
@@ -3494,7 +3140,7 @@ var createThread = function (i, top) {
     (function (id) {
       authorPicBox.onclick = function(event){
         modKeyCheck(event, function(){
-          openAuthorPanel(id);
+          fetchPosts(true, {postCode:'TFFF', author:id});
         });
       }
     })(glo.threads[i]._id);
@@ -3748,8 +3394,7 @@ var logInPageSubmit = function(inOrUp) {
     }
     signIn(url, data, function () {
       switchPanel('posts-panel');
-      simulatePageLoad();
-      loading(true);
+      fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
     })
   }
 }
@@ -3770,6 +3415,15 @@ var cookieNotification = function () {
 var signIn = function (url, data, callback) {
   loading();
   ajaxCall(url, 'POST', data, function(json) {
+    // clear out any fetched author data so that we can reFetch it for messaging permissions
+    var fetchedAuthors = _npa(['glo','pRef','author']);
+    if (fetchedAuthors) {
+      for (var author in fetchedAuthors) {
+        if (fetchedAuthors.hasOwnProperty(author)) {
+          fetchedAuthors[author].info = undefined;
+        }
+      }
+    }
     if (json.needKeys) {
       makeKeys(data.password, function (keys) {
         if (json.newUser) {
@@ -3781,6 +3435,7 @@ var signIn = function (url, data, callback) {
             keys.newUserMessage = encryptedMessage.data;
             ajaxCall('/keys', 'POST', keys, function(json) {
               parseUserData(json.payload);
+              setAppearance();
               unlockInbox(data.password);
               if (callback) {callback(json.payload);}
             });
@@ -3788,6 +3443,7 @@ var signIn = function (url, data, callback) {
         } else {
           ajaxCall('/keys', 'POST', keys, function(json) {
             parseUserData(json.payload);
+            setAppearance();
             unlockInbox(data.password);
             if (callback) {callback(json.payload);}
           });
@@ -3795,13 +3451,14 @@ var signIn = function (url, data, callback) {
       });
     } else {
       parseUserData(json.payload);
+      setAppearance();
       unlockInbox(data.password);
       if (callback) {callback(json.payload);}
     }
   });
 }
 
-var parseUserData = function (data) {
+var parseUserData = function (data) { // also sets glos and does some init "stuff"
   glo.username = data.username;
   glo.userID = data.userID;
   glo.bio = data.bio;
@@ -3833,11 +3490,10 @@ var parseUserData = function (data) {
   for (var i = 0; i < data.collapsed.length; i++) {
     glo.collapsed[data.collapsed[i]] = true;
   }
-  // init stuff
-//  loadPosts(1, null, true);
+
   if (glo.pending) {updatePendingPost(glo.pending.body, glo.pending.tags, glo.pending.title);}
+
   populateThreadlist();
-  setAppearance();
   //
   if (glo.username) {
     $("username").innerHTML = glo.username;
@@ -3845,20 +3501,31 @@ var parseUserData = function (data) {
     $('username').setAttribute('href', "/"+glo.username);
     $("username").onclick = function () {
       modKeyCheck(event, function(){
-        openAuthorPanel(glo.userID);
+        fetchPosts(true, {postCode:'TFFF', author:glo.userID});
       });
     }
-    $('edit-panel-title').innerHTML = glo.username;
+    $('edit-panel-title').innerHTML = "back to "+glo.username;
     $('edit-panel-title').setAttribute('href', "/"+glo.username);
     $('edit-panel-title').onclick = function (event) {
       modKeyCheck(event, function(){
-        openAuthorPanel(glo.userID);
+        switchPanel('posts-panel')
       });
     }
+    if (glo.pendingUpdates['bio']) {
+      var bio = glo.pendingUpdates['bio'];
+    } else {
+      var bio = glo.bio;
+    }
+    setAuthorHeader('edit', {
+      _id: glo.userID,
+      author: glo.username,
+      authorPic: glo.userPic,
+      bio: bio,
+    });
     $("sign-out").classList.remove("removed");
     $("sign-in").classList.add("removed");
     //
-    $("nav").classList.remove("removed");
+    $("panel-buttons").classList.remove("removed");
     $("footer-footer").classList.remove("removed");
     //
     if (glo.settings.includeTaggedPosts) {
@@ -3870,6 +3537,9 @@ var parseUserData = function (data) {
     $('sign-to-save3').classList.add('removed');
     $('revert-appearance2').classList.add('removed');
     $('revert-appearance3').classList.add('removed');
+
+    $("save-tag-form").classList.remove("removed");
+    $("saved-tags-list").classList.remove("removed");
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
@@ -3878,7 +3548,7 @@ var parseUserData = function (data) {
 }
 
 var setAppearance = function () {
-  if (!$('postBackground-color-button2').jscolor) {
+  if (!$('postBackground-color-button2').jscolor) { // this is a hack to make sure jsColor has loaded
     setTimeout(function () {
       setAppearance();
     }, 10);
@@ -3916,33 +3586,39 @@ var setAppearance = function () {
   }
 }
 
-var changeAllColors = function (colorObject) {
+var changeAllColors = function (colorObject, init) {
   for (var prop in colorObject) {
     if (colorObject.hasOwnProperty(prop)) {
       changeColor(colorObject[prop], prop);
-      // set button
-      if (colorObject[prop][0] === '#') {
-        //$(prop+'-color-button').jscolor.fromString(String(colorObject[prop]).slice(1));
-        $(prop+'-color-button2').jscolor.fromString(String(colorObject[prop]).slice(1));
-      } else {
-        var arr = colorObject[prop].slice(4,-1).replace(/ /g, '').split(",");
-        //$(prop+'-color-button').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
-        $(prop+'-color-button2').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
+      if (!init) {
+        // set button
+        if (colorObject[prop][0] === '#') {
+          //$(prop+'-color-button').jscolor.fromString(String(colorObject[prop]).slice(1));
+          $(prop+'-color-button2').jscolor.fromString(String(colorObject[prop]).slice(1));
+        } else {
+          var arr = colorObject[prop].slice(4,-1).replace(/ /g, '').split(",");
+          //$(prop+'-color-button').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
+          $(prop+'-color-button2').jscolor.fromRGB(Number(arr[0]),Number(arr[1]),Number(arr[2]));
+        }
       }
     }
   }
 }
 
-var fetchData = function (callback) {
-  ajaxCall('/~payload', 'GET', "", function(json) {
-    //keys are created at sign in, this forces out people who are already in
-    //  with a persistent login cookie, such that they will have to sign in and make keys
-    if (json.needKeys) {return signOut();}
-    else {
-      parseUserData(json.payload);
-      if (callback) {callback();}
-    }
-  });
+var initSchlaugh = function (user, callback) {
+  if (user) {
+    ajaxCall('/~payload', 'GET', "", function(json) {
+      //keys are created at sign in, this forces out people who are already in
+      //  with a persistent login cookie, such that they will have to sign in and make keys
+      if (json.needKeys) {return signOut();}
+      else {
+        parseUserData(json.payload);
+        if (callback) {callback();}
+      }
+    });
+  } else {
+    if (callback) {callback();}
+  }
 }
 
 var showPassword = function (bool, elemName, elemArr) {       //or hide pass, if !bool

@@ -1,13 +1,13 @@
-<nav id="nav" class="removed">
-  <a href="/~write" id="write-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'write')">
+<panelButtons id="panel-buttons" class="removed">
+  <a href="/~write" id="write-panel-button" class="clicky not-special panel-button" onclick="panelButtonClick(event,'write')">
     <icon class="fas fa-pencil-alt"></icon></a>
-  <a href="/" id="posts-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'posts')">
+  <a href="/" id="posts-panel-button" class="clicky not-special panel-button" onclick="panelButtonClick(event,'posts')">
     <icon class="fas fa-book"></icon></a>
-  <a href="/~inbox" id="inbox-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'inbox')">
+  <a href="/~inbox" id="inbox-panel-button" class="clicky not-special panel-button" onclick="panelButtonClick(event,'inbox')">
     <icon class="fas fa-envelope"></icon></a>
-  <a href="/~settings" id="settings-panel-button" class="clicky not-special panel-button" onclick="navButtonClick(event,'settings')">
+  <a href="/~settings" id="settings-panel-button" class="clicky not-special panel-button" onclick="panelButtonClick(event,'settings')">
     <icon class="fas fa-cog"></icon></a>
-</nav>
+</panelButtons>
 
 <div id="write-panel" class="removed">
 
@@ -35,51 +35,74 @@
 </div>
 
 <div id="posts-panel" class="removed">
-  <postNav>
-    <text id="tag-display" class="removed"></text><br>
-    <text id="date-display"></text><br>
-    <div id="date-arrow-box" class="no-select">
-      <icon id="left-nav-arrow" class="clicky fas fa-caret-left" onclick="loadPosts(1)"></icon>
-      <icon id="right-nav-arrow" class="clicky hidden fas fa-caret-right" onclick="loadPosts(-1)"></icon>
+
+  <%- include("authorHeader", {kind: "top"}) %>
+
+  <%- include("pageAndDateNav", {kind: "top"}) %>
+
+  <div id="date-and-tag-options" class="removed">
+    <div id="tag-menu" class="removed">
+
+      <div id="saved-tags-list" class="removed">
+        <h2>saved tags:</h2>
+        <text id="none-tags">(none)</text>
+        <div id="tag-bucket"></div>
+        <text class="monospace">include tagged posts in feed</text>
+        <text id="include-tagged-posts-toggle" onclick="toggleTaggedPostsInclusion()"></text>
+        <clicky onclick="uiAlert(`checking this box means that posts with tags you are tracking will show up in your main feed alongside posts of people you are following`, `aight`)" class="special"> (?)</clicky>
+      </div>
+
+      <form id="tag-search" action="javascript:void(0);">
+        <input id="tag-picker" type="text" placeholder="milkshake">
+        <br>
+        <button type="submit" onclick="tagSearch()">search</button>
+        <button id="save-tag-form" class="removed" onclick="saveTag()">save</button>
+        <br>
+        <button onclick="openTagMenu(true)">x</button>
+      </form>
     </div>
-  </postNav>
-  <button id="jump-open" onclick="openDateJump()">date</button>
-  <button id="tag-menu-open" onclick="openTagMenu()">tags</button>
-  <button id="all-days" onclick="viewPageOfTag()" class="removed">all days</button>
-  <button id="clear-tag" onclick="loadPosts(0, false); openTagMenu(); simulatePageLoad();" class="removed">clear tag</button>
-  <button id="save-tag" onclick="saveTag(false, glo.tag)" class="removed">save tag</button>
-  <form id="date-jump" class="removed" action="javascript:void(0);">
-    <input id="date-picker" type="text" placeholder="date">
-    <script type="text/javascript">
-      $('date-picker').value = pool.getCurDate();
-    </script>
-    <br>
-    <button type="submit" onclick="dateJump()">go</button>
-    <button onclick="openDateJump(true)">x</button>
-  </form>
-  <div id="tag-menu" class="removed">
-    _____<br>
-    <h2>saved tags:</h2>
-    <text id="none-tags">(none)</text>
-    <div id="tag-bucket"></div>
-    <text class="monospace">include tagged posts in feed</text>
-    <text id="include-tagged-posts-toggle" onclick="toggleTaggedPostsInclusion()"></text>
-    <clicky onclick="uiAlert(`checking this box means that posts with tags you are tracking will show up in your main feed alongside posts of people you are following`, `aight`)" class="special"> (?)</clicky>
-    <br><br>
-    <form id="tag-search" action="javascript:void(0);">
-      <input id="tag-picker" type="text" placeholder="milkshake">
+
+    <div id="bryce-buttons">
+      <button id="date-jump-open" onclick="openDateJump()">date</button>
+      <button id="tag-menu-open" onclick="openTagMenu()">tags</button>
+      <button id="all-days" onclick="allDaysButton()" class="removed">all days</button>
+      <button id="clear-tag" onclick="clearTagButton()" class="removed">clear tag</button>
+      <button id="save-tag" onclick="saveTag(false)" class="removed">save tag</button>
+    </div>
+
+    <form id="date-jump" class="removed" action="javascript:void(0);">
+      <input id="date-picker" type="text" placeholder="date">
+      <script type="text/javascript">
+        $('date-picker').value = pool.getCurDate();
+      </script>
       <br>
-      <button type="submit" onclick="tagSearch()">search</button>
-      <button onclick="saveTag()">save</button>
-      <br>
-      <button onclick="openTagMenu(true)">x</button>
+      <button type="submit" onclick="dateJump()">go</button>
+      <button onclick="openDateJump(true)">x</button>
     </form>
   </div>
 
+  <div id="post-bucket"></div>
 
-  <div id="posts">
-    <text id="loading" class="removed">***loading the day***</text>
-  </div>
+  <%- include("authorHeader", {kind: "bot"}) %>
+
+  <%- include("pageAndDateNav", {kind: "bot"}) %>
+
+</div>
+
+<div id="404-panel-author" class="removed">
+  <text class="page-title-404 monospace">
+    <br>but there was nobody home<br><br>
+  </text>
+</div>
+<div id="404-panel-post" class="removed">
+  <text class="page-title-404 monospace">
+    <br>not even a single thing!<br><br>
+  </text>
+</div>
+<div id="404-panel-existed" class="removed">
+  <text class="page-title-404 monospace">
+    once here<br>there was something<br><br>now here<br>there is nothing<br><br><i>time</i><br><br>
+  </text>
 </div>
 
 <div id="inbox-panel" class="removed">
@@ -157,12 +180,6 @@
     <br><br><br>
     <a class="clicky" onclick="signOut()">schlaugh out</a>
     <br><br><br>
-  </div>
-</div>
-
-<div id="bookmarks-panel" class="removed">
-  <h2>bookmarked posts</h2>
-  <div id="bookmark-bucket">
   </div>
 </div>
 
@@ -256,17 +273,16 @@
 </div>
 
 <div id="edit-panel" class="removed">
-  <a id="edit-panel-title" class="author-page-title"></a>
 
   <div id="old-post-preview">
+    <br><br>
+    <a id="edit-panel-title" class="author-size-0">back</a>
+    <br><br>
     <div id="old-post-status"></div>
     <div id="pending-post-edit" class="removed"></div>
-    <div id="pending-header-preview" class="author-header removed">
-      <div id="pending-left-preview" class="author-header-left">
-        <button id="preview-follow-button" onclick="uiAlert(`Y'ALL<br>DONE<br>DID<br>GET<br>GOT<br>BY<br>A<br>FAKE BUTTON`,'doh')">follow</button>
-      </div>
-      <div id="pending-right-preview" class="author-header-right reader-font"></div>
-    </div>
+
+    <%- include("authorHeader", {kind: "edit"}) %>
+
     <button type="button" id='edit-post-button' onclick="showWriter('old-post')">new edit</button>
     <button id='delete-pending-old-post'>delete</button>
   </div>

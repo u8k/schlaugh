@@ -286,5 +286,4 @@
     return recurse(0, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, []);
   }
 
-
 }(typeof exports === 'undefined' ? this.pool = {} : exports));

@@ -74,33 +74,32 @@ h2 {
   .author-page-title-6 {font-size: .65em;}
 }
 
-.author-page-nav {font-size: 1.4em;}
-.author-arrow {
+.bot-arrow {
   font-size: 1.7em;
   margin: 0 10px;
 }
 
-.page-number-right, .page-number-right-wide, .page-number-right-wider {
+.page-number-right, .page-number-right-double-digit, .page-number-right-triple-digit {
   display: inline-block;
   padding: 0px 8px 0px 0px;
   width: 21px;
 }
 
-.page-number-left, .page-number-left-wide, .page-number-left-wider {
-  width: 23px;
+.page-number-left, .page-number-left-double-digit, .page-number-left-triple-digit {
+  width: 27px;
   font-size: 1em;
   border-width: 1px;
   padding: 0px 4px;
   text-align: center;
 }
-.page-number-left-wide, .page-number-right-wide {
-  width: 33px;
+.page-number-left-double-digit, .page-number-right-double-digit {
+  width: 43px;
 }
-.page-number-left-wider, .page-number-right-wider {
-  width: 45px;
+.page-number-left-triple-digit, .page-number-right-triple-digit {
+  width: 60px;
 }
 
-nav {
+panelButtons {
   font-size: 2.4em;
   margin: 30px 0;
 }
@@ -109,7 +108,7 @@ nav {
   margin: 1vw;
 }
 
-.user-info {
+userInfo {
   text-align: right;
   font-size: 1.1em;
   margin: 0;
@@ -146,7 +145,7 @@ footer {
   font-size: .85em;
 }
 
-postNav, .page-title-404 {
+pageAndDateNav, .page-title-404 {
   font-size: 2em;
 }
 
@@ -155,7 +154,8 @@ postNav, .page-title-404 {
 }
 
 #date-picker {
-  width: 90px;
+  font-size: 1.2em;
+  width: 105px;
   text-align: center;
 }
 
@@ -228,6 +228,8 @@ clicky, .clicky {
 #include-tagged-posts-toggle {
   font-size: .9em;
 }
+
+#saved-tags-list {margin-bottom: 12px;}
 
 img {
   max-width: 100%;
@@ -345,8 +347,14 @@ footerButton {
   align-items: center;
 }
 
-.author-header-left {padding: 10px; max-width: 400px; align-self: flex-start;}
 .author-header-right {padding: 10px; text-align: left;}
+.author-header-left {
+  padding: 10px;
+  max-width: 400px;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+}
 
 #pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
 
@@ -412,8 +420,8 @@ input {
 
 /*hack to make Chrome not force formatting when it autofills*/
 input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #AFDCFA inset;
-  -webkit-text-fill-color: #383F45;
+  -webkit-box-shadow: 0 0 0 1000px dimGrey inset;
+  -webkit-text-fill-color: #FFFFFF;
 }
 
 .not-schlaugh {
@@ -437,14 +445,14 @@ input:-webkit-autofill {
 }
 .optional-email-splain{
   position: relative;
-  left: 137px;
-  bottom: 87px;
+  left: 133px;
+  bottom: 83px;
   font-size: .94em;
 }
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .eye {font-size: 1.4em; bottom: 35px; left: 118px;}
-  .eye-on-main {font-size: 1.4em; bottom: 36px; left: 100px;}
-  .optional-email-splain{font-size: 1.4em; bottom: 121px;}
+  .eye {font-size: 1.4em; bottom: 31px; left: 118px;}
+  .eye-on-main {font-size: 1.4em; bottom: 31px; left: 100px;}
+  .optional-email-splain{font-size: 1.4em; bottom: 103px;}
 }
 
 #appearance-settings-box {

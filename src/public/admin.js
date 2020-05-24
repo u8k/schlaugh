@@ -20,7 +20,6 @@ makeKeys('password', function (key) {
 });
 */
 
-
 var displayTests = function (results) {
   if (typeof results === "string") {
     $('test-title').innerHTML = results;
