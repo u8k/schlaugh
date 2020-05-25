@@ -998,24 +998,25 @@ var dateJump = function (target) {
   }
 }
 
-var moveDateByOneDay = function (dir, input) {
+var moveDateByOneDay = function (dir) {
   if (glo.postPanelStatus.date) {
-    var curDateStamp = glo.postPanelStatus.date}
-  if (typeof curDateStamp === 'string' && curDateStamp.length === 10) {
-    var year = curDateStamp.slice(0,4);
-    var month = curDateStamp.slice(5,7)-1;
-    var day = Number(curDateStamp.slice(8,10))+ Number(dir);
-    var computedDate = new Date(year,month,day);
-    //
-    var newYear = computedDate.getUTCFullYear();
-    var newMon = computedDate.getUTCMonth()+1;
-    if (newMon < 10) {newMon = "0"+newMon}
-    var newDay = computedDate.getUTCDate();
-    if (newDay < 10) {newDay = "0"+newDay}
-    var newDateString = newYear+"-"+newMon+"-"+newDay;
-    //
-    glo.postPanelStatus.date = newDateString;
-    fetchPosts(true);
+    var curDateStamp = glo.postPanelStatus.date
+    if (typeof curDateStamp === 'string' && curDateStamp.length === 10) {
+      var year = curDateStamp.slice(0,4);
+      var month = Number(curDateStamp.slice(5,7))-1;
+      var day = Number(curDateStamp.slice(8,10))+ Number(dir);
+      var computedDate = new Date(year,month,day);
+      //
+      var newYear = computedDate.getUTCFullYear();
+      var newMon = computedDate.getUTCMonth()+1;
+      if (newMon < 10) {newMon = "0"+newMon}
+      var newDay = computedDate.getUTCDate();
+      if (newDay < 10) {newDay = "0"+newDay}
+      var newDateString = newYear+"-"+newMon+"-"+newDay;
+      //
+      glo.postPanelStatus.date = newDateString;
+      fetchPosts(true);
+    }
   }
 }
 
@@ -2897,7 +2898,7 @@ var openThread = function (i) {
         $(i+'-thread-name').classList.remove("special");
         glo.unread--;
         if (glo.unread === 0) {
-          $("inbox-panel-button").classList.remove("special");
+          $("inbox-panel-button").classList.add("not-special");
         }
       }
       glo.activeThreadIndex = i;
@@ -2952,7 +2953,7 @@ var markUnread = function () {
   closeThread();
   glo.unread++;
   ajaxCall('/unread', 'POST', {_id:glo.threads[i]._id, bool:true}, function(json) {})
-  $("inbox-panel-button").classList.add("special");
+  $("inbox-panel-button").classList.remove("not-special");
 }
 
 var updatePendingMessage = function (index) {
@@ -3176,7 +3177,9 @@ var populateThreadlist = function () {
     name.innerHTML = "no threads!";
     $("thread-list").appendChild(name);
   }
-  if (glo.unread > 0) {$("inbox-panel-button").classList.add("special");}
+  if (glo.unread > 0) {
+    $("inbox-panel-button").classList.remove("not-special");
+  }
 }
 
 var block = function (threadIndex) {
@@ -3544,7 +3547,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
-  if (glo.unread > 0) {$("inbox-panel-button").classList.add("special");}
+
   cookieNotification();
 }
 
