@@ -3496,6 +3496,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
   populateThreadlist();
   //
   if (glo.username) {
+    setAppearance();
     $("username").innerHTML = glo.username;
     $("username").classList.remove("removed");
     $('username').setAttribute('href', "/"+glo.username);
