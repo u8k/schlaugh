@@ -74,6 +74,11 @@ h2 {
   .author-page-title-6 {font-size: .65em;}
 }
 
+.author-button {
+  width: 100px;
+  margin: auto;
+}
+
 .bot-arrow {
   font-size: 1.7em;
   margin: 0 10px;

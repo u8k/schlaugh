@@ -3138,7 +3138,7 @@ app.post('/getPosts', function (req, res) {
   if (!req.body.postCode) {return sendError(res, errMsg+"malformed request 284");}
   var postCode = req.body.postCode;
   if (!req.body.postRef) {req.body.postRef = {}};
-  if (req.body.date && req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}// fudge
+  if (req.body.date && req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}
   //
   // repsonse must have 'posts', and ,if not included w/ posts: 'authorData'
   if (postCode === "FTTT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to paginated? Nag staff if you want this actually to be built.");}
@@ -3231,7 +3231,6 @@ app.get('/:author/~tagged/:tag', function(req, res) {
 //	TFTF
 app.get('/~/:post_id', function (req, res) {
   if (ObjectId.isValid(req.params.post_id)) {req.params.post_id = ObjectId(req.params.post_id);}
-  //else {return callback({error: "invalid post id"});}           fudge
   db.collection('posts').findOne({_id: req.params.post_id,}, {date:1, authorID:1}
     , function (err, post) {
       if (err) {return sendError(res, resp.error);}

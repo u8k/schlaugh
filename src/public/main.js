@@ -4,6 +4,30 @@ var glo = {};
 
 var $ = function (id) {return document.getElementById(id);}
 
+var isAnEditorOpen = function () {
+  var anyOpen = false;
+  if (glo.openEditors) {
+    for (var editor in glo.openEditors) {
+      if (glo.openEditors.hasOwnProperty(editor)) {
+        if (glo.openEditors[editor]) {
+          anyOpen = true;
+        }
+      }
+    }
+  }
+  return anyOpen;
+}
+
+window.addEventListener('beforeunload', function (e) {
+  if (isAnEditorOpen()) {
+    e.preventDefault(); // If you prevent default behavior in Mozilla Firefox prompt will always be shown
+    (e || window.event).returnValue = "";
+    return "";
+  } else {
+    return undefined;
+  }
+});
+
 var submitPic = function (remove) {
   if (remove) {$('pic-url').value = "";}
   var picURL = $('pic-url').value;
@@ -642,10 +666,24 @@ var loading = function (stop, keepBacking) {
 }
 
 var signOut = function() {
-  loading();
-  ajaxCall('/~logout', 'GET', {}, function(json) {
-    location.reload();
-  });
+  if (isAnEditorOpen()) {
+    verify(`hold up partner, seems ye've left an editor open, potentially with some unsaved text. Are you sure you'd like to sign out and lose those changes?`, 'YES! BURN IT', 'well, no', function (resp) {
+      if (!resp) {return}
+      else {
+        glo.openEditors = false;
+        loading();
+        ajaxCall('/~logout', 'GET', {}, function(json) {
+          location.reload();
+        });
+      }
+    });
+  } else {
+    loading();
+    ajaxCall('/~logout', 'GET', {}, function(json) {
+      location.reload();
+    });
+  }
+
 }
 
 var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
@@ -2603,11 +2641,14 @@ var showWriter = function (kind) {
   $(kind+'-preview').classList.add('removed');
   var editor = $(kind+'-editor');
   setCursorPosition(editor, editor.value.length, editor.value.length);
+  if (!glo.openEditors) {glo.openEditors = {}}
+  glo.openEditors[kind] = true;
 }
 var hideWriter = function (kind) {
-  //if ($(kind+'-editor').value !== prepTextForEditor(last.body)) {}  // later, for "revert"
   $(kind+'-writer').classList.add('removed');
   $(kind+'-preview').classList.remove('removed');
+  if (!glo.openEditors) {glo.openEditors = {}}
+  glo.openEditors[kind] = false;
 }
 
 var styleText = function (tag, src, lineBreak) {
