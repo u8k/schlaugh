@@ -61,7 +61,16 @@
           existed:input.existed,
           notFound:input.notFound,
         }
-        initSchlaugh(input.user, function () {fetchPosts(true, params);});
+        if (!input.date || input.date <= pool.getCurDate()) {
+          initSchlaugh(input.user, function () {fetchPosts(true, params);});
+        } else {
+          if (input.user) {
+            initSchlaugh(input.user, function () {switchPanel("posts-panel")});
+          } else {
+            simulatePageLoad();
+            switchPanel("login-panel");
+          }
+        }
       } else if (input.panel) {
         if (!input.user && (input.panel !== "about" && input.panel !== "faq")) {
           simulatePageLoad();

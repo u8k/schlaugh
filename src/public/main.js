@@ -1093,6 +1093,7 @@ var _npa = function (arr, item, i, cur) { //(safe) NestedPropertyAccess
 }
 
 var open404 = function (display, input, callback) {
+  glo.postPanelStatus = input;
   if (input.postCode === 'TFTF') {
     if (input.existed) {
       if (display) {switchPanel('404-panel-existed');}
@@ -1236,7 +1237,7 @@ var displayPosts = function (idArr, input, callback) {
 
   var pc = input.postCode;
   // filter out posts from non-followers, if feed and not includeTaggedPosts
-  if ((pc === 'FFTT' || pc === 'FFTF') && !_npa(['glo','settings','includeTaggedPosts'])) {
+  if ((pc === 'FFTT' || pc === 'FFTF') && !_npa(['glo','settings','includeTaggedPosts']) && input.date <= pool.getCurDate()) {
     var filtered = [];
     for (var i = 0; i < idArr.length; i++) {
       if (_npa(['glo','followingRef', _npa(['glo','postStash', idArr[i], '_id'])])) {
@@ -1256,8 +1257,14 @@ var displayPosts = function (idArr, input, callback) {
   }
 
   // the actual display of the literal posts
-  for (var i = 0; i < idArr.length; i++) {
-    $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
+  if (pc === 'MARK') {
+    for (var i = idArr.length-1; i > -1; i--) {
+      $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
+    }
+  } else {
+    for (var i = 0; i < idArr.length; i++) {
+      $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
+    }
   }
   if (idArr.length === 0) {
     $("post-bucket").appendChild(notSchlaugh(pc, input.date));
@@ -1441,6 +1448,8 @@ var notSchlaugh = function (postCode, date) {
 }
 
 var setAuthorHeader = function (loc, aInfo) {
+  if (!loc || !aInfo) {return;}
+
   // pic
   if (aInfo.authorPic !== "") {
     $("author-panel-pic-"+loc).setAttribute('src', aInfo.authorPic);
