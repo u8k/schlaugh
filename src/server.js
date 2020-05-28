@@ -960,7 +960,7 @@ var getAuthorListFromTagListAndDate = function (tagList, date, callback) {
       } else {
         for (var i = 0; i < tagList.length; i++) {
           if (dateBucket.ref[tagList[i].toLowerCase()]) {
-            authorList = authorList.concat(dateBucket.ref[tagList[i]]);
+            authorList = authorList.concat(dateBucket.ref[tagList[i].toLowerCase()]);
           }
         }
         return callback({error: false, authorList: authorList});
