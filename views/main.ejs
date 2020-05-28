@@ -20,7 +20,7 @@
 
   <div id="post-writer" class="removed">
     <%- include("editorButtons", {kind: "post"}) %>
-    <textarea id="post-editor" class="editor reader-font" autocomplete="off"></textarea>
+    <textarea id="post-editor" class="editor reader-font" autocomplete="off" oninput="resizeEditor('post')"></textarea>
     <br><br>
     <div id="editor-post-meta">
       <label for="tag-input">tags:</label>
@@ -127,7 +127,7 @@
   </div>
   <div id="message-writer" class="removed">
     <%- include("editorButtons", {kind: "message"}) %>
-    <textarea id="message-editor" autocomplete="off" class="editor reader-font"></textarea>
+    <textarea id="message-editor" autocomplete="off" class="editor reader-font" oninput="resizeEditor('message')"></textarea>
     <br>
     <button onclick="submitMessage()">schend</button>
     <button onclick="cancelMessage()">cancel</button>
@@ -290,7 +290,7 @@
   <div id="old-post-writer" class="removed">
     <div id="old-post-editor-title"></div>
     <%- include("editorButtons", {kind: "old-post"}) %>
-    <textarea id="old-post-editor" class="editor reader-font" autocomplete="off"></textarea>
+    <textarea id="old-post-editor" class="editor reader-font" autocomplete="off" oninput="resizeEditor('old-post')"></textarea>
     <br>
     <div id="old-tag-box">
       <label for="old-tag-input">tags:<clicky onclick="uiAlert(`note that adding tags to an old post won't include the post in public searches of that tag, only in searches of posts written by you`, `got it`)" class="special">(?)</clicky></label>

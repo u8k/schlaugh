@@ -2660,6 +2660,38 @@ var hideWriter = function (kind) {
   glo.openEditors[kind] = false;
 }
 
+var resizeEditor = function (kind) {
+  var field = $(kind+"-editor");
+
+  var initWindowScroll = window.scrollY;
+  var initHeight = field.offsetHeight;
+  // Reset field height
+  field.style.height = 'inherit';
+
+  // Calculate the newHeight
+  var computed = window.getComputedStyle(field);
+  var newHeight = parseInt(computed.getPropertyValue('border-top-width'), 10)
+  + parseInt(computed.getPropertyValue('padding-top'), 10)
+  + field.scrollHeight
+  + parseInt(computed.getPropertyValue('padding-bottom'), 10)
+  + parseInt(computed.getPropertyValue('border-bottom-width'), 10)
+  + 20; //padding
+
+  var maxHeight = window.innerHeight - $("editor-options-"+kind).offsetHeight -10;
+
+  //
+  if (maxHeight > newHeight && newHeight > initHeight) {
+    field.style.height = newHeight + 'px';
+    window.scrollTo(0, initWindowScroll);
+  } else if (newHeight > maxHeight && maxHeight > initHeight) {
+    field.style.height = maxHeight + 'px';
+    window.scrollTo(0, $("editor-options-"+kind).getBoundingClientRect().top -5);
+  } else {
+    field.style.height = initHeight + 'px';
+    window.scrollTo(0, initWindowScroll);
+  }
+}
+
 var styleText = function (tag, src, lineBreak) {
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
