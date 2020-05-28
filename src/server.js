@@ -471,11 +471,12 @@ var updateUserPost = function (text, newTags, title, userID, user, callback, day
   if (devFlag && daysAgo) { // CHEATING, for local testing only
     var tmrw = pool.getCurDate(daysAgo);
   }
+  // lowercase copy of the newTags
+  var newTagsLowerCased = lowercaseTagRef(newTags);
+  //
   if (user.posts[tmrw]) {                               //edit existing
     // lowercase the existing tags
     var oldTagsLowerCased = lowercaseTagRef(user.posts[tmrw][0].tags);
-    // lowercase copy of the newTags
-    var newTagsLowerCased = lowercaseTagRef(newTags);
     // check existing tags
     var badTagArr = [];
     for (var tag in oldTagsLowerCased) {
