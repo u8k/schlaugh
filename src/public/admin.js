@@ -158,21 +158,15 @@ var getTagIndex = function () {
   });
 }
 
-var buildTagIndex = function () {
-  ajaxCall('/admin/buildTagIndex', 'POST', {}, function(json) {
-    console.log(json.tagArr.length);
-    buildTagIndexBounce(0, json.tagArr);
-  });
-}
-
-var buildTagIndexBounce = function (progress, tagArr) {
-  ajaxCall('/admin/buildTagIndexBounce', 'POST', {progress:progress, tagArr:tagArr}, function(json) {
-    console.log(json.progress+" of "+json.tagArr.length);
-    if (json.progress < json.tagArr.length) {
-      buildTagIndexBounce(json.progress, json.tagArr);
+var deCaseSensitizeTags = function (daysAgo) {
+  if (daysAgo === undefined) {daysAgo = 900;}
+  var date = pool.getCurDate(daysAgo);
+  ajaxCall('/admin/deCaseSensitizeTags', 'POST', {date:date}, function(json) {
+    console.log(date);
+    if (daysAgo > -2) {
+      deCaseSensitizeTags(daysAgo-1);
     } else {
       console.log('done!');
-      getTagIndex();
     }
   });
 }

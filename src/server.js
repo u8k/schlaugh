@@ -99,7 +99,7 @@ var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, an
             for (var tag in user.posts[date][0].tags) {
               if (user.posts[date][0].tags.hasOwnProperty(tag)) {
                 if (!ref[date][0].tags[tag]) {       // if the old tag is NOT a new tag too
-                  badTagArr.push(tag);
+                  badTagArr.push(tag.toLowerCase());
                 }
               }
             }
@@ -453,6 +453,18 @@ var nullPostFromPosts = function (postID, callback) {
   );
 }
 
+var lowercaseTagRef = function (ref) {
+  var newRef = {}
+  for (var tag in ref) {
+    if (ref.hasOwnProperty(tag)) {
+      if (!newRef[tag.toLowerCase()]) {
+        newRef[tag.toLowerCase()] = true;
+      }
+    }
+  }
+  return newRef;
+}
+
 var updateUserPost = function (text, newTags, title, userID, user, callback, daysAgo) {
   if (safeMode) {return callback({error:safeMode});}
   var tmrw = pool.getCurDate(-1);
@@ -460,12 +472,16 @@ var updateUserPost = function (text, newTags, title, userID, user, callback, day
     var tmrw = pool.getCurDate(daysAgo);
   }
   if (user.posts[tmrw]) {                               //edit existing
+    // lowercase the existing tags
+    var oldTagsLowerCased = lowercaseTagRef(user.posts[tmrw][0].tags);
+    // lowercase copy of the newTags
+    var newTagsLowerCased = lowercaseTagRef(newTags);
     // check existing tags
     var badTagArr = [];
-    for (var tag in user.posts[tmrw][0].tags) {
-      if (user.posts[tmrw][0].tags.hasOwnProperty(tag)) {
-        if (!newTags[tag]) {          // if the old tag is NOT a new tag too
-          badTagArr.push(tag);
+    for (var tag in oldTagsLowerCased) {
+      if (oldTagsLowerCased.hasOwnProperty(tag)) {
+        if (!newTagsLowerCased[tag]) {          // if the old tag is NOT a new tag too
+          badTagArr.push(tag.toLowerCase());
         }
       }
     }
@@ -473,10 +489,10 @@ var updateUserPost = function (text, newTags, title, userID, user, callback, day
       if (resp.error) {return callback({error: resp.error});}
       else {
         var newTagArr = [];
-        for (var tag in newTags) {
-          if (newTags.hasOwnProperty(tag)) {
-            if (!user.posts[tmrw][0].tags[tag]) { // if the new tag is NOT an old tag too
-              newTagArr.push(tag);
+        for (var tag in newTagsLowerCased) {
+          if (newTagsLowerCased.hasOwnProperty(tag)) {
+            if (!oldTagsLowerCased[tag]) { // if the new tag is NOT an old tag too
+              newTagArr.push(tag.toLowerCase());
             }
           }
         }
@@ -504,8 +520,8 @@ var updateUserPost = function (text, newTags, title, userID, user, callback, day
         user.postListPending.push({date:tmrw, num:0});
         //
         var tagArr = [];
-        for (var tag in newTags) {    // add a ref in the tag db for each tag
-          if (newTags.hasOwnProperty(tag)) {tagArr.push(tag)}
+        for (var tag in newTagsLowerCased) {    // add a ref in the tag db for each tag
+          if (newTagsLowerCased.hasOwnProperty(tag)) {tagArr.push(tag.toLowerCase())}
         }
         createTagRefs(tagArr, tmrw, userID, function (resp) {
           if (resp.error) {
@@ -523,7 +539,7 @@ var deletePost = function (res, errMsg, userID, user, date, callback) {
   var deadTags = [];
   for (var tag in user.posts[date][0].tags) {
     if (user.posts[date][0].tags.hasOwnProperty(tag)) {
-      deadTags.push(tag);
+      deadTags.push(tag.toLowerCase());
     }
   }
   deleteTagRefs(deadTags, date, userID, function (resp) {
@@ -734,15 +750,6 @@ var deleteTagRefs = function (tagArr, date, authorID, callback) {
                 break;
               }
             }
-            if (array.length === 0) {
-              if (dateBucket.top && dateBucket.top.length) { //check for extant top tags
-                for (var j = 0; j < dateBucket.top.length; j++) {
-                  if (dateBucket.top[j] === tagArr[j]) {
-                    dateBucket.top.splice(j, 1);
-                  }
-                }
-              }
-            }
           }
         }
         db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
@@ -951,7 +958,7 @@ var getAuthorListFromTagListAndDate = function (tagList, date, callback) {
         return callback({error: false, authorList: authorList});
       } else {
         for (var i = 0; i < tagList.length; i++) {
-          if (dateBucket.ref[tagList[i]]) {
+          if (dateBucket.ref[tagList[i].toLowerCase()]) {
             authorList = authorList.concat(dateBucket.ref[tagList[i]]);
           }
         }
@@ -968,7 +975,7 @@ var insertIntoArray = function (array, index, item) { // array.sPlice already do
   return before.concat(after);
 }
 
-var getTopTags = function (ref) { //input ref of a date of tags
+var getTags = function (ref) { //input ref of a date of tags
   // DEPRECIATED, this is only called by admin, leave so admin can see all used tags???
   // MISNOMER, this now just returns an ordered(by usage freq) list of ALL tags
   var arr = [];
@@ -1115,9 +1122,7 @@ app.post('/admin/tags', function(req, res) {
       if (err) {return res.send({error:err});}
       else {
         if (!dateBucket) {return res.send({error:"not found"});}
-        if (!dateBucket.top) {
-          dateBucket.genndTop = getTopTags(dateBucket.ref);
-        }
+        dateBucket.genndTop = getTags(dateBucket.ref);
         return res.send(dateBucket);
       }
     });
@@ -1174,64 +1179,54 @@ app.post('/admin/getUserUrls', function(req, res) {
   });
 });
 
-app.post('/admin/buildTagIndex', function(req, res) {
+app.post('/admin/deCaseSensitizeTags', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('tags').find({}, {_id:0,}).toArray(function(err, tags) {
-      if (err) {return sendError(res, err);}
+    db.collection('tags').findOne({date: req.body.date}, {}
+    , function (err, dateBucket) {
+      if (err) {return res.send({error:err});}
       else {
-        var ref = {};
-        for (var i = 0; i < tags.length; i++) {
-          ref[tags[i].date] = tags[i].ref;
-        }
-        var daysAgo = 900;    // how many days back the tag thing checks
-        var tagArr = [];
-        for (var i = daysAgo; i > -3; i--) {
-          var date = pool.getCurDate(i);
-          if (ref[date]) {
-            for (var tag in ref[date]) {
-              if (ref[date].hasOwnProperty(tag)) {
-                for (var j = 0; j < ref[date][tag].length; j++) {
-                  tagArr.push({
-                    authorID: ref[date][tag][j],
-                    tag: tag,
-                    date: date,
-                  });
-                }
-              }
-            }
-          }
-        }
-        res.send({tagArr:tagArr,});
+        if (!dateBucket) {return res.send({error:false});}
+        var ref = tagCaseDeSensitize(dateBucket.ref);
+        dateBucket.ref = ref;
+        db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
+        {$set: dateBucket},
+        function(err, tag) {
+          if (err) {return res.send({error:err});}
+          else {return res.send({error:false});}
+        });
       }
     });
   });
 });
 
-app.post('/admin/buildTagIndexBounce', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    var tagArr = req.body.tagArr;
-    var countSet = 10;
-    var count = countSet;
-    if (req.body.progress+count > tagArr.length) {
-      count = tagArr.length - req.body.progress;
+var tagCaseDeSensitize = function (ref) {
+  var newRef = {};
+  for (var tag in ref) {
+    if (ref.hasOwnProperty(tag)) {
+      if (ref[tag] && ref[tag].length) {
+        if (newRef[tag.toLowerCase()]) {
+          newRef[tag.toLowerCase()] = newRef[tag.toLowerCase()].concat(ref[tag]);
+        } else {
+          newRef[tag.toLowerCase()] = ref[tag];
+        }
+      }
     }
-    for (var i = req.body.progress; i < tagArr.length && i < req.body.progress+countSet; i++) {
-      (function (i) {
-        tagIndexAddOrRemove(tagArr[i].tag, tagArr[i].date, tagArr[i].authorID, true, function (resp) {
-          if (resp.error && count > 0) {
-            count = -1;
-            return sendError(res, resp.error);
-          } else {
-            count--;
-            if (count === 0) {
-              res.send({error:false, progress:req.body.progress+countSet, tagArr:tagArr});
-            }
-          }
-        });
-      })(i)
+  }
+  for (var tag in newRef) {
+    if (newRef.hasOwnProperty(tag)) {
+      var check = {}
+      for (var i = 0; i < newRef[tag].length; i++) {
+        if (check[newRef[tag][i]]) {
+          newRef[tag].splice(i, 1);
+          i--;
+        } else {
+          check[newRef[tag][i]] = true;
+        }
+      }
     }
-  });
-});
+  }
+  return newRef;
+}
 
 app.post('/admin/testCreateTagIndexItem', function(req, res) {
   adminGate(req, res, function (res, user) {
