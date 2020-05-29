@@ -1016,10 +1016,10 @@ var dateJump = function (target) {
     var day = Number(target.slice(8,10));
     var computedDate = new Date(year,month,day);
     //
-    var newYear = computedDate.getUTCFullYear();
-    var newMon = computedDate.getUTCMonth()+1;
+    var newYear = computedDate.getFullYear();
+    var newMon = computedDate.getMonth()+1;
     if (newMon < 10) {newMon = "0"+newMon}
-    var newDay = computedDate.getUTCDate();
+    var newDay = computedDate.getDate();
     if (newDay < 10) {newDay = "0"+newDay}
     var newDateString = newYear+"-"+newMon+"-"+newDay;
 
@@ -1045,10 +1045,10 @@ var moveDateByOneDay = function (dir) {
       var day = Number(curDateStamp.slice(8,10))+ Number(dir);
       var computedDate = new Date(year,month,day);
       //
-      var newYear = computedDate.getUTCFullYear();
-      var newMon = computedDate.getUTCMonth()+1;
+      var newYear = computedDate.getFullYear();
+      var newMon = computedDate.getMonth()+1;
       if (newMon < 10) {newMon = "0"+newMon}
-      var newDay = computedDate.getUTCDate();
+      var newDay = computedDate.getDate();
       if (newDay < 10) {newDay = "0"+newDay}
       var newDateString = newYear+"-"+newMon+"-"+newDay;
       //
@@ -1948,10 +1948,11 @@ var createPostFooter = function (postElem, postData, type) {
             '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>"
             if ($('post-editor').value !== "") {text = '<br>'+text;}
             $('post-editor').value += prepTextForEditor(text);
-            showWriter('post');
-            addTag(postData.author);
-            switchPanel('write-panel');
-            simulatePageLoad("~write", false);
+            showWriter('post', function () {
+              addTag(postData.author);
+              switchPanel('write-panel');
+              simulatePageLoad("~write", false);
+            });
           } else {
             return uiAlert("eRoRr! post not found???<br>how did you even get here?");
           }
@@ -2645,13 +2646,17 @@ var prepTextForEditor = function (text) {
 }
 
 // editor stuff
-var showWriter = function (kind) {
+var showWriter = function (kind, callback) {
   $(kind+'-writer').classList.remove('removed');
   $(kind+'-preview').classList.add('removed');
   var editor = $(kind+'-editor');
   setCursorPosition(editor, editor.value.length, editor.value.length);
   if (!glo.openEditors) {glo.openEditors = {}}
   glo.openEditors[kind] = true;
+  if (kind === 'post') {
+    if (callback) {callback();}
+    console.log('binky');
+  }
 }
 var hideWriter = function (kind) {
   $(kind+'-writer').classList.add('removed');
@@ -3155,7 +3160,6 @@ var checkForThread = function (user) {
   }
   switchPanel('inbox-panel');
   simulatePageLoad("~inbox", false);
-  //showWriter('message');
 }
 
 var createMessage = function (i, j) {
