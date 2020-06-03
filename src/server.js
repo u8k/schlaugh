@@ -258,7 +258,7 @@ var getPayload = function (req, res, callback) {
   if (!req.session.user) {return sendError(res, "no user session 0234");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1, savedTags:1}
+    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, muted:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1, savedTags:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, "user not found");}
@@ -282,11 +282,14 @@ var getPayload = function (req, res, callback) {
           bookmarks: user.bookmarks,
           collapsed: user.collapsed,
           savedTags: user.savedTags,
+          muted: user.muted,
         }
+        /* fudge */
         //pending post
         if (user.posts[tmrw]) {
           payload.pending = user.posts[tmrw][0];
         }
+        /* */
         checkUpdates(user, function (check) {
           if (check.error) {return sendError(res, check.error);}
           user = check.user;
@@ -1007,9 +1010,15 @@ var genInboxTemplate = function () {
   return {threads: {}, list: [], updatedOn: pool.getCurDate(), pending: {}};
 }
 
-var idCheck = function (req, res, errMsg, callback) {
+var idScreen = function (req, res, errMsg, callback) {
   if (!req.session.user) {return sendError(res, errMsg+"no user session 6481");}
   if (!ObjectId.isValid(req.session.user._id)) {return sendError(res, errMsg+"invalid userID format");}
+  return callback(ObjectId(req.session.user._id));
+}
+
+var idCheck = function (req, callback) {
+  if (!req.session.user) {return callback(false);}
+  if (!ObjectId.isValid(req.session.user._id)) {return callback(false);}
   return callback(ObjectId(req.session.user._id));
 }
 
@@ -1615,7 +1624,7 @@ app.post('/editOldPost', function (req, res) {
   var errMsg = "the post was not successfully edited<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 154");}
   if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"you would seek to edit your future? fool!");}
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1}
     , function (err, user) {
@@ -1684,7 +1693,7 @@ app.post('/editOldPost', function (req, res) {
 app.post('/deleteOldPost', function (req, res) {
   var errMsg = "the post was not successfully deleted<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 813");}
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1}
     , function (err, user) {
@@ -1715,7 +1724,7 @@ app.post('/deleteOldPost', function (req, res) {
 // add/remove to/from bookmarks
 app.post('/bookmarks', function(req, res) {
   var errMsg = "bookmark list not successfully updated<br><br>";
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, bookmarks:1}
       , function (err, user) {
@@ -1754,7 +1763,7 @@ app.post('/bookmarks', function(req, res) {
 app.post('/saveTag', function(req, res) {
   var errMsg = "tag not successfully saved<br><br>";
   if (!req.body || !req.body.tag) {return sendError(res, errMsg+"malformed request 552");}
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, savedTags:1}
       , function (err, user) {
@@ -1784,10 +1793,36 @@ app.post('/saveTag', function(req, res) {
   });
 });
 
+// mute/unmute users
+app.post('/mute', function(req, res) {
+  var errMsg = "mute status not successfully saved<br><br>";
+  if (!req.body || !req.body.userID) {return sendError(res, errMsg+"malformed request 553");}
+  idScreen(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, muted:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          if (!user.muted) {user.muted = {};}
+          if (req.body.muting) {
+            user.muted[req.body.userID] = true;
+          } else {                            //unmute
+            delete user.muted[req.body.userID];
+          }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, errMsg+resp.error);}
+            else {res.send({error: false});}
+          });
+        }
+      });
+  });
+});
+
 // follow/unfollow
 app.post('/follow', function(req, res) {
   var errMsg = "following list not successfully updated<br><br>";
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, following:1}
       , function (err, user) {
@@ -2051,7 +2086,7 @@ app.post('/link', function(req, res) {
 app.post('/collapse', function(req, res) {
   var errMsg = "collapsed property error<br><br>";
   if (!req.body.id) {return sendError(res, errMsg+"malformed request 501");}
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, collapsed:1}
       , function (err, user) {
@@ -2147,7 +2182,7 @@ app.post('/changePic', function(req, res) {
 app.post('/saveAppearance', function(req, res) {
   var errMsg = "appearance settings not successfully updated<br><br>";
   if (!req.body) {return sendError(res, errMsg+"malformed request 991");}
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, settings:1}
       , function (err, user) {
@@ -2182,7 +2217,7 @@ app.post('/saveAppearance', function(req, res) {
 app.post('/toggleSetting', function(req, res) {
   var errMsg = "settings not successfully updated<br><br>";
   if (!req.body || !req.body.setting) {return sendError(res, errMsg+"malformed request 992");}
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, settings:1}
       , function (err, user) {
@@ -2422,7 +2457,7 @@ app.get('/~logout', function(req, res) {
 app.post('/changeUsername', function (req, res) {
   var errMsg = "username change error<br><br>";
   if (!req.body.newName) {return sendError(res, errMsg+"malformed request 501");}
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}, {_id:0, settings:1, username:1}, function (err, user) {
       if (err) {return sendError(res, errMsg+err);}
       else if (!user) {return sendError(res, errMsg+"user account not found");}
@@ -2823,9 +2858,9 @@ var return404author = function (req, res) {
 var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get FEED
   var errMsg = "error retrieving the posts of following<br><br>";
   if (!req.body.date) {return sendError(res, errMsg+"malformed request 412");}
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
-    , {_id:0, following:1, savedTags:1}
+    , {_id:0, following:1, savedTags:1, muted:1}
     , function (err, user) {
       if (err) {return sendError(res, errMsg+err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
@@ -2843,6 +2878,16 @@ var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get F
         getAuthorListFromTagListAndDate(user.savedTags, req.body.date, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
           else {
+            // filter muted authors
+            // if a user is being followed and muted, they get filtered out then added back in, this is intended
+            if (user.muted) {
+              for (var i = 0; i < resp.authorList.length; i++) {
+                if (user.muted[resp.authorList[i]]) {
+                  resp.authorList.splice(i, 1);
+                  i--;
+                }
+              }
+            }
             var authorList = resp.authorList.concat(user.following);
             postsFromAuthorListAndDate(authorList, req.body.date, followingRef, req.body.postRef, function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
@@ -3059,30 +3104,32 @@ var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
           dateFilter(i-1);
         }
       }
-      dateFilter(tagListing.list.length-1)
+      dateFilter(tagListing.list.length-1);
 
-      var lookUpList = [];
-      var totalPageCount = Math.ceil(tagListing.list.length /7);
-      if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
-        var page = totalPageCount;
-      } else {
-        var page = req.body.page;
-      }
-      var start = (page * 7) - 1;
-      for (var i = start; i > start - 7; i--) {
-        if (tagListing.list[i]) {
-          lookUpList.push(tagListing.list[i]);
+      filterMutedAuthors(req, tagListing.list, function (filteredList) {
+        var lookUpList = [];
+        var totalPageCount = Math.ceil(filteredList.length /7);
+        if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
+          var page = totalPageCount;
+        } else {
+          var page = req.body.page;
         }
-      }
-      postsFromListOfAuthorsAndDates(lookUpList, req.body.postRef, function (resp) {
-        if (resp.error) {return sendError(res, errMsg+resp.error);}
-        else {
-          return res.send({
-            error:false,
-            posts: resp.posts,
-            pages: totalPageCount,
-          });
+        var start = (page * 7) - 1;
+        for (var i = start; i > start - 7; i--) {
+          if (filteredList[i]) {
+            lookUpList.push(filteredList[i]);
+          }
         }
+        postsFromListOfAuthorsAndDates(lookUpList, req.body.postRef, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          else {
+            return res.send({
+              error:false,
+              posts: resp.posts,
+              pages: totalPageCount,
+            });
+          }
+        });
       });
     }
   });
@@ -3098,18 +3145,53 @@ var getAllPostsWithTagOnDate = function (req, res) {
       if (resp.authorList.length === 0) {
         return res.send({error:false, posts:[],});
       } else {
-        postsFromAuthorListAndDate(resp.authorList, req.body.date, null, req.body.postRef, function (resp) {
-          if (resp.error) {return res.send({error:resp.error});}
-          else {return res.send({error:false, posts:resp.posts,});}
+        filterMutedAuthors(req, resp.authorList, function (authorList) {
+          postsFromAuthorListAndDate(authorList, req.body.date, null, req.body.postRef, function (resp) {
+            if (resp.error) {return res.send({error:resp.error});}
+            else {return res.send({error:false, posts:resp.posts,});}
+          });
         });
       }
     }
   });
 }
 
+var filterMutedAuthors = function (req, authorList, callback) {
+  idCheck(req, function (userID) {
+    if (userID) {
+      db.collection('users').findOne({_id: userID}, {_id:0, muted:1}, function (err, user) {
+          if (err) {return sendError(res, errMsg+err);}
+          else if (!user) {return sendError(res, errMsg+"user not found");}
+          else {
+            if (user.muted) {
+              if (authorList[0].authorID) {         // for a post list, really
+                for (var i = 0; i < authorList.length; i++) {
+                  if (user.muted[authorList[i].authorID]) {
+                    authorList.splice(i, 1);
+                    i--;
+                  }
+                }
+              } else {                              // for straight up list of authors
+                for (var i = 0; i < authorList.length; i++) {
+                  if (user.muted[authorList[i]]) {
+                    authorList.splice(i, 1);
+                    i--;
+                  }
+                }
+              }
+            }
+            callback(authorList);
+          }
+      });
+    } else {
+      callback(authorList);
+    }
+  });
+}
+
 var getBookMarkedPosts = function (req, res) {
   var errMsg = "bookmark list not successfully retrieved<br><br>";
-  idCheck(req, res, errMsg, function (userID) {
+  idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, bookmarks:1,}
       , function (err, user) {

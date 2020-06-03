@@ -1483,6 +1483,7 @@ var setAuthorHeader = function (loc, aInfo) {
 
   // follow and message and bio buttons
   setFollowButton(loc, aInfo);
+  setMuteButton(loc, aInfo);
   setMessageButton(loc, aInfo);
   setEditBioButtons(loc, aInfo);
 
@@ -1501,7 +1502,7 @@ var setFollowButton = function (loc, authInf) {
   follow.classList.remove("removed")
   if (glo.username && authInf._id) {
     // is the user already following the author?
-    if (glo.followingRef[authInf._id]) {
+    if (_npa(['glo', 'followingRef', authInf._id])) {
       follow.innerHTML = "defollow";
       var remove = true;
     } else {
@@ -1515,8 +1516,8 @@ var setFollowButton = function (loc, authInf) {
     } else {
       follow.onclick = function(){
         ajaxCall('/follow', 'POST', {id:authInf._id, remove:remove}, function(json) {
-          if (remove) {glo.followingRef[authInf._id] = false;}
-          else {glo.followingRef[authInf._id] = true;}
+          if (remove) {_npa(['glo', 'followingRef', authInf._id], false);}
+          else {_npa(['glo', 'followingRef', authInf._id], true);}
           // refresh button
           setFollowButton(loc, authInf);
         });
@@ -1524,6 +1525,47 @@ var setFollowButton = function (loc, authInf) {
     }
   } else {
     follow.classList.add("removed")
+  }
+}
+
+var setMuteButton = function (loc, authInf) {
+  var muteBtnElem = $("mute-button-"+loc);
+  muteBtnElem.classList.remove("removed")
+  if (glo.username && authInf._id) {
+    // is the user already muteing the author?
+    if (_npa(['glo', 'muteingRef', authInf._id])) {
+      muteBtnElem.innerHTML = "unmute";
+      var muting = false;
+    } else {
+      muteBtnElem.innerHTML = "mute";
+      var muting = true;
+    }
+    if (loc === "edit") {
+      muteBtnElem.onclick= function () {
+        uiAlert(`Y'ALL<br>DONE<br>DID<br>GET<br>GOT<br>BY<br>A<br>FAKE BUTTON`,'doh');
+      }
+    } else {
+      muteBtnElem.onclick = function(){
+        if (muting) {
+          verify(`"muting" a schluser will stop their posts from showing up in tag searches and in your feed via tags. If you are following AND muting someone, their posts will show up in your daily feed but NOT in tag searches. Muting a schluser doesn't prevent you from going directly to their page and seeing their posts that way<br><br>go ahead and mute em?`, "DO IT", "actually, i'd rather not", function (result) {
+            if (!result) {return;}
+            ajaxCall('/mute', 'POST', {userID:authInf._id, muting:muting}, function(json) {
+              _npa(['glo', 'muteingRef', authInf._id], true);
+              // refresh button
+              setMuteButton(loc, authInf);
+            });
+          });
+        } else {
+          ajaxCall('/mute', 'POST', {userID:authInf._id, muting:muting}, function(json) {
+            _npa(['glo', 'muteingRef', authInf._id], false);
+            // refresh button
+            setMuteButton(loc, authInf);
+          });
+        }
+      }
+    }
+  } else {
+    muteBtnElem.classList.add("removed")
   }
 }
 
@@ -2655,7 +2697,7 @@ var showWriter = function (kind, callback) {
   glo.openEditors[kind] = true;
   if (kind === 'post') {
     if (callback) {callback();}
-    console.log('binky');
+    //console.log('binky');
   }
 }
 var hideWriter = function (kind) {
@@ -3560,6 +3602,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
   glo.pendingUpdates = Object.create(data.pendingUpdates);
   glo.fetchedPosts = Object.create(data.pendingUpdates);
   glo.userPic = data.userPic;
+  glo.muteingRef = data.muted;
   glo.followingRef = {};
   glo.savedTags = {};
   for (var i = 0; i < data.savedTags.length; i++) {

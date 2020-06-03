@@ -410,6 +410,7 @@ button, .button {
 }
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
   button, .button, input, color-button, select, footerButton {font-size: 1.2em;}
+  .author-button {width: 140px;}
   .collapse-button-top, .collapse-button-bottom {font-size: 20px;}
   .color-button {width: 75px; height: 28px;}
 }
