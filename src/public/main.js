@@ -2180,7 +2180,7 @@ var editPost = function (post) {
   }
   //
   $("old-tag-box").classList.remove("removed");
-  if (glo.pendingUpdates[post.date]) {
+  if (glo.pendingUpdates[post.date]) {                 // there is already a pending edit
     var savedPost = glo.pendingUpdates[post.date][0];
     $('old-post-editor').value = prepTextForEditor(savedPost.body);
     $("old-post-status").innerHTML = "pending edit for your post on "+post.date;
@@ -2188,7 +2188,7 @@ var editPost = function (post) {
     hideWriter('old-post');
     $('edit-post-button').innerHTML = "edit edit";
     switchPanel("edit-panel");
-  } else {
+  } else {                                            // there is not a pending edit
     if (glo.postStash && glo.postStash[post.post_id]) {     // is it already stashed?
       var tags = getTagString(glo.postStash[post.post_id].tags);
       glo.fetchedPosts[post.date] = [glo.postStash[post.post_id]];
@@ -2199,10 +2199,10 @@ var editPost = function (post) {
       $('delete-pending-old-post').classList.add("removed");
       $('pending-post-edit').classList.add("removed");
       $('edit-post-button').innerHTML = "new edit";
-      hideWriter('old-post');
       switchPanel("edit-panel");
+      showWriter('old-post');
     } else {
-      return uiAlert("eRoRr! post not found???<br>how did you even get here?");
+      return uiAlert("eRoRr! post not found???<br>how did you even get here?<br>plz tell staff about this");
     }
   }
   // set submit button
@@ -2722,12 +2722,13 @@ var prepTextForEditor = function (text) {
 
 // editor stuff
 var showWriter = function (kind, callback) {
+  if (!glo.openEditors) {glo.openEditors = {}}
+  if (glo.openEditors[kind]) {return;}  // already open!
+  glo.openEditors[kind] = true;
   $(kind+'-writer').classList.remove('removed');
   $(kind+'-preview').classList.add('removed');
   var editor = $(kind+'-editor');
   setCursorPosition(editor, editor.value.length, editor.value.length);
-  if (!glo.openEditors) {glo.openEditors = {}}
-  glo.openEditors[kind] = true;
   if (kind === 'post') {
     if (callback) {callback();}
     //console.log('binky fudge');
