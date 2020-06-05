@@ -1188,7 +1188,7 @@ app.post('/admin/getUserUrls', function(req, res) {
     });
   });
 });
-
+/*
 app.post('/admin/deCaseSensitizeTags', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('tags').findOne({date: req.body.date}, {}
@@ -1208,36 +1208,7 @@ app.post('/admin/deCaseSensitizeTags', function(req, res) {
     });
   });
 });
-
-var tagCaseDeSensitize = function (ref) {
-  var newRef = {};
-  for (var tag in ref) {
-    if (ref.hasOwnProperty(tag)) {
-      if (ref[tag] && ref[tag].length) {
-        if (newRef[tag.toLowerCase()]) {
-          newRef[tag.toLowerCase()] = newRef[tag.toLowerCase()].concat(ref[tag]);
-        } else {
-          newRef[tag.toLowerCase()] = ref[tag];
-        }
-      }
-    }
-  }
-  for (var tag in newRef) {
-    if (newRef.hasOwnProperty(tag)) {
-      var check = {}
-      for (var i = 0; i < newRef[tag].length; i++) {
-        if (check[newRef[tag][i]]) {
-          newRef[tag].splice(i, 1);
-          i--;
-        } else {
-          check[newRef[tag][i]] = true;
-        }
-      }
-    }
-  }
-  return newRef;
-}
-
+*/
 app.post('/admin/testCreateTagIndexItem', function(req, res) {
   adminGate(req, res, function (res, user) {
     tagIndexAddOrRemove(req.body.tag, req.body.date, req.body.authorID, true, function (resp) {

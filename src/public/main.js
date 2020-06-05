@@ -1092,6 +1092,18 @@ var _npa = function (arr, item, i, cur) { //(safe) NestedPropertyAccess
   return _npa(arr, item, i+1, cur[arr[i]]);
 }
 
+var tagCaseDeSensitize = function (ref) {
+  var newRef = {};
+  for (var tag in ref) {
+    if (ref.hasOwnProperty(tag)) {
+        if (!newRef[tag.toLowerCase()]) {
+          newRef[tag.toLowerCase()] = true;
+        }
+    }
+  }
+  return newRef;
+}
+
 var open404 = function (display, input, callback) {
   glo.postPanelStatus = input;
   if (input.postCode === 'TFTF') {
@@ -1114,6 +1126,7 @@ var fetchPosts = function (display, input, callback) {
   if (input.notFound) {
     return open404(display, input, callback);
   }
+  if (input.tag) {input.tag = input.tag.toLowerCase()}
   //
   var pc = input.postCode;
   // do we have the data already?   ...what data?
@@ -1181,7 +1194,6 @@ var fetchPosts = function (display, input, callback) {
       // sort the postList by the postIDs to randomize for dated feeds
       if (pc === "FTTT" || pc === "FTTF" || pc === "FFTT" || pc === "FFTF") {
         postList.sort();
-        var freshPosts = [];
       }
       if (input.needAuthorInfo) {
         _npa(['glo','pRef','author',input.author,'info'], json.authorInfo);
@@ -1206,15 +1218,36 @@ var fetchPosts = function (display, input, callback) {
       }
       if (pc === 'FFTT' || pc === 'FFTF') { //    date only "feed" posts
         // from returned post list, parse into lists for each tag
+        var postListForTags = [];
+        for (var i = 0; i < json.posts.length; i++) {             // have we previously fetched this post?
+          if (json.posts[i].date === undefined) {                 // then grab it's tags and author from postStash
+            postListForTags.push({
+              post_id:json.posts[i].post_id,
+              tags:glo.postStash[json.posts[i].post_id].tags,
+              _id:glo.postStash[json.posts[i].post_id]._id,
+            })
+          } else {
+            postListForTags.push(json.posts[i]);
+          }
+        }
+        for (var i = 0; i < postListForTags.length; i++) {
+          if (_npa(['glo', 'muteingRef', postListForTags[i]._id])) {  // don't put a muted user into a tag list
+            postListForTags.splice(i, 1);
+            i--;
+          } else {
+            postListForTags[i].tags = tagCaseDeSensitize(postListForTags[i].tags);
+          }
+        }
         for (var i = 0; i < json.tagList.length; i++) {
-          var zarr = ['glo','pRef','tag',json.tagList[i],'date',input.date,];
-          if (!_npa(zarr)) {
-            var tagArr = _npa(zarr, []);
-            for (var j = 0; j < json.posts.length; j++) {
-              if (json.posts[j].tags && json.posts[j].tags[json.tagList[i]]) {
-                tagArr.push(json.posts[j].post_id);
+          var tagListAddress = ['glo','pRef','tag',json.tagList[i],'date',input.date,];
+          if (!_npa(tagListAddress)) {          // if no home(post list) at this address, build one
+            var tagArr = _npa(tagListAddress, []);
+            for (var j = 0; j < postListForTags.length; j++) {
+              if (postListForTags[j].tags && postListForTags[j].tags[json.tagList[i].toLowerCase()]) {
+                tagArr.push(postListForTags[j].post_id);
               }
             }
+            tagArr.sort();  // for the "randomized" by post order thing
           }
         }
       }
@@ -2697,7 +2730,7 @@ var showWriter = function (kind, callback) {
   glo.openEditors[kind] = true;
   if (kind === 'post') {
     if (callback) {callback();}
-    //console.log('binky');
+    //console.log('binky fudge');
   }
 }
 var hideWriter = function (kind) {
