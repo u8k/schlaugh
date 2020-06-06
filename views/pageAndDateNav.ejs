@@ -2,16 +2,16 @@
   <text id="<%- kind %>-tag-display" class="removed"></text><br>
   <button id="author-clear-tag-<%- kind %>" onclick="clearAuthorTagButton()" class="removed">clear tag</button>
   <div id="<%- kind %>-date-box" class="no-select removed">
-    <icon id="<%- kind %>-left-date-arrow" class="clicky fas fa-caret-left" onclick="moveDateByOneDay(-1)"></icon>
+    <icon id="<%- kind %>-left-date-arrow" class="clicky" onclick="moveDateByOneDay(-1)">🞀</icon>
     <text id="<%- kind %>-date-display"></text>
-    <icon id="<%- kind %>-right-date-arrow" class="clicky fas fa-caret-right" onclick="moveDateByOneDay(1)"></icon>
+    <icon id="<%- kind %>-right-date-arrow" class="clicky" onclick="moveDateByOneDay(1)">🞂</icon>
   </div>
 
 
   <div id="<%- kind %>-page-box" class="removed">
-    <icon id="<%- kind %>-left-page-arrow" class="clicky fas fa-caret-left" onclick="pageJump(-1)"></icon>
+    <icon id="<%- kind %>-left-page-arrow" class="clicky" onclick="pageJump(-1)">🞀</icon>
     <text class="monospace">page</text>
-    <icon id="<%- kind %>-right-page-arrow" class="clicky fas fa-caret-right" onclick="pageJump(1)"></icon>
+    <icon id="<%- kind %>-right-page-arrow" class="clicky" onclick="pageJump(1)">🞂</icon>
 
     <form action="javascript:void(0);" id="<%- kind %>-page-info">
       <input class="monospace post-background page-number-left" id="<%- kind %>-page-number-left-input" onclick="$('<%- kind %>-page-jump').classList.remove('hidden');" onmousedown="$('<%- kind %>-page-jump').classList.remove('hidden');">
