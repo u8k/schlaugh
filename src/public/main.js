@@ -2726,15 +2726,15 @@ var prepTextForEditor = function (text) {
 // editor stuff
 var showWriter = function (kind, callback) {
   if (!glo.openEditors) {glo.openEditors = {}}
-  if (glo.openEditors[kind]) {return;}  // already open!
+  if (glo.openEditors[kind] && glo.openPanel === "write-panel") {return;}  // already open!
   glo.openEditors[kind] = true;
   $(kind+'-writer').classList.remove('removed');
   $(kind+'-preview').classList.add('removed');
   var editor = $(kind+'-editor');
   setCursorPosition(editor, editor.value.length, editor.value.length);
   if (kind === 'post') {
-    if (callback) {callback();}
     //console.log('binky fudge');
+    if (callback) {callback();}
   }
 }
 var hideWriter = function (kind) {
