@@ -56,7 +56,7 @@
   }
 
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
-    if (typeof string !== "string") {return {error:"not string"}}
+    if (typeof string !== "string") {return "";}
 
     var buttonUp = function (b, i, a, u, s, cut, code, ascii, secret, li, ul, ol, l, r, c, quote, note, imgList) {
       if (b) {string += "</b>"}

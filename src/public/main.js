@@ -2420,12 +2420,12 @@ var submitPost = function (remove) { //also handles editing and deleting
     verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
       loading();
-      ajaxCall("/", 'POST', {text:"", tags:{}, title:""}, function(json) {
-        updatePendingPost(json.text, json.tags, json.title);
+      ajaxCall("/", 'POST', {remove:true}, function(json) {
+        updatePendingPost(null, null, null, true);
       });
     });
   } else {
-    if (text === "") {text = "</b>"}
+
     loading();
     text = preCleanText(text);
     ajaxCall("/", 'POST', {text:text, tags:tags, title:title}, function(json) {
@@ -2434,13 +2434,16 @@ var submitPost = function (remove) { //also handles editing and deleting
   }
 }
 
-var updatePendingPost = function (newText, newTags, newTitle) {
-  if (newText === "") {
+var updatePendingPost = function (newText, newTags, newTitle, remove) {
+  if (remove) {
     glo.pending = false;
     $('pending-status').innerHTML = "no pending post for tomorrow";
     $('delete-pending-post').classList.add("removed");
     $('pending-post').classList.add("removed");
     $('write-post-button').innerHTML = "new post";
+    newText = "";
+    newTags = {};
+    newTitle = "";
   } else {
     glo.pending = {};
     glo.pending.body = newText;
@@ -2491,11 +2494,11 @@ var cancelPost = function () {
       }
     });
   } else {        // there is NOT a current saved/pending post
-    if ($('post-editor').value === "" && $('tag-input').value === "") {return hideWriter('post');}
+    if ($('post-editor').value === "" && $('tag-input').value === "" && $('title-input').value === "") {return hideWriter('post');}
     verify("you want to lose all current text in the editor?", null, null, function (result) {
       if (!result) {return;}
       else {
-        updatePendingPost("", {}, "");
+        updatePendingPost(null, null, null, true);
       }
     });
   }

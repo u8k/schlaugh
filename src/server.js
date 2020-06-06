@@ -1039,6 +1039,18 @@ var isStringValidDate = function (string) {
   }
 }
 
+var lookUpCurrentUser = function (req, res, errMsg, propRef, callback) {
+  idScreen(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}, propRef, function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      else if (!user) {return sendError(res, errMsg+"user not found");}
+      else {
+        callback(user);
+      }
+    });
+  });
+}
+
 //*******//ROUTING//*******//
 
 // admin
@@ -1451,13 +1463,6 @@ app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT POSTS(bo
   });
 });
 
-app.post('/admin/testEmail', function(req, res) {
-  adminGate(req, res, function (res, user) {
-
-  res.send({error:false});
-  });
-});
-
 /*app.post('/admin/staffCheat', function(req, res) {
   adminGate(req, res, function (res, user) {
     var userID = ObjectId("5a0ea8429adb2100146f7568");
@@ -1554,38 +1559,30 @@ app.get('/~payload', function(req, res) {
 // new/edit/delete (current) post
 app.post('/', function(req, res) {
   var errMsg = "your post might not be saved, please copy all of your text to be safe<br><br>";
-  if (!req.session.user) {return sendError(res, errMsg+"no user session 1652");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, posts:1, postList:1, postListPending:1}
-  , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, errMsg+"user not found");}
-    else {
-      checkFreshness(user);
-      var tmrw = pool.getCurDate(-1);
-      var x = pool.cleanseInputText(req.body.text);
-      if (x.error || x[1] === "") {                 //remove pending post, do not replace
-        deletePost(res, errMsg, userID, user, tmrw, function (resp) {
+  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1}, function (user) {
+    checkFreshness(user);
+    var tmrw = pool.getCurDate(-1);
+    var x = pool.cleanseInputText(req.body.text);
+    if (req.body.remove || (x[1] === "" && !req.body.tags && !req.body.title)) {                 //remove pending post, do not replace
+      deletePost(res, errMsg, user._id, user, tmrw, function (resp) {
+        if (resp.error) {return sendError(res, errMsg+resp.error);}
+        else {return res.send({error:false, text:"", tags:{}, title:""});}
+      });
+    } else {
+      var tags = parseInboundTags(req.body.tags);
+      if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+      var title = validatePostTitle(req.body.title);
+      if (title.error) {return sendError(res, errMsg+title.error);}
+      imageValidate(x[0], function (resp) {
+        if (resp.error) {return sendError(res, errMsg+resp.error);}
+        updateUserPost(x[1], tags, title, user._id, user, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
-          else {return res.send({error:false, text:"", tags:{}, title:""});}
-        });
-      } else {
-        var tags = parseInboundTags(req.body.tags);
-        if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
-        var title = validatePostTitle(req.body.title);
-        if (title.error) {return sendError(res, errMsg+title.error);}
-        imageValidate(x[0], function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
-          updateUserPost(x[1], tags, title, userID, user, function (resp) {
+          return writeToDB(user._id, user, function (resp) {
             if (resp.error) {return sendError(res, errMsg+resp.error);}
-            return writeToDB(userID, user, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
-              else {return res.send({error:false, text:x[1], tags:tags, title:title});}
-            });
+            else {return res.send({error:false, text:x[1], tags:tags, title:title});}
           });
         });
-      }
+      });
     }
   });
 });
@@ -1595,67 +1592,59 @@ app.post('/editOldPost', function (req, res) {
   var errMsg = "the post was not successfully edited<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 154");}
   if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"you would seek to edit your future? fool!");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1}
-    , function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
-      else if (!user) {return sendError(res, errMsg+"user not found");}
-      else {
-        checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
-        // pending updates MUST be fresh when we add to it, else all goes to shit
-        checkUpdates(user, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
-          user = resp.user;
-          // before changing anything, verify the postID corresponds with the date
-          if ((req.body.date === "bio" && req.body.post_id === "bio") || (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id)) {
-            var x = pool.cleanseInputText(req.body.text);
-            if (x.error || x[1] === "") {                 // delete
-              if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
-                delete user.pendingUpdates.updates[req.body.date];
-                return writeToDB(userID, user, function (resp) {
-                  if (resp.error) {return sendError(res, errMsg+resp.error);}
-                  else {return res.send({error:false, body:"", tags:{}, title:""});}
-                });
-              } else {return sendError(res, errMsg+"edit not found");}
-            } else {                                      // new/edit
-              var today = pool.getCurDate();
-              if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
-              if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
-              if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
-              //
-              if (req.body.post_id !== "bio") {
-                var tags = parseInboundTags(req.body.tags);
-                if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
-                var title = validatePostTitle(req.body.title);
-                if (title.error) {return sendError(res, errMsg+title.error);}
-              } else {
-                var tags = {};
-                var title = "";
-              }
-              imageValidate(x[0], function (resp) {
-                if (resp.error) {return sendError(res, errMsg+resp.error);}
-                if (req.body.post_id === "bio") {
-                  var newPost = x[1];
-                } else {
-                  var newPost = [{
-                    body: x[1],
-                    tags: tags,
-                    title: title,
-                    post_id: req.body.post_id,
-                    edited: true,
-                  }];
-                }
-                user.pendingUpdates.updates[req.body.date] = newPost;
-                return writeToDB(userID, user, function (resp) {
-                  if (resp.error) {return sendError(res, errMsg+resp.error);}
-                  else {return res.send({error:false, body:x[1], tags:tags, title:title});}
-                });
-              });
+  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1}, function (user) {
+    checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
+    // pending updates MUST be fresh when we add to it, else all goes to shit
+    checkUpdates(user, function (resp) {
+      if (resp.error) {return sendError(res, errMsg+resp.error);}
+      user = resp.user;
+      // before changing anything, verify the postID corresponds with the date
+      if ((req.body.date === "bio" && req.body.post_id === "bio") || (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id)) {
+        var x = pool.cleanseInputText(req.body.text);
+        if (x.error || x[1] === "") {                 // delete
+          if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
+            delete user.pendingUpdates.updates[req.body.date];
+            return writeToDB(user._id, user, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {return res.send({error:false, body:"", tags:{}, title:""});}
+            });
+          } else {return sendError(res, errMsg+"edit not found");}
+        } else {                                      // new/edit
+          var today = pool.getCurDate();
+          if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
+          if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
+          if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
+          //
+          if (req.body.post_id !== "bio") {
+            var tags = parseInboundTags(req.body.tags);
+            if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+            var title = validatePostTitle(req.body.title);
+            if (title.error) {return sendError(res, errMsg+title.error);}
+          } else {
+            var tags = {};
+            var title = "";
+          }
+          imageValidate(x[0], function (resp) {
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            if (req.body.post_id === "bio") {
+              var newPost = x[1];
+            } else {
+              var newPost = [{
+                body: x[1],
+                tags: tags,
+                title: title,
+                post_id: req.body.post_id,
+                edited: true,
+              }];
             }
-          } else {return sendError(res, errMsg+"postID and date miscoresponce");}
-        });
-      }
+            user.pendingUpdates.updates[req.body.date] = newPost;
+            return writeToDB(user._id, user, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {return res.send({error:false, body:x[1], tags:tags, title:title});}
+            });
+          });
+        }
+      } else {return sendError(res, errMsg+"postID and date miscoresponce");}
     });
   });
 });
