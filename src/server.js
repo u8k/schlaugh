@@ -1393,7 +1393,7 @@ app.post('/admin/removeUser', function(req, res) {
   });
 });*/
 
-/*app.post('/admin/makePostIDs', function(req, res) {
+app.post('/admin/makePostIDs', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('users').findOne({username: req.body.name}, {posts:1,}
     , function (err, user) {
@@ -1417,7 +1417,7 @@ app.post('/admin/removeUser', function(req, res) {
       }
     });
   });
-});*/
+});
 
 app.post('/admin/getPost', function(req, res) {
   adminGate(req, res, function (res, user) {
