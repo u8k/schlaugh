@@ -1329,7 +1329,7 @@ var displayPosts = function (idArr, input, callback) {
     $("bot-page-box").classList.add("removed")
   }
 
-/////////////////////////////////////// date display / arrows
+////////////////////////////////////// date display / arrows
   if (postType === "dated") {      //"dated"/feed posts
     $("top-date-box").classList.remove('removed');
     $("bot-date-box").classList.remove('removed');
