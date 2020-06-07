@@ -3124,7 +3124,7 @@ var filterMutedAuthors = function (req, authorList, callback) {
           else if (!user) {return sendError(res, errMsg+"user not found");}
           else {
             if (user.muted) {
-              if (authorList[0].authorID) {         // for a post list, really
+              if (authorList && authorList[0] && authorList[0].authorID) {         // for a post list, really
                 for (var i = 0; i < authorList.length; i++) {
                   if (user.muted[authorList[i].authorID]) {
                     authorList.splice(i, 1);
