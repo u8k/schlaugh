@@ -236,6 +236,15 @@ clicky, .clicky {
 
 #saved-tags-list {margin-bottom: 12px;}
 
+#clicker-panel {
+  font-size: 1.55em;
+}
+.clicker {
+  display: block;
+  margin: auto;
+  margin-top: 25px;
+}
+
 img {
   max-width: 100%;
   height: auto;

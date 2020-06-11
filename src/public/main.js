@@ -454,6 +454,38 @@ var getStats = function () {
   });
 }
 
+var openClickerGame = function () {
+  loading();
+  ajaxCall('/~clicker', 'POST', {}, function(json) {
+    $('click-count-preamble').innerHTML = "total clicks by all schlusers through "+pool.getCurDate(1)+":";
+    $('click-count').innerHTML = json.totalScore;
+    $('post-click').classList.add("removed");
+    if (json.signedIn && json.eligible) {
+      $("click-button").classList.remove("removed");
+      $("cant-click").classList.add("removed");
+      $("must-sign-in").classList.add("removed");
+    } else if (json.signedIn) {
+      $("click-button").classList.add("removed");
+      $("cant-click").classList.remove("removed");
+      $("must-sign-in").classList.add("removed");
+    } else {
+      $("click-button").classList.add("removed");
+      $("cant-click").classList.add("removed");
+      $("must-sign-in").classList.remove("removed");
+    }
+    loading(true);
+    $("panel-buttons").classList.add("removed");
+    switchPanel("clicker-panel");
+    simulatePageLoad('~click', false);
+  });
+}
+var clickClicker = function () {
+  ajaxCall('/~clickClicker', 'POST', {}, function(json) {
+    $("click-button").classList.add("removed");
+    $("post-click").classList.remove("removed");
+  });
+}
+
 var getCursorPosition = function (elem) {
 	// IE < 9 Support
 	if (document.selection) {
@@ -574,8 +606,11 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
       else {
         data.fromPopUp = true;
         signIn('/login', data, function (resp) {
-          fetchPosts(true);
-          loading(true);
+          if (glo.postPanelStatus) {
+            fetchPosts(true);
+          } else if (glo.openPanel = "clicker-panel") {
+            openClickerGame();
+          }
         });
       }
     }
@@ -689,6 +724,7 @@ var signOut = function() {
 var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   // scrolls to top, updates the url, and the browser/tab title
   // defaults to home if no args given, second arg defaults to first if not given
+  // if path parmeter === true, then it doesn't change
   setTimeout(function () {
     window.scroll(0, 0);
   }, 100);
@@ -705,6 +741,7 @@ var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
     if (!newTitle) {newTitle = newPath;}
     document.title = newTitle;
   }
+  //
   if (faviconSrc) {changeFavicon(faviconSrc);}
   else {changeFavicon(null);}
 }
@@ -898,6 +935,7 @@ var backToMain = function (event) {
   modKeyCheck(event, function () {
     if (glo.username) {
       panelButtonClick(event, "posts");
+      $("panel-buttons").classList.remove("removed");
       //fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
     } else {
       switchPanel('login-panel');
@@ -1106,6 +1144,7 @@ var tagCaseDeSensitize = function (ref) {
 
 var open404 = function (display, input, callback) {
   glo.postPanelStatus = input;
+  simulatePageLoad(true, "404s and Heartbreak", null);
   if (input.postCode === 'TFTF') {
     if (input.existed) {
       if (display) {switchPanel('404-panel-existed');}

@@ -39,6 +39,8 @@
         <a href="/~" class="clicky footer-text" onclick="modKeyCheck(event, function () {switchPanel('~about-panel'); simulatePageLoad('~', false);});">about</a>
         •
         <a href="/~faq" class="clicky footer-text" onclick="modKeyCheck(event, function () {openFAQ();});">faq</a>
+        •
+        <a href="/~click" class="clicky footer-text" onclick="modKeyCheck(event, function () {openClickerGame();});">click</a>
       </div>
     </footer>
 
@@ -72,13 +74,15 @@
           }
         }
       } else if (input.panel) {
-        if (!input.user && (input.panel !== "about" && input.panel !== "faq")) {
+        if (!input.user && (input.panel !== "about" && input.panel !== "faq" && input.panel !== "clicker")) {
           simulatePageLoad();
           switchPanel("login-panel");
         } else if (input.panel === "about") {
           initSchlaugh(input.user, function () {switchPanel("~about-panel")});
         } else if (input.panel === "faq") {
           initSchlaugh(input.user, function () {openFAQ();});
+        } else if (input.panel === "clicker") {
+          initSchlaugh(input.user, function () {openClickerGame();});
         } else {
           initSchlaugh(input.user, function () {switchPanel(input.panel+"-panel")});
         }

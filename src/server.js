@@ -1524,6 +1524,75 @@ app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT POSTS(bo
 });*/
 
 
+// ********** clicker game stuff *********** //
+app.get('/~click', function(req, res) {
+  renderLayout(req, res, {panel:"clicker"});
+});
+app.post('/~clicker', function(req, res) {
+  var errMsg = "error fetching clicker game info<br><br>";
+  idCheck(req, function (userID) {
+    db.collection('users').findOne({ username: "admin" }, {_id:1, clicker:1}, function (err, admin) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!admin) {return sendError(res, errMsg+"data not found");}
+        else {
+          // if game not init, then init
+          if (!admin.clicker) {admin.clicker = {totalScore:0, lastClickDate:pool.getCurDate(), clickerRef:{}}}
+          // perform night audit if needed
+          if (admin.clicker.lastClickDate !== pool.getCurDate()) {
+            admin.clicker.lastClickDate = pool.getCurDate();
+            for (var personWhoClicked in admin.clicker.clickerRef) {
+              if (admin.clicker.clickerRef.hasOwnProperty(personWhoClicked)) {
+                admin.clicker.totalScore++;
+              }
+            }
+            admin.clicker.clickerRef = {};
+          }
+          //
+          var signedIn = false;
+          var eligible = false;
+          if (userID) {
+            signedIn = true;
+            if (!admin.clicker.clickerRef[userID]) {
+              eligible = true;
+            }
+          }
+          writeToDB(admin._id, admin, function (resp) {
+            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            else {
+              return res.send({totalScore:admin.clicker.totalScore, signedIn:signedIn, eligible:eligible});
+            }
+          });
+        }
+      })
+  })
+});
+app.post('/~clickClicker', function(req, res) {
+  var errMsg = "error executing click<br><br>";
+  idScreen(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({ username: "admin" }, {_id:1, clicker:1}, function (err, admin) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!admin) {return sendError(res, errMsg+"data not found");}
+        else {
+          if (!admin.clicker || !admin.clicker.lastClickDate || admin.clicker.lastClickDate !== pool.getCurDate()) {
+            return sendError(res, errMsg+"malformed request 318");
+          } else if (admin.clicker.clickerRef[userID]) {
+            sendError(res, errMsg+"pretty sneaky sis!");
+          } else {
+            admin.clicker.clickerRef[userID] = true;
+            writeToDB(admin._id, admin, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {
+                return res.send({error:false});
+              }
+            });
+          }
+        }
+      });
+  });
+});
+
+// ********** ~~~~****~~~~****~~~~ *********** //
+
 
 // main page, and panels
 app.get('/', function(req, res) {

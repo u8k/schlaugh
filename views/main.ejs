@@ -350,6 +350,19 @@
   <clicky onclick="switchPanel('lost-panel');simulatePageLoad();" class="special">try again?</clicky><br><br>
 </div>
 
+<div id="clicker-panel" class="removed">
+  <h2 id="click-title">click</h2>
+
+  <text class="clicker" id="click-count-preamble"></text>
+  <text class="clicker" id="click-count"></text>
+
+  <button class="clicker" onclick="clickClicker()" id="click-button">click</button>
+
+  <text class="clicker removed" id="post-click">you have clicked<br>you may click again tomorrow</text>
+  <text class="clicker" id="cant-click">you have already clicked today, you may click again tomorrow</text>
+  <text class="clicker" id="must-sign-in">you must be <a onclick="passPromptSubmit()" class="clicky">signed in</a> to click</text>
+</div>
+
 <div id="display-button-box">
   <icon onclick="$('text-options-pop-up').classList.remove('hidden')" class="clicky fas fa-font"></icon>
   <icon onclick="$('color-options-pop-up').classList.remove('hidden')" class="clicky fas fa-palette"></icon>
