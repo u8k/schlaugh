@@ -763,7 +763,7 @@ var changeFavicon = function (src) {
   document.head.appendChild(link);
 }
 
-var ajaxCall = function(url, method, data, callback) {
+var ajaxCall = function(url, method, data, callback, shushError) {
   var xhttp = new XMLHttpRequest();
   xhttp.open(method, url, true);
   xhttp.setRequestHeader('Content-Type', 'application/json');
@@ -773,9 +773,13 @@ var ajaxCall = function(url, method, data, callback) {
         var json = (xhttp.responseText);
         json = JSON.parse(json);
         if (json.error) {uiAlert(json.error);}
-        else {callback(json);}
+        else {if (callback) {callback(json);}}
       } else {
-        uiAlert("error, sorry!<br><br>unethical response from server, please show this to staff<br><br>"+url+"<br>"+this.statusText+"<br>"+this.responseText)
+        if (!shushError) {
+          uiAlert("error, sorry!<br><br>unethical response from server, please show this to staff<br><br>"+url+"<br>"+this.statusText+"<br>"+this.responseText)
+        } else {
+          if (callback) {callback(false);}
+        }
       }
     }
   }
@@ -985,7 +989,7 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
   if (glo.openPanel && glo.openPanel === panelName) {
     if (panelName === "write-panel") {
       // open the editor if editPanelButton is clicked when editPanel is already open
-      showWriter('post');
+      showPostWriter();
     }
     return; // panel is already open, do nothing
   }
@@ -2062,7 +2066,7 @@ var createPostFooter = function (postElem, postData, type) {
             '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>"
             if ($('post-editor').value !== "") {text = '<br>'+text;}
             $('post-editor').value += prepTextForEditor(text);
-            showWriter('post', function () {
+            showPostWriter(function () {
               addTag(postData.author);
               switchPanel('write-panel');
               simulatePageLoad("~write", false);
@@ -2446,11 +2450,15 @@ var submitPost = function (remove) { //also handles editing and deleting
   var text = $('post-editor').value;
   var tags = $('tag-input').value;
   var title = $('title-input').value;
-  if (text === "" && tags === "" && title === "" && !glo.pending) {return hideWriter('post');}
+  if (text === "" && tags === "" && title === "" && !glo.pending) {
+    ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+    return hideWriter('post');
+  }
   // have changes been made?
   if (!remove && glo.pending && prepTextForEditor(glo.pending.body) === text) {
     if (glo.pending.title === title) {
       if (getTagString(glo.pending.tags) === tags) {
+        ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
         return hideWriter('post');
       }
     }
@@ -2459,48 +2467,79 @@ var submitPost = function (remove) { //also handles editing and deleting
     verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
       loading();
-      ajaxCall("/", 'POST', {remove:true}, function(json) {
-        updatePendingPost(null, null, null, true);
+      ajaxCall("/", 'POST', {remove:true, key:glo.sessionKey}, function(json) {
+        updatePendingPost(null);
       });
     });
   } else {
-
     loading();
     text = preCleanText(text);
-    ajaxCall("/", 'POST', {text:text, tags:tags, title:title}, function(json) {
-      updatePendingPost(json.text, json.tags, json.title);
+    ajaxCall("/", 'POST', {body:text, tags:tags, title:title, key:glo.sessionKey}, function(json) {
+      updatePendingPost(json);
     });
   }
 }
 
-var updatePendingPost = function (newText, newTags, newTitle, remove) {
-  if (remove) {
+var cancelPost = function () {
+  if (glo.pending) {    // there is a current saved/pending post
+    // have changes been made?
+    if (prepTextForEditor(glo.pending.body) === $('post-editor').value) {
+      if (glo.pending.title === $('title-input').value) {
+        if (getTagString(glo.pending.tags) === $('tag-input').value) {
+          ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+          return hideWriter('post');
+        }
+      }
+    }
+    verify("you want to lose any current edits and revert to the last saved version?", null, null, function (result) {
+      if (!result) {return;}
+      else {
+        updatePendingPost(glo.pending);
+      }
+    });
+  } else {        // there is NOT a current saved/pending post
+    if ($('post-editor').value === "" && $('tag-input').value === "" && $('title-input').value === "") {
+      ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+      return hideWriter('post');
+    }
+    verify("you want to lose all current text in the editor?", null, null, function (result) {
+      if (!result) {return;}
+      else {
+        updatePendingPost(null);
+      }
+    });
+  }
+}
+
+var updatePendingPost = function (post) {
+  if (!post) {
     glo.pending = false;
     $('pending-status').innerHTML = "no pending post for tomorrow";
     $('delete-pending-post').classList.add("removed");
     $('pending-post').classList.add("removed");
     $('write-post-button').innerHTML = "new post";
-    newText = "";
-    newTags = {};
-    newTitle = "";
+    post = {};
+    post.body = "";
+    post.tags = {};
+    post.title = "";
   } else {
     glo.pending = {};
-    glo.pending.body = newText;
-    glo.pending.tags = newTags;
-    glo.pending.title = newTitle;
+    glo.pending.body = post.body;
+    glo.pending.tags = post.tags;
+    glo.pending.title = post.title;
     $('pending-status').innerHTML = "your pending post for tomorrow:";
     $('delete-pending-post').classList.remove("removed");
     $('pending-post').classList.remove("removed");
     $('write-post-button').innerHTML = "edit post";
   }
-  var tags = getTagString(newTags);
+  var tags = getTagString(post.tags);
   $('tag-input').value = tags;
-  if (newTitle === undefined) {newTitle = ""}
-  $('title-input').value = newTitle;
+  if (post.title === undefined) {post.title = ""}
+  $('title-input').value = post.title;
   var postData = {
-    body: newText,
-    tags: newTags,
-    title: newTitle,
+    body: post.body,
+    tags: post.tags,
+    title: post.title,
     author: glo.username,
     authorPic: glo.userPic,
     _id: glo.userID,
@@ -2511,36 +2550,9 @@ var updatePendingPost = function (newText, newTags, newTitle, remove) {
   } else {
     $('pending-post').appendChild(newPostElem);
   }
-  $('post-editor').value = prepTextForEditor(newText);
+  $('post-editor').value = prepTextForEditor(post.body);
   hideWriter('post');
   loading(true);
-}
-
-var cancelPost = function () {
-  if (glo.pending) {    // there is a current saved/pending post
-    // have changes been made?
-    if (prepTextForEditor(glo.pending.body) === $('post-editor').value) {
-      if (glo.pending.title === $('title-input').value) {
-        if (getTagString(glo.pending.tags) === $('tag-input').value) {
-          return hideWriter('post');
-        }
-      }
-    }
-    verify("you want to lose any current edits and revert to the last saved version?", null, null, function (result) {
-      if (!result) {return;}
-      else {
-        updatePendingPost(glo.pending.body, glo.pending.tags, glo.pending.title);
-      }
-    });
-  } else {        // there is NOT a current saved/pending post
-    if ($('post-editor').value === "" && $('tag-input').value === "" && $('title-input').value === "") {return hideWriter('post');}
-    verify("you want to lose all current text in the editor?", null, null, function (result) {
-      if (!result) {return;}
-      else {
-        updatePendingPost(null, null, null, true);
-      }
-    });
-  }
 }
 
 var cancelMessage = function () {
@@ -2762,18 +2774,62 @@ var prepTextForEditor = function (text) {
   return text;
 }
 
+var pingPong = function (key) {
+  ajaxCall('/~pingPong', 'POST', {key:key, editorOpenElsewhere:glo.editorOpenElsewhere}, function (json) {
+    if (json === false) {   // fail to connect to server, give in a minute and try again
+      setTimeout(function () {
+        pingPong(key)
+      }, 60000);
+    } else {
+      if (json.post !== undefined || json.editorOpenElsewhere) {
+        if (glo.openEditors && glo.openEditors.post && !json.submittedHere) {  // post editor is open, notify
+          if (json.post) {
+            uiAlert("schlaugh has detected a submission from another editor somewhere else. You are not currently seeing here any changes that were made there. And if you submit a post here, you'll overwrite what was inputted there. Maybe copy out all the text here and stash it somewhere to be safe?");
+          } else if (json.editorOpenElsewhere && !glo.editorOpenElsewhere) {
+            uiAlert("schlaugh detects that another editor has been opened elsewhere. Was that you? Careful you don't overwrite yourself! Maybe copy out all the text here and stash it somewhere to be safe?");
+          }
+        } else {
+          if (json.post) {
+            glo.pending = json.post;
+            updatePendingPost(glo.pending);
+          }
+        }
+      }
+      if (json.editorOpenElsewhere !== undefined) {
+        glo.editorOpenElsewhere = json.editorOpenElsewhere;
+      }
+      pingPong(json.key);
+    }
+  }, true);
+}
+
 // editor stuff
-var showWriter = function (kind, callback) {
+var showWriter = function (kind) {
   if (!glo.openEditors) {glo.openEditors = {}}
-  if (glo.openEditors[kind] && glo.openPanel === "write-panel") {return;}  // already open!
   glo.openEditors[kind] = true;
   $(kind+'-writer').classList.remove('removed');
   $(kind+'-preview').classList.add('removed');
   var editor = $(kind+'-editor');
   setCursorPosition(editor, editor.value.length, editor.value.length);
-  if (kind === 'post') {
-    //console.log('binky fudge');
+}
+var showPostWriter = function (callback) {
+  if (glo.openEditors && glo.openEditors.post) {
     if (callback) {callback();}
+  } else {
+    if (glo.editorOpenElsewhere) {
+      verify(`schlaugh detects that you currently already have an editor open, perhaps in another tab, browser, or device? If there are unsaved changes in that editor, you won't see them here. And if you start making changes here and then save the changes there, you still won't see the changes here... In general, having multiple editors open makes overwriting yourself easy and is not recommended<br><br>are you sure you want to open this editor?`,
+      'yeah, do it anyway', 'nah, hold up', function (resp) {
+        if (resp) {
+          showWriter('post');
+          ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:true});
+          if (callback) {callback();}
+        }
+      });
+    } else {
+      showWriter('post');
+      ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:true});
+      if (callback) {callback();}
+    }
   }
 }
 var hideWriter = function (kind) {
@@ -3699,9 +3755,11 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     glo.collapsed[data.collapsed[i]] = true;
   }
 
-  if (glo.pending) {updatePendingPost(glo.pending.body, glo.pending.tags, glo.pending.title);}
-
+  updatePendingPost(glo.pending);
   populateThreadlist();
+  pingPong(data.sessionKey)
+  glo.sessionKey = data.sessionKey;
+
   //
   if (glo.username) {
     setAppearance();

@@ -254,6 +254,15 @@ var removeListRefIfRemovingOnlyMessage = function (box, id, remove, tmrw) {
   } return false;
 }
 
+var newGameKey = function (userID) {
+  var key = genRandString(5)
+  if (sessions && sessions[userID] && sessions[userID][key]) {
+    return newGameKey();
+  } else {
+    return key;
+  }
+}
+
 var getPayload = function (req, res, callback) {
   if (!req.session.user) {return sendError(res, "no user session 0234");}
   else {
@@ -284,12 +293,14 @@ var getPayload = function (req, res, callback) {
           savedTags: user.savedTags,
           muted: user.muted,
         }
-        /* fudge */
+        // session key set
+        var sessionKey = newGameKey(req.session.user._id);
+        payload.sessionKey = sessionKey;
+
         //pending post
         if (user.posts[tmrw]) {
           payload.pending = user.posts[tmrw][0];
         }
-        /* */
         checkUpdates(user, function (check) {
           if (check.error) {return sendError(res, check.error);}
           user = check.user;
@@ -1463,6 +1474,26 @@ app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT POSTS(bo
   });
 });
 
+app.post('/admin/getSessions', function (req, res) {
+  adminGate(req, res, function (res, user) {
+    var obj = {};
+    for (var id in sessions) {
+      if (sessions.hasOwnProperty(id)) {
+        obj[id] = {}
+        for (var key in sessions[id]) {
+          if (sessions[id].hasOwnProperty(key)) {
+            obj[id][key] = {isEditorOpen: sessions[id][key].isEditorOpen,}
+            if (sessions[id][key].lastPing) {
+              obj[id][key].lastPing = sessions[id][key].lastPing.toString();
+            }
+          };
+        }
+      }
+    }
+    return res.send(obj);
+  });
+});
+
 /*app.post('/admin/staffCheat', function(req, res) {
   adminGate(req, res, function (res, user) {
     var userID = ObjectId("5a0ea8429adb2100146f7568");
@@ -1625,17 +1656,112 @@ app.get('/~payload', function(req, res) {
   }
 });
 
+var sessions = {}
+// check for pendingPost changes and openEditors
+app.post('/~pingPong', function(req, res) {
+  var errMsg = "failure to check for pendingPost update<br><br>";
+  if (!req.body || !req.body.key) {return sendError(res, errMsg+"malformed request 117");}
+  idScreen(req, res, errMsg, function (userID) {
+    var frequency = 60; // seconds between pings
+    //
+    if (!sessions[userID]) {sessions[userID] = {}}
+    if (!sessions[userID][req.body.key]) {sessions[userID][req.body.key] = {}}
+    //
+    var openEditorCount = clearGarbageAndCountEditors(userID);
+    // have editors expired such that this client needs an update?
+    if ((req.body.editorOpenElsewhere && openEditorCount === 0) || (req.body.editorOpenElsewhere && openEditorCount === 1 && sessions[userID][req.body.key].isEditorOpen)) {
+      return res.send({key:req.body.key, editorOpenElsewhere:false});
+    } else if (req.body.editorOpenElsewhere === undefined) {              // init
+      if (openEditorCount > 1 || (openEditorCount === 1 && !sessions[userID][req.body.key].isEditorOpen)) {
+        return res.send({key:req.body.key, editorOpenElsewhere:true});
+      } else {
+        return res.send({key:req.body.key, editorOpenElsewhere:false});
+      }
+    } else {
+      // freshen
+      sessions[userID][req.body.key].response = res;
+      sessions[userID][req.body.key].lastPing = new Date();
+      sessions[userID][req.body.key].timer = setTimeout(function () {
+        if (!res.headersSent) {return res.send({key:req.body.key});}
+      }, frequency*1000);
+    }
+  });
+});
+
+var clearGarbageAndCountEditors = function (userID) {
+  var count = 0;
+  for (var key in sessions[userID]) {
+    if (sessions[userID].hasOwnProperty(key)) {
+      // remove OLD JUNK
+      var now = new Date();
+      if ((now - sessions[userID][key].lastPing) > 120000) {  // if it's been > 2min since last ping
+        delete sessions[userID][key];
+      } else if (sessions[userID][key].isEditorOpen) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+app.post('/~postEditorOpen', function(req, res) {
+  var errMsg = "failure to update openEditor status<br><br>";
+  if (!req.body || !req.body.key) {return sendError(res, errMsg+"malformed request 118");}
+  idScreen(req, res, errMsg, function (userID) {
+    if (!sessions[userID]) {sessions[userID] = {}}
+    if (!sessions[userID][req.body.key]) {sessions[userID][req.body.key] = {}}
+    //
+    sessions[userID][req.body.key].isEditorOpen = req.body.isEditorOpen;
+    //
+    pongAllClients(userID);
+    res.send({error:false});
+  });
+});
+
+var pongAllClients = function (userID, activeKey, post) {
+  var openEditorCount = clearGarbageAndCountEditors(userID);
+  for (var key in sessions[userID]) {
+    if (sessions[userID].hasOwnProperty(key)) {
+      var submittedHere = false;
+      var includePost = undefined;
+      var editorOpenElsewhere = false;
+      clearTimeout(sessions[userID][key].timer);
+      if (sessions[userID][key].response && !sessions[userID][key].response.headersSent) {
+        if (activeKey && activeKey === key) {submittedHere = true}
+        else {includePost = post;}
+        if (openEditorCount > 1 || (openEditorCount === 1 && !sessions[userID][key].isEditorOpen)) {
+          editorOpenElsewhere = true
+        }
+        sessions[userID][key].response.send({key:key, editorOpenElsewhere:editorOpenElsewhere, post:includePost, submittedHere:submittedHere});
+      }
+    }
+  }
+}
+
+var pongOnPostSubmit = function (userID, activeKey, post) {
+  if (!sessions[userID]) {sessions[userID] = {}}
+  if (!sessions[userID][activeKey]) {sessions[userID][activeKey] = {}}
+  //
+  sessions[userID][activeKey].isEditorOpen = false;
+  //
+  pongAllClients(userID, activeKey, post);
+}
+
 // new/edit/delete (current) post
 app.post('/', function(req, res) {
   var errMsg = "your post might not be saved, please copy all of your text to be safe<br><br>";
+  if (!req.body || !req.body.key) {return sendError(res, errMsg+"malformed request 119");}
   lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1}, function (user) {
     checkFreshness(user);
     var tmrw = pool.getCurDate(-1);
-    var x = pool.cleanseInputText(req.body.text);
+    var x = pool.cleanseInputText(req.body.body);
     if (req.body.remove || (x[1] === "" && !req.body.tags && !req.body.title)) {                 //remove pending post, do not replace
       deletePost(res, errMsg, user._id, user, tmrw, function (resp) {
         if (resp.error) {return sendError(res, errMsg+resp.error);}
-        else {return res.send({error:false, text:"", tags:{}, title:""});}
+        else {
+          pongOnPostSubmit(user._id, req.body.key, false);
+          return res.send({error:false, body:"", tags:{}, title:""});
+        }
       });
     } else {
       var tags = parseInboundTags(req.body.tags);
@@ -1648,7 +1774,10 @@ app.post('/', function(req, res) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
           return writeToDB(user._id, user, function (resp) {
             if (resp.error) {return sendError(res, errMsg+resp.error);}
-            else {return res.send({error:false, text:x[1], tags:tags, title:title});}
+            else {
+              pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title});
+              return res.send({error:false, body:x[1], tags:tags, title:title});
+            }
           });
         });
       });

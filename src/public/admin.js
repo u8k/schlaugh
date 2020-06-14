@@ -158,6 +158,12 @@ var getTagIndex = function () {
   });
 }
 
+var getSessions = function () {
+  ajaxCall('/admin/getSessions', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
 var deCaseSensitizeTags = function (daysAgo) {
   if (daysAgo === undefined) {daysAgo = 900;}
   var date = pool.getCurDate(daysAgo);
