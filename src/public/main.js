@@ -2062,11 +2062,11 @@ var createPostFooter = function (postElem, postData, type) {
         quoteBtn.title = "quote";
         quoteBtn.onclick = function() {
           if (glo.postStash && glo.postStash[postData.post_id]) {     // is it already stashed?
-            var text = "<quote>"+glo.postStash[postData.post_id].body+
-            '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>"
-            if ($('post-editor').value !== "") {text = '<br>'+text;}
-            $('post-editor').value += prepTextForEditor(text);
             showPostWriter(function () {
+              var text = "<quote>"+glo.postStash[postData.post_id].body+
+              '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>";
+              if ($('post-editor').value !== "") {text = '<br>'+text;}
+              $('post-editor').value += prepTextForEditor(text);
               addTag(postData.author);
               switchPanel('write-panel');
               simulatePageLoad("~write", false);
