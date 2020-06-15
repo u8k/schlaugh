@@ -786,9 +786,14 @@ var ajaxCall = function(url, method, data, callback, shushError) {
   xhttp.send(JSON.stringify(data));
 }
 
-var convertCuts = function (string, id) {
+var convertCuts = function (string, id, type) {
   // changes cut tags into functional cuts, needs id so that every cut has a unique id tag on the front end,
   // this will need alteration if multiple posts per user(per day) are allowed
+  if (type === "authorAll") {
+    var classAsign = "removed expandable";
+  } else {
+    var classAsign = "removed";
+  }
   var recurse = function (pos, count) {
     var next = string.substr(pos).search(/<cut>/);
     if (next === -1) {return string;}
@@ -799,16 +804,16 @@ var convertCuts = function (string, id) {
         var offset = 5;
         if (string[pos+4] !== '>') {offset = 6;}
         string = string.substr(0,pos)
-          +"<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("
+          +"<a class='clicky' onclick='$("+'"'+id+"-cut-"+count+'"'+").classList.remove("
           +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'
-          +");'>more</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
+          +");'>more</a>"+"<div class='"+classAsign+"' id='"+id+"-cut-"+count+"'>"
           +string.substr(pos+offset)+"</div>";
       } else {
         string = string.substr(0,pos)
-          +"<a class='clicky' onclick='$("+'"'+id+"-"+count+'"'+").classList.remove("
+          +"<a class='clicky' onclick='$("+'"'+id+"-cut-"+count+'"'+").classList.remove("
           +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+");'>"
           +string.substr(pos+5, gap-5)
-          +"</a>"+"<div class='removed' id='"+id+"-"+count+"'>"
+          +"</a>"+"<div class='"+classAsign+"' id='"+id+"-cut-"+count+"'>"
           +string.substr(pos+gap)+"</div>";
       }
     }
@@ -817,8 +822,13 @@ var convertCuts = function (string, id) {
   return recurse(0,0);
 }
 
-var convertNotes = function (string, id) {
+var convertNotes = function (string, id, type) {
   // changes note tags into functional notes, needs id so that every note has a unique id tag on the front end,
+  if (type === "authorAll") {
+    var classAsign = "note removed expandable";
+  } else {
+    var classAsign = "note removed";
+  }
   var recurse = function (pos, count) {
     var next = string.substr(pos).search(/<note linkText="/);
     if (next === -1) {return string;}
@@ -841,7 +851,7 @@ var convertNotes = function (string, id) {
           string = string.substr(0,pos)
             +`<a class='clicky' id="`+uniqueID+`-note-open" onclick="collapseNote('`+uniqueID+`', true)">`
             +linkText
-            +"</a>"+"<ul class='note removed' id='"+uniqueID+"'>"
+            +"</a>"+"<ul class='"+classAsign+"' id='"+uniqueID+"'>"
             +`<clicky onclick="collapseNote('`+uniqueID+`')" class="collapse-button-top"><i class="far fa-minus-square"></i></clicky>`
             +`<clicky onclick="collapseNote('`+uniqueID+`', false, '`+id+`')" class="collapse-button-bottom hidden" id="`+uniqueID+`-note-close" ><i class="far fa-minus-square"></i></clicky>`
             +noteText+"</ul>"+ string.substr(pos+qPos+cPos+25);
@@ -876,8 +886,8 @@ var convertLinks = function (string) {
   return recurse(0);
 }
 
-var convertText = function (string, id) {
-  return convertLinks(convertNotes(convertCuts(string, id), id));
+var convertText = function (string, id, type) {
+  return convertLinks(convertNotes(convertCuts(string, id, type), id, type));
 }
 
 var preCleanText = function (string) {  //prep editor text for backEnd, prior to cleanse
@@ -1186,6 +1196,7 @@ var fetchPosts = function (display, input, callback) {
   }
   else if (pc === "TFFT") {var arr = ['glo','pRef','author',input.author,'page',input.page];}
   else if (pc === "TFFF") {var arr = ['glo','pRef','author',input.author,'page', 0];}
+  else if (pc === "ALL") {var arr = ['glo','pRef','author',input.author,'all'];}
   else if (pc === "MARK") {var arr = ['glo','pRef','bookmarks'];}
   else {return uiAlert('eerrrrrrrrrrrrrr')}
   //
@@ -1328,6 +1339,8 @@ var displayPosts = function (idArr, input, callback) {
     postType = "author";
   } else if (pc === "FTTT" || pc === "FTTF" || pc === "FFTT" || pc === "FFTF") {
     postType = "dated";
+  } else if (pc === "ALL") {
+    postType = 'authorAll';
   } else if (pc === "TFTF") {
     postType = "perma"
   }
@@ -1352,7 +1365,7 @@ var displayPosts = function (idArr, input, callback) {
   $("post-bucket").classList.remove("removed");
   //
   glo.postPanelStatus = input;
-  if (postType === 'author' || pc === "FTFF" || pc === "FTFT") {
+  if (postType === 'author' || pc === "FTFF" || pc === "FTFT" || pc === "ALL") {
     switchPanel('posts-panel', true);
   } else {
     switchPanel('posts-panel');
@@ -1390,6 +1403,13 @@ var displayPosts = function (idArr, input, callback) {
     $("bot-date-box").classList.add('removed');
   }
 
+  //
+  $('collapse-all-notes-button').classList.add("removed");
+  if (pc === "ALL") {
+    $('expand-all-notes-button').classList.remove("removed");
+  } else {
+    $('expand-all-notes-button').classList.add("removed");
+  }
 
 ///////////////////////////////////// tag option stuff
   if (input.author || pc === "MARK") {              // don't display any tag/date option stuff
@@ -1467,7 +1487,7 @@ var displayPosts = function (idArr, input, callback) {
     // show author bio on bottom
     setAuthorHeader('bot', authorInfo);
     $("author-header-top").classList.add("removed");
-  } else if (postType === "author") {  // author, not perma
+  } else if (postType === "author" || pc === "ALL") {  // author, not perma
     // show author stuff on top
     setAuthorHeader('top', authorInfo);
     $("author-header-bot").classList.add("removed");
@@ -1501,9 +1521,28 @@ var displayPosts = function (idArr, input, callback) {
   }
   else if (pc === "TFFT") {simulatePageLoad(authorName+"/~/"+input.page, authorName, authorPicUrl)}
   else if (pc === "TFFF") {simulatePageLoad(authorName, authorName, authorPicUrl)}
+  else if (pc === "ALL") {simulatePageLoad(authorName+"/~all", authorName, authorPicUrl)}
   else {return uiAlert('eerrrrrrrrrrrrrr3')}
   //
   if (callback) {callback();}
+}
+
+var expandAllNotes = function (tog) {
+  if (tog) {
+    $('expand-all-notes-button').classList.add("removed");
+    $('collapse-all-notes-button').classList.remove("removed");
+    var elemList = document.getElementsByClassName('expandable');
+    for (var i = 0; i < elemList.length; i++) {
+      elemList[i].classList.remove("removed");
+    }
+  } else {
+    $('collapse-all-notes-button').classList.add("removed");
+    $('expand-all-notes-button').classList.remove("removed");
+    var elemList = document.getElementsByClassName('expandable');
+    for (var i = 0; i < elemList.length; i++) {
+      elemList[i].classList.add("removed");
+    }
+  }
 }
 
 var notSchlaugh = function (postCode, date) {
@@ -1832,7 +1871,7 @@ var addToPostStash = function (postData, authorData) {
 }
 
 var renderOnePost = function (postData, type, postID) {
-  // type = 'author', 'preview', 'preview-edit', "dated", "perma" or NULL
+  // type = 'author', 'preview', 'preview-edit', "dated", "perma", authorAll, or NULL
   // postData needs fields: post_id, date, authorPic, author, body, tags, _id,
 
   if (postData === null && postID && glo.postStash) {
@@ -1848,7 +1887,12 @@ var renderOnePost = function (postData, type, postID) {
     addToPostStash(postData);
   }
 
-  var uniqueID = 'post-'+postData.post_id;
+  if (postData.post_id) {
+    var uniqueID = 'post-'+postData.post_id;
+  } else {
+    var uniqueID = 'post-'+type;
+  }
+
   var post = document.createElement("div");
   post.setAttribute('id', uniqueID);
   post.setAttribute('class', 'post');
@@ -1857,7 +1901,7 @@ var renderOnePost = function (postData, type, postID) {
   var collapseBtn = document.createElement("clicky");
   collapseBtn.setAttribute('class', 'collapse-button-top');
   collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
-  if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit') {
+  if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit' && type !== 'authorAll') {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
     collapseBtn.title = 'expand';
   } else {
@@ -1936,7 +1980,7 @@ var renderOnePost = function (postData, type, postID) {
   var body = document.createElement("div");
   body.setAttribute('class', 'reader-font');
   body.setAttribute('id', uniqueID+'body');
-  body.innerHTML = convertText(postData.body, uniqueID);
+  body.innerHTML = convertText(postData.body, uniqueID, type);
   if (glo.collapsed && glo.collapsed[postData.post_id]) {
     post.classList.add('faded');
     body.classList.add('removed');
@@ -2774,12 +2818,16 @@ var prepTextForEditor = function (text) {
   return text;
 }
 
-var pingPong = function (key) {
+var pingPong = function (key, delay) {
   ajaxCall('/~pingPong', 'POST', {key:key, editorOpenElsewhere:glo.editorOpenElsewhere}, function (json) {
-    if (json === false) {   // fail to connect to server, give in a minute and try again
-      setTimeout(function () {
-        pingPong(key)
-      }, 60000);
+    if (json === false) {
+      if (delay) {    // fail to connect to server, give in a minute and try again
+        setTimeout(function () {
+          pingPong(key, true)
+        }, 60000);
+      } else {
+        pingPong(key, true);
+      }
     } else {
       if (json.post !== undefined || json.editorOpenElsewhere) {
         if (glo.openEditors && glo.openEditors.post && !json.submittedHere) {  // post editor is open, notify

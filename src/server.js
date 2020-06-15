@@ -3126,6 +3126,63 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
   });
 }
 
+var getAllAnAuthorsPosts = function(req, res) {
+  var errMsg = "author lookup error<br><br>";
+  if (!req.body.author) {return sendError(res, errMsg+"malformed request 300");}
+  var authorID = req.body.author;
+  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
+  else {return sendError(res, errMsg+"invalid author id");}
+  db.collection('users').findOne({_id: authorID}
+  , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
+  , function (err, author) {
+    if (err) {return sendError(res, errMsg+err);}
+    else {
+      if (!author) {
+          res.send({error: false, four04: true,});      //404
+        } else {
+        checkFreshness(author);
+        checkUpdates(author, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          author = resp.user;
+          var authorPic = getUserPic(author);
+
+          var posts = [];
+          var pL = author.postList;
+
+          for (var i = pL.length-1; i > -1; i--) {
+            if (pL[i]) {
+              if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
+                posts.push({
+                  body: author.posts[pL[i].date][pL[i].num].body,
+                  tags: author.posts[pL[i].date][pL[i].num].tags,
+                  title: author.posts[pL[i].date][pL[i].num].title,
+                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                  date: pL[i].date,
+                });
+              } else {
+                posts.push({post_id: author.posts[pL[i].date][pL[i].num].post_id,})
+              }
+            }
+          }
+          var data = {
+            error: false,
+            posts: posts,
+            authorData: {
+              author: author.username,
+              _id: author._id,
+              authorPic: authorPic,
+            },
+          }
+          if (req.body.needAuthorInfo) {
+            data.authorInfo = getAuthorInfo(author, req);
+          }
+          return res.send(data);
+        });
+      }
+    }
+  });
+}
+
 var getAuthorInfo = function (author, req) {
   var bio = author.bio;
   if (typeof bio !== 'string') {bio = "";}
@@ -3387,10 +3444,11 @@ app.post('/getPosts', function (req, res) {
   else if (postCode === "TFTF") {return getSinglePostFromAuthorAndDate(req, res);}
   else if (postCode === "TFFT" || postCode === "TFFF") {return getOnePageOfAnAuthorsPosts(req, res);}
   else if (postCode === "MARK") {return getBookMarkedPosts(req, res);}
+  else if (postCode === "ALL") {return getAllAnAuthorsPosts(req, res);}
   else {return sendError(res, errMsg+"malformed request 433");}
 });
 
-// ------- **** ~ THE 13 ROUTES OF POST VIEWING ~ **** ------- //
+// ------- **** ~ THE 14 ROUTES OF POST VIEWING ~ **** ------- //
 // https://docs.google.com/spreadsheets/d/1JM39RfQonAbxT3VBbNwMEsqEO_96DG76RHoGStNMDJo/edit?usp=sharing
 // #### = author/tag/date/page
 
@@ -3508,6 +3566,23 @@ app.get('/:author/~/:num', function(req, res) {
         return return404author(req, res);
       } else {
         renderLayout(req, res, {author:user.authorID, page:page, date:date, postCode:postCode,});
+      }
+    }
+  );
+});
+//  ALL
+app.get('/:author/~all', function(req, res) {
+  var author = req.params.author.toLowerCase();
+  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
+  var errMsg = "author lookup error<br><br>";
+  db.collection('userUrls').findOne({_id: author}, {authorID:1},
+    function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      if (!user) {
+        return return404author(req, res);
+      }
+      else {
+        return renderLayout(req, res, {author: user.authorID, postCode:"ALL",});
       }
     }
   );
