@@ -1662,7 +1662,7 @@ app.post('/~pingPong', function(req, res) {
   var errMsg = "failure to check for pendingPost update<br><br>";
   if (!req.body || !req.body.key) {return sendError(res, errMsg+"malformed request 117");}
   idScreen(req, res, errMsg, function (userID) {
-    var frequency = 60; // seconds between pings
+    var frequency = 25; // seconds between pings
     //
     if (!sessions[userID]) {sessions[userID] = {}}
     if (!sessions[userID][req.body.key]) {sessions[userID][req.body.key] = {}}
