@@ -1981,7 +1981,7 @@ var renderOnePost = function (postData, type, postID) {
   body.setAttribute('class', 'reader-font');
   body.setAttribute('id', uniqueID+'body');
   body.innerHTML = convertText(postData.body, uniqueID, type);
-  if (glo.collapsed && glo.collapsed[postData.post_id]) {
+  if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'authorAll') {
     post.classList.add('faded');
     body.classList.add('removed');
   }
