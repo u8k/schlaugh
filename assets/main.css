@@ -641,6 +641,7 @@ slogan {
   animation-duration: 1900ms;
   animation-iteration-count: infinite;
   animation-timing-function: linear;
+  padding-top: 15px;
 }
 @keyframes spin {
   from {
