@@ -2538,6 +2538,7 @@ var cancelPost = function () {
     verify("you want to lose any current edits and revert to the last saved version?", null, null, function (result) {
       if (!result) {return;}
       else {
+        ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
         updatePendingPost(glo.pending);
       }
     });
@@ -2549,6 +2550,7 @@ var cancelPost = function () {
     verify("you want to lose all current text in the editor?", null, null, function (result) {
       if (!result) {return;}
       else {
+        ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
         updatePendingPost(null);
       }
     });
