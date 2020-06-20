@@ -2922,6 +2922,7 @@ var resizeEditor = function (kind) {
 }
 
 var styleText = function (tag, src, lineBreak) {
+  updateEditorStateList(src);
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
@@ -2941,6 +2942,7 @@ var styleText = function (tag, src, lineBreak) {
   }
 }
 var hyperlink = function (src) {
+  updateEditorStateList(src);
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
@@ -2982,6 +2984,7 @@ var hyperlink = function (src) {
   });
 }
 var insertImage = function (src) {
+  updateEditorStateList(src);
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
@@ -3022,6 +3025,7 @@ var insertImage = function (src) {
   }
 }
 var insertHR = function (src) {
+  updateEditorStateList(src);
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
@@ -3037,6 +3041,7 @@ var insertHR = function (src) {
   setCursorPosition(area, bump, bump);
 }
 var insertCut = function (src) {
+  updateEditorStateList(src);
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
@@ -3063,6 +3068,7 @@ var insertCut = function (src) {
   });
 }
 var insertQuote = function (src) {
+  updateEditorStateList(src);
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
@@ -3124,6 +3130,7 @@ var insertQuote = function (src) {
   });
 }
 var insertNote = function (src) {
+  updateEditorStateList(src);
   var area = $(src+'-editor');
   var x = getCursorPosition(area);
   var a = x.start;
@@ -3159,6 +3166,93 @@ var convertLineBreaks = function (string, dir) {
     return string.replace(/\r?\n|\r/g, '<br>');
   } else {
     return string.replace(/<br>/g, '\n');
+  }
+}
+
+glo.editorState = {
+  history: {
+    'old-post':[],
+    post:[],
+    message:[],
+  },
+  pos: {
+    'old-post': null,
+    post: null,
+    message: null,
+  },
+  checkLoop: {},
+}
+var checkEditorState = function (stateList, pos, currentText, cursPosi) {
+  if (!stateList[pos] || currentText !== stateList[pos].text) {
+    if (pos === stateList.length-1) {
+      stateList.push({text:currentText, cursor:cursPosi});
+      pos++;
+    } else {
+      stateList = stateList.slice(0,pos+1).concat({text:currentText, cursor:cursPosi});
+      pos = stateList.length-1;
+    }
+    return {stateList:stateList, pos:pos};
+  }
+  return false;
+}
+var updateEditorStateList = function (kind, loop) {
+  var changes = checkEditorState(glo.editorState.history[kind], glo.editorState.pos[kind], $(kind+"-editor").value, getCursorPosition($(kind+"-editor")));
+  if (changes) {
+    glo.editorState.history[kind] = changes.stateList;
+    glo.editorState.pos[kind] = changes.pos;
+  }
+  if (loop) {
+    setTimeout(function () {
+      updateEditorStateList(kind, loop);
+    }, 2000);
+  }
+}
+
+var undo = function (kind) {
+  updateEditorStateList(kind);
+  if (glo.editorState.pos[kind] && glo.editorState.history[kind].length && glo.editorState.history[kind].length > 1) {
+    glo.editorState.pos[kind]--;
+    changeEditorState(kind);
+  }
+}
+var redo = function (kind) {
+  updateEditorStateList(kind)
+  if (glo.editorState.pos[kind] !== undefined && glo.editorState.history[kind].length && glo.editorState.pos[kind] < glo.editorState.history[kind].length-1) {
+    glo.editorState.pos[kind]++;
+    changeEditorState(kind);
+  }
+}
+var changeEditorState = function (kind) {
+  $(kind+"-editor").value = glo.editorState.history[kind][glo.editorState.pos[kind]].text;
+  var cursPos = glo.editorState.history[kind][glo.editorState.pos[kind]].cursor;
+  setCursorPosition($(kind+"-editor"), cursPos.start, cursPos.end)
+}
+
+glo.editorHotKeys = {
+  ctrlKey: {
+    z: undo,
+    y: redo,
+  },
+  metaKey: {
+    z: undo,
+    y: redo,
+  }
+}
+var editorKeyHandler = function (event, kind) {
+  event.stopPropagation();
+  if (event.ctrlKey && _npa(['event','key',]) !== "Control" && _npa(['glo','editorHotKeys','ctrlKey', event.key])) {
+    event.preventDefault();
+    _npa(['glo','editorHotKeys','ctrlKey', event.key])(kind);
+  } else if (event.metaKey && _npa(['event','key',]) !== "Meta" && _npa(['glo','editorHotKeys','metaKey', event.key])) {
+    event.preventDefault();
+    _npa(['glo','editorHotKeys','metaKey', event.key])(kind);
+  }
+}
+var blockDefaultKeys = function (event) {
+  if (event.ctrlKey && _npa(['event','key',]) !== "Control" && _npa(['glo','editorHotKeys','ctrlKey', event.key])) {
+    event.preventDefault();
+  } else if (event.metaKey && _npa(['event','key',]) !== "Meta" && _npa(['glo','editorHotKeys','metaKey', event.key])) {
+    event.preventDefault();
   }
 }
 
@@ -3806,6 +3900,9 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
   }
 
   updatePendingPost(glo.pending);
+  updateEditorStateList('post',true);
+  updateEditorStateList('old-post',true);
+  updateEditorStateList('message',true);
   populateThreadlist();
   pingPong(data.sessionKey)
   glo.sessionKey = data.sessionKey;

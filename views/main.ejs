@@ -20,7 +20,7 @@
 
   <div id="post-writer" class="removed">
     <%- include("editorButtons", {kind: "post"}) %>
-    <textarea id="post-editor" class="editor reader-font" autocomplete="off" oninput="resizeEditor('post')"></textarea>
+    <textarea id="post-editor" class="editor reader-font" autocomplete="off" oninput="resizeEditor('post')" onkeydown="editorKeyHandler(event, 'post')"></textarea>
     <br><br>
     <div id="editor-post-meta">
       <label for="tag-input">tags:</label>
@@ -130,7 +130,7 @@
   </div>
   <div id="message-writer" class="removed">
     <%- include("editorButtons", {kind: "message"}) %>
-    <textarea id="message-editor" autocomplete="off" class="editor reader-font" oninput="resizeEditor('message')"></textarea>
+    <textarea id="message-editor" autocomplete="off" class="editor reader-font" oninput="resizeEditor('message')" onkeydown="editorKeyHandler(event, 'message')"></textarea>
     <br>
     <button onclick="submitMessage()">schend</button>
     <button onclick="cancelMessage()">cancel</button>
@@ -293,7 +293,7 @@
   <div id="old-post-writer" class="removed">
     <div id="old-post-editor-title"></div>
     <%- include("editorButtons", {kind: "old-post"}) %>
-    <textarea id="old-post-editor" class="editor reader-font" autocomplete="off" oninput="resizeEditor('old-post')"></textarea>
+    <textarea id="old-post-editor" class="editor reader-font" autocomplete="off" oninput="resizeEditor('old-post')" onkeydown="editorKeyHandler(event, 'old-post')"></textarea>
     <br>
     <div id="old-tag-box">
       <label for="old-tag-input">tags:<clicky onclick="uiAlert(`please note that adding tags to an old post won't include the post in public searches of that tag, only in searches of posts written by you<br><br>removing tags will however remove this post from public searches for that tag`, `got it`)" class="special">(?)</clicky></label>
