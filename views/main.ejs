@@ -1,12 +1,12 @@
 <panelButtons id="panel-buttons" class="removed">
-  <a href="/~write" id="write-panel-button" class="clicky not-special panel-button" onclick="panelButtonClick(event,'write')">
-    <icon class="fas fa-pencil-alt"></icon></a>
-  <a href="/" id="posts-panel-button" class="clicky not-special panel-button" onclick="panelButtonClick(event,'posts')">
-    <icon class="fas fa-book"></icon></a>
-  <a href="/~inbox" id="inbox-panel-button" class="clicky not-special panel-button" onclick="panelButtonClick(event,'inbox')">
-    <icon class="fas fa-envelope"></icon></a>
-  <a href="/~settings" id="settings-panel-button" class="clicky not-special panel-button" onclick="panelButtonClick(event,'settings')">
-    <icon class="fas fa-cog"></icon></a>
+  <a href="/~write" id="write-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'write')"><!--
+    --><icon class="fas fa-pencil-alt"></icon></a><!--
+  --><a href="/" id="posts-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'posts')"><!--
+    --><icon class="fas fa-book"></icon></a><!--
+  --><a href="/~inbox" id="inbox-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'inbox')"><!--
+    --><icon class="fas fa-envelope"></icon></a><!--
+  --><a href="/~settings" id="settings-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'settings')"><!--
+    --><icon class="fas fa-cog"></icon></a>
 </panelButtons>
 
 <div id="write-panel" class="removed">
@@ -113,7 +113,7 @@
   <div id="thread-title-area" class="removed">
     <icon id="back-arrow" class="removed clicky fas fa-caret-left" onclick="closeThread()"></icon>
     <br>
-    <a id="thread-title" class="not-special"></a>
+    <a id="thread-title"></a>
     <br>
     <text id='thread-status' class='removed'></text>
   </div>
@@ -279,7 +279,7 @@
 
   <div id="old-post-preview">
     <br><br>
-    <a id="edit-panel-title" class="author-size-0">back</a>
+    <a class="special" id="edit-panel-title" class="author-size-0">back</a>
     <br><br>
     <div id="old-post-status"></div>
     <div id="pending-post-edit" class="removed"></div>

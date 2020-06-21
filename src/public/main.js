@@ -104,18 +104,18 @@ var revertAppearance = function () {
 var changeColor = function (colorCode, type) {          // makes the new CSS rule
   var sheet = document.styleSheets[document.styleSheets.length-1];
   if (type === "postBackground") {
-    var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background";
+    var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background, panelButtons";
     var attribute = "background-color";
     // selected(highlighted) text color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
-      if (sheet.cssRules[i].selectorText === '::selection, .fake-text-color-class') {
+      if (sheet.cssRules[i].selectorText === '::selection, .fake-text-color-class, .panel-button-selected') {
         sheet.deleteRule(i);
         i = -1;
       }
     }
-    sheet.insertRule("::selection, .fake-text-color-class {color: "+colorCode+";}", sheet.cssRules.length);
+    sheet.insertRule("::selection, .fake-text-color-class, .panel-button-selected {color: "+colorCode+";}", sheet.cssRules.length);
   } else if (type === "text") {
-    var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .not-special, .pop-up, .post-background";
+    var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background, a, a.visited, a.hover";
     var attribute = "color";
     // border color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -127,12 +127,12 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     sheet.insertRule("button {border-color: "+colorCode+";}", sheet.cssRules.length);
     // selected(highlighted) background
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
-      if (sheet.cssRules[i].selectorText === '::selection, .fake-background-class') {
+      if (sheet.cssRules[i].selectorText === '::selection, .fake-background-class, .panel-button-selected') {
         sheet.deleteRule(i);
         i = -1;
       }
     }
-    sheet.insertRule("::selection, .fake-background-class {background-color: "+colorCode+";}", sheet.cssRules.length);
+    sheet.insertRule("::selection, .fake-background-class, .panel-button-selected {background-color: "+colorCode+";}", sheet.cssRules.length);
     // this is fine in chrome but is crashing firefox????
     /*
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -144,7 +144,7 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     sheet.insertRule("input:-webkit-autofill, .fake-input-text-color {-webkit-text-fill-color: "+colorCode+";}", sheet.cssRules.length);
     */
   } else if (type === "linkText") {
-    var selector = ".special, a, a.visited, a.hover";
+    var selector = ".special";
     var attribute = "color";
   } else if (type === "background") {
     var selector = "body, h1, input, select";
@@ -804,13 +804,13 @@ var convertCuts = function (string, id, type) {
         var offset = 5;
         if (string[pos+4] !== '>') {offset = 6;}
         string = string.substr(0,pos)
-          +"<a class='clicky' onclick='$("+'"'+id+"-cut-"+count+'"'+").classList.remove("
+          +"<a class='clicky special' onclick='$("+'"'+id+"-cut-"+count+'"'+").classList.remove("
           +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'
           +");'>more</a>"+"<div class='"+classAsign+"' id='"+id+"-cut-"+count+"'>"
           +string.substr(pos+offset)+"</div>";
       } else {
         string = string.substr(0,pos)
-          +"<a class='clicky' onclick='$("+'"'+id+"-cut-"+count+'"'+").classList.remove("
+          +"<a class='clicky special' onclick='$("+'"'+id+"-cut-"+count+'"'+").classList.remove("
           +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+");'>"
           +string.substr(pos+5, gap-5)
           +"</a>"+"<div class='"+classAsign+"' id='"+id+"-cut-"+count+"'>"
@@ -849,7 +849,7 @@ var convertNotes = function (string, id, type) {
             string = string.substr(0, pos+qPos+cPos+25)+'<br id="'+uniqueID+'-br">'+string.substr(pos+qPos+cPos+29);
           }
           string = string.substr(0,pos)
-            +`<a class='clicky' id="`+uniqueID+`-note-open" onclick="collapseNote('`+uniqueID+`', true)">`
+            +`<a class='clicky special' id="`+uniqueID+`-note-open" onclick="collapseNote('`+uniqueID+`', true)">`
             +linkText
             +"</a>"+"<ul class='"+classAsign+"' id='"+uniqueID+"'>"
             +`<clicky onclick="collapseNote('`+uniqueID+`')" class="collapse-button-top"><i class="far fa-minus-square"></i></clicky>`
@@ -867,7 +867,7 @@ var convertLinks = function (string) {
   // adds the " target="_blank" " property to links in user posts/messages
   //        (so that they open in new tabs automatically)
   if (typeof string !== "string") {return;}
-  var b = ' target="_blank"';
+  var b = `class='clicky special' target="_blank"`;
   var recurse = function (pos) {
     var next = string.substr(pos).search(/a href="/);
     if (next === -1) {return string;}
@@ -1006,11 +1006,13 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
   // hide the old stuff
   if (glo.openPanel) {
     $(glo.openPanel).classList.add('removed');
-    if ($(glo.openPanel+"-button")) {$(glo.openPanel+"-button").classList.remove('highlight');}
+    if ($(glo.openPanel+"-button")) {
+      $(glo.openPanel+"-button").classList.remove('panel-button-selected');
+    }
   }
-  // highlight the new panel button
+  // indicate the new panel button is pressed
   if ($(panelName+"-button") && !noPanelButtonHighlight) {
-    $(panelName+"-button").classList.add('highlight');
+    $(panelName+"-button").classList.add('panel-button-selected');
   }
   // remove header/user stuff in special cases
   if (panelName === "login-panel" || panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
@@ -1414,7 +1416,7 @@ var displayPosts = function (idArr, input, callback) {
 ///////////////////////////////////// tag option stuff
   if (input.author || pc === "MARK") {              // don't display any tag/date option stuff
     $("date-and-tag-options").classList.add("removed");
-    $("posts-panel-button").classList.remove('highlight');
+    $("posts-panel-button").classList.remove('panel-button-selected');
     if (pc === "MARK") {
       $("top-tag-display").innerHTML = 'bookmarked posts';
       $("bot-tag-display").innerHTML = 'bookmarked posts';
@@ -1436,7 +1438,7 @@ var displayPosts = function (idArr, input, callback) {
       }
     }
   } else {
-    $("posts-panel-button").classList.add('highlight');
+    $("posts-panel-button").classList.add('panel-button-selected');
     $("date-and-tag-options").classList.remove("removed");
     $("author-clear-tag-top").classList.add("removed");
     $("author-clear-tag-bot").classList.add("removed");
@@ -1576,13 +1578,13 @@ var setAuthorHeader = function (loc, aInfo) {
   // title
   var title = $("author-page-title-"+loc);
   // text sizing based on name length
-  if (aInfo.author.length < 6) {title.setAttribute('class','author-page-title-0 not-special')}
-  else if (aInfo.author.length < 12) {title.setAttribute('class','author-page-title-1 not-special')}
-  else if (aInfo.author.length < 20) {title.setAttribute('class','author-page-title-2 not-special')}
-  else if (aInfo.author.length < 30) {title.setAttribute('class','author-page-title-3 not-special')}
-  else if (aInfo.author.length < 40) {title.setAttribute('class','author-page-title-4 not-special')}
-  else if (aInfo.author.length < 50) {title.setAttribute('class','author-page-title-5 not-special')}
-  else {title.setAttribute('class','author-page-title-6 not-special')}
+  if (aInfo.author.length < 6) {title.setAttribute('class','author-page-title-0')}
+  else if (aInfo.author.length < 12) {title.setAttribute('class','author-page-title-1')}
+  else if (aInfo.author.length < 20) {title.setAttribute('class','author-page-title-2')}
+  else if (aInfo.author.length < 30) {title.setAttribute('class','author-page-title-3')}
+  else if (aInfo.author.length < 40) {title.setAttribute('class','author-page-title-4')}
+  else if (aInfo.author.length < 50) {title.setAttribute('class','author-page-title-5')}
+  else {title.setAttribute('class','author-page-title-6')}
   //
   if (loc === "bot") {
     title.onclick = function (event) {
@@ -1591,7 +1593,7 @@ var setAuthorHeader = function (loc, aInfo) {
       });
     }
     title.classList.add("clicky");
-    title.classList.remove('not-special');
+    title.classList.add('special');
     title.setAttribute('href', "/"+aInfo.author);
   }
   title.innerHTML = aInfo.author;
@@ -1823,7 +1825,6 @@ var renderFollowingList = function (followingList) {
     listing.setAttribute('class', 'following-listing');
     var link = document.createElement("a");
     link.setAttribute('href', "/"+followingList[i].name);
-    link.setAttribute('class', 'not-special');
     (function (id) {
       link.onclick = function(){
         modKeyCheck(event, function(){
@@ -2128,7 +2129,6 @@ var createPostFooter = function (postElem, postData, type) {
     if (postData.post_id && postData.post_id.length !== 8) { // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
       var permalinkWrapper = document.createElement("a");
       permalinkWrapper.setAttribute('href', "/~/"+postData.post_id);
-      permalinkWrapper.setAttribute('class', 'not-special');
       var permalink = document.createElement("footerButton");
       permalink.innerHTML = '<i class="fas fa-link"></i>';
       permalink.title = "permalink";
@@ -2628,11 +2628,11 @@ var formatTags = function (tagRef, author, dated) {
   for (var tag in tagRef) {
     if (tagRef.hasOwnProperty(tag)) {
       if (author) {
-        tags += '<a onclick="tagClickHandler(event,`'+tag+'`,`'+author._id+'`,null);" href="/'+author.name+'/~tagged/'+tag+'">'+tag+'</a>, ';
+        tags += '<a class="special" onclick="tagClickHandler(event,`'+tag+'`,`'+author._id+'`,null);" href="/'+author.name+'/~tagged/'+tag+'">'+tag+'</a>, ';
       } else if (dated) {
-        tags += '<a onclick="tagClickHandler(event,`'+tag+'`,null,`'+dated+'`);" href="/~tagged/'+tag+"/"+dated+'">'+tag+'</a>, ';
+        tags += '<a class="special" onclick="tagClickHandler(event,`'+tag+'`,null,`'+dated+'`);" href="/~tagged/'+tag+"/"+dated+'">'+tag+'</a>, ';
       } else {
-        tags += '<a onclick="tagClickHandler(event,`'+tag+'`,null,null);" href="/~tagged/'+tag+'">'+tag+'</a>, ';
+        tags += '<a class="special" onclick="tagClickHandler(event,`'+tag+'`,null,null);" href="/~tagged/'+tag+'">'+tag+'</a>, ';
       }
     }
   }
@@ -3303,7 +3303,7 @@ var openThread = function (i) {
         $(i+'-thread-name').classList.remove("special");
         glo.unread--;
         if (glo.unread === 0) {
-          $("inbox-panel-button").classList.add("not-special");
+          $("inbox-panel-button").classList.remove("special");
         }
       }
       glo.activeThreadIndex = i;
@@ -3358,7 +3358,7 @@ var markUnread = function () {
   closeThread();
   glo.unread++;
   ajaxCall('/unread', 'POST', {_id:glo.threads[i]._id, bool:true}, function(json) {})
-  $("inbox-panel-button").classList.remove("not-special");
+  $("inbox-panel-button").classList.add("special");
 }
 
 var updatePendingMessage = function (index) {
@@ -3582,7 +3582,7 @@ var populateThreadlist = function () {
     $("thread-list").appendChild(name);
   }
   if (glo.unread > 0) {
-    $("inbox-panel-button").classList.remove("not-special");
+    $("inbox-panel-button").classList.add("special");
   }
 }
 
@@ -3922,7 +3922,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     $('edit-panel-title').setAttribute('href', "/"+glo.username);
     $('edit-panel-title').onclick = function (event) {
       modKeyCheck(event, function(){
-        switchPanel('posts-panel')
+        switchPanel('posts-panel',true)
       });
     }
     if (glo.pendingUpdates['bio']) {
@@ -4048,11 +4048,11 @@ var showPassword = function (bool, elemName, elemArr) {       //or hide pass, if
 }
 
 var verifyEmailExplain = function () {
-  uiAlert(`schlaugh stores your email in <a href="https://en.wikipedia.org/wiki/Cryptographic_hash_function#Password_verification" target="_blank">"hashed"</a> form, meaning we can't just tell you what email address you have on file with us. But you can input what you think it is and we can tell you if that's right. And it's good to have a good email address stored with us in case you need to reset your password. But please don't need to reset your password.`)
+  uiAlert(`schlaugh stores your email in <a class='special' href="https://en.wikipedia.org/wiki/Cryptographic_hash_function#Password_verification" target="_blank">"hashed"</a> form, meaning we can't just tell you what email address you have on file with us. But you can input what you think it is and we can tell you if that's right. And it's good to have a good email address stored with us in case you need to reset your password. But please don't need to reset your password.`)
 }
 
 var imageUploadingExplain = function () {
-  uiAlert(`schlaugh does not support directly uploading images. You'll need to upload your image elsewhere(such as <a href="https://imgur.com/upload" target="_blank">imgur</a>), and then provide a link to the image file<br><br>please note that the link you provide must be directly to an image <i>file</i>, not a webpage. As in, right click on your image and click "copy image address", to get a link that ends with a file extension, like "png", "gif", "jpg", etc`);
+  uiAlert(`schlaugh does not support directly uploading images. You'll need to upload your image elsewhere(such as <a class='special' href="https://imgur.com/upload" target="_blank">imgur</a>), and then provide a link to the image file<br><br>please note that the link you provide must be directly to an image <i>file</i>, not a webpage. As in, right click on your image and click "copy image address", to get a link that ends with a file extension, like "png", "gif", "jpg", etc`);
 }
 
 var optionalEmailExplain = function () {

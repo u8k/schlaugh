@@ -105,12 +105,27 @@ h2 {
 }
 
 panelButtons {
-  font-size: 2.4em;
-  margin: 30px 0;
+  display: block;
+  width: 260px;
+  margin: auto;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  border: 2px solid;
+  border-radius: 5px;
 }
 
 .panel-button {
-  margin: 1vw;
+  font-size: 2.8em;
+  width: 64px;
+  display: inline-block;
+  padding: 10px 0 3.5px;
+}
+.panel-button-selected {
+  opacity: .55;
+}
+
+@media screen and (max-width: 500px) {
+  .post-header-feed {flex-direction: column; }
 }
 
 userInfo {
@@ -252,14 +267,13 @@ img {
   margin: auto;
 }
 
-a, a.visited, .special {
+a, a.visited {
   text-decoration: none;
   font-family: inherit;
-  color: #0004FF;
 }
 
-.not-special {
-  color: #383F45;
+.special {
+  color: #0004FF;
 }
 
 #pending-message {width: 65%}
@@ -481,11 +495,6 @@ input:-webkit-autofill {
   text-align: right;
   margin-bottom: 10px;
   margin-top: 10px;
-}
-
-.highlight {
-  font-size: 1.6em;
-  font-weight: bold;
 }
 
 body, h1, input, select {
