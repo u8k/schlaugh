@@ -434,7 +434,7 @@
   <text id="sign-to-save3" class="removed">(sign in to save settings)</text>
 </div>
 
-<div id="pop-up-backing" class="hidden"></div>
+<div id="pop-up-backing" class="hidden" onclick="blackBackingClickHandler()"></div>
 <div id="prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
     <text id="prompt-label"></text>
@@ -445,9 +445,24 @@
     <button id="prompt-close">x</button>
   </form>
 </div>
+
+<div id="link-prompt" class="pop-up hidden">
+  <form action="javascript:void(0);">
+    <div class="editor-pop-up-inner-box">
+      <text>target url:</text>
+      <input id="link-prompt-input1" placeholder="http://www.butts.cash/"><br>
+      <text>link text:</text>
+      <input id="link-prompt-input2" placeholder= "butts.cash">
+    </div>
+    <br>
+    <button id="link-prompt-submit" type="submit">submit</button> &nbsp &nbsp
+    <button onclick="closePrompt($('link-prompt'))">x</button>
+  </form>
+</div>
+
 <div id="img-input-prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
-    <div class="img-input-box">
+    <div class="editor-pop-up-inner-box">
       <text>image url<clicky onclick="imageUploadingExplain()" class="special">(?)</clicky>: </text>
       <input id="img-input-prompt-input" value="https://i.imgur.com/hDEXSt7.jpg" placeholder="hiss"><br>
       <text>"title"(hover text): </text>
@@ -457,9 +472,26 @@
     </div>
     <br>
     <button id="img-input-prompt-submit" type="submit">submit</button> &nbsp &nbsp
-    <button id="img-input-prompt-close">x</button>
+    <button onclick="closePrompt($('img-input-prompt'))">x</button>
   </form>
 </div>
+
+<div id="quote-prompt" class="pop-up hidden">
+  <form action="javascript:void(0);">
+    <div class="editor-pop-up-inner-box">
+      <text>quote text:</text>
+      <input id="quote-prompt-input1" placeholder="nitwit blubber oddment tweak"><br>
+      <text>"source text(optional): </text>
+      <input id="quote-prompt-input2" placeholder= "dumbledore"><br>
+      <text>source link(optional)</text>
+      <input id="quote-prompt-input3" placeholder= "https://www.dumbledore.com">
+    </div>
+    <br>
+    <button id="quote-prompt-submit" type="submit">submit</button> &nbsp &nbsp
+    <button onclick="closePrompt($('quote-prompt'))">x</button>
+  </form>
+</div>
+
 <div id="password-prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
     <text id="password-prompt-label"></text>

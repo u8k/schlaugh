@@ -2231,8 +2231,8 @@ app.post('/link', function(req, res) {
   if (req.body && typeof req.body.url === "string") {
     var url = req.body.url;
     request.head(url, function (error, resp) {
-      if (error || resp.statusCode !== 200) {
-        return res.send({issue:'your url: "'+url+'" does not seem to be valid.<br>you sure you want to link to "'+url+'"?'});
+      if (error || !resp || !resp.statusCode) {
+        return res.send({issue:'your url: "'+url+`" does not seem to be valid. It might be fine, but schlaugh's link checker doesn't like it, so please try clicking on it yourself to make sure it works<br><br>you sure you want to link to "`+url+'"?'});
       } else {
         res.send({issue:false});
       }

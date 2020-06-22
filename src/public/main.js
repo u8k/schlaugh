@@ -672,19 +672,36 @@ var verify = function (message, yesText, noText, callback) {
 
 var blackBacking = function (away) {
   if (away) {
-    $("pop-up-backing").style.opacity="0";
-    glo.backingTimer = setTimeout(function () {
-      $("pop-up-backing").classList.add('hidden');
-    }, 300);
+    if (glo.backingCount) {glo.backingCount--;}
+    if (!glo.backingCount) {
+      $("pop-up-backing").style.opacity="0";
+      glo.backingTimer = setTimeout(function () {
+        $("pop-up-backing").classList.add('hidden');
+      }, 300);
+      //
+      var elemList = document.getElementsByClassName('pop-up');
+      for (var i = 0; i < elemList.length; i++) {
+        elemList[i].classList.add('hidden');
+      }
+    }
   } else {
+    if (!glo.backingCount) {glo.backingCount = 1;}
+    else {glo.backingCount++;}
     clearTimeout(glo.backingTimer);
     $("pop-up-backing").classList.remove('hidden');
     $("pop-up-backing").style.opacity="1";
   }
 }
+var blackBackingClickHandler = function () {
+  if (!glo.loading) {
+    glo.backingCount = 0;
+    blackBacking(true);
+  }
+}
 
 var loading = function (stop, keepBacking) {
   if (stop) {
+    glo.loading = false;
     if (!keepBacking) {
       blackBacking(true);
     }
@@ -693,6 +710,7 @@ var loading = function (stop, keepBacking) {
       $("loading-box").classList.add('hidden');
     }, 300);
   } else {
+    glo.loading = true;
     blackBacking();
     clearTimeout(glo.loadingTimer);
     $("loading-box").classList.remove('hidden');
@@ -2949,39 +2967,42 @@ var hyperlink = function (src) {
   var b = x.end;
   var y = area.value;
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
-  var linkText;
-  if (a !== b) {linkText = convertLineBreaks(y.substr(a,b-a), true);}
-  uiPrompt({
-    label: "target url:",
-    placeholder: "http://www.butts.cash/",
-    callback: function(target) {
-      if (target !== null) {
-        uiPrompt({
-          placeholder: "butts.cash",
-          value: linkText,
-          label: "link text:",
-          callback: function(linkText) {
-            if (linkText !== null) {
-              linkText = convertLineBreaks(linkText);
-              ajaxCall('/link', 'POST', {url:target}, function(json) {
-                if (json.issue) {
-                  verify(json.issue, null, null, function (res) {
-                    if (!res) {
-                      area.value = y;
-                      setCursorPosition(area, a, b);
-                    }
-                  });
-                }
-              });
-              area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
-              var bump = a+target.length+linkText.length+15;
-              setCursorPosition(area, bump, bump);
-            }
-          }
-        });
-      }
+  if (a !== b) {$("link-prompt-input2").value = convertLineBreaks(y.substr(a,b-a), true);}
+  $('link-prompt').classList.remove('hidden');
+  blackBacking();
+  setCursorPosition($("link-prompt-input1"), 0, $("link-prompt-input1").value.length);
+
+  $("link-prompt-submit").onclick = function() {
+    var target = $("link-prompt-input1").value;
+    var linkText = $("link-prompt-input2").value;
+    if (!linkText) {linkText = target}
+    if (target) {
+      linkText = convertLineBreaks(linkText);
+      checkLink(target, linkText, area, y, a, b);
+    }
+    closePrompt($('link-prompt'));
+  }
+}
+var checkLink = function (target, linkText, area, y, a, b) {
+  var marget = target;
+  if (marget.slice(0,1) === "/") {marget = window.location.origin + marget}
+  else if (marget.slice(0,8) !== "https://" && marget.slice(0,7) !== "http://") {
+    marget = target = "http://" + marget;
+  }
+  ajaxCall('/link', 'POST', {url:marget}, function(json) {
+    if (json.issue) {
+      verify(json.issue, null, null, function (res) {
+        if (!res) {
+          area.value = y;
+          setCursorPosition(area, a, b);
+        }
+      });
     }
   });
+  area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
+  var bump = a+target.length+linkText.length+15;
+  setCursorPosition(area, bump, bump);
+
 }
 var insertImage = function (src) {
   updateEditorStateList(src);
@@ -2994,12 +3015,6 @@ var insertImage = function (src) {
   $('img-input-prompt').classList.remove('hidden');
   blackBacking();
   setCursorPosition($("img-input-prompt-input"), 0, $("img-input-prompt-input").value.length);
-  var exit = function () {
-    blackBacking(true);
-    $('img-input-prompt').classList.add('hidden');
-  }
-  $("pop-up-backing").onclick = exit;
-  $("img-input-prompt-close").onclick = exit;
 
   $("img-input-prompt-submit").onclick = function() {
     var url = $('img-input-prompt-input').value;
@@ -3021,7 +3036,7 @@ var insertImage = function (src) {
       var bump = a +url.length+ title.length+ alt.length+ openTag.length + closeTag.length;
       setCursorPosition(area, bump, bump);
     }
-    exit();
+    closePrompt($('img-input-prompt'));
   }
 }
 var insertHR = function (src) {
@@ -3040,6 +3055,7 @@ var insertHR = function (src) {
   var bump = a+4 +pre.length + post.length;
   setCursorPosition(area, bump, bump);
 }
+/*
 var insertCut = function (src) {
   updateEditorStateList(src);
   var area = $(src+'-editor');
@@ -3050,6 +3066,7 @@ var insertCut = function (src) {
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   var cutText = "more";
   if (a !== b) {cutText = convertLineBreaks(y.substr(a,b-a), true);}
+
   uiPrompt({
     label:"text:",
     value:cutText,
@@ -3067,6 +3084,7 @@ var insertCut = function (src) {
     }
   });
 }
+*/
 var insertQuote = function (src) {
   updateEditorStateList(src);
   var area = $(src+'-editor');
@@ -3081,53 +3099,37 @@ var insertQuote = function (src) {
   if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<quote>\n'}
   var closeTag = '\n</quote>\n';
   if (y.substr(b,1) === "\n") {closeTag = '\n</quote>';}
-  uiPrompt({
-    label:"quote text:",
-    value:quoteText,
-    placeholder: "nitwit blubber oddment tweak",
-    callback: function(quoteText) {
-      if (quoteText !== null) {
-        quoteText = convertLineBreaks(quoteText);
-        uiPrompt({
-          label: "source text(optional):",
-          placeholder: "dumbledore",
-          callback: function(sourceText) {
-            if (sourceText !== null && sourceText !== "") {
-              uiPrompt({
-                label: "source link(optional):",
-                placeholder: "http://www.dumbledore.com",
-                callback: function(sourceLink) {
-                  if (sourceLink !== null && sourceLink !== "") {
-                    ajaxCall('/link', 'POST', {url:sourceLink}, function(json) {
-                      if (json.issue) {
-                        verify(json.issue,  null, null, function (res) {
-                          if (!res) {
-                            area.value = y;
-                            setCursorPosition(area, a, b);
-                          }
-                        });
-                      }
-                    });
-                    area.value = y.slice(0, a)+openTag+quoteText+'\n<r>\n<a href="'+sourceLink+'">-'+sourceText+'</a>\n</r>'+ closeTag +y.slice(b);
-                    var bump = a+quoteText.length+sourceLink.length+sourceText.length +25 + openTag.length + closeTag.length;
-                    setCursorPosition(area, bump, bump);
-                  } else {
-                    area.value = y.slice(0, a)+openTag+quoteText+'\n<r>\n-'+sourceText+'\n</r>'+ closeTag +y.slice(b);
-                    var bump = a+quoteText.length+sourceText.length +11 + openTag.length + closeTag.length;
-                    setCursorPosition(area, bump, bump);
-                  }
-                }
-              });
-            } else {
-              area.value = y.slice(0, a)+openTag+quoteText + closeTag +y.slice(b);
-              var bump = a + quoteText.length + openTag.length + closeTag.length;
-              setCursorPosition(area, bump, bump);
-            }
-          }
-        });
+  if (quoteText) {$("quote-prompt-input1").value = quoteText;}
+  $('quote-prompt').classList.remove('hidden');
+  blackBacking();
+  setCursorPosition($("quote-prompt-input1"), 0, $("quote-prompt-input1").value.length);
+
+  $("quote-prompt-submit").onclick = function() {
+    quoteText = convertLineBreaks($('quote-prompt-input1').value);
+    var sourceText = $('quote-prompt-input2').value;
+    var sourceLink = $('quote-prompt-input3').value;
+
+    if (sourceText !== null && sourceText !== "") {
+      if (sourceLink !== null && sourceLink !== "") {
+
+        // fudge, validate the link
+
+        area.value = y.slice(0, a)+openTag+quoteText+'\n<r>\n<a href="'+sourceLink+'">-'+sourceText+'</a>\n</r>'+ closeTag +y.slice(b);
+        var bump = a+quoteText.length+sourceLink.length+sourceText.length +25 + openTag.length + closeTag.length;
+        setCursorPosition(area, bump, bump);
+      } else {
+        area.value = y.slice(0, a)+openTag+quoteText+'\n<r>\n-'+sourceText+'\n</r>'+ closeTag +y.slice(b);
+        var bump = a+quoteText.length+sourceText.length +11 + openTag.length + closeTag.length;
+        setCursorPosition(area, bump, bump);
       }
+    } else {
+      area.value = y.slice(0, a)+openTag+quoteText + closeTag +y.slice(b);
+      var bump = a + quoteText.length + openTag.length + closeTag.length;
+      setCursorPosition(area, bump, bump);
     }
-  });
+    closePrompt($('quote-prompt'));
+  }
+
 }
 var insertNote = function (src) {
   updateEditorStateList(src);
@@ -3136,29 +3138,30 @@ var insertNote = function (src) {
   var a = x.start;
   var b = x.end;
   var y = area.value;
-  var linkText;
-  if (a !== b) {linkText = convertLineBreaks(y.substr(a,b-a), true);}
-  uiPrompt({
-    label: "link text:",
-    placeholder: "(aside)",
-    value: linkText,
-    callback: function(linkText) {
-      if (linkText !== null) {
-        uiPrompt({
-          placeholder: "Laura Epsom",
-          label: "note contents:",
-          callback: function(noteContents) {
-            if (noteContents !== null) {
-              noteContents = convertLineBreaks(noteContents);
-              area.value = y.slice(0, a)+'<note linkText="'+linkText+'">\n'+noteContents+'\n</note>'+y.slice(b);
-              var bump = a+linkText.length+noteContents.length+27;
-              setCursorPosition(area, bump, bump);
-            }
-          }
-        });
+  var selectedText;
+  if (a !== b) {selectedText = y.substr(a,b-a);}
+
+  if (selectedText) {
+    verify("would you like the currently selected text to be the text that is:", "clicked", "initially hidden", function (response) {
+      if (response) {
+        area.value = y.slice(0, a)+'<note linkText="'+selectedText+'">\n\n</note>'+y.slice(b);
+        var bump = a+selectedText.length+19;
+        setCursorPosition(area, bump, bump);
+      } else {
+        area.value = y.slice(0, a)+'<note linkText="">\n'+selectedText+'\n</note>'+y.slice(b);
+        var bump = a+16;
+        setCursorPosition(area, bump, bump);
       }
-    }
-  });
+    });
+  } else {
+    area.value = y.slice(0, a)+'<note linkText="">\n\n</note>'+y.slice(b);
+    var bump = a+16;
+    setCursorPosition(area, bump, bump);
+  }
+}
+var closePrompt = function (elem) {
+  blackBacking(true);
+  elem.classList.add('hidden');
 }
 
 var convertLineBreaks = function (string, dir) {
