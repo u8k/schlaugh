@@ -106,20 +106,22 @@ h2 {
 
 panelButtons {
   display: block;
-  width: 260px;
+  width: 294px;
   margin: auto;
   margin-top: 10px;
   margin-bottom: 10px;
-  border: 2px solid;
-  border-radius: 5px;
+  border: 3px solid;
+  border-radius: 6px;
 }
-
 .panel-button {
+  border-left: 0.5px solid;
+  border-right: 0.5px solid;
   font-size: 2.8em;
-  width: 64px;
+  width: 72px;
   display: inline-block;
   padding: 10px 0 3.5px;
 }
+.panel-button-selected {border: none;}
 
 @media screen and (max-width: 500px) {
   .post-header-feed {flex-direction: column; }
