@@ -124,7 +124,7 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
         i = -1;
       }
     }
-    sheet.insertRule("button {border-color: "+colorCode+";}", sheet.cssRules.length);
+    sheet.insertRule("button, a {border-color: "+colorCode+" !important;}", sheet.cssRules.length);
     // selected(highlighted) background
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
       if (sheet.cssRules[i].selectorText === '::selection, .fake-background-class, .panel-button-selected') {
@@ -904,7 +904,7 @@ var convertLinks = function (string) {
   return recurse(0);
 }
 
-var convertText = function (string, id, type) {
+var prepTextForRender = function (string, id, type) {
   return convertLinks(convertNotes(convertCuts(string, id, type), id, type));
 }
 
@@ -986,7 +986,7 @@ var openFAQ = function () {
       var faqBody = document.createElement("div");
       faqBody.setAttribute('id', 'faq-body');
       faqBody.setAttribute('class', 'post reader-font');
-      faqBody.innerHTML = convertText(json.text, "~faq~");
+      faqBody.innerHTML = prepTextForRender(json.text, "~faq~");
       $("faq-bucket").appendChild(faqBody)
       switchPanel('~faq-panel');
       simulatePageLoad('~faq', false);
@@ -1624,7 +1624,7 @@ var setAuthorHeader = function (loc, aInfo) {
 
   // header-right
   if (aInfo.bio && aInfo.bio !== "") {
-    $("author-header-right-"+loc).innerHTML = convertText(aInfo.bio, aInfo.author+"-bio");
+    $("author-header-right-"+loc).innerHTML = prepTextForRender(aInfo.bio, aInfo.author+"-bio");
     $("author-header-right-"+loc).classList.remove('removed');
   } else {
     $("author-header-right-"+loc).classList.add('removed');
@@ -1999,7 +1999,7 @@ var renderOnePost = function (postData, type, postID) {
   var body = document.createElement("div");
   body.setAttribute('class', 'reader-font');
   body.setAttribute('id', uniqueID+'body');
-  body.innerHTML = convertText(postData.body, uniqueID, type);
+  body.innerHTML = prepTextForRender(postData.body, uniqueID, type);
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'authorAll') {
     post.classList.add('faded');
     body.classList.add('removed');
@@ -2121,11 +2121,17 @@ var createPostFooter = function (postElem, postData, type) {
       if (postData.post_id && postData.post_id.length !== 8) {  // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
         // quote button
         var quoteBtn = document.createElement("footerButton");
+        quoteBtn.setAttribute('class', 'no-select');
         quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
         quoteBtn.title = "quote";
         quoteBtn.onclick = function() {
           if (glo.postStash && glo.postStash[postData.post_id]) {     // is it already stashed?
+
+          //  console.log("fudge");
+
+        //    /*
             showPostWriter(function () {
+
               var text = "<quote>"+glo.postStash[postData.post_id].body+
               '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>";
               if ($('post-editor').value !== "") {text = '<br>'+text;}
@@ -2134,6 +2140,8 @@ var createPostFooter = function (postElem, postData, type) {
               switchPanel('write-panel');
               simulatePageLoad("~write", false);
             });
+        //    */
+
           } else {
             return uiAlert("eRoRr! post not found???<br>how did you even get here?");
           }
@@ -2179,6 +2187,96 @@ var createPostFooter = function (postElem, postData, type) {
     }
   }
 }
+
+/*
+var selectiveQuote = function () {
+  if (window.getSelection) { // all browsers, except IE before version 7
+    var selection = window.getSelection();
+    if (selection && !selection.isCollapsed && selection.rangeCount === 1) {
+
+      var postBodyId = "post-previewbody";
+
+      var smallestContainingNode = selection.getRangeAt(0).commonAncestorContainer;
+      var lineage = findPathToAncestorNode(smallestContainingNode, postBodyId);
+      var cloneList = [];
+      console.log(smallestContainingNode);
+
+      for (var i = 0; i < lineage.length-1; i++) {
+        // filter the elements that apply no relevant styling and need not be part of the chain
+        if (lineage[i].nodeName !== "LI" && lineage[i].nodeName !== "UL" && lineage[i].nodeName !== "OL" && lineage[i].nodeName !== "DIV" && lineage[i].nodeName !== "QUOTE") {
+          cloneList.push(lineage[i].cloneNode(false))
+        }
+      }
+      // always push the last item
+      cloneList.push(lineage[lineage.length-1].cloneNode(false));
+      // link up the cloned nodes, skipping the first
+      for (var i = 1; i < cloneList.length-1; i++) {
+        cloneList[i+1].appendChild(cloneList[i])
+      }
+
+      if (smallestContainingNode.children) {
+        var childs = smallestContainingNode.childNodes;
+        var start = false;
+        console.log(selection.getRangeAt(0).startContainer);
+        console.log(selection.getRangeAt(0).endContainer);
+        for (var i = 0; i < childs.length; i++) {
+          console.log(childs[i]);
+          console.log(childs[i].nodeName);
+//          console.log(childs[i].contains(selection.getRangeAt(0).endContainer));
+          // first node of the selection
+          if (childs[i].contains(selection.getRangeAt(0).startContainer) || childs[i] === selection.getRangeAt(0).startContainer) {
+            console.log('first!');
+
+
+            cloneList[0].appendChild(childs[i].cloneNode(true));
+
+
+            start = true;
+
+          // last node of the selection
+        } else if (childs[i].contains(selection.getRangeAt(0).endContainer) || childs[i] === selection.getRangeAt(0).endContainer) {
+
+
+            cloneList[0].appendChild(childs[i].cloneNode(true));
+
+
+            start = false;
+            break;
+          // within the selection
+          } else if (start) {
+            cloneList[0].appendChild(childs[i].cloneNode(true));
+          }
+        }
+      } else {
+        // the selection is all within one node, easy
+        if (cloneList[0].nodeName === "#text") {
+          cloneList[0] = document.createTextNode(selection.toString());
+        } else {
+          cloneList[0].appendChild(document.createTextNode(selection.toString()));
+        }
+      }
+
+      if (cloneList[1]) {
+        cloneList[1].appendChild(cloneList[0]);
+      } // otherwise, no need to append, the 0th item just is the whole list and will be returned below
+
+      return cloneList[cloneList.length-1].innerHTML;
+    }
+  }
+}
+
+var findPathToAncestorNode = function (initElem, targetID, list) {
+  if (!list) {list = [initElem];}
+  if (list[list.length-1].id === targetID) {
+    return list;
+  } else if (list[list.length-1].parentNode) {
+    list.push(list[list.length-1].parentNode);
+    return findPathToAncestorNode(initElem, targetID, list);
+  } else {
+    return false; // no path found
+  }
+}
+*/
 
 var addTag = function (authorName) {
   $('tag-input').value = $('tag-input').value + "@"+authorName+", ";
@@ -2400,7 +2498,7 @@ var updatePendingEdit = function (post, bio) {
       _id: glo.userID,
       author: glo.username,
       authorPic: glo.userPic,
-      bio: convertText(post.body, 'old-pending'),
+      bio: prepTextForRender(post.body, 'old-pending'),
     });
   }
   else {
@@ -2799,6 +2897,7 @@ var prepTextForEditor = function (text) {
 
   text = text.replace(/<br>/g, '\n');
 
+  // change the < and & back
   var codeRecurse = function (pos) {
     var next = text.substr(pos).search(/<code>/);
     if (next !== -1) {
@@ -3374,7 +3473,7 @@ var updatePendingMessage = function (index) {
     $('pending-message').classList.remove('removed');
     $('write-message-button').innerHTML = "edit message";
     $('pending-message-status').innerHTML = "pending message:";
-    $('pending-message').innerHTML = convertText(pending, 'pending-message');
+    $('pending-message').innerHTML = prepTextForRender(pending, 'pending-message');
   } else {
     $('delete-message').classList.add('removed');
     $('pending-message').classList.add('removed');
@@ -3507,7 +3606,7 @@ var createMessage = function (i, j) {
     message.appendChild(dateStamp);
     var body = document.createElement("div");
     body.setAttribute('class', 'reader-font');
-    body.innerHTML = convertText(x.body, uniqueID);
+    body.innerHTML = prepTextForRender(x.body, uniqueID);
     message.appendChild(body);
   }
 }
