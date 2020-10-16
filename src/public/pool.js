@@ -169,7 +169,6 @@
         } else if (string.substr(pos+1,5) === "/cut>") {
           cut = false;
           pos += 5;
-          removeExtraBreak(pos);
         } else if (string.substr(pos+1,6) === "/code>") {
           code = false;
           pos += 6;

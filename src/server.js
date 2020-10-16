@@ -13,7 +13,8 @@ var adminB = require('./public/adminB.js');
 
 //connect and check mongoDB
 var db;
-var uri = process.env.MONGODB_URI || `mongodb+srv://smee:Od6YbDZJLW0hXmYO@clustytheclusterer-fdeot.gcp.mongodb.net/schlaugh?retryWrites=true&w=majority`;
+//var uri = process.env.MONGODB_URI || `mongodb+srv://smee:Od6YbDZJLW0hXmYO@clustytheclusterer-fdeot.gcp.mongodb.net/schlaugh?retryWrites=true&w=majority`;
+var uri = process.env.MONGODB_URI || 'mongodb://mongo:27017/schlaugh';
 
 MongoClient.connect(uri, function(err, database) {
   if (err) {throw err;}
@@ -24,7 +25,6 @@ MongoClient.connect(uri, function(err, database) {
     } else {      // this is for dev on replit/atlas
       db = database.db("schlaugh");
     }
-
   }
 });
 

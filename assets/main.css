@@ -356,6 +356,23 @@ a, a.visited {
   text-decoration: underline;
 }
 
+.selective-quote-button {
+  padding-top: 2px;
+  z-index: 1;
+  position: absolute;
+  top: 189px;
+  right: -26px;
+  transition: right .2s;
+}
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  .selective-quote-button {
+    right: -31px;
+  }
+}
+.show-selective-quote-button {
+  right: 2px;
+}
+
 footerButton {
   margin-left: 7px;
   margin-right: 3px;
@@ -388,7 +405,7 @@ footerButton {
   .post, .author-header, #settings-box {width: 100%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
-  #post-writer, #old-post-writer, #message-writer{width: 95%;}
+  #post-writer, #old-post-writer, #message-writer{width: 100%;}
   #o-pic {max-width: 95%;}
 }
 
@@ -673,7 +690,7 @@ quote {
   font-style: italic;
 }
 
-.note {
+innerNote {
   position: relative;
   display: block;
   border-radius: 4px;
@@ -694,7 +711,7 @@ ascii {
   display: block;
   padding: 15px;
   border-style: groove;
-  width: fit-content;
+  width: max-content;
   max-width: 100%;
   margin: auto;
   white-space: pre;
@@ -706,7 +723,7 @@ secret {display: none;}
 
 ul, ol {margin: 0}
 
-b, i, u, s, quote, li, ul, ol, l, c, r, div, p {font-family: inherit;}
+b, i, u, s, quote, li, ul, ol, l, c, r, innerCut, p, cut, x, note, innerNote {font-family: inherit;}
 
 l {text-align: left;}
 c {text-align: center;}

@@ -804,108 +804,505 @@ var ajaxCall = function(url, method, data, callback, shushError) {
   xhttp.send(JSON.stringify(data));
 }
 
-var convertCuts = function (string, id, type) {
+var insertStringIntoStringAtPos = function (stringOuter, stringInner, pos) {
+  return stringOuter.substr(0,pos)+ stringInner +stringOuter.substr(pos);
+}
+
+var convertCut = function (string, id, type, pos) {
   // changes cut tags into functional cuts, needs id so that every cut has a unique id tag on the front end,
-  // this will need alteration if multiple posts per user(per day) are allowed
+
   if (type === "authorAll") {
     var classAsign = "removed expandable";
   } else {
     var classAsign = "removed";
   }
-  var recurse = function (pos, count) {
-    var next = string.substr(pos).search(/<cut>/);
-    if (next === -1) {return string;}
-    else {
-      pos += next;
-      var gap = string.substr(pos).search('</cut>');
-      if (gap === -1) { //this is ONLY for backwards compat w/ the one/first day this worked differently
-        var offset = 5;
-        if (string[pos+4] !== '>') {offset = 6;}
-        string = string.substr(0,pos)
-          +"<a class='clicky special' onclick='$("+'"'+id+"-cut-"+count+'"'+").classList.remove("
-          +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'
-          +");'>more</a>"+"<div class='"+classAsign+"' id='"+id+"-cut-"+count+"'>"
-          +string.substr(pos+offset)+"</div>";
-      } else {
-        string = string.substr(0,pos)
-          +"<a class='clicky special' onclick='$("+'"'+id+"-cut-"+count+'"'+").classList.remove("
-          +'"'+"removed"+'"'+"); this.classList.add("+'"'+"removed"+'"'+");'>"
-          +string.substr(pos+5, gap-5)
-          +"</a>"+"<div class='"+classAsign+"' id='"+id+"-cut-"+count+"'>"
-          +string.substr(pos+gap)+"</div>";
-      }
-    }
-    return recurse(pos+1, count+1);
+
+  // put the class and clickhandler props on the cut tag to make it into a working button
+  var b = ` class='clicky special' onclick='$("`+id+`").classList.remove("removed"); this.classList.add("removed");'`;
+  string = insertStringIntoStringAtPos(string, b, pos);
+  pos += b.length
+
+  // find the closing cut tag and insert a div after it, leave the div open, to be closed later by prepTextForRender
+  var gap = string.substr(pos).search('</cut>');
+  if (gap === -1) { // if there is no closing cut tag...(there always should be)
+    string = string + "</cut><innerCut class='"+classAsign+"'>";
+  } else {                   // the case that is actually important
+    pos = pos+gap+6;
+    var insrt = "<innerCut id="+id+" class='"+classAsign+"'>";
+    string = insertStringIntoStringAtPos(string, insrt, pos);
   }
-  return recurse(0,0);
+  return string;
 }
 
-var convertNotes = function (string, id, type) {
+var convertNote = function (string, id, elemCount, type, tagStartPos) {
   // changes note tags into functional notes, needs id so that every note has a unique id tag on the front end,
   if (type === "authorAll") {
-    var classAsign = "note removed expandable";
+    var classAsign = "removed expandable";
   } else {
-    var classAsign = "note removed";
+    var classAsign = "removed";
   }
-  var recurse = function (pos, count) {
-    var next = string.substr(pos).search(/<note linkText="/);
-    if (next === -1) {return string;}
-    else {
-      pos += next;
-      var qPos = string.substr(pos+16).search(/"/);
-      if (qPos === -1) { // 'should' never be the case since "cleanse" already ran
-        return string += '">';
-      } else {
-        var linkText = string.substr(pos+16, qPos);
-        var cPos = string.substr(pos+qPos+18).search('</note>');
-        if (cPos === -1) { // 'should' never be the case since "cleanse" already ran
-          return string += '</note>';
-        } else {
-          var noteText = string.substr(pos+qPos+18, cPos);
-          var uniqueID = "note-"+id+"-"+count;
-          if (string.substr(pos+qPos+cPos+25, 4) === "<br>") {
-            string = string.substr(0, pos+qPos+cPos+25)+'<br id="'+uniqueID+'-br">'+string.substr(pos+qPos+cPos+29);
+
+  if (string.substr(tagStartPos).search(/<note linkText="/) !== 0) {return string;}
+  var startLinkPos = tagStartPos+16;
+  var qPos = string.substr(startLinkPos).search(/"/);
+  if (qPos === -1) {return string += '">';}
+  var linkText = string.substr(startLinkPos, qPos);
+  if (string.substr(startLinkPos+qPos,2) !== '">') {return string;}
+  var innerStartPos = startLinkPos+qPos+2;
+
+  var preTag = string.substr(0,tagStartPos);
+  var postTag = string.substr(innerStartPos);
+  var insert = `<a class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true, '`+id+`')">`+linkText+`</a>`
+    +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
+    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`')" class="collapse-button-top"><icon class="far fa-minus-square"></icon></clicky>`
+    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`')" class="collapse-button-bottom hidden" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
+
+  string = preTag+insert+postTag;
+
+  // convert the trailing </note>
+  string = string.replace('</note>', '</innerNote>');
+
+  return string;
+}
+
+var selfClosingTagRef = {
+  "img":true,
+  "br":true,
+  "br/":true,
+  "hr/":true,
+  "hr":true,
+}
+
+var deWeaveAndRemoveUnmatchedTags = function (string, pos, tagStack) {
+    // init
+    if (!pos) {
+      pos = 0; tagStack = [];
+    }
+  // get next "<"
+  var next = string.substr(pos).search(/</)+1;
+  if (next === 0) {           // we have seen all there is, it is time to go home
+    for (var i = tagStack.length-1; i > -1; i--) {
+      string = string + "</"+tagStack[i].tag+">";
+    }
+    return string;
+  } else {
+    pos += next;
+    // get text following <, up to a space or ">"
+    var close = string.substr(pos).search(/[ >]/);
+    var tag = string.substr(pos, close);
+    //
+    if (selfClosingTagRef[tag]) {
+      // do nothing
+    } else {
+      pos += close;
+      if (tag.substr(0,1) === "/") {  //if closing, then first make sure it's in the tag stack at all, if not: remove it
+        tag = tag.substr(1);
+        var isOpen = false;
+        for (var i = 0; i < tagStack.length; i++) {
+          if (tagStack[i].tag === tag) {
+            isOpen = true;
+            break;
           }
-          string = string.substr(0,pos)
-            +`<a class='clicky special' id="`+uniqueID+`-note-open" onclick="collapseNote('`+uniqueID+`', true)">`
-            +linkText
-            +"</a>"+"<ul class='"+classAsign+"' id='"+uniqueID+"'>"
-            +`<clicky onclick="collapseNote('`+uniqueID+`')" class="collapse-button-top"><i class="far fa-minus-square"></i></clicky>`
-            +`<clicky onclick="collapseNote('`+uniqueID+`', false, '`+id+`')" class="collapse-button-bottom hidden" id="`+uniqueID+`-note-close" ><i class="far fa-minus-square"></i></clicky>`
-            +noteText+"</ul>"+ string.substr(pos+qPos+cPos+25);
+        }
+        if (!isOpen) {  // take out the trash
+          string = string.substr(0,pos-(tag.length+2)) + string.substr(pos+1);
+        } else {    // the tag was in the stack, and thus open, so we close it
+          // match to tag stack, closing all tags above it, and popping them and the match from the stack
+          for (var i = tagStack.length-1; i > -1; i--) {
+            if (tagStack[i].tag === tag) {
+              tagStack.pop();
+              break;
+            } else {
+              string = insertStringIntoStringAtPos(string, "</"+tagStack[i].tag+">", (pos-close)-1);
+              pos+= tagStack[i].tag.length +3;
+              tagStack.pop();
+            }
+          }
+        }
+      } else {  // it is an opening tag
+        tagStack.push({tag:tag});
+      }
+    }
+    return deWeaveAndRemoveUnmatchedTags(string, pos, tagStack);
+  }
+}
+
+var prepTextForRender = function (string, id, type, extracting, pos, elemCount, tagStack) {
+  // NOTE: this function is also called as a key part of selectiveQuote,
+  // thus 'prepTextForRender' is not a great name for everything this boy does
+
+  // init
+  if (!pos) {
+    string = deWeaveAndRemoveUnmatchedTags(string);
+    pos = 0; elemCount = 0; tagStack = [];
+    if (string[0] && string[0] !== "<") {
+      var x = checkOrInsertElem(string, pos, id, elemCount, extracting, tagStack);
+      if (x.error) {return x;}
+      if (x.extracting && x.extracting.done) {return x.extracting.returnString}
+      extracting = x.extracting;
+      string = x.string;
+      elemCount++;
+      pos++;
+    }
+  }
+
+  // get next "<"
+  if (extracting) {
+    //var next = string.substr(pos).search(/[<>]/)+1;
+  } else {
+  }
+  var next = string.substr(pos).search(/</)+1;
+  if (next === 0) {           // we have seen all there is, it is time to go home
+    if (extracting) {
+      if (elemCount === extracting.endElem) {
+        var x = checkOrInsertElem(string, pos+1, id, elemCount, extracting, tagStack);
+        if (x.error) {return x;}
+        if (x.extracting.done) {return x.extracting.returnString}
+      }
+      return {error:"selection not found"}
+    } else {
+      if (string[string.length-1] && string[string.length-1] !== ">") {
+        string += "</x>";
+      }
+      for (var i = tagStack.length-1; i > -1; i--) {
+        string = string + "</"+tagStack[i].tag+">";
+      }
+      return string;
+    }
+  } else {
+    pos += next
+    if (extracting) {
+    }
+    // get text following <, up to a space or ">"
+    var close = string.substr(pos).search(/[ >]/);
+    var tag = string.substr(pos, close);
+    //
+    if (selfClosingTagRef[tag]) {                 // self closing tag
+      if (!extracting && string[pos-2] !== '>') { // close the x, if the tag isn't preceded by another tag
+        string = insertStringIntoStringAtPos(string, "</x>", pos-1);
+        pos+=4;
+      }
+      var endPos = string.substr(pos).search(/>/);
+      if (string[pos+endPos+1] !== "<") {       // open an x, if the tag isn't proceded by another tag
+        var x = checkOrInsertElem(string, pos+endPos+1, id, elemCount, extracting, tagStack);
+        if (x.error) {return x;}
+        if (x.extracting && x.extracting.done) {return x.extracting.returnString}
+        extracting = x.extracting;
+        string = x.string;
+        elemCount++;
+      }
+    } else {
+      pos += close;
+      if (tag.substr(0,1) === "/") {                           // it is a closingTag,
+        tag = tag.substr(1);
+
+          if (!extracting && string[pos-(tag.length+3)] !== '>') {  // close the X, if the tag isn't preceded by another tag
+            string = insertStringIntoStringAtPos(string, "</x>", pos-(tag.length+2));
+            pos+=4;
+          }
+
+          // match to tag stack, closing all tags above it, and popping them and the match from the stack
+          for (var i = tagStack.length-1; i > -1; i--) {    // since the deweave-and-remove has already ran, it should always be the last tag on the stack
+            if (tagStack[i].tag === tag) {                      // unless it's a cut, then we let the innercut get ended here
+              if (!extracting && tag === "innerNote" && string.substr(pos+1,4) === "<br>" && tagStack[i].id) {   // closing a note, check for <br>
+                string = string.substr(0, pos+1)+`<br id="`+tagStack[i].id+`-br">`+string.substr(pos+5);
+              }
+              tagStack.pop();
+              break;
+            } else {
+              if (!extracting) {
+                string = insertStringIntoStringAtPos(string, "</"+tagStack[i].tag+">", (pos-close)-1);
+                pos+= tagStack[i].tag.length +3;
+              }
+              tagStack.pop();
+            }
+          }
+
+          // open an x, if the tag isn't proceded by another tag
+          if ((string[pos+1] && string[pos+1] !== "<" && string.substr(pos+1,2) !== `">`) || (extracting && string.substr(pos+1,2) === `">` && string[pos+3] !== "<")) {
+            if (string.substr(pos+1,2) === `">`) {
+              pos +=2;
+            }
+            var x = checkOrInsertElem(string, pos+1, id, elemCount, extracting, tagStack);
+            if (x.error) {return x;}
+            if (x.extracting && x.extracting.done) {return x.extracting.returnString}
+            extracting = x.extracting;
+            string = x.string;
+            elemCount++;
+          }
+
+      } else {  // it is an opening tag
+        if (tag === "note") {                               // do note conversion stuff
+          if (extracting) {
+            elemCount+=2;
+            if (string.substr(pos).search(/ linkText="/) !== 0) {return {error:"malformed note a"}}
+
+            var startLinkPos = pos+11;
+            var qPos = string.substr(startLinkPos).search(/">/);
+            if (qPos === -1) {return {error:"malformed note b"}}
+            var fullButtonString = string.substr(pos-5, 18+qPos);
+
+            // find the end of the noteInner for the current noteButt
+            var noteEndPos = findClosingNoteTag(string, pos) - (pos+qPos+8);
+            if (noteEndPos === -1) {return {error:"malformed note c"}}
+            var fullInnerString = string.substr(pos+qPos+13, noteEndPos);
+
+            if (!extracting.noteTrack) {extracting.noteTrack = []}
+            extracting.noteTrack.push({
+              buttStart:pos-5,
+              buttEnd:pos+qPos+12,
+              fullInnerString:fullInnerString,
+            });
+            tagStack.push({tag:tag, fullButtonString: fullButtonString,});
+
+            // is there a "<" leading off the link text?
+            if (string[startLinkPos] !== "<") {
+              var x = checkOrInsertElem(string, startLinkPos, id, elemCount, extracting, tagStack);
+              if (x.error) {return x;}
+              if (x.extracting && x.extracting.done) {return x.extracting.returnString}
+              extracting = x.extracting;
+              string = x.string;
+              elemCount++;
+            }
+
+          } else {
+            string = convertNote(string, id, elemCount, type, pos-5);
+            tagStack.push({tag:"innerNote", id:id+"-"+(elemCount+1)});
+            pos-=3;
+            tag = "a";
+            elemCount+=2;
+          }
+        } else if (tag === "a" && !extracting) {          // if it's an "a", do link conversion stuff
+          var b = `class='clicky special' target="_blank" `;
+          string = insertStringIntoStringAtPos(string, b, pos+1);
+
+        } else if (tag === "cut") {                            // do cut conversion stuff
+          if (!extracting) {
+            string = convertCut(string, id+"-"+(elemCount), type, pos);
+          }
+          elemCount++;
+
+        }
+        //
+        if (tag !== "x" && tag !== 'innerNote' && tag !== 'note') { //innerNote must get special assignment to match BRs
+          tagStack.push({tag:tag});
+        }
+        //
+      if (tag !== "x") {    //put in the x
+          if (!extracting && string[pos-(tag.length+2)] !== '>' && string[pos-(tag.length+2)]) {
+            string = insertStringIntoStringAtPos(string, "</x>", pos-(tag.length+1));
+            pos+=4;
+          }
+          //
+          var endPos = string.substr(pos).search(/>/);
+          var nextOpenPos = string.substr(pos+1).search(/</);
+          if (nextOpenPos === -1) {nextOpenPos = Infinity}
+          //
+          if (string[pos+endPos+1] !== "<" && !(extracting && endPos > nextOpenPos)) {
+            var x = checkOrInsertElem(string, pos+endPos+1, id, elemCount, extracting, tagStack);
+            if (x.error) {return x;}
+            if (x.extracting && x.extracting.done) {return x.extracting.returnString}
+            extracting = x.extracting;
+            string = x.string;
+            elemCount++;
+          }
         }
       }
     }
-    return recurse(pos+1, count+1);
+    return prepTextForRender(string, id, type, extracting, pos, elemCount, tagStack);
   }
-  return recurse(0,0);
 }
 
-var convertLinks = function (string) {
-  // adds the " target="_blank" " property to links in user posts/messages
-  //        (so that they open in new tabs automatically)
-  if (typeof string !== "string") {return;}
-  var b = `class='clicky special' target="_blank"`;
-  var recurse = function (pos) {
-    var next = string.substr(pos).search(/a href="/);
-    if (next === -1) {return string;}
-    else {
-      pos += next+8;
-      var qPos = string.substr(pos).search(/"/);
-      if (qPos === -1) { // 'should' never be the case since "cleanse" has alread ran
-        string += '">';
-      } else {
-        pos += qPos+1;
-        string = string.substr(0,pos)+ b +string.substr(pos);
+var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagStack) {
+  if (extracting) {
+    if (extracting.startElem === elemCount) {
+      extracting.elemStartPos = pos;
+      extracting.startTags = [];
+      for (var i = 0; i < tagStack.length; i++) {
+        extracting.startTags.push(tagStack[i]);
       }
-      return recurse(pos+1);
+    }
+    if (extracting.endElem === elemCount) {
+      extracting.done = true;
+      if (extracting.elemStartPos === undefined) {
+        return {error:"selection not found"}
+      }
+
+      var startPos = extracting.elemStartPos+extracting.startOffset;
+      var endPos = pos+extracting.endOffset;
+
+      var prepend = "";
+      var append = "";
+      var append2 = "";
+      if (extracting.noteTrack) {
+        for (var i = 0; i < extracting.noteTrack.length; i++) {
+          if (endPos < extracting.noteTrack[i].buttEnd) {  // ends in a butt!
+            append = `">`+ extracting.noteTrack[i].fullInnerString;
+            for (var j = tagStack.length-1; j > -1; j--) {
+              if (tagStack[j].tag === "note") {
+                tagStack.splice(j, 1);
+                break;
+              } else {
+                if (extracting.startElem !== extracting.endElem) {
+                  append2 = append2 +"</"+ tagStack[j].tag +">";
+                  tagStack.splice(j, 1);
+                }
+              }
+            }
+            var endInButt = true;
+          }
+          if (startPos > extracting.noteTrack[i].buttStart && startPos < extracting.noteTrack[i].buttEnd) {  // starts in a butt
+            for (var j = extracting.startTags.length-1; j > -1; j--) {
+              if (extracting.startTags[j].tag === "note") {
+                prepend = `<note linkText="`+prepend;
+                extracting.startTags.splice(j, 1);
+                break;
+              } else {
+                if (endInButt) {
+                  for (var k = 0; k < tagStack.length; k++) {
+                    if (tagStack[k].tag === extracting.startTags[j].tag) {
+                      append2 = append2 +"</"+ extracting.startTags[j].tag +">";
+                      tagStack.splice(k, 1);
+                      break;
+                    }
+                  }
+                }
+                prepend = "<"+ extracting.startTags[j].tag +">"+ prepend;
+                extracting.startTags.splice(j, 1);
+              }
+            }
+          }
+          append = append2 + append;
+        }
+      }
+      var oldString = string;
+      var string = prepend+string.substr(startPos ,endPos-startPos)+append;
+
+      if (extracting.startTags && extracting.startTags.length) {
+        // check if we're nested inside note tags, and if so remove the outer ones we don't want
+        var openNoteCount = 0;
+        var closeNoteCount = 0;
+        for (var i = 0; i < extracting.startTags.length; i++) {
+          if (extracting.startTags[i].tag === "note") {
+            openNoteCount++;
+          }
+        }
+        if (tagStack && tagStack.length) {
+          for (var i = 0; i < tagStack.length; i++) {
+            if (tagStack[i].tag === "note") {
+              closeNoteCount++;
+            }
+          }
+          for (var i = 0; i < openNoteCount && i < closeNoteCount; i++) {
+            for (var j = 0; j < extracting.startTags.length; j++) {
+              if (extracting.startTags[j].tag === "note") {
+                extracting.startTags.splice(j, 1);
+                break;
+              }
+            }
+            for (var j = 0; j < tagStack.length; j++) {
+              if (tagStack[j].tag === "note") {
+                tagStack.splice(j, 1);
+                break;
+              }
+            }
+          }
+        }
+
+        //
+        for (var i = extracting.startTags.length-1; i > -1; i--) {
+          if (extracting.startTags[i].tag === "note") {
+            var noMatch = true;
+            for (var j = tagStack.length-1; j > -1; j--) {
+              if (tagStack[j].tag === "note") {
+                tagStack[j].tag
+                tagStack.splice(j, 1);
+                extracting.startTags.splice(i, 1);
+                noMatch = false;
+                break;
+              }
+            }
+            if (noMatch) {
+              string = extracting.startTags[i].fullButtonString + string;
+            }
+          } else {
+            string = "<"+ extracting.startTags[i].tag +">"+ string;
+          }
+        }
+      }
+
+      if (tagStack && tagStack.length) {
+        for (var i = tagStack.length-1; i > -1; i--) {
+          if (tagStack[i].tag === "quote") {
+            var cite = findQuoteCite(oldString, endPos);
+            if (cite) {
+              string += cite;
+            }
+          }
+          string = string +"</"+ tagStack[i].tag +">";
+        }
+      }
+
+      extracting.returnString = string;
+    }
+  } else {
+    string = insertX(string, pos, id, elemCount);
+  }
+  return {extracting: extracting, string: string};
+}
+
+var findClosingNoteTag = function (string, pos, noteCount) {
+  if (!noteCount) {noteCount = 0;}
+  var nextClose = string.substr(pos).search(/note>/);
+  var nextOpen = string.substr(pos).search(/<note/);
+
+  if (nextClose === -1) {return -1;}
+  if (nextOpen === -1) {nextOpen = Infinity}
+  // is there an openingTag before the next upcoming closingTag?
+  if (nextClose > nextOpen) {
+    noteCount++;
+    pos = pos + nextOpen + 1;
+  } else {
+    if (noteCount === 0) {
+      return pos+nextClose;
+    } else {
+      noteCount--;
+      pos = pos + nextClose + 1;
     }
   }
-  return recurse(0);
+  return findClosingNoteTag(string, pos, noteCount);
 }
 
-var prepTextForRender = function (string, id, type) {
-  return convertLinks(convertNotes(convertCuts(string, id, type), id, type));
+var findQuoteCite = function (string, pos, noteCount) {
+  if (!noteCount) {noteCount = 0;}
+  var nextClose = string.substr(pos).search(/quote>/);
+  var nextOpen = string.substr(pos).search(/<quote/);
+
+  if (nextClose === -1) {return false;}
+  if (nextOpen === -1) {nextOpen = Infinity}
+  // is there an openingTag before the next upcoming closingTag?
+  if (nextClose > nextOpen) {
+    noteCount++;
+    pos = pos + nextOpen + 1;
+  } else {
+    if (noteCount === 0) {
+      if (string.substr(pos+nextClose-6,4) === `</r>`) {
+        var snip = string.substr(pos,nextClose-2);
+        return snip.substr(snip.lastIndexOf(`<r>`));
+      } else {
+        return false;
+      }
+    } else {
+      noteCount--;
+      pos = pos + nextClose + 1;
+    }
+  }
+  return findQuoteCite(string, pos, noteCount);
+}
+
+var insertX = function (string, pos, id, elemCount) {
+  var elemID = "<x id='"+id+"-"+elemCount+"'>";
+  return insertStringIntoStringAtPos(string, elemID, pos);
 }
 
 var preCleanText = function (string) {  //prep editor text for backEnd, prior to cleanse
@@ -935,31 +1332,35 @@ var preCleanText = function (string) {  //prep editor text for backEnd, prior to
   return recurse(0).replace(/\r?\n|\r/g, '<br>');
 }
 
-var collapseNote = function (id, dir, postID) {
+var collapseNote = function (buttonId, innerId, dir, postID) {
   if (dir) {  // expand
-    $(id).classList.remove('removed')
-    $(id+"-note-open").onclick = function () {collapseNote(id, false);}
-    if ($(id+"-br")) {
-      $(id+"-br").classList.add('removed');
+    $(innerId).classList.remove('removed');
+    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, false, postID);}
+
+    if ($(innerId+"-br")) {
+      $(innerId+"-br").classList.add('removed');
     }
-    if ($(id).offsetHeight > (.75 * window.innerHeight)) {
-      $(id +'-note-close').classList.remove("hidden");
+
+    if ($(innerId).offsetHeight > (.75 * window.innerHeight)) {
+      $(innerId +'-note-close').classList.remove("hidden");
     }
   } else {  // collapse
     if (postID) {
       var initScroll = window.scrollY;
       var initHeight = $(postID).offsetHeight;
     }
-    $(id).classList.add('removed');
+    $(innerId).classList.add('removed');
     if (postID) {
       if (initScroll === window.scrollY) {
         window.scrollBy(0, $(postID).offsetHeight - initHeight);
       }
     }
-    $(id+"-note-open").onclick = function () {collapseNote(id, true);}
-    if ($(id+"-br")) {
-      $(id+"-br").classList.remove('removed');
+    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, true, postID);}
+
+    if ($(innerId+"-br")) {
+      $(innerId+"-br").classList.remove('removed');
     }
+
   }
 }
 
@@ -1916,6 +2317,23 @@ var renderOnePost = function (postData, type, postID) {
   post.setAttribute('id', uniqueID);
   post.setAttribute('class', 'post');
 
+  // selective quote button
+  if (type !== 'preview' && type !== 'preview-edit') {
+    var quoteBtn = document.createElement("button");
+    quoteBtn.setAttribute('class', 'panel-button-selected selective-quote-button');
+    quoteBtn.setAttribute('id', uniqueID+'-selective-quote-button');
+    quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
+    quoteBtn.onclick = function () {
+      var selectionSpecs = isQuotableSelection(postData.post_id);
+      if (selectionSpecs) {
+        quotePost(postData, selectiveQuote(postData.post_id, selectionSpecs));
+      } else {
+        uiAlert("errRRRrooor!<br><br>it seems there is no quote selection but this is the button that only displays if that's already true so wtf??<br><br>(please show this to staff)")
+      }
+    }
+    post.appendChild(quoteBtn);
+  }
+
   // collapse button(s)
   var collapseBtn = document.createElement("clicky");
   collapseBtn.setAttribute('class', 'collapse-button-top');
@@ -2003,6 +2421,19 @@ var renderOnePost = function (postData, type, postID) {
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'authorAll') {
     post.classList.add('faded');
     body.classList.add('removed');
+  }
+  if (type !== 'preview' && type !== 'preview-edit') {
+    body.onmouseup = function() {
+      var x = isQuotableSelection(postData.post_id);
+      if (x) {
+        var postVertOffest = $(uniqueID).getBoundingClientRect().y;
+        var selectProps = $("post-"+postData.post_id+"-"+x.endElem).getBoundingClientRect()
+        var selectionVertOffest = (selectProps.y + selectProps.bottom)/2;
+        $(uniqueID+'-selective-quote-button').classList.add("show-selective-quote-button");
+        $(uniqueID+'-selective-quote-button').style.top = (selectionVertOffest-postVertOffest) + "px";
+        isStillQuotable(postData.post_id, uniqueID);
+      }
+    }
   }
   post.appendChild(body);
   // tags
@@ -2127,23 +2558,22 @@ var createPostFooter = function (postElem, postData, type) {
         quoteBtn.onclick = function() {
           if (glo.postStash && glo.postStash[postData.post_id]) {     // is it already stashed?
 
-          //  console.log("fudge");
-
-        //    /*
-            showPostWriter(function () {
-
-              var text = "<quote>"+glo.postStash[postData.post_id].body+
-              '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>";
-              if ($('post-editor').value !== "") {text = '<br>'+text;}
-              $('post-editor').value += prepTextForEditor(text);
-              addTag(postData.author);
-              switchPanel('write-panel');
-              simulatePageLoad("~write", false);
-            });
-        //    */
-
+            var selectionSpecs = isQuotableSelection(postData.post_id);
+            if (selectionSpecs) {
+              verify(`would you like to quote the entire post, or only your currently selected text?`, "selection only", "whole post", function (result) {
+                if (result) {
+                  var selection = selectiveQuote(postData.post_id, selectionSpecs);
+                  quotePost(postData, selection);
+                } else {
+                  quotePost(postData);
+                }
+              })
+            } else {
+              // fudge, notify bout selection feature here
+              quotePost(postData);
+            }
           } else {
-            return uiAlert("eRoRr! post not found???<br>how did you even get here?");
+            return uiAlert("eRoRr! post data not found???<br>how did you even get here?");
           }
         }
         footerButtons.appendChild(quoteBtn);
@@ -2188,95 +2618,105 @@ var createPostFooter = function (postElem, postData, type) {
   }
 }
 
-/*
-var selectiveQuote = function () {
-  if (window.getSelection) { // all browsers, except IE before version 7
-    var selection = window.getSelection();
-    if (selection && !selection.isCollapsed && selection.rangeCount === 1) {
-
-      var postBodyId = "post-previewbody";
-
-      var smallestContainingNode = selection.getRangeAt(0).commonAncestorContainer;
-      var lineage = findPathToAncestorNode(smallestContainingNode, postBodyId);
-      var cloneList = [];
-      console.log(smallestContainingNode);
-
-      for (var i = 0; i < lineage.length-1; i++) {
-        // filter the elements that apply no relevant styling and need not be part of the chain
-        if (lineage[i].nodeName !== "LI" && lineage[i].nodeName !== "UL" && lineage[i].nodeName !== "OL" && lineage[i].nodeName !== "DIV" && lineage[i].nodeName !== "QUOTE") {
-          cloneList.push(lineage[i].cloneNode(false))
-        }
-      }
-      // always push the last item
-      cloneList.push(lineage[lineage.length-1].cloneNode(false));
-      // link up the cloned nodes, skipping the first
-      for (var i = 1; i < cloneList.length-1; i++) {
-        cloneList[i+1].appendChild(cloneList[i])
-      }
-
-      if (smallestContainingNode.children) {
-        var childs = smallestContainingNode.childNodes;
-        var start = false;
-        console.log(selection.getRangeAt(0).startContainer);
-        console.log(selection.getRangeAt(0).endContainer);
-        for (var i = 0; i < childs.length; i++) {
-          console.log(childs[i]);
-          console.log(childs[i].nodeName);
-//          console.log(childs[i].contains(selection.getRangeAt(0).endContainer));
-          // first node of the selection
-          if (childs[i].contains(selection.getRangeAt(0).startContainer) || childs[i] === selection.getRangeAt(0).startContainer) {
-            console.log('first!');
-
-
-            cloneList[0].appendChild(childs[i].cloneNode(true));
-
-
-            start = true;
-
-          // last node of the selection
-        } else if (childs[i].contains(selection.getRangeAt(0).endContainer) || childs[i] === selection.getRangeAt(0).endContainer) {
-
-
-            cloneList[0].appendChild(childs[i].cloneNode(true));
-
-
-            start = false;
-            break;
-          // within the selection
-          } else if (start) {
-            cloneList[0].appendChild(childs[i].cloneNode(true));
-          }
-        }
-      } else {
-        // the selection is all within one node, easy
-        if (cloneList[0].nodeName === "#text") {
-          cloneList[0] = document.createTextNode(selection.toString());
-        } else {
-          cloneList[0].appendChild(document.createTextNode(selection.toString()));
-        }
-      }
-
-      if (cloneList[1]) {
-        cloneList[1].appendChild(cloneList[0]);
-      } // otherwise, no need to append, the 0th item just is the whole list and will be returned below
-
-      return cloneList[cloneList.length-1].innerHTML;
+var isStillQuotable = function (postID, postElemID) {
+  if (isQuotableSelection(postID)) {
+    setTimeout(function () {
+      isStillQuotable(postID, postElemID);
+    }, 100);
+  } else {
+    if ($(postElemID+'-selective-quote-button')) {
+      $(postElemID+'-selective-quote-button').classList.remove("show-selective-quote-button");
     }
   }
 }
 
-var findPathToAncestorNode = function (initElem, targetID, list) {
-  if (!list) {list = [initElem];}
-  if (list[list.length-1].id === targetID) {
-    return list;
-  } else if (list[list.length-1].parentNode) {
-    list.push(list[list.length-1].parentNode);
-    return findPathToAncestorNode(initElem, targetID, list);
+var isQuotableSelection = function (postID) {
+  if (window.getSelection) { // all browsers, except IE before version 7
+    var selection = window.getSelection();
+    if (selection && !selection.isCollapsed && selection.rangeCount === 1) {
+
+      // is the selection being made within the specific post calling for this check?
+      if (postID) {
+        var par1 = findParentPostID(selection.getRangeAt(0).startContainer);
+        var par2 = findParentPostID(selection.getRangeAt(0).endContainer);
+        if (!par1 || par1.substr(par1.search(/-/)+1) !== postID || !par2 || par2.substr(par2.search(/-/)+1) !== postID) {
+          return false;
+        }
+      }
+
+      var startID = findNearestParentWithID(selection.getRangeAt(0).startContainer);
+      var endID = findNearestParentWithID(selection.getRangeAt(0).endContainer);
+
+      var startOffset = selection.getRangeAt(0).startOffset;
+      var endOffset = selection.getRangeAt(0).endOffset;
+
+      var startIdNumber = Number(startID.substr(startID.substr(5).search(/-/)+6));
+      var endIdNumber = Number(endID.substr(endID.substr(5).search(/-/)+6));
+
+      if (!isNumeric(startIdNumber) || !isNumeric(endIdNumber)) {return false;}
+      else {
+        return {
+          startElem:startIdNumber,
+          endElem:endIdNumber,
+          startOffset:startOffset,
+          endOffset:endOffset
+        };
+      }
+    } else {return false;}
+  } else {return false;}
+}
+
+var quotePost = function (postData, selection) {
+  showPostWriter(function () {
+    if (!selection) {
+      selection = glo.postStash[postData.post_id].body;
+    }
+    var text = "<quote>"+selection+
+    '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>";
+
+    if ($('post-editor').value !== "") {text = '<br>'+text;}
+
+    $('post-editor').value += prepTextForEditor(text);
+    addTag(postData.author);
+    switchPanel('write-panel');
+    simulatePageLoad("~write", false);
+  });
+}
+
+var selectiveQuote = function (postID, selectionSpecs) {
+  var postString = glo.postStash[postID].body;
+
+  var x = prepTextForRender(postString, postID, null, selectionSpecs);
+  if (x.error) {
+    return uiAlert(x.error);
+  }
+
+  return x;
+}
+
+var findNearestParentWithID = function (elem) {
+  if (elem.id) {
+    return elem.id;
   } else {
-    return false; // no path found
+    if (elem.parentNode) {
+      return findNearestParentWithID(elem.parentNode);
+    } else {
+      return false;
+    }
   }
 }
-*/
+
+var findParentPostID = function (elem) {
+  if (elem.classList && elem.classList.contains("post")) {
+    return elem.id;
+  } else {
+    if (elem.parentNode) {
+      return findParentPostID(elem.parentNode);
+    } else {
+      return false;
+    }
+  }
+}
 
 var addTag = function (authorName) {
   $('tag-input').value = $('tag-input').value + "@"+authorName+", ";
@@ -2607,7 +3047,7 @@ var destroyAllChildrenOfElement = function (elem) {
 }
 
 var submitPost = function (remove) { //also handles editing and deleting
-  var text = $('post-editor').value;
+  var text = deWeaveAndRemoveUnmatchedTags($('post-editor').value);
   var tags = $('tag-input').value;
   var title = $('title-input').value;
   if (text === "" && tags === "" && title === "" && !glo.pending) {
@@ -2836,7 +3276,6 @@ var prepTextForEditor = function (text) {
   // a bunch garbage hacking of html whitespace handling
 
   //
-  text = text.replace(/<\/cut>/g, '</cut><br>');
   text = text.replace(/<\/ascii>/g, '</ascii><br>');
   text = text.replace(/<\/li>/g, '</li><br>');
   text = text.replace(/<\/quote>/g, '</quote><br>');
@@ -2855,12 +3294,29 @@ var prepTextForEditor = function (text) {
   text = text.replace(/<ul>/g, '<ul><br>');
   text = text.replace(/<hr>/g, '<hr><br>');
 
+  var noteRecurse = function (pos) {
+    var next = text.substr(pos).search(/<note linkText="/);
+    if (next !== -1) {
+      pos = pos+next+15;
+      var qPos = text.substr(pos+1).search(/"/)+2;
+      if (qPos === 1) {
+        text += '">';
+        return;
+      }
+      else {
+        pos += qPos;
+        text = insertStringIntoStringAtPos(text, "<br>", pos+1);
+      }
+      noteRecurse(pos+1);
+    }
+  }
+  noteRecurse(0);
 
   var preTagLineBreakRecurse = function (pos, tag) {
     var next = text.substr(pos).search(tag);
     if (next !== -1) {
       pos = pos+next;
-      if (text.substr(pos-4, 4) !== '<br>' && text.substr(pos-5, 5) !== '<cut>') {
+      if (text.substr(pos-4, 4) !== '<br>') {
         text = text.substr(0,pos)+'<br>'+text.substr(pos);
       }
       preTagLineBreakRecurse(pos+1, tag);
@@ -2915,24 +3371,6 @@ var prepTextForEditor = function (text) {
     }
   }
   codeRecurse (0);
-
-  var noteRecurse = function (pos) {
-    var next = text.substr(pos).search(/<note linkText="/);
-    if (next !== -1) {
-      pos = pos+next+15;
-      var qPos = text.substr(pos+1).search(/"/)+2;
-      if (qPos === -1) {
-        text += '">';
-        return;
-      }
-      else {
-        pos += qPos;
-        text = text.substr(0,pos+1) + '\n' + text.substr(pos+1);
-      }
-      noteRecurse(pos+1);
-    }
-  }
-  noteRecurse(0);
 
   return text;
 }
@@ -3524,6 +3962,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     if (!glo.threads[i].key) {return uiAlert("you cannot message the person you are trying to message, you shouldn't have this option at all, sorry this is a (strange)bug please note all details and tell staff, sorry");}
     //
     loading();
+
     var encryptAndSend = function () {
       encrypt(text, glo.keys.pubKey, glo.threads[i].key, function (encSenderText, encRecText) {
         var data = {
