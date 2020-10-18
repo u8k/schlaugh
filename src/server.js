@@ -1065,7 +1065,7 @@ var lookUpCurrentUser = function (req, res, errMsg, propRef, callback) {
 //*******//ROUTING//*******//
 
 // admin
-var devFlag = false;
+var devFlag = true;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
 var safeMode = false;
 //var safeMode = "you've caught schlaugh performing a SECRET update! Some functionality, apparently including whatever you just tried to do, will be down briefly. Please try again a bit later";
@@ -2388,6 +2388,29 @@ app.post('/toggleSetting', function(req, res) {
           } else {
             user.settings[setting] = true;
           }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, resp.error);}
+            else {res.send({error: false});}
+          });
+        }
+      }
+    );
+  });
+});
+
+// set a date on which the user will be re-notified of something
+app.post('/setReminder', function(req, res) {
+  var errMsg = "reminder not successfully set<br><br>";
+  if (!req.body || !req.body.setting || req.body.days === undefined || !Number.isInteger(req.body.days) || req.body.days < 0) {return sendError(res, errMsg+"malformed request 993");}
+  idScreen(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, settings:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          var date = pool.getCurDate(-(req.body.days))
+          user.settings[req.body.setting] = date;
           writeToDB(userID, user, function (resp) {
             if (resp.error) {sendError(res, resp.error);}
             else {res.send({error: false});}

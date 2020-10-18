@@ -609,6 +609,13 @@ slogan {
   }
 }
 
+#how-long-input {
+  width: 5em;
+  height: 2.5em;
+  margin-bottom: 0.7em;
+  margin-top: 0.5em;
+}
+
 .options-pop-up-title {
   margin: 0;
   margin-bottom: 10px;

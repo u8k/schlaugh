@@ -2570,7 +2570,11 @@ var createPostFooter = function (postElem, postData, type) {
               })
             } else {
               // fudge, notify bout selection feature here
-              quotePost(postData);
+              if (glo && glo.settings && (!glo.settings.knowsAboutSelectiveQuoting || pool.getCurDate() >= glo.settings.knowsAboutSelectiveQuoting)) {
+                notifyWithReminderOption("¿DID U KNO?<br><br>if you only want to quote part of the post, you can do so by selecting that part before clicking the quote button", 'knowsAboutSelectiveQuoting');
+              } else {
+                quotePost(postData);
+              }
             }
           } else {
             return uiAlert("eRoRr! post data not found???<br>how did you even get here?");
@@ -2630,7 +2634,7 @@ var isStillQuotable = function (postID, postElemID) {
   }
 }
 
-var isQuotableSelection = function (postID) {
+var isQuotableSelection = function (postID, retry) {
   if (window.getSelection) { // all browsers, except IE before version 7
     var selection = window.getSelection();
     if (selection && !selection.isCollapsed && selection.rangeCount === 1) {
@@ -2647,11 +2651,17 @@ var isQuotableSelection = function (postID) {
       var startID = findNearestParentWithID(selection.getRangeAt(0).startContainer);
       var endID = findNearestParentWithID(selection.getRangeAt(0).endContainer);
 
-      var startOffset = selection.getRangeAt(0).startOffset;
-      var endOffset = selection.getRangeAt(0).endOffset;
-
       var startIdNumber = Number(startID.substr(startID.substr(5).search(/-/)+6));
       var endIdNumber = Number(endID.substr(endID.substr(5).search(/-/)+6));
+      if (!isNumeric(endIdNumber) && isNumeric(startIdNumber)) {
+        if (!retry) {
+          selection.modify("extend", "backward", "character");
+          return isQuotableSelection(postID, true);
+        }
+      }
+
+      var startOffset = selection.getRangeAt(0).startOffset;
+      var endOffset = selection.getRangeAt(0).endOffset;
 
       if (!isNumeric(startIdNumber) || !isNumeric(endIdNumber)) {return false;}
       else {
@@ -4348,14 +4358,38 @@ var logInPageSubmit = function(inOrUp) {
 }
 
 var cookieNotification = function () {
-  if (glo && glo.settings && !glo.settings.notifiedAboutCookie) {
-    verify("the cops told me i gotta tell you bout how schlaugh stores exactly two tiny cookies on your browser for persistent sign in, and literally nothing else. If you see the cops tell the cops that I told you about the cookies.", "do not ever tell me this again", "tell me this again later", function (resp) {
-      if (!resp) {return;}
-      else {
-        ajaxCall("/toggleSetting", 'POST' ,{setting: 'notifiedAboutCookie'}, function (json) {
-          // do nothing
-        });
-      }
+  if (glo && glo.settings && (!glo.settings.notifiedAboutCookie || pool.getCurDate() >= glo.settings.notifiedAboutCookie || glo.settings.notifiedAboutCookie === true)) {
+    notifyWithReminderOption("the cops told me i gotta tell you bout how schlaugh stores exactly two tiny cookies on your browser for persistent sign in, and literally nothing else. If you see the cops tell the cops that I told you about the cookies.", 'notifiedAboutCookie');
+  }
+}
+
+var notifyWithReminderOption = function (txt, setting) {
+  if (!setting || !txt || typeof txt !== "string") {return uiAlert("errorroror!!<br><br>Sorry! Please show this to @staff. Error code 9301");}
+  $("how-long-text").innerHTML = txt;
+  blackBacking();
+  $("how-long").classList.remove("hidden");
+  $("how-long-input").value = 1;
+  $("how-long-input").focus();
+  //
+  $("how-long-submit").onclick = function(){
+    $("how-long").classList.add("hidden");
+    blackBacking(true);
+    var duration = Number($("how-long-input").value);
+    if (!Number.isInteger(duration) || duration < 0) {
+      uiAlert("oh do <i>please</i> at least would you <i>try</i> to only input non negative integers?", "yes doctor i will try", function () {
+        notifyWithReminderOption(txt, setting);
+      });
+    } else {
+      ajaxCall("/setReminder", 'POST' ,{setting: setting, days:duration}, function (json) {
+        glo.settings[setting] = pool.getCurDate(-(duration));
+      });
+    }
+  }
+  $("pop-up-backing").onclick = function(){
+    $("how-long").classList.add("hidden");
+    blackBacking(true);
+    ajaxCall("/setReminder", 'POST' ,{setting: setting, days:1}, function (json) {
+      glo.settings[setting] = pool.getCurDate(-1);
     });
   }
 }

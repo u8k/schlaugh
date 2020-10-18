@@ -365,6 +365,14 @@
   <text class="clicker" id="must-sign-in">you must be <a onclick="passPromptSubmit()" class="clicky">signed in</a> to click</text>
 </div>
 
+<div id="following-list" class="pop-up hidden">
+  <h2>following:</h2>
+  <div id="following-bucket">
+  </div>
+  <br>
+  <button onclick="followingListDisplay(false)">x</button>
+</div>
+
 <div id="display-button-box">
   <icon onclick="$('text-options-pop-up').classList.remove('hidden')" class="clicky fas fa-font"></icon>
   <icon onclick="$('color-options-pop-up').classList.remove('hidden')" class="clicky fas fa-palette"></icon>
@@ -434,6 +442,7 @@
 </div>
 
 <div id="pop-up-backing" class="hidden" onclick="blackBackingClickHandler()"></div>
+
 <div id="prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
     <text id="prompt-label"></text>
@@ -511,6 +520,7 @@
   <br>
   <button id="password-prompt-close">x</button>
 </div>
+
 <div id="alert" class="pop-up hidden">
   <form action="javascript:void(0);">
     <text id="alert-text"></text>
@@ -518,6 +528,7 @@
     <button id="alert-submit" type="submit">'kay</button>
   </form>
 </div>
+
 <div id="confirm" class="pop-up hidden">
   <form action="javascript:void(0);">
     <text id="confirm-text"></text>
@@ -527,13 +538,16 @@
   </form>
 </div>
 
-<div id="following-list" class="pop-up hidden">
-  <h2>following:</h2>
-  <div id="following-bucket">
-  </div>
-  <br>
-  <button onclick="followingListDisplay(false)">x</button>
+<div id="how-long" class="pop-up hidden">
+  <form action="javascript:void(0);">
+    <text id="how-long-text"></text><br><br>
+    <text>⁘ ⁘ ⁘ ⁘ ⁘</text><br><br>
+    <text>after how many schlaupdates would you like to be reminded of this again?</text><br>
+    <input type="number" id="how-long-input" min="0" step="1" value="1"><br>
+    <button id="how-long-submit" type="submit">that many</button>
+  </form>
 </div>
+
 
 <div id="loading-box" class="hidden no-select">
   <div id="loading-icon" class="no-select">❋</div>
