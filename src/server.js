@@ -1065,7 +1065,7 @@ var lookUpCurrentUser = function (req, res, errMsg, propRef, callback) {
 //*******//ROUTING//*******//
 
 // admin
-var devFlag = true;
+var devFlag = false;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
 var safeMode = false;
 //var safeMode = "you've caught schlaugh performing a SECRET update! Some functionality, apparently including whatever you just tried to do, will be down briefly. Please try again a bit later";
@@ -2465,6 +2465,7 @@ app.post('/register', function(req, res) {
               pending: {},
             },
             following: [],
+            accountCreatedOn: pool.getCurDate(),
             iconURI: snakeBank[Math.floor(Math.random() * (snakeBank.length))],
             settings: {includeTaggedPosts:true},
             savedTags: ["@"+username, "milkshake"],
