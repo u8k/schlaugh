@@ -3057,7 +3057,7 @@ var destroyAllChildrenOfElement = function (elem) {
 }
 
 var submitPost = function (remove) { //also handles editing and deleting
-  var text = deWeaveAndRemoveUnmatchedTags($('post-editor').value);
+  var text = $('post-editor').value;
   var tags = $('tag-input').value;
   var title = $('title-input').value;
   if (text === "" && tags === "" && title === "" && !glo.pending) {
@@ -3083,7 +3083,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     });
   } else {
     loading();
-    text = preCleanText(text);
+    text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
     ajaxCall("/", 'POST', {body:text, tags:tags, title:title, key:glo.sessionKey}, function(json) {
       updatePendingPost(json);
     });
