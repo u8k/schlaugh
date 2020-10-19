@@ -177,7 +177,7 @@ pageAndDateNav, .page-title-404 {
   text-align: center;
 }
 
-clicky, .clicky {
+clicky, .clicky, spoil {
   cursor: pointer;
 }
 
@@ -729,7 +729,7 @@ secret {display: none;}
 
 ul, ol {margin: 0}
 
-b, i, u, s, quote, li, ul, ol, l, c, r, innerCut, p, cut, x, note, innerNote {font-family: inherit;}
+b, i, u, s, quote, li, ul, ol, l, c, r, innerCut, p, cut, x, note, innerNote, spoil {font-family: inherit;}
 
 l {text-align: left;}
 c {text-align: center;}

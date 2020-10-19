@@ -114,8 +114,13 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
       }
     }
     sheet.insertRule("::selection, .fake-text-color-class, .panel-button-selected {color: "+colorCode+";}", sheet.cssRules.length);
+
+  } else if (type === "linkText") {
+    var selector = ".special";
+    var attribute = "color";
+
   } else if (type === "text") {
-    var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background, a, a.visited, a.hover";
+    var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background, a, a.visited, a.hover, .spoil::selection, spoil";
     var attribute = "color";
     // border color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -127,12 +132,13 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     sheet.insertRule("button, a {border-color: "+colorCode+" !important;}", sheet.cssRules.length);
     // selected(highlighted) background
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
-      if (sheet.cssRules[i].selectorText === '::selection, .fake-background-class, .panel-button-selected') {
+      if (sheet.cssRules[i].selectorText === '::selection, .fake-background-class, .panel-button-selected, .spoil') {
         sheet.deleteRule(i);
         i = -1;
       }
     }
-    sheet.insertRule("::selection, .fake-background-class, .panel-button-selected {background-color: "+colorCode+";}", sheet.cssRules.length);
+    sheet.insertRule("::selection, .fake-background-class, .panel-button-selected, .spoil {background-color: "+colorCode+";}", sheet.cssRules.length);
+
     // this is fine in chrome but is crashing firefox????
     /*
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -143,9 +149,6 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     }
     sheet.insertRule("input:-webkit-autofill, .fake-input-text-color {-webkit-text-fill-color: "+colorCode+";}", sheet.cssRules.length);
     */
-  } else if (type === "linkText") {
-    var selector = ".special";
-    var attribute = "color";
   } else if (type === "background") {
     var selector = "body, h1, input, select";
     var attribute = "background-color";
@@ -852,9 +855,9 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
 
   var preTag = string.substr(0,tagStartPos);
   var postTag = string.substr(innerStartPos);
-  var insert = `<a class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true, '`+id+`')">`+linkText+`</a>`
+  var insert = `<a class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true)">`+linkText+`</a>`
     +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
-    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`')" class="collapse-button-top"><icon class="far fa-minus-square"></icon></clicky>`
+    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`')" class="collapse-button-top"><icon class="far fa-minus-square"></icon></clicky>`
     +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`')" class="collapse-button-bottom hidden" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
 
   string = preTag+insert+postTag;
@@ -863,6 +866,14 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
   string = string.replace('</note>', '</innerNote>');
 
   return string;
+}
+
+var convertSpoils = function (string, pos) {
+  return string.replace(/<spoil>/g, `<spoil onclick="toggleSpoil(this)" class='spoil'>`);
+}
+
+var toggleSpoil = function (elem) {
+  elem.classList.toggle('spoil');
 }
 
 var selfClosingTagRef = {
@@ -967,6 +978,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
       for (var i = tagStack.length-1; i > -1; i--) {
         string = string + "</"+tagStack[i].tag+">";
       }
+      string = convertSpoils(string);
       return string;
     }
   } else {
@@ -1333,9 +1345,11 @@ var preCleanText = function (string) {  //prep editor text for backEnd, prior to
 }
 
 var collapseNote = function (buttonId, innerId, dir, postID) {
+  // last arg, postID, is only included when called by the bottom collapse button,
+  // and causes the necseary adjustments to the scroll pos to be made on collapse
   if (dir) {  // expand
     $(innerId).classList.remove('removed');
-    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, false, postID);}
+    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, false);}
 
     if ($(innerId+"-br")) {
       $(innerId+"-br").classList.add('removed');
@@ -1345,17 +1359,17 @@ var collapseNote = function (buttonId, innerId, dir, postID) {
       $(innerId +'-note-close').classList.remove("hidden");
     }
   } else {  // collapse
-    if (postID) {
+    if (postID) {     // get the height of the post and position on page before collapsing
       var initScroll = window.scrollY;
       var initHeight = $(postID).offsetHeight;
     }
-    $(innerId).classList.add('removed');
-    if (postID) {
+    $(innerId).classList.add('removed');    // collapse the note
+    if (postID) {          // if via the bottom button, then adjust the scroll position
       if (initScroll === window.scrollY) {
         window.scrollBy(0, $(postID).offsetHeight - initHeight);
       }
     }
-    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, true, postID);}
+    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, true);}
 
     if ($(innerId+"-br")) {
       $(innerId+"-br").classList.remove('removed');
@@ -3709,6 +3723,18 @@ var insertNote = function (src) {
 var closePrompt = function (elem) {
   blackBacking(true);
   elem.classList.add('hidden');
+}
+
+var toggleMoreEditorButtons = function (kind, elem) {
+  if (elem.innerHTML === "▼") {
+    elem.innerHTML = "▲";
+    elem.title = "less buttons";
+  $(kind+"-more-buttons").classList.remove("removed");
+  } else {
+    elem.innerHTML = "▼";
+    elem.title = "more buttons";
+    $(kind+"-more-buttons").classList.add("removed");
+  }
 }
 
 var convertLineBreaks = function (string, dir) {
