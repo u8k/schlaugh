@@ -12,15 +12,17 @@
 --><button class="editor-button" onclick="insertNote('<%- kind %>')">note</button><!--
 --><button class="editor-button" onclick="insertQuote('<%- kind %>')">quote</button><!--
 --><button class="editor-button" title="a big line!" onclick="insertHR('<%- kind %>')">hr</button><!--
---><button class="editor-button" title="more buttons" onclick="toggleMoreEditorButtons('<%- kind %>',this)">▼</button><!--
+--><button class="editor-button" title="undo" onclick="undo('<%- kind %>')" id='<%- kind + "-undo-button"%>'>↩</button><!--
+--><button class="editor-button" title="redo" onclick="redo('<%- kind %>')" id='<%- kind + "-redo-button"%>'>↪</button><!--
 
---><div id="<%- kind + '-more-buttons'%>" class="removed"><!--
---><button class="editor-button" title="left align" onclick="styleText('l', '<%- kind %>', true)">L</button><!--
---><button class="editor-button" title="center align" onclick="styleText('c', '<%- kind %>', true)">C</button><!--
---><button class="editor-button" title="right align" onclick="styleText('r', '<%- kind %>', true)">R</button><!--
---><button class="editor-button" onclick="styleText('cut', '<%- kind %>')">cut</button><!--
---><button class="editor-button" onclick="styleText('code', '<%- kind %>')">code</button><!--
---><button class="editor-button" onclick="styleText('ascii', '<%- kind %>', true)">ascii</button><!--
---><button class="editor-button" onclick="styleText('spoil', '<%- kind %>', false)">spoil</button>
-</div>
+--><wrapper id="<%- kind + '-more-buttons'%>" class="removed"><!--
+  --><button class="editor-button" title="left align" onclick="styleText('l', '<%- kind %>', true)">L</button><!--
+  --><button class="editor-button" title="center align" onclick="styleText('c', '<%- kind %>', true)">C</button><!--
+  --><button class="editor-button" title="right align" onclick="styleText('r', '<%- kind %>', true)">R</button><!--
+  --><button class="editor-button" onclick="styleText('cut', '<%- kind %>')">cut</button><!--
+  --><button class="editor-button" onclick="styleText('code', '<%- kind %>')">code</button><!--
+  --><button class="editor-button" onclick="styleText('ascii', '<%- kind %>', true)">ascii</button><!--
+  --><button class="editor-button" onclick="styleText('spoil', '<%- kind %>', false)">spoil</button><!--
+--></wrapper><!--
+--><button class="editor-button" title="more buttons" onclick="toggleMoreEditorButtons('<%- kind %>',this)">◀</button>
 </div>

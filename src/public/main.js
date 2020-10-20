@@ -120,7 +120,7 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     var attribute = "color";
 
   } else if (type === "text") {
-    var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background, a, a.visited, a.hover, .spoil::selection, spoil";
+    var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background, a, a.visited, a.hover, spoil";
     var attribute = "color";
     // border color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -2583,7 +2583,6 @@ var createPostFooter = function (postElem, postData, type) {
                 }
               })
             } else {
-              // fudge, notify bout selection feature here
               if (glo && glo.settings && (!glo.settings.knowsAboutSelectiveQuoting || pool.getCurDate() >= glo.settings.knowsAboutSelectiveQuoting)) {
                 notifyWithReminderOption("¿DID U KNO?<br><br>if you only want to quote part of the post, you can do so by selecting that part before clicking the quote button", 'knowsAboutSelectiveQuoting');
               } else {
@@ -2708,6 +2707,14 @@ var quotePost = function (postData, selection) {
 }
 
 var selectiveQuote = function (postID, selectionSpecs) {
+  /* // for testing only, allows quoting the preview
+  if (!postID) {
+    var postString = glo.pending.body;
+    selectionSpecs = isQuotableSelection();
+    console.log(selectionSpecs);
+  } else {
+
+  } */
   var postString = glo.postStash[postID].body;
 
   var x = prepTextForRender(postString, postID, null, selectionSpecs);
@@ -3097,7 +3104,12 @@ var submitPost = function (remove) { //also handles editing and deleting
     });
   } else {
     loading();
-    text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
+    // i wanna deweave it before sending it to DB, but before deveawing it's gotta be cleansed,
+    // but it's also gotta be cleansed again on the backend, so the double clean results in linebreaks being removed
+    // which like, line break removal shouldn't be happening in cleanse anyway...
+    // fudge fudge fudge
+  //  text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
+    text = preCleanText(text);
     ajaxCall("/", 'POST', {body:text, tags:tags, title:title, key:glo.sessionKey}, function(json) {
       updatePendingPost(json);
     });
@@ -3616,36 +3628,6 @@ var insertHR = function (src) {
   var bump = a+4 +pre.length + post.length;
   setCursorPosition(area, bump, bump);
 }
-/*
-var insertCut = function (src) {
-  updateEditorStateList(src);
-  var area = $(src+'-editor');
-  var x = getCursorPosition(area);
-  var a = x.start;
-  var b = x.end;
-  var y = area.value;
-  if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
-  var cutText = "more";
-  if (a !== b) {cutText = convertLineBreaks(y.substr(a,b-a), true);}
-
-  uiPrompt({
-    label:"text:",
-    value:cutText,
-    placeholder: "",
-    callback: function(cutText) {
-      if (cutText != null) {
-        cutText = convertLineBreaks(cutText);
-        var openTag = '<cut>';
-        var closeTag = '</cut>\n';
-        if (y.substr(b,1) === "\n") {closeTag = '</cut>'}
-        area.value = y.slice(0, a)+openTag+cutText+closeTag+y.slice(b);
-        var bump = a + cutText.length+ openTag.length + closeTag.length;
-        setCursorPosition(area, bump, bump);
-      }
-    }
-  });
-}
-*/
 var insertQuote = function (src) {
   updateEditorStateList(src);
   var area = $(src+'-editor');
@@ -3726,12 +3708,12 @@ var closePrompt = function (elem) {
 }
 
 var toggleMoreEditorButtons = function (kind, elem) {
-  if (elem.innerHTML === "▼") {
-    elem.innerHTML = "▲";
+  if (elem.innerHTML === "◀") {
+    elem.innerHTML = "▶";
     elem.title = "less buttons";
   $(kind+"-more-buttons").classList.remove("removed");
   } else {
-    elem.innerHTML = "▼";
+    elem.innerHTML = "◀";
     elem.title = "more buttons";
     $(kind+"-more-buttons").classList.add("removed");
   }
@@ -3777,6 +3759,18 @@ var updateEditorStateList = function (kind, loop) {
     glo.editorState.history[kind] = changes.stateList;
     glo.editorState.pos[kind] = changes.pos;
   }
+  // is there any undoable history?
+  if (glo.editorState.pos[kind] > 0) {
+    $(kind+"-undo-button").classList.remove('faded');
+  } else {
+    $(kind+"-undo-button").classList.add('faded');
+  }
+  // is there any REdoable history?
+  if (glo.editorState.pos[kind]+1 < glo.editorState.history[kind].length) {
+    $(kind+"-redo-button").classList.remove('faded');
+  } else {
+    $(kind+"-redo-button").classList.add('faded');
+  }
   if (loop) {
     setTimeout(function () {
       updateEditorStateList(kind, loop);
@@ -3785,18 +3779,20 @@ var updateEditorStateList = function (kind, loop) {
 }
 
 var undo = function (kind) {
-  updateEditorStateList(kind);
+  updateEditorStateList(kind);  // first check is to make sure we have the lastest
   if (glo.editorState.pos[kind] && glo.editorState.history[kind].length && glo.editorState.history[kind].length > 1) {
     glo.editorState.pos[kind]--;
     changeEditorState(kind);
   }
+  updateEditorStateList(kind);  // second check is so the buttons update Immediately
 }
 var redo = function (kind) {
-  updateEditorStateList(kind)
+  updateEditorStateList(kind);  // first check is to make sure we have the lastest
   if (glo.editorState.pos[kind] !== undefined && glo.editorState.history[kind].length && glo.editorState.pos[kind] < glo.editorState.history[kind].length-1) {
     glo.editorState.pos[kind]++;
     changeEditorState(kind);
   }
+  updateEditorStateList(kind);  // second check is so the buttons update Immediately
 }
 var changeEditorState = function (kind) {
   $(kind+"-editor").value = glo.editorState.history[kind][glo.editorState.pos[kind]].text;
@@ -3806,6 +3802,9 @@ var changeEditorState = function (kind) {
 
 glo.editorHotKeys = {
   ctrlKey: {
+    shift:{
+      Z: redo,
+    },
     z: undo,
     y: redo,
   },
@@ -3816,9 +3815,17 @@ glo.editorHotKeys = {
 }
 var editorKeyHandler = function (event, kind) {
   event.stopPropagation();
-  if (event.ctrlKey && _npa(['event','key',]) !== "Control" && _npa(['glo','editorHotKeys','ctrlKey', event.key])) {
-    event.preventDefault();
-    _npa(['glo','editorHotKeys','ctrlKey', event.key])(kind);
+  if (event.ctrlKey && _npa(['event','key',]) !== "Control") {  // ctrl + shift
+    if (event.shiftKey && _npa(['event','key',]) !== "Shift") {
+      if (_npa(['glo','editorHotKeys','ctrlKey','shift',event.key])) {
+        event.preventDefault();
+        _npa(['glo','editorHotKeys','ctrlKey','shift', event.key])(kind);
+      }
+    } else if (_npa(['glo','editorHotKeys','ctrlKey', event.key])) { // ctrl(only)
+      event.preventDefault();
+      _npa(['glo','editorHotKeys','ctrlKey', event.key])(kind);
+    }
+
   } else if (event.metaKey && _npa(['event','key',]) !== "Meta" && _npa(['glo','editorHotKeys','metaKey', event.key])) {
     event.preventDefault();
     _npa(['glo','editorHotKeys','metaKey', event.key])(kind);
