@@ -2750,7 +2750,22 @@ var findParentPostID = function (elem) {
 }
 
 var addTag = function (authorName) {
-  $('tag-input').value = $('tag-input').value + "@"+authorName+", ";
+  // check if addition is already a tag
+  var noDup = true;
+  var tagString = $('tag-input').value.replace(/[^ a-zA-Z0-9-_!?@&*%:=+`"'~,]/g, '');
+  var arr = tagString.match(/[ a-zA-Z0-9-_!?@&*%:=+`"'~]+/g);
+  if (arr) {
+    for (var i = 0; i < arr.length; i++) {
+      arr[i] = arr[i].trim();
+      if (arr[i] === "@"+authorName) {
+        arr.splice(i,1);
+        noDup = false;
+      }
+    }
+  }
+  if (noDup) {
+    $('tag-input').value = $('tag-input').value + "@"+authorName+", ";
+  }
 }
 
 var createBookmarkButton = function (parent, post) {
