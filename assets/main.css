@@ -181,6 +181,10 @@ clicky, .clicky, spoil {
   cursor: pointer;
 }
 
+.spoil {
+  border-right-style: solid;
+}
+
 .no-select {
   -webkit-user-select: none;
   -moz-user-select: none;
