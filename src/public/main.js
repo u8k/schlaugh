@@ -868,7 +868,7 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
   return string;
 }
 
-var convertSpoils = function (string, pos) {
+var convertSpoils = function (string) {
   return string.replace(/<spoil>/g, `<spoil onclick="toggleSpoil(this)" class='spoil'>`);
 }
 
@@ -2337,10 +2337,10 @@ var renderOnePost = function (postData, type, postID) {
     quoteBtn.setAttribute('class', 'panel-button-selected selective-quote-button');
     quoteBtn.setAttribute('id', uniqueID+'-selective-quote-button');
     quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
-    quoteBtn.onclick = function () {
+    quoteBtn.onclick = function (event) {
       var selectionSpecs = isQuotableSelection(postData.post_id);
       if (selectionSpecs) {
-        quotePost(postData, selectiveQuote(postData.post_id, selectionSpecs));
+        quotePost(postData, selectiveQuote(postData.post_id, selectionSpecs), event.shiftKey, event.altKey);
       } else {
         uiAlert("errRRRrooor!<br><br>it seems there is no quote selection but this is the button that only displays if that's already true so wtf??<br><br>(please show this to staff)")
       }
@@ -2569,7 +2569,7 @@ var createPostFooter = function (postElem, postData, type) {
         quoteBtn.setAttribute('class', 'no-select');
         quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
         quoteBtn.title = "quote";
-        quoteBtn.onclick = function() {
+        quoteBtn.onclick = function(event) {
           if (glo.postStash && glo.postStash[postData.post_id]) {     // is it already stashed?
 
             var selectionSpecs = isQuotableSelection(postData.post_id);
@@ -2577,16 +2577,16 @@ var createPostFooter = function (postElem, postData, type) {
               verify(`would you like to quote the entire post, or only your currently selected text?`, "selection only", "whole post", function (result) {
                 if (result) {
                   var selection = selectiveQuote(postData.post_id, selectionSpecs);
-                  quotePost(postData, selection);
+                  quotePost(postData, selection, event.shiftKey, event.altKey);
                 } else {
-                  quotePost(postData);
+                  quotePost(postData, false, event.shiftKey, event.altKey);
                 }
               })
             } else {
               if (glo && glo.settings && (!glo.settings.knowsAboutSelectiveQuoting || pool.getCurDate() >= glo.settings.knowsAboutSelectiveQuoting)) {
                 notifyWithReminderOption("¿DID U KNO?<br><br>if you only want to quote part of the post, you can do so by selecting that part before clicking the quote button", 'knowsAboutSelectiveQuoting');
               } else {
-                quotePost(postData);
+                quotePost(postData, false, event.shiftKey, event.altKey);
               }
             }
           } else {
@@ -2689,13 +2689,23 @@ var isQuotableSelection = function (postID, retry) {
   } else {return false;}
 }
 
-var quotePost = function (postData, selection) {
+var quotePost = function (postData, selection, shiftDown, altDown) {
   showPostWriter(function () {
     if (!selection) {
       selection = glo.postStash[postData.post_id].body;
     }
-    var text = "<quote>"+selection+
-    '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>";
+
+    if (altDown) {    // convert images to links
+      selection = convertImgTagsToLinks(selection);
+    }
+
+    if (shiftDown) {  // put the quote in a note
+      var text = `<note linkText="@`+postData.author+`"><quote>`+selection+
+      '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote></note>";
+    } else {
+      var text = "<quote>"+selection+
+      '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>";
+    }
 
     if ($('post-editor').value !== "") {text = '<br>'+text;}
 
@@ -2704,6 +2714,19 @@ var quotePost = function (postData, selection) {
     switchPanel('write-panel');
     simulatePageLoad("~write", false);
   });
+}
+
+var convertImgTagsToLinks = function (string) {
+  var next = string.search(/<img src="/);
+  if (next === -1) {           // we have seen all there is, it is time to go home
+    return string;
+  }
+  else {
+    var linkString = string.substr(next+10, string.substr(next+10).search(/"/));
+    var closingTagPos = string.substr(next+10).search(/>/) + next+11;
+    string = string.substr(0,next) + `<a href="`+linkString+`">`+linkString+`</a>` + string.substr(closingTagPos);
+  }
+  return convertImgTagsToLinks(string);
 }
 
 var selectiveQuote = function (postID, selectionSpecs) {
