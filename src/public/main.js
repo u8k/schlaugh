@@ -958,10 +958,6 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
   }
 
   // get next "<"
-  if (extracting) {
-    //var next = string.substr(pos).search(/[<>]/)+1;
-  } else {
-  }
   var next = string.substr(pos).search(/</)+1;
   if (next === 0) {           // we have seen all there is, it is time to go home
     if (extracting) {
@@ -1087,7 +1083,10 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         } else if (tag === "a" && !extracting) {          // if it's an "a", do link conversion stuff
           var b = `class='clicky special' target="_blank" `;
           string = insertStringIntoStringAtPos(string, b, pos+1);
-
+        } else if (tag === "a" && extracting && string.substr(pos,7) === ` href="`) {
+                    // that last check there for ` href="` isn't strictly necesary, just another format enforcement
+          var aClose = string.substr(pos+7).search(/"/)+8;
+          tag += string.substr(pos, aClose);
         } else if (tag === "cut") {                            // do cut conversion stuff
           if (!extracting) {
             string = convertCut(string, id+"-"+(elemCount), type, pos);
@@ -1250,6 +1249,9 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
             if (cite) {
               string += cite;
             }
+          }
+          if (tagStack[i].tag.substr(0,8) === `a href="`) {
+            tagStack[i].tag = "a";
           }
           string = string +"</"+ tagStack[i].tag +">";
         }
@@ -2734,9 +2736,10 @@ var selectiveQuote = function (postID, selectionSpecs) {
   if (!postID) {
     var postString = glo.pending.body;
     selectionSpecs = isQuotableSelection();
+    console.log(postString);
     console.log(selectionSpecs);
   } else {
-
+  
   } */
   var postString = glo.postStash[postID].body;
 

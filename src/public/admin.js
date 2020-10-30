@@ -98,6 +98,14 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [convertImgTagsToLinks(`<img src="https://i.imgur.com/AXo44un.jpg"><br><img src="https://i.imgur.com/hDEXSt7.jpg" title="frip" alt="frup">`), `<a href="https://i.imgur.com/AXo44un.jpg">https://i.imgur.com/AXo44un.jpg</a><br><a href="https://i.imgur.com/hDEXSt7.jpg">https://i.imgur.com/hDEXSt7.jpg</a>`],
   // #80
   [convertImgTagsToLinks(`<a href="https://i.imgur.com/AXo44un.jpg">https://i.imgur.com/AXo44un.jpg</a><br><a href="https://i.imgur.com/hDEXSt7.jpg">https://i.imgur.com/hDEXSt7.jpg</a>`), `<a href="https://i.imgur.com/AXo44un.jpg">https://i.imgur.com/AXo44un.jpg</a><br><a href="https://i.imgur.com/hDEXSt7.jpg">https://i.imgur.com/hDEXSt7.jpg</a>`],
+  [prepTextForRender(`pre <a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:2, startOffset:0, endOffset:4}), `pre <a href="https://www.schlaugh.com">linkText</a> aft`],
+  [prepTextForRender(`pre <a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:1, endElem:2, startOffset:0, endOffset:4}), `<a href="https://www.schlaugh.com">linkText</a> aft`],
+  [prepTextForRender(`pre <a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:1, endElem:1, startOffset:3, endOffset:8}), `<a href="https://www.schlaugh.com">kText</a>`],
+  [prepTextForRender(`pre <a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:1, startOffset:2, endOffset:4}), `e <a href="https://www.schlaugh.com">link</a>`],
+  // #85
+  [prepTextForRender(`<a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:1, startOffset:4, endOffset:2}), `<a href="https://www.schlaugh.com">Text</a> a`],
+  [prepTextForRender(`<a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:1, startOffset:0, endOffset:4}), `<a href="https://www.schlaugh.com">linkText</a> aft`],
+  [prepTextForRender(`<a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:0, startOffset:0, endOffset:8}), `<a href="https://www.schlaugh.com">linkText</a>`],
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,
