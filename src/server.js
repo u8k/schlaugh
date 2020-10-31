@@ -13,18 +13,13 @@ var adminB = require('./public/adminB.js');
 
 //connect and check mongoDB
 var db;
-//var uri = process.env.MONGODB_URI || `mongodb+srv://smee:Od6YbDZJLW0hXmYO@clustytheclusterer-fdeot.gcp.mongodb.net/schlaugh?retryWrites=true&w=majority`;
-var uri = process.env.MONGODB_URI || 'mongodb://mongo:27017/schlaugh';
+var dbURI = process.env.ATLAS_DB_KEY || 'mongodb://mongo:27017/schlaugh';
 
-MongoClient.connect(uri, function(err, database) {
+MongoClient.connect(dbURI, function(err, database) {
   if (err) {throw err;}
   else {
     console.log("MONGO IS ALIVE");
-    if (process.env.MONGODB_URI) {
-      db = database;
-    } else {      // this is for dev on replit/atlas
-      db = database.db("schlaugh");
-    }
+    db = database.db("heroku_kr76r150");
   }
 });
 
@@ -52,7 +47,7 @@ app.use(session({
 
 // enforce https, "trustProtoHeader" is because heroku proxy
 // very silly hack to make it not enforce https on local...
-if (process.env.MONGODB_URI) {app.use(enforce.HTTPS({ trustProtoHeader: true }))}
+if (process.env.ATLAS_DB_KEY) {app.use(enforce.HTTPS({ trustProtoHeader: true }))}
 
 // sendgrid email config
 var sgMail = require('@sendgrid/mail');
