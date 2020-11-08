@@ -1383,9 +1383,8 @@ var collapseNote = function (buttonId, innerId, dir, postID) {
 var backToMain = function (event) {
   modKeyCheck(event, function () {
     if (glo.username) {
-      panelButtonClick(event, "posts");
+      fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
       $("panel-buttons").classList.remove("removed");
-      //fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
     } else {
       switchPanel('login-panel');
       simulatePageLoad();
@@ -1421,12 +1420,8 @@ var modKeyCheck = function (event, callback) {
 
 var panelButtonClick = function (event, type) {
   modKeyCheck(event, function() {
-    if (type === "posts") {
-      fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
-    } else {
       simulatePageLoad("~"+type, false);
       switchPanel(type + "-panel");
-    }
   });
 }
 
@@ -1456,12 +1451,23 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
     $("password-recovery1").value = "";
     $("password-recovery2").value = "";
   }
-  // the one actual line that displays the panel
-  $(panelName).classList.remove('removed');
   // init
   if (panelName === "posts-panel" && !glo.postPanelStatus) {
     fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
   }
+  // the one actual line that displays the panel
+  $(panelName).classList.remove('removed');
+  // set the cursor to the bottom of the post editor if open
+  //this needs to happen after the display of the ponel above, you can't move cursor to removed element
+  if (panelName === "write-panel" && glo.openEditors && glo.openEditors['post']) {
+    var editor = $('post-editor');
+    setCursorPosition(editor, editor.value.length, editor.value.length);
+  }
+  if (panelName === "inbox-panel" && glo.openEditors && glo.openEditors['message']) {
+    var editor = $('message-editor');
+    setCursorPosition(editor, editor.value.length, editor.value.length);
+  }
+  //
   glo.openPanel = panelName;
 }
 
@@ -2650,7 +2656,7 @@ var isStillQuotable = function (postID, postElemID) {
 }
 
 var isQuotableSelection = function (postID, retry) {
-  if (window.getSelection) { // all browsers, except IE before version 7
+  if (window.getSelection && glo.username) { // all browsers, except IE before version 7 && user must be signed in
     var selection = window.getSelection();
     if (selection && !selection.isCollapsed && selection.rangeCount === 1) {
 
@@ -2739,7 +2745,6 @@ var selectiveQuote = function (postID, selectionSpecs) {
     console.log(postString);
     console.log(selectionSpecs);
   } else {
-  
   } */
   var postString = glo.postStash[postID].body;
 
@@ -3488,6 +3493,9 @@ var pingPong = function (key, delay) {
 // editor stuff
 var showWriter = function (kind) {
   if (!glo.openEditors) {glo.openEditors = {}}
+  if (!isAnEditorOpen()) {
+    document.body.onclick = function () {editorButtonManagement();}
+  }
   glo.openEditors[kind] = true;
   $(kind+'-writer').classList.remove('removed');
   $(kind+'-preview').classList.add('removed');
@@ -3519,6 +3527,9 @@ var hideWriter = function (kind) {
   $(kind+'-preview').classList.remove('removed');
   if (!glo.openEditors) {glo.openEditors = {}}
   glo.openEditors[kind] = false;
+  if (!isAnEditorOpen()) {
+    document.body.onclick = null;
+  }
 }
 
 var resizeEditor = function (kind) {
@@ -3550,6 +3561,19 @@ var resizeEditor = function (kind) {
   } else {
     field.style.height = initHeight + 'px';
     window.scrollTo(0, initWindowScroll);
+  }
+}
+
+var editorButtonManagement = function () {
+  if (glo.lastClickedElem !== document.activeElement.id) {
+    if (document.activeElement.id.substr(-7) === "-editor") {
+      var kind = document.activeElement.id.substr(0, document.activeElement.id.length-7);
+      $("editor-options-"+kind).classList.remove('removed');
+    } else if (glo.lastClickedElem && glo.lastClickedElem.substr(-7) === "-editor") {
+      var kind = glo.lastClickedElem.substr(0, glo.lastClickedElem.length-7);
+      $("editor-options-"+kind).classList.add('removed');
+    }
+    glo.lastClickedElem = document.activeElement.id;
   }
 }
 
@@ -3616,7 +3640,6 @@ var checkLink = function (target, linkText, area, y, a, b) {
   area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
   var bump = a+target.length+linkText.length+15;
   setCursorPosition(area, bump, bump);
-
 }
 var insertImage = function (src) {
   updateEditorStateList(src);
@@ -3749,6 +3772,7 @@ var closePrompt = function (elem) {
 }
 
 var toggleMoreEditorButtons = function (kind, elem) {
+  var x = getCursorPosition($(kind+'-editor'));
   if (elem.innerHTML === "◀") {
     elem.innerHTML = "▶";
     elem.title = "less buttons";
@@ -3758,6 +3782,7 @@ var toggleMoreEditorButtons = function (kind, elem) {
     elem.title = "more buttons";
     $(kind+"-more-buttons").classList.add("removed");
   }
+  setCursorPosition($(kind+'-editor'), x.start, x.end);
 }
 
 var convertLineBreaks = function (string, dir) {
