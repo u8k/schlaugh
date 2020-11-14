@@ -1489,6 +1489,17 @@ app.post('/admin/getSessions', function (req, res) {
   });
 });
 
+app.post('/admin/schlaunqer', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('schlaunquerMatches').find({}).toArray(function(err, matches) {
+      if (err) {return sendError(res, err);}
+      else {
+        return res.send(matches);
+      }
+    });
+  });
+});
+
 /*app.post('/admin/staffCheat', function(req, res) {
   adminGate(req, res, function (res, user) {
     var userID = ObjectId("5a0ea8429adb2100146f7568");
@@ -1771,7 +1782,7 @@ var tidyUp = function (userID, match, req, res, errMsg) {
   } else {
     // game is already full, send public game data
     var data = cleanMatchData(match);
-    return res.send({data});
+    return res.send(data);
   }
 }
 var cleanMatchData = function (match, userID) {
