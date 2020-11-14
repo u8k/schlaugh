@@ -14,10 +14,10 @@ body {
   text-align: center;
 }
 @media screen and (max-width: 600px) {
-  body {padding: 10px 10px;}
+  body {padding: 10px 5px;}
 }
 @media screen and (max-width: 500px) {
-  body {padding: 10px 5px;}
+  body {padding: 10px 2px;}
 }
 
 p {margin: 0}

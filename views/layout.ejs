@@ -6,10 +6,12 @@
     <title>s c h l a u g h</title>
     <link href="https://fonts.googleapis.com/css?family=Crimson+Pro|Gurajada|Lora|Montserrat|Open+Sans|Rajdhani|Roboto|Roboto+Slab|Source+Code+Pro|Space+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/main.css">
+    <link rel="stylesheet" href="/assets/game.css">
     <script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js" integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy" crossorigin="anonymous"></script>
     <script src="/assets/openpgp.min.js"></script>
     <script src="/assets/jscolor.js"></script>
     <script src="/app/pool.js"></script>
+    <script src="/app/game.js"></script>
     <script src="/app/main.js"></script>
 	  <link rel="icon" type="image/png" href="/assets/favicon.png" id='dynamic-favicon'>
   </head>
@@ -35,12 +37,14 @@
       %>
       <text><%= hoursRemaining %></text>
       <br>
-      <div id="footer-footer" class="removed">
+      <div id="footer-footer">
         <a href="/~" class="clicky special footer-text" onclick="modKeyCheck(event, function () {switchPanel('~about-panel'); simulatePageLoad('~', false);});">about</a>
         •
         <a href="/~faq" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openFAQ();});">faq</a>
         •
         <a href="/~click" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openClickerGame();});">click</a>
+        •
+        <a href="/~schlaunquer" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openSchlaunquerGame();});">schlaunquer</a>
       </div>
     </footer>
 
@@ -74,7 +78,7 @@
           }
         }
       } else if (input.panel) {
-        if (!input.user && (input.panel !== "about" && input.panel !== "faq" && input.panel !== "clicker")) {
+        if (!input.user && (input.panel !== "about" && input.panel !== "faq" && input.panel !== "clicker" && input.panel !== "schlaunquer")) {
           simulatePageLoad();
           switchPanel("login-panel");
         } else if (input.panel === "about") {
@@ -83,6 +87,8 @@
           initSchlaugh(input.user, function () {openFAQ();});
         } else if (input.panel === "clicker") {
           initSchlaugh(input.user, function () {openClickerGame();});
+        } else if (input.panel === "schlaunquer") {
+          initSchlaugh(input.user, function () {openSchlaunquerGame();});
         } else {
           initSchlaugh(input.user, function () {switchPanel(input.panel+"-panel")});
         }

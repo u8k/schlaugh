@@ -479,7 +479,7 @@ var openClickerGame = function () {
     loading(true);
     $("panel-buttons").classList.add("removed");
     switchPanel("clicker-panel");
-    simulatePageLoad('~click', false);
+    simulatePageLoad('~click', '*click*');
   });
 }
 var clickClicker = function () {
@@ -611,8 +611,10 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
         signIn('/login', data, function (resp) {
           if (glo.postPanelStatus) {
             fetchPosts(true);
-          } else if (glo.openPanel = "clicker-panel") {
+          } else if (glo.openPanel === "clicker-panel") {
             openClickerGame();
+          } else if (glo.openPanel === "schlaunquer-panel") {
+            openSchlaunquerGame();
           }
         });
       }
@@ -755,12 +757,12 @@ var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
   if (!newPath || newTitle === false) {
     newTitle = "s c h l a u g h";
   }
-  if (newPath === true) {     //leave the path, still change the other stuff
+  if (newTitle) {
     document.title = newTitle;
-  } else if ("/"+newPath !== window.location.pathname) {
+  }
+  if (newPath !== true && "/"+newPath !== window.location.pathname) {
     history.pushState(null, null, "/"+newPath);
     if (!newTitle) {newTitle = newPath;}
-    document.title = newTitle;
   }
   //
   if (faviconSrc) {changeFavicon(faviconSrc);}
@@ -1403,7 +1405,7 @@ var openFAQ = function () {
       faqBody.setAttribute('id', 'faq-body');
       faqBody.setAttribute('class', 'post reader-font');
       faqBody.innerHTML = prepTextForRender(json.text, "~faq~");
-      $("faq-bucket").appendChild(faqBody)
+      $("faq-bucket").appendChild(faqBody);
       switchPanel('~faq-panel');
       simulatePageLoad('~faq', false);
       loading(true);
@@ -1446,10 +1448,13 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
   }
   // remove header/user stuff in special cases
   if (panelName === "login-panel" || panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
+    $("footer-footer").classList.add("removed");
     $("sign-in").classList.add('removed');
     $("username-recovery").value = "";
     $("password-recovery1").value = "";
     $("password-recovery2").value = "";
+  } else {
+    $("footer-footer").classList.remove("removed");
   }
   // init
   if (panelName === "posts-panel" && !glo.postPanelStatus) {
@@ -4613,8 +4618,9 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     $("sign-out").classList.remove("removed");
     $("sign-in").classList.add("removed");
     //
-    $("panel-buttons").classList.remove("removed");
-    $("footer-footer").classList.remove("removed");
+    if (!glo.openPanel || (glo.openPanel !== "clicker-panel" && glo.openPanel !== "schlaunquer-panel")) {
+      $("panel-buttons").classList.remove("removed");
+    }
     //
     if (glo.settings.includeTaggedPosts) {
       $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';

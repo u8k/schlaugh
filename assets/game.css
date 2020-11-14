@@ -1,0 +1,87 @@
+
+#gameBoard {
+  width: 92vmin;
+  height: 90vmin;
+  border-style: solid;
+  background: gainsboro;
+  border-radius: 1em;
+
+}
+
+#game-wrapper {
+  position: relative;
+}
+
+#game-rotate-button {
+  position: absolute;
+  bottom: 7.5px;
+  right: 10px;
+  font-size: 2em;
+  color: gainsboro;
+}
+
+polygon {
+  fill: rgba(0, 0, 0, 0);
+  stroke: rgba(60, 60, 60);
+  stroke-width: 4px;
+}
+
+.tile-highlight {
+  stroke: white;
+  stroke-width: 8px;
+}
+
+#tile-options-current-score {
+  font-size: 1.5em;
+}
+
+.game-move-input {
+  width: 3.8em;
+}
+
+.score-label {
+  font-size: 4.4em;
+}
+.move-label {
+  font-size: 3.1em;
+}
+
+#tile-info-pic {
+  margin: auto;
+  margin-bottom: 14px;
+  width: 200px;
+}
+
+.game-move-input {
+  position: relative;
+}
+#q-move-input,#e-move-input {top: 12px;}
+#a-move-input,#d-move-input {bottom: 12px;}
+#w-move-input {bottom: 6px;}
+#s-move-input {top: 6px;}
+
+
+.red {fill: #FF555E}
+.orange {fill: #FF8650}
+.yellow {fill: #FFE981}
+.green {fill: #8BF18B}
+.blue {fill: #83B2FF}
+.purple {fill: #9B6EF3}
+
+@media screen and (max-width: 600px) and (min-height: 500px) {
+  #gameBoard {
+    width: 100%;
+    height: 97vmin;
+  }
+}
+
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  #game-rotate-button {
+    bottom: 6.5px;
+    right: 8px;
+    font-size: 1.6em;
+  }
+  .game-move-input {
+    width: 2em;
+  }
+}
