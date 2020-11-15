@@ -1675,15 +1675,16 @@ app.post('/~getSchlaunquer', function(req, res) {
           if (match.dates && !match.dates[pool.getCurDate()]) { // night audit needed
             var oldMap = match.dates[pool.getCurDate(1)];
             var tempMap = {};
+            var stayerMap = {};
             var newMap = {};
             //move the Movers
             for (var spot in oldMap) {            // for each spot
               if (oldMap.hasOwnProperty(spot)) {
                 spot = spot.split(",");
-                var initScore = oldMap[spot].score;
+                var stayers = oldMap[spot].score;
                 for (var move in oldMap[spot].pendingMoves) {    // for each pendingMove
                   if (oldMap[spot].pendingMoves.hasOwnProperty(move)) {
-                    initScore = initScore - oldMap[spot].pendingMoves[move]; //emmigration
+                    stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
 
                     var x = Number(spot[0]) + gameRef.moves[move][0];   // determine immigration spot
                     var y = Number(spot[1]) + gameRef.moves[move][1];
@@ -1694,7 +1695,8 @@ app.post('/~getSchlaunquer', function(req, res) {
                 }
                 if (!tempMap[spot]) {tempMap[spot] = {};}
                 if (!tempMap[spot][oldMap[spot].ownerID]) {tempMap[spot][oldMap[spot].ownerID] = 0;}
-                tempMap[spot][oldMap[spot].ownerID] += initScore; // add back the Stayers
+                tempMap[spot][oldMap[spot].ownerID] += stayers; // add back the Stayers
+                stayerMap[spot] = stayers;
               }
             }
             // have the fight(s)
@@ -1726,8 +1728,8 @@ app.post('/~getSchlaunquer', function(req, res) {
               if (newMap.hasOwnProperty(spot)) {
                 var newScore = newMap[spot].score;
                 if (oldMap[spot] && String(newMap[spot].ownerID) === String(oldMap[spot].ownerID)) { // was spot ownership retained?
-                  var stayers = Math.min(newMap[spot].score, oldMap[spot].score);
-                  var newcomers = Math.max(0, (newMap[spot].score - oldMap[spot].score));
+                  var stayers = Math.min(newMap[spot].score, stayerMap[spot]);
+                  var newcomers = Math.max(0, (newMap[spot].score - stayerMap[spot]));
                   spot = spot.split(",");
                   // how many spots adjacent to this one does the owner also own?
                   var multiplier = 1;
@@ -1865,15 +1867,15 @@ app.post('/~moveSchlaunquer', function(req, res) {
           var score = map[req.body.coord].score;
           for (var move in gameRef.moves) {
             if (gameRef.moves.hasOwnProperty(move)) {
-              var num = Number(req.body.moves[move]);
-              if (Number.isInteger(num)) {
-                // cannot be negative
-                if (num < 0) {return sendError(res, errMsg+"malformed request 8880");}
+              // only look at the spots that exist on the board
+              var x = req.body.coord[0] + gameRef.moves[move][0];
+              var y = req.body.coord[1] + gameRef.moves[move][1];
+              if (Math.abs(x) < gameRef.radius && Math.abs(y) < gameRef.radius && Math.abs(x+y) < gameRef.radius) {
+
+                var num = Number(req.body.moves[move]);
+                if (!Number.isInteger(num) || num < 0) { num = 0; }
                 score = score - num;
-                //the outgoing slots must refer to spots that exist on the board
-                var x = req.body.coord[0] + gameRef.moves[move][0];
-                var y = req.body.coord[1] + gameRef.moves[move][1];
-                if (Math.abs(x) > gameRef.radius || Math.abs(y) > gameRef.radius || Math.abs(x+y) > gameRef.radius) {return sendError(res, errMsg+"malformed request 8879");}
+
                 if (!map[req.body.coord].pendingMoves) {map[req.body.coord].pendingMoves = {}}
                 map[req.body.coord].pendingMoves[move] = num;
               }
@@ -1881,7 +1883,7 @@ app.post('/~moveSchlaunquer', function(req, res) {
           }
           //sum of 6 outgoing slots must be <= to startingScore
           if (score < 0) {return sendError(res, errMsg+"malformed request 8878");}
-          // all requirements have been met, log the move
+          // all requirements have been met, save the move
           db.collection('schlaunquerMatches').updateOne({_id: gameRef.testGameID},
             {$set: match},
             function(err, user) {
