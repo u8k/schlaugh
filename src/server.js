@@ -1500,6 +1500,62 @@ app.post('/admin/schlaunqer', function(req, res) {
   });
 });
 
+app.post('/admin/schlaunqerUserSwap', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('schlaunquerMatches').findOne({ _id: req.body.gameID }, {}, function (err, match) {
+      if (err) {return sendError(res, err);}
+      else if (!match) {return sendError(res, 'match not found');}
+      else {
+        db.collection('userUrls').findOne({_id: req.body.oldOwnerName.toLowerCase()}, {}
+        , function (err, oldUser) {
+          if (err) {return sendError(res, err);}
+          else if (!oldUser) {return res.send({error:"old user not found"});}
+          else {
+            db.collection('userUrls').findOne({_id: req.body.newOwnerName.toLowerCase()}, {}
+            , function (err, newUser) {
+              if (err) {return sendError(res, err);}
+              else if (!newUser) {return res.send({error:"new user not found"});}
+              else {
+                db.collection('users').findOne({_id: newUser.authorID}, {}, function (err, user) {
+                  if (err) {return sendError(res, err);}
+                  else if (!user) {return res.send({error:"new user not found, 2"});}
+                  else {
+                    for (var date in match.dates) { if (match.dates.hasOwnProperty(date)) {
+                      for (var spot in match.dates[date]) { if (match.dates[date].hasOwnProperty(spot)) {
+                        if (String(match.dates[date][spot].ownerID) === String(oldUser.authorID)) {
+                          match.dates[date][spot].ownerID = newUser.authorID;
+                        }
+                      }}
+                    }}
+                    for (var player in match.players) { if (match.players.hasOwnProperty(player)) {
+                      if (String(player) === String(oldUser.authorID)) {
+                        match.players[newUser.authorID] = {
+                          color: match.players[player].color,
+                          iconURI: user.iconURI,
+                          username: user.username,
+                        }
+                        delete match.players[player];
+                      }
+                    }}
+                    // save it
+                    db.collection('schlaunquerMatches').updateOne({_id: req.body.gameID},
+                      {$set: match},
+                      function(err, user) {
+                        if (err) {return sendError(res, errMsg+err);}
+                        return res.send({error:false});
+                      }
+                    );
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+  });
+});
+
 /*app.post('/admin/staffCheat', function(req, res) {
   adminGate(req, res, function (res, user) {
     var userID = ObjectId("5a0ea8429adb2100146f7568");

@@ -230,6 +230,17 @@ var getSchlaunquerMatches = function () {
   });
 }
 
+var schlaunqerUserSwap = function () {
+  var obj = {
+    gameID: $('game-id').value,
+    oldOwnerName: $('old-user').value,
+    newOwnerName: $('new-user').value,
+  }
+  ajaxCall('/admin/schlaunqerUserSwap', 'POST', obj, function(json) {
+    console.log(json);
+  });
+}
+
 var createPostID = function () {
   ajaxCall('/admin/makePostIDs', 'POST', {
     name: $("author-of-post").value,
