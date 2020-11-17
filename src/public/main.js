@@ -1538,23 +1538,24 @@ var dateJump = function (target) {
 
 var moveDateByOneDay = function (dir) {
   if (glo.postPanelStatus.date) {
-    var curDateStamp = glo.postPanelStatus.date
-    if (typeof curDateStamp === 'string' && curDateStamp.length === 10) {
-      var year = curDateStamp.slice(0,4);
-      var month = Number(curDateStamp.slice(5,7))-1;
-      var day = Number(curDateStamp.slice(8,10))+ Number(dir);
-      var computedDate = new Date(year,month,day);
-      //
-      var newYear = computedDate.getFullYear();
-      var newMon = computedDate.getMonth()+1;
-      if (newMon < 10) {newMon = "0"+newMon}
-      var newDay = computedDate.getDate();
-      if (newDay < 10) {newDay = "0"+newDay}
-      var newDateString = newYear+"-"+newMon+"-"+newDay;
-      //
-      glo.postPanelStatus.date = newDateString;
-      fetchPosts(true);
-    }
+    glo.postPanelStatus.date = calcDateByOffest(glo.postPanelStatus.date, dir);
+    fetchPosts(true);
+  }
+}
+
+var calcDateByOffest = function (date, offset) {
+  if (typeof date === 'string' && date.length === 10) {
+    var year = date.slice(0,4);
+    var month = Number(date.slice(5,7))-1;
+    var day = Number(date.slice(8,10))+ Number(offset);
+    var computedDate = new Date(year,month,day);
+    //
+    var newYear = computedDate.getFullYear();
+    var newMon = computedDate.getMonth()+1;
+    if (newMon < 10) {newMon = "0"+newMon}
+    var newDay = computedDate.getDate();
+    if (newDay < 10) {newDay = "0"+newDay}
+    return newYear+"-"+newMon+"-"+newDay;
   }
 }
 
@@ -4472,7 +4473,7 @@ var notifyWithReminderOption = function (txt, setting) {
   $("how-long-text").innerHTML = txt;
   blackBacking();
   $("how-long").classList.remove("hidden");
-  $("how-long-input").value = 1;
+  $("how-long-input").value = 31;
   $("how-long-input").focus();
   //
   $("how-long-submit").onclick = function(){

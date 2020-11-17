@@ -27,30 +27,55 @@ var openSchlaunquerGame = function () {
     } else {
       $("full-schlaunquer").classList.remove('removed');
       $("open-schlaunquer").classList.add('removed');
-      setUpGameBoard(json);
+      setUpGameBoards(json);
     }
   });
 }
 
-var setUpGameBoard = function (json) {
-  $('gameBoard').classList.remove('removed');
+var setUpGameBoards = function (json) {
   gameRef.radius = json.radius;
   var height = ((json.radius*2)-1)*gameRef.tileHeight;
   var width = gameRef.tileWidth*(1 +(1.5*((json.radius-1))));
-  $('gameBoard').setAttribute("viewBox", "-7 -7 "+(width+14)+" "+(height+14));   // 14 is margarine
   gameRef.originX = (width/2) - (.5*gameRef.tileWidth);
   gameRef.originY = (json.radius-1)*gameRef.tileHeight;
   //
   gameRef.players = json.players;
-  gameRef.map = json.dates[pool.getCurDate()];
-  for (var spot in gameRef.map) {
-    if (gameRef.map.hasOwnProperty(spot)) {
-      if (gameRef.map[spot].ownerID) {
-        gameRef.map[spot].color = json.players[gameRef.map[spot].ownerID].color;
+  gameRef.dates = json.dates;
+  var dayCount = 0;
+  destroyAllChildrenOfElement($('board-bucket'));
+  gameRef.currentBoardDate = pool.getCurDate();
+  for (var date in gameRef.dates) { if (gameRef.dates.hasOwnProperty(date)) {
+    for (var spot in gameRef.dates[date]) { if (gameRef.dates[date].hasOwnProperty(spot)) {
+      if (gameRef.dates[date][spot].ownerID) {
+        gameRef.dates[date][spot].color = json.players[gameRef.dates[date][spot].ownerID].color;
       }
+    }}
+    dayCount++;
+  }}
+  for (var i = 0; i < dayCount; i++) {  // render the boards in reverse order
+    var date = pool.getCurDate(i);
+    var board = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    board.setAttribute("viewBox", "-7 -7 "+(width+14)+" "+(height+14));   // 14 is margarine
+    board.setAttribute("id", date+"-board");
+    board.setAttribute("preserveAspectRatio", "none");
+    $('board-bucket').appendChild(board);
+    board.classList.add("gameBoard");
+    var animationDelay = 0;
+    if (i === 0) {
+      animationDelay = 30;
+    } else {
+      board.classList.add("removed");
     }
+    // put the round label on the board, fudge
+    var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.innerHTML = "day "+((dayCount-i)-1);
+    label.setAttribute('x', '10px');
+    label.setAttribute('y', '64px');
+    label.classList.add('score-label');
+    board.appendChild(label);
+    renderTiles(animationDelay, date);
   }
-  refreshDisplay(30);
+  setTimeout(function () {window.scroll(0, 50);}, 100);
 }
 
 var checkForSchlaunquerSpot = function () {
@@ -68,7 +93,7 @@ var checkForSchlaunquerSpot = function () {
       uiAlert("sorry! looks like we're all full up!");
       $("full-schlaunquer").classList.remove('removed');
       $("open-schlaunquer").classList.add('removed');
-      setUpGameBoard(json);
+      setUpGameBoards(json);
     }
   });
 }
@@ -78,31 +103,29 @@ var requestToPlay = function () {
     if (json.color) {
       uiAlert(`registration: SUCCESS<br><br>you got `+json.color+`!`, 'h u z z a h', function () {
         $("open-schlaunquer").classList.add('removed');
-        window.scroll(0, 50);
-        setUpGameBoard(json);
+        setUpGameBoards(json);
       });
     }
   });
 }
 
-var refreshDisplay = function (delay) {
+var renderTiles = function (delay, date) {
   if (!delay) {delay = 0;}
-  destroyAllChildrenOfElement($('gameBoard'));
   var tiles = getRange([0,0], gameRef.radius);
   for (var i = 0; i < tiles.length; i++) {
     (function (i) {
       setTimeout(function () {
-        createTile(tiles[i]);
+        createTile(tiles[i], date);
       }, delay*i);
     })(i);
   }
   // highlight a player's spots
   if (glo.userID && gameRef.players[glo.userID]) {
     setTimeout(function () {
-      for (var spot in gameRef.map) {
-        if (gameRef.map.hasOwnProperty(spot)) {
-          if (gameRef.map[spot].ownerID === glo.userID) {
-            highlightTile(spot);
+      for (var spot in gameRef.dates[date]) {
+        if (gameRef.dates[date].hasOwnProperty(spot)) {
+          if (gameRef.dates[date][spot].ownerID === glo.userID) {
+            highlightTile(spot, date);
           }
         }
       }
@@ -125,20 +148,20 @@ var getRange = function (spot, radius) {
   return arr;
 }
 
-var createTile = function (coord) {
+var createTile = function (coord, date) {
   var wrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
   var tile = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   tile.setAttribute('points', "200,87 150,0 50,0 0,87 50,174 150,174");
   //
   var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  if (gameRef.map[coord]) {
-    wrapper.onclick = function() {tileClick(coord);}
+  if (gameRef.dates[date][coord]) {
+    wrapper.onclick = function() {tileClick(coord, date);}
     wrapper.classList.add('clicky');
-    gameRef.map[coord].elem = wrapper;
-    if (gameRef.map[coord].score) {label.innerHTML = gameRef.map[coord].score;}
-    if (gameRef.map[coord].color) {tile.classList.add(gameRef.map[coord].color);}
+    gameRef.dates[date][coord].elem = wrapper;
+    if (gameRef.dates[date][coord].score) {label.innerHTML = gameRef.dates[date][coord].score;}
+    if (gameRef.dates[date][coord].color) {tile.classList.add(gameRef.dates[date][coord].color);}
   } else {
-    gameRef.map[coord] = {ownerID:null}
+    gameRef.dates[date][coord] = {ownerID:null}
   }
   label.setAttribute('x', .5*gameRef.tileWidth+'px');
   label.setAttribute('y', .5*gameRef.tileHeight+'px');
@@ -152,17 +175,17 @@ var createTile = function (coord) {
   //
   wrapper.appendChild(tile);
   wrapper.appendChild(label);
-  $('gameBoard').appendChild(wrapper);
-  setMoveLabels(coord);
+  $(date+"-board").appendChild(wrapper);
+  setMoveLabels(coord, date);
 }
 
-var tileClick = function (coord) {
+var tileClick = function (coord, date) {
   blackBacking();
   $("pop-up-backing").onclick = function(){closeTilePopUp();}
-  var spot = gameRef.map[coord];
-  if (spot.ownerID === glo.userID) {
-    gameRef.activeTile = coord;
-    $('tile-options-submit').onclick = function () {sendMove(coord);}
+  var spot = gameRef.dates[date][coord];
+  if (spot.ownerID === glo.userID && date === pool.getCurDate) {
+    gameRef.activeTile = {score: spot.score};
+    $('tile-options-submit').onclick = function () {sendMove(coord, date);}
 
     var score = spot.score;               // subtract out the already allocated points
     for (var move in spot.pendingMoves) {
@@ -174,7 +197,7 @@ var tileClick = function (coord) {
     gameRef.curMovVals = {}
     for (var move in moveRef) {           // show/hide inputs if they are valid directions or not for that spot
       if (moveRef.hasOwnProperty(move)) {
-        if (gameRef.map[[coord[0] + moveRef[move][0], coord[1] + moveRef[move][1]]]) {  // is the adjacent spot a valid spot on the map?
+        if (gameRef.dates[date][[coord[0] + moveRef[move][0], coord[1] + moveRef[move][1]]]) {  // is the adjacent spot a valid spot on the map?
           $(move+"-move-input").classList.remove('hidden');
           if (spot.pendingMoves && spot.pendingMoves[move]) {$(move+"-move-input").value = spot.pendingMoves[move];}
           else {$(move+"-move-input").value = 0;}
@@ -188,7 +211,7 @@ var tileClick = function (coord) {
     $('tile-options-current-score').innerHTML = score;
     $("tile-options").classList.remove("hidden");
   } else {
-    $("tile-info-text").innerHTML = 'spot currently owned by '+gameRef.players[spot.ownerID].username;
+    $("tile-info-text").innerHTML = 'spot owned by '+gameRef.players[spot.ownerID].username;
     if (gameRef.players[spot.ownerID].iconURI) {
       $('tile-info-pic').setAttribute('src', gameRef.players[spot.ownerID].iconURI);
       $('tile-info-pic').classList.remove('removed')
@@ -216,7 +239,7 @@ var moveRef = {
 
 var moveInputChange = function (event) {
   var moves = getMoveVals();
-  var score = gameRef.map[gameRef.activeTile].score;
+  var score = gameRef.activeTile.score;
   var bad = false;
   for (var move in moves) {
     if (moves.hasOwnProperty(move)) {
@@ -256,56 +279,79 @@ var getMoveVals = function () {
   return moves;
 }
 
-var sendMove = function (coord) {
+var sendMove = function (coord, date) {
   closeTilePopUp();
   var moves = getMoveVals();
   ajaxCall('/~moveSchlaunquer', 'POST', {coord:coord, moves:moves}, function(json) {
-    gameRef.map[coord].pendingMoves = moves;
-    setMoveLabels(coord);
+    gameRef.dates[date][coord].pendingMoves = moves;
+    setMoveLabels(coord, date);
   });
 }
 
-var setMoveLabels = function (coord) {
-  if (gameRef.map[coord].moveLabels && gameRef.map[coord].moveLabels.length) {
-    for (var i = 0; i < gameRef.map[coord].moveLabels.length; i++) {
-      removeElement(gameRef.map[coord].moveLabels[i]);
+var setMoveLabels = function (coord, date) {
+  var map = gameRef.dates[date][coord];
+  if (map.moveLabels && map.moveLabels.length) {
+    for (var i = 0; i < map.moveLabels.length; i++) {
+      removeElement(map.moveLabels[i]);
     }
   }
-  gameRef.map[coord].moveLabels = [];
+  map.moveLabels = [];
 
-  var moves = gameRef.map[coord].pendingMoves;
+  var moves = map.pendingMoves;
   for (var move in moves) {
     if (moves.hasOwnProperty(move) && Number(moves[move]) !== 0) {
       var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      label.innerHTML = moves[move]; //mLabPos[move].arrow+moves[move];
+      label.innerHTML = moves[move];
       label.setAttribute('x', mLabPos[move].x*gameRef.tileWidth+'px');
       label.setAttribute('y', mLabPos[move].y*gameRef.tileHeight+'px');
       label.setAttribute('dominant-baseline', "middle");
       label.setAttribute('text-anchor', "middle");
       label.classList.add('move-label');
-      gameRef.map[coord].elem.appendChild(label);
-      gameRef.map[coord].moveLabels.push(label)
+      map.elem.appendChild(label);
+      map.moveLabels.push(label)
     }
   }
 }
 
 var mLabPos = {
-  w:{x:.5 ,y:.17, arrow:'⭡'},
-  e:{x:.76 ,y:.33, arrow:'⭧'},
-  d:{x:.76 ,y:.7, arrow:'⭨'},
-  s:{x:.5 ,y:.86, arrow:'⭣'},
-  a:{x:.23 ,y:.7, arrow:'⭩'},
-  q:{x:.24 ,y:.33, arrow:'⭦'},
+  w:{x:.5 ,y:.17,},
+  e:{x:.76 ,y:.33,},
+  d:{x:.76 ,y:.7,},
+  s:{x:.5 ,y:.86,},
+  a:{x:.23 ,y:.7,},
+  q:{x:.24 ,y:.33,},
 }
 
-var highlightTile = function (coord, undo) {
-  var tile = gameRef.map[coord].elem;
+var highlightTile = function (coord, date) {
+  var tile = gameRef.dates[date][coord].elem;
   if (!undo) {
     tile.childNodes[0].classList.add('tile-highlight');
     tile.parentElement.appendChild(tile);
   } else {
     tile.childNodes[0].classList.remove('tile-highlight');
   }
+}
+
+var changeBoardRound = function (offset) {
+  var newDate = calcDateByOffest(gameRef.currentBoardDate, offset);
+
+  // disable/enabel left/right buttons
+  var prevDate = calcDateByOffest(newDate, -1);
+  var nextDate = calcDateByOffest(newDate, 1);
+  if ($(prevDate+"-board")) {
+    $('game-round-back').classList.remove('removed');
+  } else {
+    $('game-round-back').classList.add('removed');
+  }
+  if ($(nextDate+"-board")) {
+    $('game-round-forward').classList.remove('removed');
+  } else {
+    $('game-round-forward').classList.add('removed');
+  }
+
+  $(gameRef.currentBoardDate+"-board").classList.add('removed');
+  gameRef.currentBoardDate = newDate;
+  $(gameRef.currentBoardDate+"-board").classList.remove('removed');
 }
 
 /* rotation
@@ -316,7 +362,7 @@ var rotateGrid = function () {
     newMap[rotateTile(1, tiles[i])] = gameRef.map[tiles[i]];
   }
   gameRef.map = newMap;
-  refreshDisplay();
+  renderTiles();
 }
 var rotateTile = function (amnt, coords) {
   amnt = Math.floor(amnt)%6;
@@ -326,5 +372,3 @@ var rotateTile = function (amnt, coords) {
   else {return rotateTile(amnt-1, [x,y]);}
 }
 */
-
-setTimeout(function () {window.scroll(0, 50);}, 300);
