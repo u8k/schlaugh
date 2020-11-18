@@ -66,7 +66,7 @@ var setUpGameBoards = function (json) {
     } else {
       board.classList.add("removed");
     }
-    // put the round label on the board, fudge
+    // put the round label on the board
     var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
     label.innerHTML = "day "+((dayCount-i)-1);
     label.setAttribute('x', '10px');
@@ -183,7 +183,7 @@ var tileClick = function (coord, date) {
   blackBacking();
   $("pop-up-backing").onclick = function(){closeTilePopUp();}
   var spot = gameRef.dates[date][coord];
-  if (spot.ownerID === glo.userID && date === pool.getCurDate) {
+  if (spot.ownerID === glo.userID && date === pool.getCurDate()) {
     gameRef.activeTile = {score: spot.score};
     $('tile-options-submit').onclick = function () {sendMove(coord, date);}
 
