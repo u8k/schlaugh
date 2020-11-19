@@ -1422,8 +1422,14 @@ var modKeyCheck = function (event, callback) {
 
 var panelButtonClick = function (event, type) {
   modKeyCheck(event, function() {
+    if (type === "posts" && glo.openPanel && (glo.openPanel === "posts-panel" || glo.openPanel.substr(0,3) === "404")) {
+      fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
+    } else if (type === "posts") {
+      fetchPosts(true);
+    } else {
       simulatePageLoad("~"+type, false);
       switchPanel(type + "-panel");
+    }
   });
 }
 

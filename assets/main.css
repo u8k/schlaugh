@@ -200,6 +200,12 @@ clicky, .clicky, spoil {
   resize: vertical;
   font-size: inherit;
 }
+@media screen and (max-width: 600px) {
+  .editor {
+    width: 97%;
+  }
+}
+
 
 .editor-options {
   text-align: right;
