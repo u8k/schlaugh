@@ -1629,7 +1629,10 @@ var open404 = function (display, input, callback) {
 }
 
 var fetchPosts = function (display, input, callback) {
-  if (!input) {input = glo.postPanelStatus;}
+  if (!input) {
+    if (glo.postPanelStatus) {input = glo.postPanelStatus;}
+    else {input = {postCode:"FFTF", date:pool.getCurDate(),};}
+  }
   //404
   if (input.notFound) {
     return open404(display, input, callback);

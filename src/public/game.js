@@ -62,7 +62,7 @@ var setUpGameBoards = function (json) {
     board.classList.add("gameBoard");
     var animationDelay = 0;
     if (i === 0) {
-      animationDelay = 30;
+      animationDelay = 40;
     } else {
       board.classList.add("removed");
     }
@@ -111,7 +111,14 @@ var requestToPlay = function () {
 
 var renderTiles = function (delay, date) {
   if (!delay) {delay = 0;}
-  var tiles = getRange([0,0], gameRef.radius);
+  var oldTiles = getRange([0,0], gameRef.radius);
+  var tiles = [];
+  while (oldTiles.length > 0) {
+    var j = Math.floor(Math.random()*oldTiles.length);
+    tiles.push(oldTiles[j]);
+    oldTiles.splice(j,1);
+  }
+
   for (var i = 0; i < tiles.length; i++) {
     (function (i) {
       setTimeout(function () {
