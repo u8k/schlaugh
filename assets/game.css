@@ -3,12 +3,13 @@
   width: 92vmin;
   height: 90vmin;
   border-style: solid;
-  background: gainsboro;
   border-radius: 1em;
+  background: gainsboro;
 }
 
 #game-wrapper {
   position: relative;
+  color: #404040;
 }
 
 #game-rotate-button, #game-round-back, #game-round-forward {
@@ -36,7 +37,11 @@ polygon {
 }
 
 .game-move-input {
+  position: relative;
   width: 3.8em;
+}
+.game-move-input-wide {
+  width: 4.8em;
 }
 
 .score-label {
@@ -49,12 +54,9 @@ polygon {
 #tile-info-pic {
   margin: auto;
   margin-bottom: 14px;
-  width: 200px;
+  width: 130px;
 }
 
-.game-move-input {
-  position: relative;
-}
 #q-move-input,#e-move-input {top: 12px;}
 #a-move-input,#d-move-input {bottom: 12px;}
 #w-move-input {bottom: 6px;}
@@ -84,6 +86,9 @@ polygon {
   #game-round-back {left: 6px; right: unset;}
   #game-round-forward {left: 28px; right: unset;}
   .game-move-input {
-    width: 2em;
+    width: 2.2em;
+  }
+  .game-move-input-wide {
+    width: 3.1em;
   }
 }

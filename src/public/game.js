@@ -165,7 +165,7 @@ var createTile = function (coord, date) {
     wrapper.onclick = function() {tileClick(coord, date);}
     wrapper.classList.add('clicky');
     gameRef.dates[date][coord].elem = wrapper;
-    if (gameRef.dates[date][coord].score) {label.innerHTML = gameRef.dates[date][coord].score;}
+    if (gameRef.dates[date][coord].score) {label.innerHTML = formatScore(gameRef.dates[date][coord].score);}
     if (gameRef.dates[date][coord].color) {tile.classList.add(gameRef.dates[date][coord].color);}
   } else {
     gameRef.dates[date][coord] = {ownerID:null}
@@ -184,6 +184,20 @@ var createTile = function (coord, date) {
   wrapper.appendChild(label);
   $(date+"-board").appendChild(wrapper);
   setMoveLabels(coord, date);
+}
+
+var formatScore = function (score) {
+  var output = Number(score);
+  if (!Number.isInteger(output) || output < 10000) {return score;}
+  if (output < 100000) {
+    return String(output).substr(0,2) + "k";
+  } else if (output < 1000000) {
+    return String(output).substr(0,3) + "k";
+  } else if (output < 10000000) {
+    return (String(Math.round(output/10000)/100)).substr(0,4) + "m";
+  } else {
+    return String(output).substr(0,2) + "m";
+  }
 }
 
 var tileClick = function (coord, date) {
@@ -209,6 +223,11 @@ var tileClick = function (coord, date) {
           if (spot.pendingMoves && spot.pendingMoves[move]) {$(move+"-move-input").value = spot.pendingMoves[move];}
           else {$(move+"-move-input").value = 0;}
           gameRef.curMovVals[move] = $(move+"-move-input").value;
+          if (score > 9999) {
+            $(move+"-move-input").classList.add('game-move-input-wide');
+          } else {
+            $(move+"-move-input").classList.remove('game-move-input-wide');
+          }
         } else {
           $(move+"-move-input").classList.add('hidden');
           $(move+"-move-input").value = "";
@@ -218,7 +237,7 @@ var tileClick = function (coord, date) {
     $('tile-options-current-score').innerHTML = score;
     $("tile-options").classList.remove("hidden");
   } else {
-    $("tile-info-text").innerHTML = 'spot owned by '+gameRef.players[spot.ownerID].username;
+    $("tile-info-text").innerHTML = 'spot owned by '+gameRef.players[spot.ownerID].username+'<br><br>population: '+spot.score;
     if (gameRef.players[spot.ownerID].iconURI) {
       $('tile-info-pic').setAttribute('src', gameRef.players[spot.ownerID].iconURI);
       $('tile-info-pic').classList.remove('removed')
@@ -308,7 +327,7 @@ var setMoveLabels = function (coord, date) {
   for (var move in moves) {
     if (moves.hasOwnProperty(move) && Number(moves[move]) !== 0) {
       var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      label.innerHTML = moves[move];
+      label.innerHTML = formatScore(moves[move]);
       label.setAttribute('x', mLabPos[move].x*gameRef.tileWidth+'px');
       label.setAttribute('y', mLabPos[move].y*gameRef.tileHeight+'px');
       label.setAttribute('dominant-baseline', "middle");
