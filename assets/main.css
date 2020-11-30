@@ -280,6 +280,10 @@ a, a.visited {
   font-family: inherit;
 }
 
+.ex-link {
+  text-decoration: underline;
+}
+
 .special {
   color: #0004FF;
 }

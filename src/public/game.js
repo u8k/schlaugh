@@ -195,8 +195,18 @@ var formatScore = function (score) {
     return String(output).substr(0,3) + "k";
   } else if (output < 10000000) {
     return (String(Math.round(output/10000)/100)).substr(0,4) + "m";
-  } else {
+  } else if (output < 100000000) {
     return String(output).substr(0,2) + "m";
+  } else if (output < 1000000000) {
+    return String(output).substr(0,3) + "m";
+  } else if (output < 10000000000) {
+    return String(output).substr(0,1) + "b";
+  } else if (output < 100000000000) {
+    return String(output).substr(0,2) + "b";
+  } else if (output < 1000000000000) {
+    return String(output).substr(0,3) + "b";
+  } else {
+    return String(output).substr(0,1) + "t";
   }
 }
 

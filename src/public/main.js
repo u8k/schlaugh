@@ -1083,7 +1083,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
             elemCount+=2;
           }
         } else if (tag === "a" && !extracting) {          // if it's an "a", do link conversion stuff
-          var b = `class='clicky special' target="_blank" `;
+          var b = `class='clicky special ex-link' target="_blank" `;
           string = insertStringIntoStringAtPos(string, b, pos+1);
         } else if (tag === "a" && extracting && string.substr(pos,7) === ` href="`) {
                     // that last check there for ` href="` isn't strictly necesary, just another format enforcement
@@ -2569,16 +2569,22 @@ var createPostFooter = function (postElem, postData, type) {
     var footerLeft = document.createElement("div");
     footerLeft.setAttribute('class', 'post-footer-left');
     footer.appendChild(footerLeft);
+    //
     var dateStamp = document.createElement("text");
+    var dateStampWrapper = document.createElement("a");
     dateStamp.innerHTML = postData.date;
     dateStamp.setAttribute('class', 'date-stamp');
-    if (glo.username) {
+    if (glo.username) { // if signed in, else the datestamp is not a link/button
+      dateStampWrapper.setAttribute('href', "/~posts/"+postData.date);
       dateStamp.setAttribute('class', 'clicky special date-stamp');
       dateStamp.onclick = function(){
-        fetchPosts(true, {postCode:"FFTF", date:postData.date,});
+        modKeyCheck(event, function(){
+          fetchPosts(true, {postCode:"FFTF", date:postData.date,});
+        });
       }
     }
-    footerLeft.appendChild(dateStamp);
+    dateStampWrapper.appendChild(dateStamp);
+    footerLeft.appendChild(dateStampWrapper);
   }
   // footer buttons(right side of post footer)
   if (type !== "preview") {
