@@ -3630,6 +3630,12 @@ var hyperlink = function (src) {
   $('link-prompt').classList.remove('hidden');
   blackBacking();
   setCursorPosition($("link-prompt-input1"), 0, $("link-prompt-input1").value.length);
+  var exit = function () {
+    closePrompt($('link-prompt'));
+    setCursorPosition(area, a, b);
+  }
+  $("pop-up-backing").onclick = exit;
+  $("link-prompt-exit").onclick = exit;
 
   $("link-prompt-submit").onclick = function() {
     var target = $("link-prompt-input1").value;
@@ -3638,8 +3644,10 @@ var hyperlink = function (src) {
     if (target) {
       linkText = convertLineBreaks(linkText);
       checkLink(target, linkText, area, y, a, b);
+      closePrompt($('link-prompt'));
+    } else {
+      exit();
     }
-    closePrompt($('link-prompt'));
   }
 }
 var checkLink = function (target, linkText, area, y, a, b) {
@@ -3673,6 +3681,12 @@ var insertImage = function (src) {
   $('img-input-prompt').classList.remove('hidden');
   blackBacking();
   setCursorPosition($("img-input-prompt-input"), 0, $("img-input-prompt-input").value.length);
+  var exit = function () {
+    closePrompt($('img-input-prompt'));
+    setCursorPosition(area, a, b);
+  }
+  $("pop-up-backing").onclick = exit;
+  $("img-input-prompt-exit").onclick = exit;
 
   $("img-input-prompt-submit").onclick = function() {
     var url = $('img-input-prompt-input').value;
@@ -3693,8 +3707,10 @@ var insertImage = function (src) {
       area.value = y.slice(0, a)+ openTag + url + title + alt + closeTag +y.slice(b);
       var bump = a +url.length+ title.length+ alt.length+ openTag.length + closeTag.length;
       setCursorPosition(area, bump, bump);
+      closePrompt($('img-input-prompt'));
+    } else {
+      exit();
     }
-    closePrompt($('img-input-prompt'));
   }
 }
 var insertHR = function (src) {
@@ -3731,6 +3747,12 @@ var insertQuote = function (src) {
   $('quote-prompt').classList.remove('hidden');
   blackBacking();
   setCursorPosition($("quote-prompt-input1"), 0, $("quote-prompt-input1").value.length);
+  var exit = function () {
+    closePrompt($('quote-prompt'));
+    setCursorPosition(area, a, b);
+  }
+  $("pop-up-backing").onclick = exit;
+  $("quote-prompt-exit").onclick = exit;
 
   $("quote-prompt-submit").onclick = function() {
     quoteText = convertLineBreaks($('quote-prompt-input1').value);
@@ -3793,7 +3815,7 @@ var closePrompt = function (elem) {
 }
 
 var toggleMoreEditorButtons = function (kind, elem) {
-  var x = getCursorPosition($(kind+'-editor'));
+  var cursorPos = getCursorPosition($(kind+'-editor'));
   if (elem.innerHTML === "◀") {
     elem.innerHTML = "▶";
     elem.title = "less buttons";
@@ -3803,7 +3825,7 @@ var toggleMoreEditorButtons = function (kind, elem) {
     elem.title = "more buttons";
     $(kind+"-more-buttons").classList.add("removed");
   }
-  setCursorPosition($(kind+'-editor'), x.start, x.end);
+  setCursorPosition($(kind+'-editor'), cursorPos.start, cursorPos.end);
 }
 
 var convertLineBreaks = function (string, dir) {
@@ -3866,25 +3888,31 @@ var updateEditorStateList = function (kind, loop) {
 }
 
 var undo = function (kind) {
+  var cursorPos = getCursorPosition($(kind+'-editor'));
   updateEditorStateList(kind);  // first check is to make sure we have the lastest
   if (glo.editorState.pos[kind] && glo.editorState.history[kind].length && glo.editorState.history[kind].length > 1) {
     glo.editorState.pos[kind]--;
     changeEditorState(kind);
+  } else {
+    setCursorPosition($(kind+'-editor'), cursorPos.start, cursorPos.end);
   }
   updateEditorStateList(kind);  // second check is so the buttons update Immediately
 }
 var redo = function (kind) {
+  var cursorPos = getCursorPosition($(kind+'-editor'));
   updateEditorStateList(kind);  // first check is to make sure we have the lastest
   if (glo.editorState.pos[kind] !== undefined && glo.editorState.history[kind].length && glo.editorState.pos[kind] < glo.editorState.history[kind].length-1) {
     glo.editorState.pos[kind]++;
     changeEditorState(kind);
+  } else {
+    setCursorPosition($(kind+'-editor'), cursorPos.start, cursorPos.end);
   }
   updateEditorStateList(kind);  // second check is so the buttons update Immediately
 }
 var changeEditorState = function (kind) {
   $(kind+"-editor").value = glo.editorState.history[kind][glo.editorState.pos[kind]].text;
   var cursPos = glo.editorState.history[kind][glo.editorState.pos[kind]].cursor;
-  setCursorPosition($(kind+"-editor"), cursPos.start, cursPos.end)
+  setCursorPosition($(kind+"-editor"), cursPos.start, cursPos.end);
 }
 
 glo.editorHotKeys = {
