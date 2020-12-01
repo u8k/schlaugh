@@ -3036,7 +3036,7 @@ var updatePendingEdit = function (post, bio) {
       _id: glo.userID,
       author: glo.username,
       authorPic: glo.userPic,
-      bio: prepTextForRender(post.body, 'old-pending'),
+      bio: post.body,
     });
   }
   else {
