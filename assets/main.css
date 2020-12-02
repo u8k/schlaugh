@@ -281,7 +281,7 @@ a, a.visited {
 }
 
 .ex-link {
-  text-decoration: underline;
+  /* text-decoration: underline; */
 }
 
 .special {
@@ -332,6 +332,10 @@ a, a.visited {
 .collapse-button-bottom {
   top: auto;
   bottom: 0.5px;
+}
+.expand-button {
+  margin-left: 2px;
+  margin-right: 2px;
 }
 
 .post-header {

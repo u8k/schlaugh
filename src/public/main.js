@@ -821,13 +821,13 @@ var convertCut = function (string, id, type, pos) {
   } else {
     var classAsign = "removed";
   }
-
+  // +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
   // put the class and clickhandler props on the cut tag to make it into a working button
   var b = ` class='clicky special' onclick='$("`+id+`").classList.remove("removed"); this.classList.add("removed");'`;
   string = insertStringIntoStringAtPos(string, b, pos);
   pos += b.length
 
-  // find the closing cut tag and insert a div after it, leave the div open, to be closed later by prepTextForRender
+  // find the closing cut tag and insert an innerCut after it, leave the innerCut open, to be closed later by prepTextForRender
   var gap = string.substr(pos).search('</cut>');
   if (gap === -1) { // if there is no closing cut tag...(there always should be)
     string = string + "</cut><innerCut class='"+classAsign+"'>";
@@ -857,7 +857,9 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
 
   var preTag = string.substr(0,tagStartPos);
   var postTag = string.substr(innerStartPos);
-  var insert = `<a class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true)">`+linkText+`</a>`
+  var insert = `<a class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true)">`+linkText
+    +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
+    +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></a>`
     +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
     +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`')" class="collapse-button-top"><icon class="far fa-minus-square"></icon></clicky>`
     +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`')" class="collapse-button-bottom hidden" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
@@ -1353,6 +1355,8 @@ var collapseNote = function (buttonId, innerId, dir, postID) {
   // and causes the necseary adjustments to the scroll pos to be made on collapse
   if (dir) {  // expand
     $(innerId).classList.remove('removed');
+    $(innerId+'-note-top-plus').classList.add('removed');
+    $(innerId+'-note-top-minus').classList.remove('removed');
     $(buttonId).onclick = function () {collapseNote(buttonId, innerId, false);}
 
     if ($(innerId+"-br")) {
@@ -1368,6 +1372,8 @@ var collapseNote = function (buttonId, innerId, dir, postID) {
       var initHeight = $(postID).offsetHeight;
     }
     $(innerId).classList.add('removed');    // collapse the note
+    $(innerId+'-note-top-plus').classList.remove('removed');
+    $(innerId+'-note-top-minus').classList.add('removed');
     if (postID) {          // if via the bottom button, then adjust the scroll position
       if (initScroll === window.scrollY) {
         window.scrollBy(0, $(postID).offsetHeight - initHeight);
