@@ -106,6 +106,7 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [prepTextForRender(`<a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:1, startOffset:4, endOffset:2}), `<a href="https://www.schlaugh.com">Text</a> a`],
   [prepTextForRender(`<a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:1, startOffset:0, endOffset:4}), `<a href="https://www.schlaugh.com">linkText</a> aft`],
   [prepTextForRender(`<a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:0, startOffset:0, endOffset:8}), `<a href="https://www.schlaugh.com">linkText</a>`],
+  [prepTextForRender(`<note linkText="">bubba gubba<br></note><br>krubi deli`,`id`,null,{startElem:3, endElem:3, startOffset:6, endOffset:10}), `deli`],
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,

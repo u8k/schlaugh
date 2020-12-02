@@ -1071,7 +1071,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
             tagStack.push({tag:tag, fullButtonString: fullButtonString,});
 
             // is there a "<" leading off the link text?
-            if (string[startLinkPos] !== "<") {
+            if (string[startLinkPos] !== "<" && qPos !== 0) {
               var x = checkOrInsertElem(string, startLinkPos, id, elemCount, extracting, tagStack);
               if (x.error) {return x;}
               if (x.extracting && x.extracting.done) {return x.extracting.returnString}
