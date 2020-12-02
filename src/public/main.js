@@ -821,18 +821,21 @@ var convertCut = function (string, id, type, pos) {
   } else {
     var classAsign = "removed";
   }
-  // +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
+
   // put the class and clickhandler props on the cut tag to make it into a working button
   var b = ` class='clicky special' onclick='$("`+id+`").classList.remove("removed"); this.classList.add("removed");'`;
   string = insertStringIntoStringAtPos(string, b, pos);
   pos += b.length
 
+  var expandIcon = `<icon class="far fa-plus-square expand-button"></icon>`;
+
   // find the closing cut tag and insert an innerCut after it, leave the innerCut open, to be closed later by prepTextForRender
   var gap = string.substr(pos).search('</cut>');
   if (gap === -1) { // if there is no closing cut tag...(there always should be)
-    string = string + "</cut><innerCut class='"+classAsign+"'>";
+    string = string + expandIcon +"</cut><innerCut class='"+classAsign+"'>";
   } else {                   // the case that is actually important
-    pos = pos+gap+6;
+    string = insertStringIntoStringAtPos(string, expandIcon, pos+gap);
+    pos = pos+gap+6+expandIcon.length;
     var insrt = "<innerCut id="+id+" class='"+classAsign+"'>";
     string = insertStringIntoStringAtPos(string, insrt, pos);
   }
@@ -2068,7 +2071,7 @@ var setAuthorHeader = function (loc, aInfo) {
 
   // header-right
   if (aInfo.bio && aInfo.bio !== "") {
-    $("author-header-right-"+loc).innerHTML = prepTextForRender(aInfo.bio, aInfo.author+"-bio");
+    $("author-header-right-"+loc).innerHTML = prepTextForRender(aInfo.bio, aInfo.author+"-bio-"+loc);
     $("author-header-right-"+loc).classList.remove('removed');
   } else {
     $("author-header-right-"+loc).classList.add('removed');
