@@ -107,6 +107,9 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [prepTextForRender(`<a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:1, startOffset:0, endOffset:4}), `<a href="https://www.schlaugh.com">linkText</a> aft`],
   [prepTextForRender(`<a href="https://www.schlaugh.com">linkText</a> aft`,`id`,null,{startElem:0, endElem:0, startOffset:0, endOffset:8}), `<a href="https://www.schlaugh.com">linkText</a>`],
   [prepTextForRender(`<note linkText="">bubba gubba<br></note><br>krubi deli`,`id`,null,{startElem:3, endElem:3, startOffset:6, endOffset:10}), `deli`],
+  [prepTextForRender(`<quote><quote><quote>ccc<br><r>-scr3<br></r></quote>bbb<br><r>-scr2<br></r></quote>aaa<br><r>-scr1<br></r></quote>`,`id`,null,{startElem:0, endElem:0, startOffset:1, endOffset:2}), "<quote><quote><quote>c<r>-scr3<br></r></quote><r>-scr2<br></r></quote><r>-scr1<br></r></quote>"],
+  // #90
+  [prepTextForRender(`<quote>aaa<br><quote><quote>ccc<br><r>-scr3<br></r></quote>bbb<br><r>-scr2<br></r></quote>aaa<br><r>-scr1<br></r></quote>`,`id`,null,{startElem:0, endElem:0, startOffset:1, endOffset:3}), "<quote>aa<r>-scr1<br></r></quote>"],
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,

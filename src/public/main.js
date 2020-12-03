@@ -1103,7 +1103,11 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         }
         //
         if (tag !== "x" && tag !== 'innerNote' && tag !== 'note') { //innerNote must get special assignment to match BRs
-          tagStack.push({tag:tag});
+          if (extracting && tag === 'quote') {
+            tagStack.push({tag:tag, cite:findQuoteCite(string, pos)});
+          } else {
+            tagStack.push({tag:tag});
+          }
         }
         //
       if (tag !== "x") {    //put in the x
@@ -1251,11 +1255,8 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
 
       if (tagStack && tagStack.length) {
         for (var i = tagStack.length-1; i > -1; i--) {
-          if (tagStack[i].tag === "quote") {
-            var cite = findQuoteCite(oldString, endPos);
-            if (cite) {
-              string += cite;
-            }
+          if (tagStack[i].tag === "quote" && tagStack[i].cite) {
+            string += tagStack[i].cite;
           }
           if (tagStack[i].tag.substr(0,8) === `a href="`) {
             tagStack[i].tag = "a";
@@ -1294,31 +1295,31 @@ var findClosingNoteTag = function (string, pos, noteCount) {
   return findClosingNoteTag(string, pos, noteCount);
 }
 
-var findQuoteCite = function (string, pos, noteCount) {
-  if (!noteCount) {noteCount = 0;}
-  var nextClose = string.substr(pos).search(/quote>/);
+var findQuoteCite = function (string, pos, nestCount) {
+  if (!nestCount) {nestCount = 0;}
+  var nextClose = string.substr(pos).search("/quote>");
   var nextOpen = string.substr(pos).search(/<quote/);
 
   if (nextClose === -1) {return false;}
   if (nextOpen === -1) {nextOpen = Infinity}
   // is there an openingTag before the next upcoming closingTag?
   if (nextClose > nextOpen) {
-    noteCount++;
+    nestCount++;
     pos = pos + nextOpen + 1;
   } else {
-    if (noteCount === 0) {
-      if (string.substr(pos+nextClose-6,4) === `</r>`) {
-        var snip = string.substr(pos,nextClose-2);
+    if (nestCount === 0) {
+      if (string.substr(pos+nextClose-5,4) === `</r>`) {
+        var snip = string.substr(pos,nextClose-1);
         return snip.substr(snip.lastIndexOf(`<r>`));
       } else {
         return false;
       }
     } else {
-      noteCount--;
+      nestCount--;
       pos = pos + nextClose + 1;
     }
   }
-  return findQuoteCite(string, pos, noteCount);
+  return findQuoteCite(string, pos, nestCount);
 }
 
 var insertX = function (string, pos, id, elemCount) {
