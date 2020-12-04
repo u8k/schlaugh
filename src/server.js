@@ -262,7 +262,7 @@ var getPayload = function (req, res, callback) {
   if (!req.session.user) {return sendError(res, "no user session 0234");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, muted:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1, savedTags:1}
+    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, muted:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1, savedTags:1, games:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, "user not found");}
@@ -287,6 +287,7 @@ var getPayload = function (req, res, callback) {
           collapsed: user.collapsed,
           savedTags: user.savedTags,
           muted: user.muted,
+          games: user.games,
         }
         // session key set
         var sessionKey = newGameKey(req.session.user._id);
@@ -1489,7 +1490,7 @@ app.post('/admin/getSessions', function (req, res) {
   });
 });
 
-app.post('/admin/schlaunqer', function(req, res) {
+app.post('/admin/schlaunquer', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('schlaunquerMatches').find({}).toArray(function(err, matches) {
       if (err) {return sendError(res, err);}
@@ -1500,7 +1501,7 @@ app.post('/admin/schlaunqer', function(req, res) {
   });
 });
 
-app.post('/admin/schlaunqerUserSwap', function(req, res) {
+app.post('/admin/schlaunquerUserSwap', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('schlaunquerMatches').findOne({ _id: req.body.gameID }, {}, function (err, match) {
       if (err) {return sendError(res, err);}
@@ -1687,17 +1688,6 @@ app.post('/~clickClicker', function(req, res) {
 
 // ********** schlaunquer game stuff *********** //
 var gameRef = {
-  testGameID: "TqZhBAi",
-  colors: ['red', 'orange', 'yellow', 'green', 'blue', 'purple'],
-  radius: 4,
-  homeVec: {
-    orange:[0, 1],        //w
-    yellow:[-1, 1],       //e
-    green:[-1, 0],        //d
-    blue:[0, -1],         //s
-    purple:[1, -1],       //a
-    red:[1, 0],           //q
-  },
   moves: {
     w:[0, 1],
     e:[-1, 1],
@@ -1706,252 +1696,354 @@ var gameRef = {
     a:[1, -1],
     q:[1, 0],
   },
+  spawnValue:7,
+  unitCap:17,
+  init: {
+    players: {
+      6: {
+        radius: 5,
+        pos: [
+          {color:'orange', tiles:[[0, 4],[1,3],[-1,4]]},       //w
+          {color:'yellow', tiles:[[-4, 4],[-3,4],[-4,3]]},     //e
+          {color:'green', tiles:[[-4, 0],[-4,1],[-3,-1]]},     //d
+          {color:'blue', tiles:[[0,-4],[1,-4],[-1,-3]]},       //s
+          {color:'purple', tiles:[[4,-4],[4,-3],[3,-4]]},      //a
+          {color:'red', tiles:[[4,0],[3,1],[4,-1]]},           //q
+        ],
+      },
+      4: {
+        radius: 4,
+        pos: [
+          {color:'yellow', tiles:[[-3, 3],[-2,3],[-3,2]]},     //e
+          {color:'green', tiles:[[-3, 0],[-3,1],[-2,-1]]},     //d
+          {color:'purple', tiles:[[3,-3],[3,-2],[2,-3]]},      //a
+          {color:'red', tiles:[[3,0],[2,1],[3,-1]]},           //q
+        ],
+      },
+      3: {
+        radius: 4,
+        pos: [
+          {color:'red', tiles:[[0, 3],[1,2],[-1,3]]},          //w
+          {color:'blue', tiles:[[-3, 0],[-3,1],[-2,-1]]},      //d
+          {color:'yellow', tiles:[[3,-3],[3,-2],[2,-3]]},      //a
+        ],
+      },
+      2: {
+        radius: 3,
+        pos: [
+          {color:'orange', tiles:[[0, 2],[1,1],[-1,2]]},       //w
+          {color:'blue', tiles:[[0,-2],[1,-2],[-1,-1]]},       //s
+        ],
+      },
+    }
+  }
 }
 app.get('/~schlaunquer', function(req, res) {
   renderLayout(req, res, {panel:"schlaunquer"});
 });
+app.get('/~schlaunquer/:game_id', function(req, res) {
+  renderLayout(req, res, {panel:"schlaunquer", game_id:req.params.game_id});
+});
+
+var getRange = function (spot, radius) {
+  var arr = [];
+  for (var i = -(radius-1); i < radius; i++) {
+    for (var j = -(radius-1); j < radius; j++) {
+      if (Math.abs(i+j) < radius) {
+        arr.push([
+          spot[0] + i,
+          spot[1] + j,
+        ]);
+      }
+    }
+  }
+  return arr;
+}
 app.post('/~getSchlaunquer', function(req, res) {
   var errMsg = "error fetching schlaunquer game info<br><br>";
+  if (!req.body.game_id) {return sendError(res, errMsg+"malformed request 6048");}
   idCheck(req, function (userID) {
-    db.collection('schlaunquerMatches').findOne({ _id: gameRef.testGameID }, {}, function (err, match) {
+    db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
       if (err) {return sendError(res, errMsg+err);}
-      else if (!match) {        // game does not exist yet, we gotta make it
-        db.collection('schlaunquerMatches').insertOne({
-          _id: gameRef.testGameID,
-          radius: gameRef.radius,
-        }, {}, function (err, result) {
-          if (err) {return sendError(res, errMsg+err);}
-          else {
-            //game exists now, and player should be offered that spots are available to play
-            return res.send({openSpot:true});
-          }
-        });
-      } else {
-        if (match.players) {
-          if (match.dates && !match.dates[pool.getCurDate()]) { // night audit needed
-            var oldMap = match.dates[pool.getCurDate(1)];
-            var tempMap = {};
-            var stayerMap = {};
-            var newMap = {};
-            //move the Movers
-            for (var spot in oldMap) {            // for each spot
-              if (oldMap.hasOwnProperty(spot)) {
-                spot = spot.split(",");
-                var stayers = oldMap[spot].score;
-                for (var move in oldMap[spot].pendingMoves) {    // for each pendingMove
-                  if (oldMap[spot].pendingMoves.hasOwnProperty(move)) {
-                    stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
+      if (!match) {return res.send({notFound:true});}
 
-                    var x = Number(spot[0]) + gameRef.moves[move][0];   // determine immigration spot
-                    var y = Number(spot[1]) + gameRef.moves[move][1];
-                    if (!tempMap[[x,y]]) {tempMap[[x,y]] = {};}
-                    if (!tempMap[[x,y]][oldMap[spot].ownerID]) {tempMap[[x,y]][oldMap[spot].ownerID] = 0;}
-                    tempMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
-                  }
-                }
-                if (!tempMap[spot]) {tempMap[spot] = {};}
-                if (!tempMap[spot][oldMap[spot].ownerID]) {tempMap[spot][oldMap[spot].ownerID] = 0;}
-                tempMap[spot][oldMap[spot].ownerID] += stayers; // add back the Stayers
-                stayerMap[spot] = stayers;
+      if (match.dates && !match.dates[pool.getCurDate()]) { // night audit needed
+        var oldMap = match.dates[pool.getCurDate(1)];
+        var warMap = {};
+        var newMap = {};
+
+        // Migration
+        var unitCap = gameRef.unitCap;
+        if (match.unitCap) {unitCap = match.unitCap;}
+        //
+        for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
+          spot = spot.split(",");
+          var stayers = oldMap[spot].score;
+          for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
+            stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
+            var x = Number(spot[0]) + gameRef.moves[move][0];   // determine immigration spot
+            var y = Number(spot[1]) + gameRef.moves[move][1];
+            if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
+            if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
+            warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
+            warMap[[x,y]][oldMap[spot].ownerID] = Math.min(unitCap, warMap[[x,y]][oldMap[spot].ownerID]) // popCap
+          }}
+          // add back the Stayers, to the init Spot
+          if (!warMap[spot]) {warMap[spot] = {};}
+          if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
+          warMap[spot][oldMap[spot].ownerID] += stayers;
+          warMap[spot][oldMap[spot].ownerID] = Math.min(unitCap, warMap[spot][oldMap[spot].ownerID]); // popCap
+        }}
+
+        // War
+        for (var spot in warMap) {if (warMap.hasOwnProperty(spot)) {
+          var first = [0, null];
+          var second = 0;
+          for (var player in warMap[spot]) { // determine the 1st and 2nd place scores in each spot
+            if (warMap[spot].hasOwnProperty(player)) {
+              if (warMap[spot][player] > first[0]) {
+                second = first[0];
+                first[0] = warMap[spot][player];
+                first[1] = player;
+              } else if (warMap[spot][player] > second) {
+                second = warMap[spot][player];
               }
             }
-            // have the fight(s)
-            for (var spot in tempMap) {
-              if (tempMap.hasOwnProperty(spot)) {
-                var first = [0, null];
-                var second = 0;
-                for (var player in tempMap[spot]) { // determine the 1st and 2nd place scores in each spot
-                  if (tempMap[spot].hasOwnProperty(player)) {
-                    if (tempMap[spot][player] > first[0]) {
-                      second = first[0];
-                      first[0] = tempMap[spot][player];
-                      first[1] = player;
-                    } else if (tempMap[spot][player] > second) {
-                      second = tempMap[spot][player];
-                    }
-                  }
-                }
-                if (first[0] !== second) {  // if tie, leave spot empty
-                  newMap[spot] = {
-                    ownerID: first[1],
-                    score: first[0] - second,
-                  }
-                }
-              }
-            }
-            // multiply the winning Stayers
-            for (var spot in newMap) {
-              if (newMap.hasOwnProperty(spot)) {
-                var newScore = newMap[spot].score;
-                if (oldMap[spot] && String(newMap[spot].ownerID) === String(oldMap[spot].ownerID)) { // was spot ownership retained?
-                  var stayers = Math.min(newMap[spot].score, stayerMap[spot]);
-                  var newcomers = Math.max(0, (newMap[spot].score - stayerMap[spot]));
-                  spot = spot.split(",");
-                  // how many spots adjacent to this one does the owner also own?
-                  var multiplier = 1;
-                  for (var move in gameRef.moves) {
-                    if (gameRef.moves.hasOwnProperty(move)) {
-                      var x = Number(spot[0]) + gameRef.moves[move][0];
-                      var y = Number(spot[1]) + gameRef.moves[move][1];
-                      var adjSpot = [x,y];
-                      if (newMap[adjSpot] && newMap[adjSpot].ownerID === newMap[spot].ownerID) {
-                        multiplier++;
-                      }
-                    }
-                  }
-                  newMap[spot].score = stayers*multiplier + newcomers;
-                }
-              }
-            }
-            match.dates[pool.getCurDate()] = newMap;
-            // now save audit to DB
-            db.collection('schlaunquerMatches').updateOne({_id: gameRef.testGameID},
-              {$set: match},
-              function(err, user) {
-                if (err) {return sendError(res, errMsg+err);}
-                else {
-                  return tidyUp(userID, match, req, res, errMsg);
-                }
-              }
-            );
-          } else {
-            return tidyUp(userID, match, req, res, errMsg);
           }
-        } else {  // no players at all yet!
-          return res.send({openSpot:true});
+          if (first[0] !== second) {  // if tie, leave spot empty
+            newMap[spot] = {
+              ownerID: first[1],
+              score: first[0] - second,
+            }
+          }
+        }}
+
+        // Entropy
+        for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
+          if (newMap[spot].score) {
+            newMap[spot].score--;
+          }
+          if (newMap[spot].score === 0) {
+            delete newMap[spot];
+          }
+        }}
+
+        // Creation
+        var tileList = getRange([0,0], match.radius);
+        for (var i = 0; i < tileList.length; i++) { // for every tile on the map
+          if (!newMap[tileList[i]]) {               // is it unnoccupied?
+            var adj = getRange(tileList[i], 2);
+            var ref = {};
+            for (var j = 0; j < adj.length; j++) {    // for each tile adjacent to said tile
+              if (newMap[adj[j]] && newMap[adj[j]].ownerID) { // is THAT occupied
+                if (!ref[newMap[adj[j]].ownerID]) {
+                  ref[newMap[adj[j]].ownerID] = 0;
+                }
+                ref[newMap[adj[j]].ownerID]++;
+              }
+            }
+            for (var user in ref) {if (ref.hasOwnProperty(user)) {
+              if (ref[user] === 4) {                    // huzzah! spawn conditions met!
+                newMap[tileList[i]] = {
+                  ownerID: user,
+                }
+                if (match.spawnValue) {newMap[tileList[i]].score = match.spawnValue;}
+                else {newMap[tileList[i]].score = gameRef.spawnValue;}
+              }
+            }}
+          }
         }
+
+        // now save audit to DB
+        match.dates[pool.getCurDate()] = newMap;
+        db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
+          {$set: match},
+          function(err, user) {
+            if (err) {return sendError(res, errMsg+err);}
+            else {
+              return tidyUp(userID, match, res, errMsg);
+            }
+          }
+        );
+      } else {
+        return tidyUp(userID, match, res, errMsg);
       }
     });
   });
 });
-var tidyUp = function (userID, match, req, res, errMsg) {
-  if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret plans for this round
-    var data = cleanMatchData(match, userID);
-    return res.send(data);
-  }
-  var count = 0;
-  for (var player in match.players) {
-    if (match.players.hasOwnProperty(player)) {
-      count++;
-    }
-  }
-  if (count < 6) {  // remaining spot(s) open
-    return res.send({openSpot:true});
-  } else {
-    // game is already full, send public game data
-    var data = cleanMatchData(match);
-    return res.send(data);
+var tidyUp = function (userID, match, res, errMsg) {
+  if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
+    return res.send(cleanMatchData(match, userID));
+  } else {  // spectator, send only public game data
+    return res.send(cleanMatchData(match));
   }
 }
 var cleanMatchData = function (match, userID) {
-  if (match.dates && match.dates[pool.getCurDate()]) {
-    var map = match.dates[pool.getCurDate()];
-    for (var spot in map) {
-      if (map.hasOwnProperty(spot)) {
-        if (!userID || String(map[spot].ownerID) !== String(userID)) {
-          delete map[spot].pendingMoves;
+  var cleanedData = {};
+  cleanedData.players = match.players;
+  cleanedData.radius = match.radius;
+  cleanedData.version = match.version;
+  cleanedData.startDate = match.startDate;
+  cleanedData.dates = {};
+  if (match.dates) {
+    for (var date in match.dates) {if (match.dates.hasOwnProperty(date)) {
+      cleanedData.dates[date] = {};
+      for (var tile in match.dates[date]) {if (match.dates[date].hasOwnProperty(tile)) {
+        cleanedData.dates[date][tile] = {
+          ownerID: match.dates[date][tile].ownerID,
         }
-      }
-    }
+        if (userID && String(match.dates[date][tile].ownerID) === String(userID)) {
+          cleanedData.dates[date][tile].score = match.dates[date][tile].score;
+          cleanedData.dates[date][tile].pendingMoves = match.dates[date][tile].pendingMoves;
+        }
+      }}
+    }}
   }
-  return match;
+  return cleanedData;
 }
 app.post('/~moveSchlaunquer', function(req, res) {
   var errMsg = "error updating schlaunquer<br><br>";
+  if (!req.body.game_id) {return sendError(res, errMsg+"malformed request 5048");}
   idScreen(req, res, errMsg, function (userID) {
-    db.collection('schlaunquerMatches').findOne({ _id: gameRef.testGameID }, {}, function (err, match) {
+    db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
       if (err) {return sendError(res, errMsg+err);}
       else if (!match) {return sendError(res, errMsg+'match not found? 8871, please refresh and try again');}
-      else if (req.body.signMeUp) {
-        if (!match.players) {match.players = {};}
-        if (match.players[userID]) {return sendError(res, errMsg+'it seems you are already registered for this match...? not sure why you got the message to register again?');}
-        else {
-          var usedColors = {};
-          var count = 0;
-          for (var player in match.players) {
-            if (match.players.hasOwnProperty(player)) {
-              usedColors[match.players[player].color] = true;
-              count++;
-            }
+      // are they a player in this game?
+      if (!match.players || !match.players[userID]) {return sendError(res, errMsg+'userID miscoresponce');}
+
+      // check that the submitted move is valid
+      if (!req.body || !req.body.coord || !req.body.moves) {return sendError(res, errMsg+"malformed request 8875");}
+      if (!match.dates[pool.getCurDate()]) {return sendError(res, errMsg+"malformed request 8876");}
+      var map = match.dates[pool.getCurDate()];
+
+      //you must be updating a spot you actually hold
+      if (!map[req.body.coord] || String(map[req.body.coord].ownerID) !== String(userID) || !map[req.body.coord].score) {return sendError(res, errMsg+"malformed request 8877");}
+
+      var moveCount = 0;
+      var dir = null;
+      for (var move in req.body.moves) {
+        if (req.body.moves.hasOwnProperty(move)) {
+          if (Number(req.body.moves[move]) > 0) {
+            moveCount++;
+            dir = move;
           }
-          if (count > 5) {return sendError(res, errMsg+'this game is already full! must have just barely missed it!');}
-          else {
-            // sign em up!
-            for (var i = 0; i < gameRef.colors.length; i++) {
-              if (!usedColors[gameRef.colors[i]]) {
-                // unused color found, write new player to DB
-                match.players[userID] = {};
-                match.players[userID].color = gameRef.colors[i];
-                i = gameRef.colors.length+1;
-                // place init tile
-                var unitVect = gameRef.homeVec[match.players[userID].color];
-                var coords = [unitVect[0]*(match.radius-1), unitVect[1]*(match.radius-1)];
-                if (!match.dates) {match.dates = {}}
-                if (!match.dates[pool.getCurDate()]) {match.dates[pool.getCurDate()] = {}}
-                match.dates[pool.getCurDate()][coords] = {
-                  ownerID: userID,
-                  score: 7,
-                }
-                lookUpCurrentUser(req, res, errMsg, {username:1, iconURI:1,}, function (user) {
-                  match.players[userID].iconURI = user.iconURI;
-                  match.players[userID].username = user.username;
-                  db.collection('schlaunquerMatches').updateOne({_id: gameRef.testGameID},
-                    {$set: match},
-                    function(err, user) {
-                      if (err) {return sendError(res, errMsg+err);}
-                      var data = cleanMatchData(match);
-                      data.color = match.players[userID].color;
-                      return res.send(data);
-                    }
-                  );
-                });
-              }
-            }
-          }
-        }
-      } else {
-        if (!match.players || !match.players[userID]) {   // are they a player in this game?
-          return sendError(res, errMsg+'userID miscoresponce');
-        } else {                              // check that the submitted move is valid
-          if (!req.body || !req.body.coord || !req.body.moves) {return sendError(res, errMsg+"malformed request 8875");}
-          if (!match.dates[pool.getCurDate()]) {return sendError(res, errMsg+"malformed request 8876");}
-          var map = match.dates[pool.getCurDate()];
-
-          //you must be updating a spot you actually hold
-          if (!map[req.body.coord] || String(map[req.body.coord].ownerID) !== String(userID) || !map[req.body.coord].score) {return sendError(res, errMsg+"malformed request 8877");}
-
-          var score = map[req.body.coord].score;
-          for (var move in gameRef.moves) {
-            if (gameRef.moves.hasOwnProperty(move)) {
-              // only look at the spots that exist on the board
-              var x = req.body.coord[0] + gameRef.moves[move][0];
-              var y = req.body.coord[1] + gameRef.moves[move][1];
-              if (Math.abs(x) < gameRef.radius && Math.abs(y) < gameRef.radius && Math.abs(x+y) < gameRef.radius) {
-
-                var num = Number(req.body.moves[move]);
-                if (!Number.isInteger(num) || num < 0) { num = 0; }
-                score = score - num;
-
-                if (!map[req.body.coord].pendingMoves) {map[req.body.coord].pendingMoves = {}}
-                map[req.body.coord].pendingMoves[move] = num;
-              }
-            }
-          }
-          //sum of 6 outgoing slots must be <= to startingScore
-          if (score < 0) {return sendError(res, errMsg+"malformed request 8878");}
-          // all requirements have been met, save the move
-          db.collection('schlaunquerMatches').updateOne({_id: gameRef.testGameID},
-            {$set: match},
-            function(err, user) {
-              if (err) {return sendError(res, errMsg+err);}
-              return res.send({error:false});
-            }
-          );
         }
       }
+      if (moveCount > 1) {return sendError(res, errMsg+"malformed request 8786");}
+      // magnitude to the max of the inputed value or the allowed maximum, also "floor" takes care of nonInt values
+      var mag = Math.min(Math.floor(Number(req.body.moves[dir])), map[req.body.coord].score);
+      // make sure destination is in bounds
+      if (dir) {
+        var x = req.body.coord[0] + gameRef.moves[dir][0];
+        var y = req.body.coord[1] + gameRef.moves[dir][1];
+        if (!(Math.abs(x) < match.radius && Math.abs(y) < match.radius && Math.abs(x+y) < match.radius)) {return sendError(res, errMsg+"malformed request 8783");}
+      }
+      //
+      if (!map[req.body.coord].pendingMoves) {map[req.body.coord].pendingMoves = {}}
+      for (var move in gameRef.moves) {
+        if (gameRef.moves.hasOwnProperty(move)) {
+          if (move === dir) {
+            map[req.body.coord].pendingMoves[move] = mag;
+          } else {
+            map[req.body.coord].pendingMoves[move] = 0;
+          }
+        }
+      }
+      // all requirements have been met, save the move
+      db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
+        {$set: match},
+        function(err, user) {
+          if (err) {return sendError(res, errMsg+err);}
+          return res.send({error:false});
+        }
+      );
     });
   });
 });
+//admin
+app.post('/admin/initSchlaunquerMatch', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var errMsg = "failed schlaunquer match creations<br><br>";
+    if (!req.body.game_id || !req.body.players || !req.body.players.length) {return sendError(res, errMsg+"malformed request 9048");}
+    var playArr = req.body.players;
+    if (!(playArr.length === 6 || playArr.length === 3 || playArr.length === 4 || playArr.length === 2)) {return sendError(res, errMsg+"malformed request 9046");}
+    db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
+      if (err) {return sendError(res, errMsg+err);}
+      else if (match) {return sendError(res, errMsg+'collision!');}
+      //
+      registerPlayers(playArr, req.body.game_id, 0, function (resp) {
+        if (resp.error) {return sendError(res, errMsg+resp.error);}
+        var players = resp;
+        var ref = gameRef.init.players[playArr.length];
+        var map = {};
+        //
+        var spawnValue = gameRef.spawnValue;
+        if (req.body.spawnValue) {spawnValue = req.body.spawnValue;}
+        //
+        var unitCap = gameRef.unitCap;
+        if (req.body.unitCap) {unitCap = req.body.unitCap;}
+
+        for (var i = 0; i < playArr.length; i++) {
+          // assign color
+          players[playArr[i]].color = ref.pos[i].color;
+          // assign init tiles
+          for (var j = 0; j < ref.pos[i].tiles.length; j++) {
+            map[ref.pos[i].tiles[j]] = {
+              ownerID: playArr[i],
+              score: spawnValue,
+            }
+          }
+        }
+        var dates = {};
+        dates[pool.getCurDate()] = map;
+        //
+        db.collection('schlaunquerMatches').insertOne({
+          _id: req.body.game_id,
+          radius: ref.radius,
+          spawnValue: spawnValue,
+          unitCap: unitCap,
+          startDate: pool.getCurDate(),
+          version: 2,
+          players: players,
+          dates: dates,
+        }, {}, function (err, result) {
+          if (err) {return sendError(res, errMsg+err);}
+          else { return res.send({error:false}); }
+        });
+      });
+    });
+  });
+});
+var registerPlayers = function (idArr, game_id, i, callback, players) {
+  if (!ObjectId.isValid(idArr[i])) {return callback({error:"invalid userID format "+i,});}
+  // bad that this writes to user1 before checking user2, if user2 is invalid then user1 already got updated...
+  // okay for now as long as it's admin access only, but clean this up for wider use later
+  db.collection('users').findOne({_id: ObjectId(idArr[i])}, {_id:0, username:1, iconURI:1, games:1}, function (err, user) {
+    if (err) {return callback({error:err});}
+    else if (!user) {return callback({error:"user "+i+" not found"});}
+    else {
+      if (!players) {players = {}}
+      players[idArr[i]] = {
+        username: user.username,
+        iconURI: user.iconURI,
+      };
+      //
+      if (!user.games) {user.games = {}};
+      if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
+      if (!user.games.schlaunquer.matches) {user.games.schlaunquer.matches = {}};
+      user.games.schlaunquer.matches[game_id] = true;
+      //
+      writeToDB(ObjectId(idArr[i]), user, function (resp) {
+        if (resp.error) {return callback({error:err});}
+        else {
+          i++;
+          if (idArr.length === i) {return callback(players);}
+          else {return registerPlayers(idArr, game_id, i, callback, players);}
+        }
+      });
+    }
+  });
+}
 // ********** ~~~~****~~~~****~~~~ *********** //
 
 
@@ -3359,6 +3451,7 @@ var renderLayout = function (req, res, data) {
       panel:data.panel,
       notFound:data.notFound,
       postCode:data.postCode,
+      game_id:data.game_id,
     },});
   });
 }

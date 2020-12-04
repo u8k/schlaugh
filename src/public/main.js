@@ -104,7 +104,7 @@ var revertAppearance = function () {
 var changeColor = function (colorCode, type) {          // makes the new CSS rule
   var sheet = document.styleSheets[document.styleSheets.length-1];
   if (type === "postBackground") {
-    var selector = ".post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background, panelButtons";
+    var selector = ".post, .message, .editor, .content-box, button, .pop-up, .post-background, panelButtons";
     var attribute = "background-color";
     // selected(highlighted) text color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -120,7 +120,7 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     var attribute = "color";
 
   } else if (type === "text") {
-    var selector = "body, h1, input, select, .post, .message, .editor, #settings-box, #thread-list, button, .pop-up, .post-background, a, a.visited, a.hover, spoil";
+    var selector = "body, h1, input, select, .post, .message, .editor, .content-box, button, .pop-up, .post-background, a, a.visited, a.hover, spoil";
     var attribute = "color";
     // border color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -614,7 +614,8 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
           } else if (glo.openPanel === "clicker-panel") {
             openClickerGame();
           } else if (glo.openPanel === "schlaunquer-panel") {
-            openSchlaunquerGame();
+            // fudge, make it so if on a particular game, it loads that game
+            openSchlaunquerPanel(gameRef.game_id);
           }
         });
       }
@@ -4605,6 +4606,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
   glo.unread = 0;
   glo.threads = data.threads;
   glo.keys = data.keys;
+  glo.games = data.games;
   glo.threadRef = {};
   glo.settings = data.settings;
   glo.pending = data.pending;

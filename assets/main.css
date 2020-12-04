@@ -228,7 +228,7 @@ clicky, .clicky, spoil {
 .thread-name {font-size: 1.8em}
 #thread-status {font-size: .5em;}
 
-.post, .message, #settings-box, #thread-list {
+.post, .message, .content-box {
   box-shadow: 0px 0px 1px 2px rgba(0, 0, 0, .1);
   width: 75%;
   max-width: 1000px;
@@ -241,7 +241,7 @@ clicky, .clicky, spoil {
   position: relative;
 }
 .message {width: 85%; max-width: 800px;}
-#settings-box, #thread-list {text-align: center;}
+#settings-container, #thread-list {text-align: center;}
 
 .post, .message, #tag-display, .top-tag, .author-header-right, .author-on-post, #thread-list {
   white-space: pre-wrap;
@@ -419,7 +419,7 @@ footerButton {
 #pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
 
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .post, .author-header, #settings-box {width: 100%;}
+  .post, .author-header, .content-box {width: 100%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
   #post-writer, #old-post-writer, #message-writer{width: 100%;}
@@ -533,7 +533,7 @@ body, h1, input, select {
   color: #383F45;
   background-color: #AFDCFA;
 }
-.post, .message, .editor, #settings-box, #thread-list, .pop-up, .post-background {
+.post, .message, .editor, .content-box, .pop-up, .post-background {
   color: #383F45;
   background-color: #B2C4D6;
 }

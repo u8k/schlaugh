@@ -62,6 +62,14 @@ polygon {
 #w-move-input {bottom: 6px;}
 #s-move-input {top: 6px;}
 
+#games-list {
+  margin: 10px;
+}
+
+.game-listing {
+  display: block;
+  font-size: 1.3em;
+}
 
 .red {fill: #FF555E}
 .orange {fill: #FF8650}

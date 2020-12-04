@@ -110,6 +110,7 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [prepTextForRender(`<quote><quote><quote>ccc<br><r>-scr3<br></r></quote>bbb<br><r>-scr2<br></r></quote>aaa<br><r>-scr1<br></r></quote>`,`id`,null,{startElem:0, endElem:0, startOffset:1, endOffset:2}), "<quote><quote><quote>c<r>-scr3<br></r></quote><r>-scr2<br></r></quote><r>-scr1<br></r></quote>"],
   // #90
   [prepTextForRender(`<quote>aaa<br><quote><quote>ccc<br><r>-scr3<br></r></quote>bbb<br><r>-scr2<br></r></quote>aaa<br><r>-scr1<br></r></quote>`,`id`,null,{startElem:0, endElem:0, startOffset:1, endOffset:3}), "<quote>aa<r>-scr1<br></r></quote>"],
+  [prepTextForRender(`<quote><quote>bbb<br><r><a href="/~/">-src2</a></r></quote>aaa<br><r>-scr1</r></quote>`,`id`,null,{startElem:2, endElem:2, startOffset:1, endOffset:2}), "<quote>a<r>-scr1</r></quote>"],
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,
@@ -229,18 +230,21 @@ var getUser = function () {
 }
 
 var getSchlaunquerMatches = function () {
-  ajaxCall('/admin/schlaunqer', 'POST', {}, function(json) {
+  ajaxCall('/admin/schlaunquer', 'POST', {}, function(json) {
     console.log(json);
   });
 }
 
-var schlaunqerUserSwap = function () {
+var initSchlaunquerMatch = function () {
   var obj = {
-    gameID: $('game-id').value,
-    oldOwnerName: $('old-user').value,
-    newOwnerName: $('new-user').value,
+    game_id: $('schlaunquer-game-id').value,
+    players: $('schlaunquer-players-input').value.split(","),
   }
-  ajaxCall('/admin/schlaunqerUserSwap', 'POST', obj, function(json) {
+  var spawnValue = Number($('schlaunquer-spawnValue-input').value);
+  var unitCap = Number($('schlaunquer-unitCap-input').value);
+  if (Number.isInteger(spawnValue) && spawnValue !== 0) {obj.spawnValue = spawnValue;}
+  if (Number.isInteger(unitCap) && unitCap !== 0) {obj.unitCap = unitCap;}
+  ajaxCall('/admin/initSchlaunquerMatch', 'POST', obj, function(json) {
     console.log(json);
   });
 }

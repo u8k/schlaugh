@@ -44,7 +44,7 @@
         •
         <a href="/~click" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openClickerGame();});">click</a>
         •
-        <a href="/~schlaunquer" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openSchlaunquerGame();});">schlaunquer</a>
+        <a href="/~schlaunquer" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openSchlaunquerPanel();});">schlaunquer</a>
       </div>
     </footer>
 
@@ -88,7 +88,7 @@
         } else if (input.panel === "clicker") {
           initSchlaugh(input.user, function () {openClickerGame();});
         } else if (input.panel === "schlaunquer") {
-          initSchlaugh(input.user, function () {openSchlaunquerGame();});
+          initSchlaugh(input.user, function () {openSchlaunquerPanel(input.game_id);});
         } else {
           initSchlaugh(input.user, function () {switchPanel(input.panel+"-panel")});
         }
