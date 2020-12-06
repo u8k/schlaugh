@@ -35,7 +35,7 @@ var refreshMenu = function (game_id) {
           }
         })(match);
       } else {
-        listing.innerHTML = match+'(this one)';
+        listing.innerHTML = match+' (this one)';
         listing.setAttribute('class', "game-listing");
       }
       $('games-list').appendChild(listing);

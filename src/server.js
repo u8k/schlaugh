@@ -2044,6 +2044,35 @@ var registerPlayers = function (idArr, game_id, i, callback, players) {
     }
   });
 }
+app.post('/admin/adminSchlaunquerTweak', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    var errMsg = "failed schlaunquer fix<br><br>";
+    if (!req.body.game_id || !req.body.coord || !req.body.player_id) {return sendError(res, errMsg+"malformed request 4038");}
+    db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
+      if (err) {return sendError(res, errMsg+err);}
+      if (!match) {return sendError(res, errMsg+'match not found?');}
+
+      var map = match.dates[pool.getCurDate()];
+      req.body.value = Number(req.body.value);
+      if (Number.isInteger(req.body.value) && req.body.value > 0) {
+        map[req.body.coord] = {
+          ownerID: req.body.player_id,
+          score: req.body.value,
+        }
+      } else {
+        delete map[req.body.coord];
+      }
+
+      db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
+        {$set: match},
+        function(err, user) {
+          if (err) {return sendError(res, errMsg+err);}
+          return res.send({error:false});
+        }
+      );
+    });
+  });
+});
 // ********** ~~~~****~~~~****~~~~ *********** //
 
 

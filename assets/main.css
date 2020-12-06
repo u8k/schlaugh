@@ -334,8 +334,8 @@ a, a.visited {
   bottom: 0.5px;
 }
 .expand-button {
-  margin-left: 2px;
-  margin-right: 2px;
+  margin: 2px 3px 0px;
+  font-size: .94em;
 }
 
 .post-header {

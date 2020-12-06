@@ -249,6 +249,18 @@ var initSchlaunquerMatch = function () {
   });
 }
 
+var adminSchlaunquerTweak = function () {
+  var obj = {
+    game_id: $('schlaunquer-tweak-game_id').value,
+    coord: $('schlaunquer-tweak-coord').value,
+    value: $('schlaunquer-tweak-value').value,
+    player_id: $('schlaunquer-tweak-player_id').value,
+  }
+  ajaxCall('/admin/adminSchlaunquerTweak', 'POST', obj, function(json) {
+    console.log(json);
+  });
+}
+
 var createPostID = function () {
   ajaxCall('/admin/makePostIDs', 'POST', {
     name: $("author-of-post").value,
