@@ -1741,6 +1741,7 @@ var gameRef = {
 app.get('/~schlaunquer', function(req, res) {
   renderLayout(req, res, {panel:"schlaunquer"});
 });
+
 app.get('/~schlaunquer/:game_id', function(req, res) {
   renderLayout(req, res, {panel:"schlaunquer", game_id:req.params.game_id});
 });
@@ -1759,6 +1760,7 @@ var getRange = function (spot, radius) {
   }
   return arr;
 }
+
 app.post('/~getSchlaunquer', function(req, res) {
   var errMsg = "error fetching schlaunquer game info<br><br>";
   if (!req.body.game_id) {return sendError(res, errMsg+"malformed request 6048");}
@@ -1767,95 +1769,10 @@ app.post('/~getSchlaunquer', function(req, res) {
       if (err) {return sendError(res, errMsg+err);}
       if (!match) {return res.send({notFound:true});}
 
-      if (match.dates && !match.dates[pool.getCurDate()]) { // night audit needed
-        var oldMap = match.dates[pool.getCurDate(1)];
-        var warMap = {};
-        var newMap = {};
-
-        // Migration
-        var unitCap = gameRef.unitCap;
-        if (match.unitCap) {unitCap = match.unitCap;}
-        //
-        for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
-          spot = spot.split(",");
-          var stayers = oldMap[spot].score;
-          for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
-            stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
-            var x = Number(spot[0]) + gameRef.moves[move][0];   // determine immigration spot
-            var y = Number(spot[1]) + gameRef.moves[move][1];
-            if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
-            if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
-            warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
-            warMap[[x,y]][oldMap[spot].ownerID] = Math.min(unitCap, warMap[[x,y]][oldMap[spot].ownerID]) // popCap
-          }}
-          // add back the Stayers, to the init Spot
-          if (!warMap[spot]) {warMap[spot] = {};}
-          if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
-          warMap[spot][oldMap[spot].ownerID] += stayers;
-          warMap[spot][oldMap[spot].ownerID] = Math.min(unitCap, warMap[spot][oldMap[spot].ownerID]); // popCap
-        }}
-
-        // War
-        for (var spot in warMap) {if (warMap.hasOwnProperty(spot)) {
-          var first = [0, null];
-          var second = 0;
-          for (var player in warMap[spot]) { // determine the 1st and 2nd place scores in each spot
-            if (warMap[spot].hasOwnProperty(player)) {
-              if (warMap[spot][player] > first[0]) {
-                second = first[0];
-                first[0] = warMap[spot][player];
-                first[1] = player;
-              } else if (warMap[spot][player] > second) {
-                second = warMap[spot][player];
-              }
-            }
-          }
-          if (first[0] !== second) {  // if tie, leave spot empty
-            newMap[spot] = {
-              ownerID: first[1],
-              score: first[0] - second,
-            }
-          }
-        }}
-
-        // Entropy
-        for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
-          if (newMap[spot].score) {
-            newMap[spot].score--;
-          }
-          if (newMap[spot].score === 0) {
-            delete newMap[spot];
-          }
-        }}
-
-        // Creation
-        var tileList = getRange([0,0], match.radius);
-        for (var i = 0; i < tileList.length; i++) { // for every tile on the map
-          if (!newMap[tileList[i]]) {               // is it unnoccupied?
-            var adj = getRange(tileList[i], 2);
-            var ref = {};
-            for (var j = 0; j < adj.length; j++) {    // for each tile adjacent to said tile
-              if (newMap[adj[j]] && newMap[adj[j]].ownerID) { // is THAT occupied
-                if (!ref[newMap[adj[j]].ownerID]) {
-                  ref[newMap[adj[j]].ownerID] = 0;
-                }
-                ref[newMap[adj[j]].ownerID]++;
-              }
-            }
-            for (var user in ref) {if (ref.hasOwnProperty(user)) {
-              if (ref[user] === 4) {                    // huzzah! spawn conditions met!
-                newMap[tileList[i]] = {
-                  ownerID: user,
-                }
-                if (match.spawnValue) {newMap[tileList[i]].score = match.spawnValue;}
-                else {newMap[tileList[i]].score = gameRef.spawnValue;}
-              }
-            }}
-          }
-        }
+      if (!match.victor && match.dates && !match.dates[pool.getCurDate()]) { // night audit needed
+        match = schlaunquerNightAudit(match);
 
         // now save audit to DB
-        match.dates[pool.getCurDate()] = newMap;
         db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
           {$set: match},
           function(err, user) {
@@ -1871,6 +1788,112 @@ app.post('/~getSchlaunquer', function(req, res) {
     });
   });
 });
+
+var schlaunquerNightAudit = function (match) {
+  var daysAgo = 1;
+  while (!match.dates[pool.getCurDate(daysAgo)]) {
+    daysAgo++;
+  }
+  var oldMap = match.dates[pool.getCurDate(daysAgo)];
+  var warMap = {};
+  var newMap = {};
+
+  // Migration
+  var unitCap = gameRef.unitCap;
+  if (match.unitCap) {unitCap = match.unitCap;}
+  //
+  for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
+    spot = spot.split(",");
+    var stayers = oldMap[spot].score;
+    for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
+      stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
+      var x = Number(spot[0]) + gameRef.moves[move][0];   // determine immigration spot
+      var y = Number(spot[1]) + gameRef.moves[move][1];
+      if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
+      if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
+      warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
+      warMap[[x,y]][oldMap[spot].ownerID] = Math.min(unitCap, warMap[[x,y]][oldMap[spot].ownerID]) // popCap
+    }}
+    // add back the Stayers, to the init Spot
+    if (!warMap[spot]) {warMap[spot] = {};}
+    if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
+    warMap[spot][oldMap[spot].ownerID] += stayers;
+    warMap[spot][oldMap[spot].ownerID] = Math.min(unitCap, warMap[spot][oldMap[spot].ownerID]); // popCap
+  }}
+
+  // War
+  for (var spot in warMap) {if (warMap.hasOwnProperty(spot)) {
+    var first = [0, null];
+    var second = 0;
+    for (var player in warMap[spot]) { // determine the 1st and 2nd place scores in each spot
+      if (warMap[spot].hasOwnProperty(player)) {
+        if (warMap[spot][player] > first[0]) {
+          second = first[0];
+          first[0] = warMap[spot][player];
+          first[1] = player;
+        } else if (warMap[spot][player] > second) {
+          second = warMap[spot][player];
+        }
+      }
+    }
+    if (first[0] !== second) {  // if tie, leave spot empty
+      newMap[spot] = {
+        ownerID: first[1],
+        score: first[0] - second,
+      }
+    }
+  }}
+
+  // Entropy
+  for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
+    if (newMap[spot].score) {
+      newMap[spot].score--;
+    }
+    if (newMap[spot].score === 0) {
+      delete newMap[spot];
+    }
+  }}
+
+  // Creation
+  var spawnMap = {};
+  var tileList = getRange([0,0], match.radius);
+  for (var i = 0; i < tileList.length; i++) { // for every tile on the map
+    if (!newMap[tileList[i]]) {               // is it unnoccupied?
+      var adj = getRange(tileList[i], 2);
+      var ref = {};
+      for (var j = 0; j < adj.length; j++) {    // for each tile adjacent to said tile
+        if (newMap[adj[j]] && newMap[adj[j]].ownerID) { // is THAT occupied
+          if (!ref[newMap[adj[j]].ownerID]) {
+            ref[newMap[adj[j]].ownerID] = 0;
+          }
+          ref[newMap[adj[j]].ownerID]++;
+        }
+      }
+      for (var user in ref) {if (ref.hasOwnProperty(user)) {
+        if (ref[user] === 4) {                    // huzzah! spawn conditions met!
+          spawnMap[tileList[i]] = user;   // mark on intermediary spawn map,
+                     // otherwise, newly spawned tiles can change the counts for other spawn candidates
+        }
+      }}
+    }
+  }
+  for (var spot in spawnMap) {if (spawnMap.hasOwnProperty(spot)) {
+    newMap[spot] = {
+      ownerID: user,
+    }
+    if (match.spawnValue) {newMap[spot].score = match.spawnValue;}
+    else {newMap[spot].score = gameRef.spawnValue;}
+  }}
+
+  // save it!
+  match.dates[pool.getCurDate(daysAgo-1)] = newMap;
+
+  if (match.victor || daysAgo === 1) {
+    return match;
+  } else {
+    return schlaunquerNightAudit(match);
+  }
+}
 var tidyUp = function (userID, match, res, errMsg) {
   if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
     return res.send(cleanMatchData(match, userID));
@@ -1901,6 +1924,7 @@ var cleanMatchData = function (match, userID) {
   }
   return cleanedData;
 }
+
 app.post('/~moveSchlaunquer', function(req, res) {
   var errMsg = "error updating schlaunquer<br><br>";
   if (!req.body.game_id) {return sendError(res, errMsg+"malformed request 5048");}
@@ -1960,6 +1984,7 @@ app.post('/~moveSchlaunquer', function(req, res) {
     });
   });
 });
+
 //admin
 app.post('/admin/initSchlaunquerMatch', function(req, res) {
   adminGate(req, res, function (res, user) {
