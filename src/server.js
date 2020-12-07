@@ -1897,6 +1897,8 @@ var schlaunquerNightAudit = function (match) {
 var tidyUp = function (userID, match, res, errMsg) {
   if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
     return res.send(cleanMatchData(match, userID));
+  } else if (userID && String(userID) === "5a0f87ec1d2b9000148368b3") { // admin
+    return res.send(match);
   } else {  // spectator, send only public game data
     return res.send(cleanMatchData(match));
   }
