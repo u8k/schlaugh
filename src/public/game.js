@@ -77,7 +77,7 @@ var setUpGameBoards = function (json) {
   gameRef.dates = json.dates;
   var dayCount = 0;
   destroyAllChildrenOfElement($('board-bucket'));
-  gameRef.currentBoardDate = pool.getCurDate();
+  var latestDate = "0";
   for (var date in gameRef.dates) { if (gameRef.dates.hasOwnProperty(date)) {
     for (var spot in gameRef.dates[date]) { if (gameRef.dates[date].hasOwnProperty(spot)) {
       if (gameRef.dates[date][spot].ownerID) {
@@ -85,29 +85,39 @@ var setUpGameBoards = function (json) {
       }
     }}
     dayCount++;
+    if (date > latestDate) {latestDate = date;}
   }}
-  for (var i = 0; i < dayCount; i++) {  // render the boards in reverse order
-    var date = pool.getCurDate(i);
-    var board = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    board.setAttribute("viewBox", "-7 -7 "+(width+14)+" "+(height+14));   // 14 is margarine
-    board.setAttribute("id", date+"-board");
-    board.setAttribute("preserveAspectRatio", "none");
-    $('board-bucket').appendChild(board);
-    board.classList.add("gameBoard");
-    var animationDelay = 0;
-    if (i === 0) {
-      animationDelay = 30;
+  gameRef.currentBoardDate = latestDate;
+  //
+  for (var i = 0; i < dayCount; i++) {    // render the boards in reverse order
+    var date = calcDateByOffest(latestDate, -i);
+    if (gameRef.dates[date]) {
+      var board = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      board.setAttribute("viewBox", "-7 -7 "+(width+14)+" "+(height+14));   // 14 is margarine
+      board.setAttribute("id", date+"-board");
+      board.setAttribute("preserveAspectRatio", "none");
+      $('board-bucket').appendChild(board);
+      board.classList.add("gameBoard");
+      var animationDelay = 0;
+      if (i === 0) {
+        animationDelay = 30;
+      } else {
+        board.classList.add("removed");
+      }
+      // put the round label on the board
+      var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.innerHTML = "day "+((dayCount-i)-1);
+      var toolTip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      toolTip.innerHTML = date;
+      label.setAttribute('x', '10px');
+      label.setAttribute('y', '64px');
+      label.classList.add('score-label');
+      label.appendChild(toolTip);
+      board.appendChild(label);
+      renderTiles(animationDelay, date);
     } else {
-      board.classList.add("removed");
+      dayCount++
     }
-    // put the round label on the board
-    var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.innerHTML = "day "+((dayCount-i)-1);
-    label.setAttribute('x', '10px');
-    label.setAttribute('y', '64px');
-    label.classList.add('score-label');
-    board.appendChild(label);
-    renderTiles(animationDelay, date);
   }
   changeBoardRound(0); //this is just to hide/display the date arrows
   setTimeout(function () {window.scroll(0, 50);}, 100);

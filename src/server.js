@@ -1879,7 +1879,7 @@ var schlaunquerNightAudit = function (match) {
   }
   for (var spot in spawnMap) {if (spawnMap.hasOwnProperty(spot)) {
     newMap[spot] = {
-      ownerID: user,
+      ownerID: spawnMap[spot],
     }
     if (match.spawnValue) {newMap[spot].score = match.spawnValue;}
     else {newMap[spot].score = gameRef.spawnValue;}
@@ -1897,7 +1897,7 @@ var schlaunquerNightAudit = function (match) {
 var tidyUp = function (userID, match, res, errMsg) {
   if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
     return res.send(cleanMatchData(match, userID));
-  } else if (userID && String(userID) === "5a0f87ec1d2b9000148368b3") { // admin
+  } else if (devFlag || (userID && String(userID) === "5a0f87ec1d2b9000148368b3")) { // admin
     return res.send(match);
   } else {  // spectator, send only public game data
     return res.send(cleanMatchData(match));
@@ -1935,7 +1935,7 @@ app.post('/~moveSchlaunquer', function(req, res) {
       if (err) {return sendError(res, errMsg+err);}
       else if (!match) {return sendError(res, errMsg+'match not found? 8871, please refresh and try again');}
       // are they a player in this game?
-      if (!match.players || !match.players[userID]) {return sendError(res, errMsg+'userID miscoresponce');}
+      if ((!match.players || !match.players[userID]) && !devFlag) {return sendError(res, errMsg+'userID miscoresponce');}
 
       // check that the submitted move is valid
       if (!req.body || !req.body.coord || !req.body.moves) {return sendError(res, errMsg+"malformed request 8875");}
@@ -1943,7 +1943,7 @@ app.post('/~moveSchlaunquer', function(req, res) {
       var map = match.dates[pool.getCurDate()];
 
       //you must be updating a spot you actually hold
-      if (!map[req.body.coord] || String(map[req.body.coord].ownerID) !== String(userID) || !map[req.body.coord].score) {return sendError(res, errMsg+"malformed request 8877");}
+      if (!map[req.body.coord] || (!devFlag && String(map[req.body.coord].ownerID) !== String(userID)) || !map[req.body.coord].score) {return sendError(res, errMsg+"malformed request 8877");}
 
       var moveCount = 0;
       var dir = null;
