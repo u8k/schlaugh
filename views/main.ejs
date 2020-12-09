@@ -8,6 +8,7 @@
   --><a href="/~settings" id="settings-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'settings')"><!--
     --><icon class="fas fa-cog"></icon></a>
 </panelButtons>
+<panelButtonsBuffer></panelButtonsBuffer>
 
 <div id="write-panel" class="removed">
 
@@ -56,18 +57,21 @@
       </div>
 
       <form id="tag-search" action="javascript:void(0);">
-        <input id="tag-picker" type="text" placeholder="milkshake">
-        <br>
-        <button type="submit" onclick="tagSearch()">search</button>
-        <button id="save-tag-form" class="removed" onclick="saveTag()">save</button>
-        <br>
+        <input id="tag-picker" oninput="tagPickerCheck(this)" type="text" placeholder="milkshake">
+        <div id='tag-actions' class="faded">
+          <button id="search-tag-form" type="submit">search</button>
+          <button id="save-tag-form" class="removed">save</button>
+        </div>
         <button onclick="openTagMenu(true)">x</button>
       </form>
     </div>
 
     <div id="bryce-buttons">
+      <button id="following-list-open" onclick="followingListDisplay(true)">following</button>
       <button id="date-jump-open" onclick="openDateJump()">date</button>
       <button id="tag-menu-open" onclick="openTagMenu()">tags</button>
+      <button id="bookmarks-open" onclick="displayBookmarks()">bookmarks</button>
+      <br>
       <button id="all-days" onclick="allDaysButton()" class="removed">all days</button>
       <button id="clear-tag" onclick="clearTagButton()" class="removed">clear tag</button>
       <button id="save-tag" onclick="saveTag(false)" class="removed">save tag</button>
@@ -152,9 +156,6 @@
       <button type="submit" onclick="submitPic()">schlaubmit</button>
       <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
     </form>
-    <br><br><br>
-    <button onclick="followingListDisplay(true)">following list</button>
-    <button onclick="displayBookmarks()">bookmarks</button>
     <br><br><br><hr><br>
 
     <text>change username</text><br>
@@ -594,7 +595,6 @@
     <button id="how-long-submit" type="submit">that many</button>
   </form>
 </div>
-
 
 <div id="loading-box" class="hidden no-select">
   <div id="loading-icon" class="no-select">❋</div>

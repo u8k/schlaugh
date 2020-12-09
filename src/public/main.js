@@ -2355,7 +2355,7 @@ var renderOnePost = function (postData, type, postID) {
     addToPostStash(postData);
   }
 
-  if (postData.post_id) {
+  if (postData.post_id && type !== 'preview-edit') {
     var uniqueID = 'post-'+postData.post_id;
   } else {
     var uniqueID = 'post-'+type;
@@ -3341,19 +3341,35 @@ var tagSearch = function () {
   var tag = $("tag-picker").value;
   if (tag === "") {return uiAlert("ya can't search for nothin!");}
   openTagMenu(true);
-  fetchPosts(true, {postCode: "FTTF", tag: tag, date: glo.postPanelStatus.date});
+  if (glo.postPanelStatus.date) {
+    fetchPosts(true, {postCode: "FTTF", tag: tag, date: glo.postPanelStatus.date});
+  } else {
+    fetchPosts(true, {postCode: "FTFF", tag:tag,});
+  }
 }
 
 var saveTag = function (remove, tag) {
   if (tag === undefined) {tag = $("tag-picker").value;}
   if (!tag) {tag = glo.postPanelStatus.tag}
-  if (tag === "") {return uiAlert("ya can't save nothin!");}
+  if (!tag) {return uiAlert("ya can't save nothin!");}
   ajaxCall("/saveTag", 'POST', {tag, remove:remove}, function(json) {
     if (remove) {glo.savedTags[tag] = false;}
     else {glo.savedTags[tag] = true;}
-
     flushPostListAndReloadCurrentDate();
+    $("tag-picker").value = "";
   });
+}
+
+var tagPickerCheck = function (elem) {
+  if (elem.value !== "") {
+    $('tag-actions').classList.remove('faded');
+    $('search-tag-form').onclick = function () {tagSearch();}
+    $('save-tag-form').onclick = function () {saveTag();}
+  } else {
+    $('tag-actions').classList.add  ('faded');
+    $('search-tag-form').onclick = null;
+    $('save-tag-form').onclick = null;
+  }
 }
 
 var flushPostListAndReloadCurrentDate = function () {

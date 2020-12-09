@@ -3937,12 +3937,12 @@ app.post('/getPosts', function (req, res) {
   if (req.body.date && req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}
   //
   // repsonse must have 'posts', and ,if not included w/ posts: 'authorData'
-  if (postCode === "FTTT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to paginated? Nag staff if you want this actually to be built.");}
+  if (postCode === "FTTT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
   else if (postCode === "FTTF") {return getAllPostsWithTagOnDate(req, res);}
   else if (postCode === "FTFT" || postCode === "FTFF") {return getNthPagOfTaggedPostsByAnyAuthor(req, res);}
-  else if (postCode === "FFTT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to paginated? Nag staff if you want this actually to be built.");}
+  else if (postCode === "FFTT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
   else if (postCode === "FFTF") {return getPostsOfFollowingWithTrackedTagsForADate(req, res);}
-  else if (postCode === "TTFT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to paginated? Nag staff if you want this actually to be built.");}
+  else if (postCode === "TTFT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
   else if (postCode === "TTFF") {return getAllOfAnAuthorsPostsWithTag(req, res);}
   else if (postCode === "TFTF") {return getSinglePostFromAuthorAndDate(req, res);}
   else if (postCode === "TFFT" || postCode === "TFFF") {return getOnePageOfAnAuthorsPosts(req, res);}

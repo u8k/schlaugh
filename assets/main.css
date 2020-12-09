@@ -109,8 +109,11 @@ panelButtons {
   margin-top: 10px;
   margin-bottom: 10px;
   border: 3px solid;
-
   border-radius: 6px;
+  position: absolute;
+  left: 50vw;
+  transform: translate(-50%,0);
+  white-space: nowrap;
 }
 .panel-button {
   border-right: 0.3px solid;
@@ -121,6 +124,10 @@ panelButtons {
   padding: 10px 0 3.5px;
 }
 .panel-button-selected {border: none;}
+panelButtonsBuffer {
+  display: block;
+  height: 98px;
+}
 
 @media screen and (max-width: 500px) {
   .post-header-feed {flex-direction: column; }
@@ -146,7 +153,6 @@ header {
   height: 50px;
   display: flex;
   justify-content: space-between;
-
 }
 
 main {
@@ -165,6 +171,8 @@ footer {
 
 pageAndDateNav, .page-title-404 {
   font-size: 2em;
+  margin-top: 15px;
+  display: block;
 }
 
 #date-arrow-box {
@@ -191,6 +199,8 @@ clicky, .clicky, spoil {
   -ms-user-select: none;
   user-select: none;
 }
+
+#pending-status { margin-top: 10px;}
 
 #post-writer, #old-post-writer, #message-writer {width: 75%; margin: auto;}
 
