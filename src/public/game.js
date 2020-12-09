@@ -6,7 +6,7 @@ var gameRef = {
 }
 
 var openSchlaunquerPanel = function (game_id) {
-  $("panel-buttons").classList.add("removed");
+  $("panel-buttons-wrapper").classList.add("removed");
   $('schlaunquer-exposition').innerHTML = prepTextForRender(exposition, "schlaunquer-exposition");
   switchPanel("schlaunquer-panel");
   simulatePageLoad('~schlaunquer', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');

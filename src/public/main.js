@@ -4690,7 +4690,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     $("sign-in").classList.add("removed");
     //
     if (!glo.openPanel || (glo.openPanel !== "clicker-panel" && glo.openPanel !== "schlaunquer-panel")) {
-      $("panel-buttons").classList.remove("removed");
+      $("panel-buttons-wrapper").classList.remove("removed");
     }
     //
     if (glo.settings.includeTaggedPosts) {
