@@ -477,7 +477,7 @@ var openClickerGame = function () {
       $("must-sign-in").classList.remove("removed");
     }
     loading(true);
-    $("panel-buttons").classList.add("removed");
+    $("panel-buttons-wrapper").classList.add("removed");
     switchPanel("clicker-panel");
     simulatePageLoad('~click', '*click*');
   });
@@ -614,7 +614,6 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
           } else if (glo.openPanel === "clicker-panel") {
             openClickerGame();
           } else if (glo.openPanel === "schlaunquer-panel") {
-            // fudge, make it so if on a particular game, it loads that game
             openSchlaunquerPanel(gameRef.game_id);
           }
         });
@@ -1397,7 +1396,7 @@ var backToMain = function (event) {
   modKeyCheck(event, function () {
     if (glo.username) {
       fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
-      $("panel-buttons").classList.remove("removed");
+      $("panel-buttons-wrapper").classList.remove("removed");
     } else {
       switchPanel('login-panel');
       simulatePageLoad();
@@ -3185,7 +3184,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     // i wanna deweave it before sending it to DB, but before deveawing it's gotta be cleansed,
     // but it's also gotta be cleansed again on the backend, so the double clean results in linebreaks being removed
     // which like, line break removal shouldn't be happening in cleanse anyway...
-    // fudge fudge fudge
+    // fudgie fudgie
     //  text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
     text = preCleanText(text);
     ajaxCall("/", 'POST', {body:text, tags:tags, title:title, key:glo.sessionKey}, function(json) {
