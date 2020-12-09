@@ -291,7 +291,7 @@ a, a.visited {
 }
 
 .ex-link {
-  /* text-decoration: underline; */
+  text-decoration: underline;
 }
 
 .special {

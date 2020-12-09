@@ -1088,7 +1088,11 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
             elemCount+=2;
           }
         } else if (tag === "a" && !extracting) {          // if it's an "a", do link conversion stuff
+          var linkStart = pos+7;
           var b = `class='clicky special ex-link' target="_blank" `;
+          if (string.substr(linkStart,1) === "/" || string.substr(linkStart,24) === "https://www.schlaugh.com" || string.substr(linkStart,19) === "http://schlaugh.com") {
+            b = `class='clicky special' target="_blank" `;
+          }
           string = insertStringIntoStringAtPos(string, b, pos+1);
         } else if (tag === "a" && extracting && string.substr(pos,7) === ` href="`) {
                     // that last check there for ` href="` isn't strictly necesary, just another format enforcement
