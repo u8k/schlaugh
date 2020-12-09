@@ -233,12 +233,12 @@
             string += '">';
             return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
           }
-          else {pos += qPos;}
-          if (string[pos+2] !== ">") {
-            string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
+          //else {pos += qPos;}
+          if (string[pos+qPos+2] !== ">") {
+            string = string.substr(0,pos+qPos+2) + '>' + string.substr(pos+qPos+2);
           }
-          else {pos += 2;}
-          removeExtraBreak(pos);
+          //else {pos += 2;}
+          removeExtraBreak(pos+qPos+2);
         } else if (string.substr(pos+1,6) === "/note>") {
           note = false;
           pos += 6;

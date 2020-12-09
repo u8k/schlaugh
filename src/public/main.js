@@ -3186,7 +3186,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     // but it's also gotta be cleansed again on the backend, so the double clean results in linebreaks being removed
     // which like, line break removal shouldn't be happening in cleanse anyway...
     // fudge fudge fudge
-  //  text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
+    //  text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
     text = preCleanText(text);
     ajaxCall("/", 'POST', {body:text, tags:tags, title:title, key:glo.sessionKey}, function(json) {
       updatePendingPost(json);

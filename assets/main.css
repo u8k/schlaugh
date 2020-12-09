@@ -764,8 +764,8 @@ c {text-align: center;}
 r {text-align: right;}
 l, c, r {display: block;}
 
-r > ascii, r > img {margin-right: 0;}
-l > ascii, l > img {margin-left: 0;}
+r > ascii, r > img, r > a >img {margin-right: 0;}
+l > ascii, l > img, l > a >img {margin-left: 0;}
 
 .faded {opacity: .44; cursor: default}
 .hidden {visibility: hidden;}
