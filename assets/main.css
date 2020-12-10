@@ -12,12 +12,13 @@ body {
   padding: 10px 20px;
   margin: 0;
   text-align: center;
+  overflow-y:scroll;
 }
 @media screen and (max-width: 600px) {
   body {padding: 10px 5px;}
 }
 @media screen and (max-width: 500px) {
-  body {padding: 10px 2px;}
+  body {padding: 10px 5px;}
 }
 
 p {margin: 0}
@@ -31,7 +32,7 @@ h1 {
 }
 
 h2 {
-  margin-top: 10px;
+  margin-top: 15px;
   margin-bottom: 10px;
 }
 
@@ -106,14 +107,11 @@ h2 {
 
 panelButtons {
   display: inline-block;
-  margin-top: 10px;
-  margin-bottom: 10px;
   border: 3px solid;
   border-radius: 6px;
-  position: absolute;
-  left: 50vw;
-  transform: translate(-50%,0);
+  position: relative;
   white-space: nowrap;
+  margin-bottom: 4px;
 }
 .panel-button {
   border-right: 0.3px solid;
@@ -124,10 +122,27 @@ panelButtons {
   padding: 10px 0 3.5px;
 }
 .panel-button-selected {border: none;}
-panelButtonsBuffer {
-  display: block;
-  height: 98px;
+
+feedOptions {
+  display: inline-block;
+  border: 2.5px solid;
+  border-radius: 5px;
 }
+.feed-button {
+  display: inline-block;
+  font-size: 1.1em;
+  border-right: 0.3px solid;
+  border-left: 0.3px solid;
+  padding: 2px 6px 1px;
+  font-family: "Rajdhani";
+}
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  .feed-button {
+    padding: 4px 8px 4px;
+  }
+}
+#write-panel-button, #following-list-open {border-left: none}
+#settings-panel-button, #bookmarks-open {border-right: none}
 
 @media screen and (max-width: 500px) {
   .post-header-feed {flex-direction: column; }
@@ -200,7 +215,7 @@ clicky, .clicky, spoil {
   user-select: none;
 }
 
-#pending-status { margin-top: 10px;}
+#pending-status { margin-top: 15px; margin-bottom: 8px;}
 
 #post-writer, #old-post-writer, #message-writer {width: 75%; margin: auto;}
 
@@ -259,6 +274,10 @@ clicky, .clicky, spoil {
   text-overflow: ellipsis;
 }
 
+.tag-feed-option-button {
+  font-size: .9em;
+}
+
 .de-tag-button {
   font-size: .75em;
 }
@@ -266,6 +285,12 @@ clicky, .clicky, spoil {
 #include-tagged-posts-toggle {
   font-size: .9em;
 }
+
+#tags-search-title {margin-bottom: 0px; margin-top: 16px;}
+#saved-tags-title {margin-bottom: 2px; margin-top: 16px;}
+#date-jump-title {margin-bottom: 0px; margin-top: 16px;}
+
+#tag-search {margin-top: 16px;}
 
 #saved-tags-list {margin-bottom: 12px;}
 

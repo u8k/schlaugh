@@ -1448,23 +1448,31 @@ var panelButtonClick = function (event, type) {
 }
 
 var switchPanel = function (panelName, noPanelButtonHighlight) {
+  // de-highlight panel button
+  if (glo.openPanel && $(glo.openPanel+"-button")) {
+    $(glo.openPanel+"-button").classList.remove('panel-button-selected');
+  }
+  // highlight new panel button
+  if ($(panelName+"-button") && !noPanelButtonHighlight) {
+    $(panelName+"-button").classList.add('panel-button-selected');
+  }
+  // show/hide the feed options
+  if (panelName === "posts-panel" && !noPanelButtonHighlight) {
+    $('feed-options').classList.remove('removed')
+  } else {
+    $('feed-options').classList.add('removed')
+  }
+  //
   if (glo.openPanel && glo.openPanel === panelName) {
     if (panelName === "write-panel") {
       // open the editor if editPanelButton is clicked when editPanel is already open
       showPostWriter();
     }
-    return; // panel is already open, do nothing
+    return; // requested panel is already open, do nothing
   }
   // hide the old stuff
   if (glo.openPanel) {
     $(glo.openPanel).classList.add('removed');
-    if ($(glo.openPanel+"-button")) {
-      $(glo.openPanel+"-button").classList.remove('panel-button-selected');
-    }
-  }
-  // indicate the new panel button is pressed
-  if ($(panelName+"-button") && !noPanelButtonHighlight) {
-    $(panelName+"-button").classList.add('panel-button-selected');
   }
   // remove header/user stuff in special cases
   if (panelName === "login-panel" || panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
@@ -1480,6 +1488,7 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
   if (panelName === "posts-panel" && !glo.postPanelStatus) {
     fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
   }
+
   // the one actual line that displays the panel
   $(panelName).classList.remove('removed');
   // set the cursor to the bottom of the post editor if open
@@ -1518,11 +1527,14 @@ var followingListDisplay = function (open) {
 
 var openDateJump = function (close) {
   if (close) {
+    $('date-jump-open').onclick = function () {openDateJump()}
     $('date-jump').classList.add('removed');
-    $('bryce-buttons').classList.remove('removed');
+    $('tag-feed-options').classList.remove('removed');
   } else {
+    $('date-jump-open').onclick = function () {openDateJump(true)}
     $('date-jump').classList.remove('removed');
-    $('bryce-buttons').classList.add('removed');
+    $('tag-feed-options').classList.add('removed');
+    openTagMenu(true)
   }
 }
 
@@ -1837,7 +1849,7 @@ var displayPosts = function (idArr, input, callback) {
   $("post-bucket").classList.remove("removed");
   //
   glo.postPanelStatus = input;
-  if (postType === 'author' || pc === "FTFF" || pc === "FTFT" || pc === "ALL") {
+  if (postType === 'author' || pc === "ALL" || pc === "MARK") {
     switchPanel('posts-panel', true);
   } else {
     switchPanel('posts-panel');
@@ -1886,7 +1898,7 @@ var displayPosts = function (idArr, input, callback) {
 ///////////////////////////////////// tag option stuff
   if (input.author || pc === "MARK") {              // don't display any tag/date option stuff
     $("date-and-tag-options").classList.add("removed");
-    $("posts-panel-button").classList.remove('panel-button-selected');
+    $("tag-feed-options").classList.add("removed");
     if (pc === "MARK") {
       $("top-tag-display").innerHTML = 'bookmarked posts';
       $("bot-tag-display").innerHTML = 'bookmarked posts';
@@ -1908,8 +1920,8 @@ var displayPosts = function (idArr, input, callback) {
       }
     }
   } else {
-    $("posts-panel-button").classList.add('panel-button-selected');
     $("date-and-tag-options").classList.remove("removed");
+    $("tag-feed-options").classList.remove("removed");
     $("author-clear-tag-top").classList.add("removed");
     $("author-clear-tag-bot").classList.add("removed");
     if ((pc === 'FFTT' || pc === 'FFTF') && !input.tag) {          //dateFeeds, no tag, so tag option
@@ -3332,11 +3344,14 @@ var tagClickHandler = function (event, tag, author, date) {
 
 var openTagMenu = function (close) {
   if (close) {
-    $('bryce-buttons').classList.remove('removed');
+    $('tag-menu-open').onclick = function () {openTagMenu()}
+    $('tag-feed-options').classList.remove('removed');
     $('tag-menu').classList.add('removed');
   } else {
+    $('tag-menu-open').onclick = function () {openTagMenu(true)}
     $('tag-menu').classList.remove('removed');
-    $('bryce-buttons').classList.add('removed');
+    $('tag-feed-options').classList.add('removed');
+    openDateJump(true);
   }
 }
 
@@ -3688,10 +3703,13 @@ var checkLink = function (target, linkText, area, y, a, b) {
   }
   ajaxCall('/link', 'POST', {url:marget}, function(json) {
     if (json.issue) {
+      var cursorPos = getCursorPosition(area);
       verify(json.issue, null, null, function (res) {
         if (!res) {
           area.value = y;
           setCursorPosition(area, a, b);
+        } else {
+          setCursorPosition(area, cursorPos.start, cursorPos.end);
         }
       });
     }
