@@ -234,42 +234,67 @@
             return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
           }
           //else {pos += qPos;}
+          /*
+          // commenting this out for now, it was blocking having images nested in noteButts
+          // it is currently unclear to me how necesary it is to enforce tags to be closed at all
           if (string[pos+qPos+2] !== ">") {
             string = string.substr(0,pos+qPos+2) + '>' + string.substr(pos+qPos+2);
           }
+          */
           //else {pos += 2;}
           removeExtraBreak(pos+qPos+2);
         } else if (string.substr(pos+1,6) === "/note>") {
           note = false;
           pos += 6;
-        } else if (string.substr(pos+1,9) === 'img src="') {
+        } else if (string.substr(pos+1,9) === 'img src="' || string.substr(pos+1,9) === `img src='`) {
           pos += 9;
-          var qPos = string.substr(pos+1).search(/"/);
+          if (string.substr(pos,1) === "'") {
+            var qPos = string.substr(pos+1).search(/'/);
+            var singleQuote = true;
+          } else {
+            var qPos = string.substr(pos+1).search(/"/);
+          }
           if (qPos === -1) {
             imgList.push(string.substr(pos+1));
-            string += '">';
+            if (singleQuote) {
+              string += `'>`;
+            } else {
+              string += '">';
+            }
             return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
           } else {
             imgList.push(string.substr(pos+1,qPos))
             pos += qPos+1;
           }
-          if (string.substr(pos+1,8) === ' title="') {
+          if (string.substr(pos+1,8) === ' title="' || string.substr(pos+1,8) === ` title='`) {
             pos += 8;
-            var qPos = string.substr(pos+1).search(/"/);
+            if (string.substr(pos,1) === "'") {
+              var qPos = string.substr(pos+1).search(/'/);
+              var singleQuote = true;
+            } else {
+              var qPos = string.substr(pos+1).search(/"/);
+            }
             if (qPos === -1) {
               imgList.push(string.substr(pos+1));
-              string += '">';
+              if (singleQuote) {string += `'>`;}
+              else {string += '">';}
               return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
             } else {
               pos += qPos+1;
             }
           }
-          if (string.substr(pos+1,6) === ' alt="') {
+          if (string.substr(pos+1,6) === ' alt="' || string.substr(pos+1,6) === ` alt='`) {
             pos += 6;
-            var qPos = string.substr(pos+1).search(/"/);
+            if (string.substr(pos,1) === "'") {
+              var qPos = string.substr(pos+1).search(/'/);
+              var singleQuote = true;
+            } else {
+              var qPos = string.substr(pos+1).search(/"/);
+            }
             if (qPos === -1) {
               imgList.push(string.substr(pos+1));
-              string += '">';
+              if (singleQuote) {string += `'>`;}
+              else {string += '">';}
               return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
             } else {
               pos += qPos+1;
