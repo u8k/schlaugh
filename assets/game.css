@@ -56,6 +56,12 @@ polygon {
   margin-bottom: 14px;
   width: 130px;
 }
+#schlaunquer-victor-pic {
+  margin: auto;
+  margin-bottom: 14px;
+  width: 300px;
+}
+#schlaunquer-victor-text {font-size: 2em;}
 
 #q-move-input,#e-move-input {top: 12px;}
 #a-move-input,#d-move-input {bottom: 12px;}

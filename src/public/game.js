@@ -68,6 +68,7 @@ var setUpGameBoards = function (json) {
   //
   gameRef.radius = json.radius;
   gameRef.startDate = json.startDate;
+  gameRef.victor = json.victor;
   var height = ((json.radius*2)-1)*gameRef.tileHeight;
   var width = gameRef.tileWidth*(1 +(1.5*((json.radius-1))));
   gameRef.originX = (width/2) - (.5*gameRef.tileWidth);
@@ -228,10 +229,9 @@ var tileClick = function (coord, date) {
   blackBacking();
   $("pop-up-backing").onclick = function(){closeTilePopUp();}
   var spot = gameRef.dates[date][coord];
-  if (spot.ownerID === glo.userID && date === pool.getCurDate()) {
+  if (spot.ownerID === glo.userID && date === pool.getCurDate() && !match.victor) {  // the user owns this spot
     gameRef.activeTile = {score: spot.score};
     $('tile-options-submit').onclick = function () {sendMove(coord, date);}
-
     var score = spot.score;               // subtract out the already allocated points
     for (var move in spot.pendingMoves) {
       if (spot.pendingMoves.hasOwnProperty(move)) {
@@ -392,13 +392,38 @@ var changeBoardRound = function (offset) {
   }
   if ($(nextDate+"-board")) {
     $('game-round-forward').classList.remove('removed');
-  } else {
+  } else {                      // on the latest day
     $('game-round-forward').classList.add('removed');
+    if (gameRef.victor) {
+      showVictory();
+    }
   }
-
   $(gameRef.currentBoardDate+"-board").classList.add('removed');
   gameRef.currentBoardDate = newDate;
   $(gameRef.currentBoardDate+"-board").classList.remove('removed');
+}
+
+var showVictory = function () {
+  blackBacking();
+  $("pop-up-backing").onclick = function(){closeVictory();}
+  if (gameRef.victor === true || typeof gameRef.victor !== "string") {
+    $("schlaunquer-victor-text").innerHTML = 'NOBODY WINS'
+    $('schlaunquer-victor-pic').classList.add('removed');
+  } else {
+    $("schlaunquer-victor-text").innerHTML = 'ALL HAIL VICTORIOUS SCHLAUNQUEROR<br>'+(gameRef.players[gameRef.victor].username).toUpperCase();
+    if (gameRef.players[gameRef.victor].iconURI) {
+      $('schlaunquer-victor-pic').setAttribute('src', gameRef.players[gameRef.victor].iconURI);
+      $('schlaunquer-victor-pic').classList.remove('removed');
+    } else {
+      $('schlaunquer-victor-pic').classList.add('removed');
+    }
+  }
+  $("schlaunquer-victor").classList.remove("hidden");
+}
+
+var closeVictory = function () {
+  $("schlaunquer-victor").classList.add("hidden");
+  blackBacking(true);
 }
 
 var exposition = `<u>Objective:</u><br>Be the only player left with any units on the board <note linkText="">(it might take a very long time for someone to achieve such a complete victory. I don't know. This is the first playtest. The winning condition may be revised to be whoever holds the most tiles or units after round X. If that change is made, I'll give plenty of notice and it will only happen if there's a consensus of the players to do it.)<br></note><br><br><u>Mechanics:</u><br>You control the movement of your Units. You can schedule movements at any time during the day. All the action takes place at the schlaupdate. Your scheduled moves are secret until the schlaupdate.<br><br>Units live on Tiles. A tile containing at least one of your units is Occupied by you. The color of a tile indicates which player currently occupies it.<br><br>A tile may hold a maximum of 17 units<br><br><i>The number of units on a tile is <b>secret</b>, displayed only to the occupying player</i><br><br><u>The Schlaupdate:</u><br>at the strike of Schlaupdate, the following occurs, in order:<br><ol><li>Migration</li><li>War</li><li>Entropy</li><li>Creation</li></ol><br><u>Migration</u><br>Every unit, on every turn, can either Move or Stay. You may pick <i>one</i> of a tile's adjacent tiles to move units to, and can move some or all units, leaving the rest on their original tile.<br><br>By default, all units Stay. They only Move if you assign it.<br><br>If you move more than 17 units to a tile, then at this time the extra units will be destroyed, leaving exactly 17.<br><br><u>War</u><br>Units on the same Tile as another player's Units will fight. Units on opposing sides destroy each other one-for-one. I.e., if 7 red and 10 blue units occupy the same Tile, then after the battle the tile will be held by Blue with 3 remaining units. Ties result in all units destroyed and no one occupying the Tile.<br><br>If more than 2 players have units on a tile, then units from all players simultaneously destroy each other in the same manner. E.g., if red has 6 units in a tile , and all 5 other players also each have 5 units in the tile, then only 1 red unit will remain.<br><br><u>Entropy</u><br>1 unit is subtracted from every occupied tile on the board<br><br><u>Creation</u><br>If a tile is: <br><ol><li>unoccupied</li><li>adjacent to <i>exactly</i> 4(four) tiles that are occupied by the same player</li></ol>Then: 7(seven) new units will spawn on the tile, belonging to the player occupying the four(4) adjacent tiles<br><br><note linkText="">an alternate metaphor, which may or may not make the gameplay more or less easy to grok:<br>is to think of the units instead as health, belonging to a single unit<br>you spawn in a new unit that starts with a default HP of 7<br>units can fuse with each other to combine HP, up to a max of 17<br>a unit can un-fuse, splitting off part of itself to live on an adjacent tile<br>(but can only perform one such split at a time)<br>you can see that a tile contains an enemy unit, but don't know their HP until you start fighting them<br></note><br><hr>i am probably forgetting things, please ask questions<br><br>`

@@ -70,11 +70,11 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
   }
 
   exp.tidyUp = function (userID, match, res, errMsg, devFlag) {
-    if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
-      return res.send(exp.cleanMatchData(match, userID));
-    } else if (devFlag || (userID && String(userID) === "5a0f87ec1d2b9000148368b3")) { // admin
+    if (match.victor || devFlag || (userID && String(userID) === "5a0f87ec1d2b9000148368b3")) { // give it up
       return res.send(match);
-    } else {  // spectator, send only public game data
+    } else if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
+      return res.send(exp.cleanMatchData(match, userID));
+    } else {                                        // spectator, send only public game data
       return res.send(exp.cleanMatchData(match));
     }
   }
@@ -85,6 +85,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     cleanedData.radius = match.radius;
     cleanedData.version = match.version;
     cleanedData.startDate = match.startDate;
+    cleanedData.victor = match.victor;
     cleanedData.dates = {};
     if (match.dates) {
       for (var date in match.dates) {if (match.dates.hasOwnProperty(date)) {
@@ -162,15 +163,25 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       }
     }}
 
-    // Entropy
+    // Entropy/victory check
+    var activePlayerList = [];
     for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
       if (newMap[spot].score) {
         newMap[spot].score--;
       }
       if (newMap[spot].score === 0) {
         delete newMap[spot];
+      } else {              // take census
+        if (activePlayerList[0] !== newMap[spot].ownerID) {
+          activePlayerList.push(newMap[spot].ownerID);
+        }
       }
     }}
+    if (activePlayerList.length === 0) {  // nobody wins(but match is over)
+      match.victor = true;
+    } else if (activePlayerList.length === 1) {
+      match.victor = activePlayerList[0];
+    }
 
     // Creation
     var spawnMap = {};
