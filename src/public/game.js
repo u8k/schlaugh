@@ -229,7 +229,7 @@ var tileClick = function (coord, date) {
   blackBacking();
   $("pop-up-backing").onclick = function(){closeTilePopUp();}
   var spot = gameRef.dates[date][coord];
-  if (spot.ownerID === glo.userID && date === pool.getCurDate() && !match.victor) {  // the user owns this spot
+  if (spot.ownerID === glo.userID && date === pool.getCurDate() && !gameRef.victor) {  // the user owns this spot
     gameRef.activeTile = {score: spot.score};
     $('tile-options-submit').onclick = function () {sendMove(coord, date);}
     var score = spot.score;               // subtract out the already allocated points
