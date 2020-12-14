@@ -65,10 +65,11 @@
           page:input.page,
           postCode:input.postCode,
           post_id:input.post_id,         // take in post_id to distingiush between TFTF via a date or an ID
+          post_url:input.post_url,       // again, to distingiush TFTF via custom URL
           existed:input.existed,
           notFound:input.notFound,
         }
-        if (!input.date || input.date <= pool.getCurDate()) {
+        if (!input.date || input.postCode === "TFTF" || input.date <= pool.getCurDate()) {
           initSchlaugh(input.user, function () {fetchPosts(true, params);});
         } else {
           if (input.user) {

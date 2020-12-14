@@ -1720,7 +1720,9 @@ var fetchPosts = function (display, input, callback) {
       input.getFollowingList = true;
     }
     ajaxCall('/getPosts', 'POST', input, function(json) {
-      if (!json.posts || json.four04) {
+      if (json.authorInfo && json.four04) {             // author found, but NOT post
+        json.posts = [];
+      } else if (!json.posts || json.four04) {
         loading(true);
         return open404(display, input, callback);
       }
@@ -1834,12 +1836,17 @@ var displayPosts = function (idArr, input, callback) {
     for (var i = idArr.length-1; i > -1; i--) {
       $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
     }
+  } else if (pc === "TFTF" && idArr.length === 0) {    // post not found, but author yes found
+    var four04elem = document.createElement("text");
+    four04elem.innerHTML = "<br>not even a single thing!<br><br>"
+    four04elem.setAttribute('class', "page-title-404 monospace");
+    $("post-bucket").appendChild(four04elem);
   } else {
     for (var i = 0; i < idArr.length; i++) {
       $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
     }
   }
-  if (idArr.length === 0) {
+  if (idArr.length === 0 && pc !== "TFTF") {
     $("post-bucket").appendChild(notSchlaugh(pc, input.date));
     $("bot-page-and-date-nav").classList.add("removed");
   } else {
@@ -1849,7 +1856,7 @@ var displayPosts = function (idArr, input, callback) {
   $("post-bucket").classList.remove("removed");
   //
   glo.postPanelStatus = input;
-  if (postType === 'author' || pc === "ALL" || pc === "MARK") {
+if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
     switchPanel('posts-panel', true);
   } else {
     switchPanel('posts-panel');
@@ -1997,15 +2004,17 @@ var displayPosts = function (idArr, input, callback) {
   else if (pc === "TFTF") {
     var postTitle = _npa(['glo','postStash', idArr[0], 'title']);
     if (!postTitle) {postTitle = authorName}
-    if (input.post_id) {
-      simulatePageLoad("~/"+input.post_id, postTitle, authorPicUrl)
+    if (input.post_url) {
+      simulatePageLoad(authorName+"/"+input.post_url, postTitle, authorPicUrl);
+    } else if (input.post_id) {
+      simulatePageLoad("~/"+input.post_id, postTitle, authorPicUrl);
     } else {
-      simulatePageLoad(authorName+"/~/"+input.date, postTitle, authorPicUrl)
+      simulatePageLoad(authorName+"/~/"+input.date, postTitle, authorPicUrl);
     }
   }
-  else if (pc === "TFFT") {simulatePageLoad(authorName+"/~/"+input.page, authorName, authorPicUrl)}
-  else if (pc === "TFFF") {simulatePageLoad(authorName, authorName, authorPicUrl)}
-  else if (pc === "ALL") {simulatePageLoad(authorName+"/~all", authorName, authorPicUrl)}
+  else if (pc === "TFFT") {simulatePageLoad(authorName+"/~/"+input.page, authorName, authorPicUrl);}
+  else if (pc === "TFFF") {simulatePageLoad(authorName, authorName, authorPicUrl);}
+  else if (pc === "ALL") {simulatePageLoad(authorName+"/~all", authorName, authorPicUrl);}
   else {return uiAlert('eerrrrrrrrrrrrrr3')}
   //
   if (callback) {callback();}
@@ -2656,7 +2665,11 @@ var createPostFooter = function (postElem, postData, type) {
     // perma-link
     if (postData.post_id && postData.post_id.length !== 8) { // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
       var permalinkWrapper = document.createElement("a");
-      permalinkWrapper.setAttribute('href', "/~/"+postData.post_id);
+      if (postData.post_url) {
+        permalinkWrapper.setAttribute('href', "/~/"+postData.post_id);
+      } else {
+        permalinkWrapper.setAttribute('href', "/~/"+postData.post_id);
+      }
       var permalink = document.createElement("footerButton");
       permalink.innerHTML = '<i class="fas fa-link"></i>';
       permalink.title = "permalink";
@@ -3246,6 +3259,7 @@ var updatePendingPost = function (post) {
   if (!post) {
     glo.pending = false;
     $('pending-status').innerHTML = "no pending post for tomorrow";
+    $('pending-post-link').classList.add("removed");
     $('delete-pending-post').classList.add("removed");
     $('pending-post').classList.add("removed");
     $('write-post-button').innerHTML = "new post";
@@ -3258,6 +3272,13 @@ var updatePendingPost = function (post) {
     glo.pending.body = post.body;
     glo.pending.tags = post.tags;
     glo.pending.title = post.title;
+    $('pending-post-link').classList.remove("removed");
+    if (post.url) {
+      var pendingLinkText = `(after the schlaupdate) your post will be available at:<br><code>schlaugh.com/`+glo.username+"/"+post.url+`</code><br>and<br><code>schlaugh.com/`+glo.username+"/~/"+pool.getCurDate(-1)+`</code>`
+    } else {
+      var pendingLinkText = `(after the schlaupdate) your post will be available at:<br><code>schlaugh.com/`+glo.username+"/~/"+pool.getCurDate(-1)+`</code>`
+    }
+    $('pending-post-link').innerHTML = pendingLinkText;
     $('pending-status').innerHTML = "your pending post for tomorrow:";
     $('delete-pending-post').classList.remove("removed");
     $('pending-post').classList.remove("removed");
@@ -4830,6 +4851,10 @@ var imageUploadingExplain = function () {
 
 var optionalEmailExplain = function () {
   uiAlert(`the ONLY time schlaugh will <i>ever</i> email you is if you lose your password and need to recover it via email. In fact, we only store a hashed form of your email, so we couldn't email you if we tried, and if our database gets hacked your email address won't be compromised. If you still don't want to provide an email, that's fine, it just means we can't help you gain access to your account in the event of a lost or stolen password.`);
+}
+
+var customUrlExplain = function () {
+  uiAlert(`if you'd like to have a convenient/memorable link for this post, you can assign it a custom URL. For example, if you input the text "butts", then your post can be found at: <code>schlaugh.com/`+glo.username+`/butts</code>. Allowed characters are numbers 0-9, upper and lowercase letters A-z, dashes(-), and underscores(_) only. Links ARE case sensitive, so you could assign "BUTTS" to one post, "Butts" to another, and "butts" to another. If you want.`, 'huh!');
 }
 
 var changeUsername = function () {

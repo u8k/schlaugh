@@ -24,7 +24,8 @@
     <div id="pending-status">no pending post for tomorrow</div>
     <div id="pending-post" class="removed"></div>
     <button type="button" id='write-post-button' onclick="showPostWriter()">new post</button>
-    <button id='delete-pending-post' class="removed" onclick="submitPost(true)">delete</button>
+    <button id='delete-pending-post' class="removed" onclick="submitPost(true)">delete</button><br><br>
+    <text id="pending-post-link"></text>
   </div>
 
   <div id="post-writer" class="removed">
@@ -36,6 +37,10 @@
       <input id="tag-input" class="editor-input" type="text" placeholder="milkshake,"><br>
       <label for="title-input">title:</label>
       <input id="title-input" class="editor-input" type="text" placeholder="optional">
+      <!--<br>
+      <label for="url-input">url<clicky onclick="customUrlExplain()" class="special">(?)</clicky>:</label>
+      <input id="url-input" class="editor-input" type="text" placeholder="optional">
+      -->
     </div>
     <br><br>
     <button onclick="submitPost()">schlaubmit</button>

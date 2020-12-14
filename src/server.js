@@ -3257,6 +3257,7 @@ var renderLayout = function (req, res, data) {
       settings:resp.settings,
       author:data.author,
       post_id:data.post_id,
+      post_url:data.post_url,
       date:data.date,
       tag:data.tag,
       page:data.page,
@@ -3467,7 +3468,6 @@ var getAuthorInfo = function (author, req) {
 
 var getSinglePostFromAuthorAndDate = function (req, res) {
   var errMsg = "post retrieval error<br><br>";
-  if (!req.body.date) {return sendError(res, errMsg+"malformed request 512");}
   if (!req.body.author) {return sendError(res, errMsg+"malformed request 513");}
   var authorID = req.body.author;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
@@ -3476,8 +3476,13 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
   , {username:1, posts:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
   , function (err, author) {
     if (err) {return sendError(res, errMsg+err);}
+    if (!author) {return sendError(res, errMsg+ "author not found");}
     else {
-      if (author && author.posts[req.body.date]) {
+      var data = {error: false,}
+      if (req.body.needAuthorInfo) {
+        data.authorInfo = getAuthorInfo(author, req);
+      }
+      if (author.posts && author.posts[req.body.date] && req.body.date <= pool.getCurDate()) {
         var authorPic = getUserPic(author);
         checkUpdates(author, function (resp) {
           if (resp.err) {return sendError(res, errMsg+resp.err);}
@@ -3485,18 +3490,12 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
           resp.user.posts[req.body.date][0].author = author.username;
           resp.user.posts[req.body.date][0]._id = author._id;
           resp.user.posts[req.body.date][0].date = req.body.date;
-          var data = {
-            error: false,
-            posts: [resp.user.posts[req.body.date][0],],
-          }
-          if (req.body.needAuthorInfo) {
-            data.authorInfo = getAuthorInfo(author, req);
-          }
-          res.send(data)
+          data.posts = [resp.user.posts[req.body.date][0],];
         });
       } else {
-        res.send({error: false, four04: true,});      //404
+        data.four04 = true;
       }
+      res.send(data);
     }
   });
 }
@@ -3691,7 +3690,7 @@ app.post('/getPosts', function (req, res) {
   if (!req.body.postCode) {return sendError(res, errMsg+"malformed request 284");}
   var postCode = req.body.postCode;
   if (!req.body.postRef) {req.body.postRef = {}};
-  if (req.body.date && req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}
+  if (req.body.date && req.body.date > pool.getCurDate() && postCode !== "TFTF") {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}
   //
   // repsonse must have 'posts', and ,if not included w/ posts: 'authorData'
   if (postCode === "FTTT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
@@ -3844,6 +3843,28 @@ app.get('/:author/~all', function(req, res) {
       else {
         return renderLayout(req, res, {author: user.authorID, postCode:"ALL",});
       }
+    }
+  );
+});
+// author custom URL
+app.get('/:author/:path', function(req, res) {
+  var author = req.params.author.toLowerCase();
+  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
+  var errMsg = "author lookup error<br><br>";
+  db.collection('userUrls').findOne({_id: author}, {authorID:1},
+    function (err, author) {
+      if (err) {return sendError(res, errMsg+err);}
+      if (!author) {return return404author(req, res);}
+      var authorID = author.authorID;
+      db.collection('users').findOne({_id: authorID}, {customURLs:1,}, function (err, author) {
+        if (err) {return sendError(res, errMsg+err);}
+        if (!author) {return return404author(req, res);}
+        if (author.customURLS && author.customURLS[req.params.path]) {
+          return renderLayout(req, res, {author:authorID, date:author.customURLS[req.params.path], post_url:req.params.path, postCode:"TFTF",});
+        } else {
+          return renderLayout(req, res, {author: authorID, date:null, post_url:req.params.path, postCode:"TFTF",});
+        }
+      });
     }
   );
 });
