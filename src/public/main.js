@@ -1838,8 +1838,8 @@ var displayPosts = function (idArr, input, callback) {
     }
   } else if (pc === "TFTF" && idArr.length === 0) {    // post not found, but author yes found
     var four04elem = document.createElement("text");
-    four04elem.innerHTML = "<br>not even a single thing!<br><br>"
-    four04elem.setAttribute('class', "page-title-404 monospace");
+    four04elem.innerHTML = "<c><br>not even a single thing!<br><br></c>"
+    four04elem.setAttribute('class', "post page-title-404 monospace");
     $("post-bucket").appendChild(four04elem);
   } else {
     for (var i = 0; i < idArr.length; i++) {
@@ -2974,6 +2974,7 @@ var editPost = function (post) {
       glo.fetchedPosts[post.date] = [glo.postStash[post.post_id]];
       $('old-tag-input').value = tags;
       if (glo.postStash[post.post_id].title) {$('old-title-input').value = post.title;}
+      if (glo.postStash[post.post_id].url) {$('old-url-input').value = post.url;}
       $("old-post-status").innerHTML = "no pending edit for your post on "+post.date;
       $('old-post-editor').value = prepTextForEditor(glo.postStash[post.post_id].body);
       $('delete-pending-old-post').classList.add("removed");
@@ -2991,13 +2992,17 @@ var editPost = function (post) {
     data.text = $('old-post-editor').value;
     data.tags = $('old-tag-input').value;
     data.title = $('old-title-input').value;
+    data.url = $('old-url-input').value;
     // have changes been made?
     if (glo.fetchedPosts[post.date][0]) {   // make sure thing even exists first...
       if (prepTextForEditor(glo.fetchedPosts[post.date][0].body) === data.text) {
         var oldTitle = glo.fetchedPosts[post.date][0].title || "";
         if (oldTitle === data.title) {
-          if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
-            return hideWriter('old-post');
+          var oldURL = glo.fetchedPosts[post.date][0].url || "";
+          if (oldURL === data.url) {
+            if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
+              return hideWriter('old-post');
+            }
           }
         }
       }
@@ -3005,12 +3010,15 @@ var editPost = function (post) {
     loading();
     data.text = preCleanText(data.text);
     ajaxCall("/editOldPost", 'POST', data, function(json) {
+      if (json.deny) {loading(true); return uiAlert(json.deny);}
       updatePendingEdit(json);
       if (!glo.pendingUpdates[post.date]) {glo.pendingUpdates[post.date] = [{}];}
       glo.pendingUpdates[post.date][0].body = json.body;
       glo.pendingUpdates[post.date][0].tags = json.tags;
+      glo.pendingUpdates[post.date][0].url = json.url;
       glo.fetchedPosts[post.date][0].body = json.body;
       glo.fetchedPosts[post.date][0].tags = json.tags;
+      glo.fetchedPosts[post.date][0].url = json.url;
     });
   }
   //set cancel button
@@ -3018,9 +3026,11 @@ var editPost = function (post) {
     var oldText = prepTextForEditor(glo.fetchedPosts[post.date][0].body);
     var oldTags = getTagString(glo.fetchedPosts[post.date][0].tags);
     var oldTitle = glo.fetchedPosts[post.date][0].title;
+    var oldURL = glo.fetchedPosts[post.date][0].url;
     if (!oldTitle) {oldTitle = "";}
+    if (!oldURL) {oldURL = "";}
     // have changes been made?
-    if (oldText === $('old-post-editor').value && oldTags === $('old-tag-input').value && oldTitle === $('old-title-input').value) {
+    if (oldText === $('old-post-editor').value && oldTags === $('old-tag-input').value && oldTitle === $('old-title-input').value && oldURL === $('old-url-input').value) {
       return hideWriter('old-post');
     }
     verify("revert any unsaved changes?", null, null, function (result) {
@@ -3028,6 +3038,7 @@ var editPost = function (post) {
       $('old-post-editor').value = oldText;
       $('old-tag-input').value = oldTags;
       $('old-title-input').value = oldTitle;
+      if (oldURL) { $('old-url-input').value = oldURL; }
       return hideWriter('old-post');
     });
   }
@@ -3039,6 +3050,7 @@ var editPost = function (post) {
       data.text = "";
       data.tags = "";
       ajaxCall("/editOldPost", 'POST', data, function(json) {
+        if (json.deny) {loading(true); return uiAlert(json.deny);}
         glo.pendingUpdates[post.date] = null;
         glo.fetchedPosts[post.date] = null;
         updatePendingEdit(json);
@@ -3069,6 +3081,7 @@ var updatePendingEdit = function (post, bio) {
   var tags = getTagString(post.tags);
   $('old-tag-input').value = tags;
   if (post.title) {$('old-title-input').value = post.title;}
+  if (post.url) {$('old-url-input').value = post.url;}
   $('old-post-editor').value = prepTextForEditor(post.body);
   if (bio) {
     setAuthorHeader('edit', {
@@ -3128,6 +3141,7 @@ var editBio = function () {
     loading();
     data.text = preCleanText(data.text);
     ajaxCall("/editOldPost", 'POST', data, function(json) {
+      if (json.deny) {loading(true); return uiAlert(json.deny);}
       updatePendingEdit(json, true);
       glo.pendingUpdates['bio'] = json.body;
     });
@@ -3187,6 +3201,7 @@ var submitPost = function (remove) { //also handles editing and deleting
   var text = $('post-editor').value;
   var tags = $('tag-input').value;
   var title = $('title-input').value;
+  var url = $('url-input').value;
   if (text === "" && tags === "" && title === "" && !glo.pending) {
     ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
     return hideWriter('post');
@@ -3194,9 +3209,11 @@ var submitPost = function (remove) { //also handles editing and deleting
   // have changes been made?
   if (!remove && glo.pending && prepTextForEditor(glo.pending.body) === text) {
     if (glo.pending.title === title) {
-      if (getTagString(glo.pending.tags) === tags) {
-        ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
-        return hideWriter('post');
+      if (glo.pending.url === url) {
+        if (getTagString(glo.pending.tags) === tags) {
+          ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+          return hideWriter('post');
+        }
       }
     }
   }
@@ -3205,6 +3222,7 @@ var submitPost = function (remove) { //also handles editing and deleting
       if (!result) {return;}
       loading();
       ajaxCall("/", 'POST', {remove:true, key:glo.sessionKey}, function(json) {
+        if (json.deny) {loading(true); return uiAlert(json.deny);}
         updatePendingPost(null);
       });
     });
@@ -3216,7 +3234,8 @@ var submitPost = function (remove) { //also handles editing and deleting
     // fudgie fudgie
     //  text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
     text = preCleanText(text);
-    ajaxCall("/", 'POST', {body:text, tags:tags, title:title, key:glo.sessionKey}, function(json) {
+    ajaxCall("/", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey}, function(json) {
+      if (json.deny) {loading(true); return uiAlert(json.deny);}
       updatePendingPost(json);
     });
   }
@@ -3227,9 +3246,11 @@ var cancelPost = function () {
     // have changes been made?
     if (prepTextForEditor(glo.pending.body) === $('post-editor').value) {
       if (glo.pending.title === $('title-input').value) {
-        if (getTagString(glo.pending.tags) === $('tag-input').value) {
-          ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
-          return hideWriter('post');
+        if (glo.pending.url === $('url-input').value) {
+          if (getTagString(glo.pending.tags) === $('tag-input').value) {
+            ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+            return hideWriter('post');
+        }
         }
       }
     }
@@ -3241,7 +3262,7 @@ var cancelPost = function () {
       }
     });
   } else {        // there is NOT a current saved/pending post
-    if ($('post-editor').value === "" && $('tag-input').value === "" && $('title-input').value === "") {
+    if ($('post-editor').value === "" && $('tag-input').value === "" && $('title-input').value === "" && $('url-input').value === "") {
       ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
       return hideWriter('post');
     }
@@ -3267,11 +3288,13 @@ var updatePendingPost = function (post) {
     post.body = "";
     post.tags = {};
     post.title = "";
+    post.url = "";
   } else {
     glo.pending = {};
     glo.pending.body = post.body;
     glo.pending.tags = post.tags;
     glo.pending.title = post.title;
+    glo.pending.url = post.url;
     $('pending-post-link').classList.remove("removed");
     if (post.url) {
       var pendingLinkText = `(after the schlaupdate) your post will be available at:<br><code>schlaugh.com/`+glo.username+"/"+post.url+`</code><br>and<br><code>schlaugh.com/`+glo.username+"/~/"+pool.getCurDate(-1)+`</code>`
@@ -3286,12 +3309,15 @@ var updatePendingPost = function (post) {
   }
   var tags = getTagString(post.tags);
   $('tag-input').value = tags;
-  if (post.title === undefined) {post.title = ""}
+  if (post.title === undefined) {post.title = "";}
   $('title-input').value = post.title;
+  if (typeof post.url === undefined) {post.url = "";}
+  $('url-input').value = post.url;
   var postData = {
     body: post.body,
     tags: post.tags,
     title: post.title,
+    url: post.url,
     author: glo.username,
     authorPic: glo.userPic,
     _id: glo.userID,

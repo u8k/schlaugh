@@ -476,7 +476,7 @@ var lowercaseTagRef = function (ref) {
   return newRef;
 }
 
-var updateUserPost = function (text, newTags, title, userID, user, callback, daysAgo) {
+var updateUserPost = function (text, newTags, title, url, userID, user, callback, daysAgo) {
   if (safeMode) {return callback({error:safeMode});}
   var tmrw = pool.getCurDate(-1);
   if (devFlag && daysAgo) { // CHEATING, for local testing only
@@ -514,6 +514,7 @@ var updateUserPost = function (text, newTags, title, userID, user, callback, day
             user.posts[tmrw][0].body = text;
             user.posts[tmrw][0].tags = newTags;
             user.posts[tmrw][0].title = title;
+            user.posts[tmrw][0].url = url;
             return callback({error:false});
           }
         });
@@ -526,7 +527,7 @@ var updateUserPost = function (text, newTags, title, userID, user, callback, day
         user.posts[tmrw] = [{
             body: text,
             tags: newTags,
-            title: title,
+            url: url,
             post_id: resp.post_id,
           }];
         user.postListPending.push({date:tmrw, num:0});
@@ -557,6 +558,9 @@ var deletePost = function (res, errMsg, userID, user, date, callback) {
   deleteTagRefs(deadTags, date, userID, function (resp) {
     if (resp.error) {return sendError(res, errMsg+resp.error);}
     else {
+      if (user.posts[date][0].url) {
+        delete user.customURLs[user.posts[date][0].url];
+      }
       // is this a pending or an OLD post?
       if (date === pool.getCurDate(-1)) {
         user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
@@ -801,6 +805,37 @@ var validatePostTitle = function (string) {
   string = string.replace(/</g, '&lt;');
   string = string.replace(/>/g, '&gt;');
   return string;
+}
+
+var validatePostURL = function (user, date, string) {
+  if (!string) {string = "";}
+  if (!user || !user.posts) {return {error:"url validation: missing user data"};}
+  if (!date) {return {error:"url validation: missing date"};}
+  if (user.posts && user.posts[date] && user.posts[date][0].url) {
+    if (user.posts[date][0].url === string) { // no change, we good
+      return {user:user, url:string};
+    } else {
+      delete user.customURLs[user.posts[date][0].url]
+    }
+  }
+  if (string === "") {
+    return {user:user, url:string};
+  }
+  if (string.length > 60) {
+    return {error: "this is not actually an 'error', this is just me preventing you from making a url >60 characters. Like, you really want it that long? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>Worth the Candle</i> as a title in an attempt to break the site.<br><br>remember to floss!"};
+  }
+  string = string.replace(/[^a-zA-Z0-9-_]/g, '');
+  if (!user.customURLs) {user.customURLs = {}}
+  if (user.customURLs[string]) {
+    if (user.customURLs[string].date !== date) {
+      var errorString = "you have already used this url for another post, if you wish to use it for this post, please go edit that post and unassign it first:<br><a class='special'  target='_blank' href='/"+user.username+"/"+string+"'>schlaugh.com/"+user.username+"/"+string+"</a>";
+      return {deny: errorString};
+    }
+    // else, do nothing, the url is taken, for THIS post
+  } else {
+    user.customURLs[string] = {date: date}
+  }
+  return {user:user, url:string};
 }
 
 var sendError = function (res, msg) {
@@ -1288,7 +1323,7 @@ app.post('/admin/genPosts', function(req, res) {
 app.post('/admin/genPostsBounce', function(req, res) {
   adminGate(req, res, function (res, user) {
     req.body.progress++;
-    updateUserPost(req.body.text, req.body.tags, req.body.title, req.body.userID, req.body.user, function (resp) {
+    updateUserPost(req.body.text, req.body.tags, req.body.title, req.body.url, req.body.userID, req.body.user, function (resp) {
       if (resp.error) {return sendError(res, resp.error);}
       return writeToDB(req.body.userID, req.body.user, function (resp) {
         if (resp.error) {return callback({error: resp.error});}
@@ -1986,7 +2021,7 @@ var pongOnPostSubmit = function (userID, activeKey, post) {
 app.post('/', function(req, res) {
   var errMsg = "your post might not be saved, please copy all of your text to be safe<br><br>";
   if (!req.body || !req.body.key) {return sendError(res, errMsg+"malformed request 119");}
-  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1}, function (user) {
+  lookUpCurrentUser(req, res, errMsg, {username:1, posts:1, postList:1, postListPending:1, customURLs:1}, function (user) {
     checkFreshness(user);
     var tmrw = pool.getCurDate(-1);
     var x = pool.cleanseInputText(req.body.body);
@@ -2003,15 +2038,22 @@ app.post('/', function(req, res) {
       if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
       var title = validatePostTitle(req.body.title);
       if (title.error) {return sendError(res, errMsg+title.error);}
+      //
+      var urlVal = validatePostURL(user, tmrw, req.body.url);
+      if (urlVal.error) {return sendError(res, errMsg+urlVal.error);}
+      if (urlVal.deny) {return res.send(urlVal);}
+      var url = urlVal.url;
+      user = urlVal.user;
+      //
       imageValidate(x[0], function (resp) {
         if (resp.error) {return sendError(res, errMsg+resp.error);}
-        updateUserPost(x[1], tags, title, user._id, user, function (resp) {
+        updateUserPost(x[1], tags, title, url, user._id, user, function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
           return writeToDB(user._id, user, function (resp) {
             if (resp.error) {return sendError(res, errMsg+resp.error);}
             else {
-              pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title});
-              return res.send({error:false, body:x[1], tags:tags, title:title});
+              pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title, url:url});
+              return res.send({error:false, body:x[1], tags:tags, title:title, url:url});
             }
           });
         });
@@ -2025,7 +2067,7 @@ app.post('/editOldPost', function (req, res) {
   var errMsg = "the post was not successfully edited<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 154");}
   if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"you would seek to edit your future? fool!");}
-  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1}, function (user) {
+  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1, customURLs:1, username:1}, function (user) {
     checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
     // pending updates MUST be fresh when we add to it, else all goes to shit
     checkUpdates(user, function (resp) {
@@ -2034,12 +2076,12 @@ app.post('/editOldPost', function (req, res) {
       // before changing anything, verify the postID corresponds with the date
       if ((req.body.date === "bio" && req.body.post_id === "bio") || (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id)) {
         var x = pool.cleanseInputText(req.body.text);
-        if (x.error || x[1] === "") {                 // delete
+        if (x.error || x[1] === "") {                 // delete a pending draft
           if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
             delete user.pendingUpdates.updates[req.body.date];
             return writeToDB(user._id, user, function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
-              else {return res.send({error:false, body:"", tags:{}, title:""});}
+              else {return res.send({error:false, body:"", tags:{}, title:"", url:"",});}
             });
           } else {return sendError(res, errMsg+"edit not found");}
         } else {                                      // new/edit
@@ -2053,9 +2095,20 @@ app.post('/editOldPost', function (req, res) {
             if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
             var title = validatePostTitle(req.body.title);
             if (title.error) {return sendError(res, errMsg+title.error);}
+            //
+            var urlVal = validatePostURL(user, req.body.date, req.body.url);
+            if (urlVal.error) {return sendError(res, errMsg+urlVal.error);}
+            if (urlVal.deny) {return res.send(urlVal);}
+            var url = urlVal.url;
+            user = urlVal.user;
+            // on a new post, the following happens as part of updating the rest of the post,
+            // here, the post goes into pendingUpdates, so we need to do it separately right away
+            user.posts[req.body.date][0].url = url;
+            //
           } else {
             var tags = {};
             var title = "";
+            var url = "";
           }
           imageValidate(x[0], function (resp) {
             if (resp.error) {return sendError(res, errMsg+resp.error);}
@@ -2066,6 +2119,7 @@ app.post('/editOldPost', function (req, res) {
                 body: x[1],
                 tags: tags,
                 title: title,
+                url: url,
                 post_id: req.body.post_id,
                 edited: true,
               }];
@@ -2073,7 +2127,7 @@ app.post('/editOldPost', function (req, res) {
             user.pendingUpdates.updates[req.body.date] = newPost;
             return writeToDB(user._id, user, function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
-              else {return res.send({error:false, body:x[1], tags:tags, title:title});}
+              else {return res.send({error:false, body:x[1], tags:tags, title:title, url:url});}
             });
           });
         }
@@ -2088,7 +2142,7 @@ app.post('/deleteOldPost', function (req, res) {
   if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 813");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1}
+    , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1, customURLs:1}
     , function (err, user) {
       if (err) {return sendError(res, err);}
       else if (!user) {return sendError(res, errMsg+"user not found");}
@@ -3859,8 +3913,8 @@ app.get('/:author/:path', function(req, res) {
       db.collection('users').findOne({_id: authorID}, {customURLs:1,}, function (err, author) {
         if (err) {return sendError(res, errMsg+err);}
         if (!author) {return return404author(req, res);}
-        if (author.customURLS && author.customURLS[req.params.path]) {
-          return renderLayout(req, res, {author:authorID, date:author.customURLS[req.params.path], post_url:req.params.path, postCode:"TFTF",});
+        if (author.customURLs && author.customURLs[req.params.path]) {
+          return renderLayout(req, res, {author:authorID, date:author.customURLs[req.params.path].date, post_url:req.params.path, postCode:"TFTF",});
         } else {
           return renderLayout(req, res, {author: authorID, date:null, post_url:req.params.path, postCode:"TFTF",});
         }
