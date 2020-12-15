@@ -2347,6 +2347,7 @@ var addToPostStash = function (postData, authorData) {
       body:postData.body,
       tags:postData.tags,
       title:postData.title,
+      url:postData.url,
     };
     if (authorData) {
       ps[postData.post_id].authorPic = authorData.authorPic;
@@ -2665,17 +2666,19 @@ var createPostFooter = function (postElem, postData, type) {
     // perma-link
     if (postData.post_id && postData.post_id.length !== 8) { // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
       var permalinkWrapper = document.createElement("a");
-      if (postData.post_url) {
-        permalinkWrapper.setAttribute('href', "/~/"+postData.post_id);
+      var link = postData.url;
+      if (postData.url && type !== 'perma') {
+        permalinkWrapper.setAttribute('href', "/"+postData.author+"/"+postData.url);
       } else {
         permalinkWrapper.setAttribute('href', "/~/"+postData.post_id);
+        link = null;
       }
       var permalink = document.createElement("footerButton");
       permalink.innerHTML = '<i class="fas fa-link"></i>';
       permalink.title = "permalink";
       permalink.onclick = function(event) {
         modKeyCheck(event, function(){
-          fetchPosts(true, {postCode:"TFTF", author:postData._id , date:postData.date , post_id:postData.post_id})
+          fetchPosts(true, {postCode:"TFTF", author:postData._id , date:postData.date , post_url:link , post_id:postData.post_id})
         });
       }
       permalinkWrapper.appendChild(permalink);
@@ -2993,22 +2996,28 @@ var editPost = function (post) {
     data.tags = $('old-tag-input').value;
     data.title = $('old-title-input').value;
     data.url = $('old-url-input').value;
+    var onlyTheUrlHasBeenChanged = false;
     // have changes been made?
     if (glo.fetchedPosts[post.date][0]) {   // make sure thing even exists first...
       if (prepTextForEditor(glo.fetchedPosts[post.date][0].body) === data.text) {
         var oldTitle = glo.fetchedPosts[post.date][0].title || "";
         if (oldTitle === data.title) {
-          var oldURL = glo.fetchedPosts[post.date][0].url || "";
-          if (oldURL === data.url) {
-            if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
-              return hideWriter('old-post');
+          if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
+            var oldURL = glo.fetchedPosts[post.date][0].url || "";
+            if (oldURL === data.url) {
+              return hideWriter('old-post');  // no changes, return
+            } else {
+              onlyTheUrlHasBeenChanged = true;
             }
           }
         }
       }
-    }
+    }                                   // yes changes, send them
     loading();
     data.text = preCleanText(data.text);
+    if (onlyTheUrlHasBeenChanged) {
+      data.onlyTheUrlHasBeenChanged = true;
+    }
     ajaxCall("/editOldPost", 'POST', data, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
       updatePendingEdit(json);
@@ -3077,6 +3086,9 @@ var updatePendingEdit = function (post, bio) {
     if (bio) {$('author-header-edit').classList.remove("removed");}
     else {$('pending-post-edit').classList.remove("removed");}
     $('edit-post-button').innerHTML = "edit edit";
+  }
+  if (post.onlyTheUrlHasBeenChanged) {
+    uiAlert(`successfull url edit<br>post is accessible now at:<br><a class='special' target='_blank' href='/`+glo.username+"/"+post.onlyTheUrlHasBeenChanged+"'>schlaugh.com/"+glo.username+"/"+post.onlyTheUrlHasBeenChanged+"</a>")
   }
   var tags = getTagString(post.tags);
   $('old-tag-input').value = tags;
@@ -4879,8 +4891,12 @@ var optionalEmailExplain = function () {
   uiAlert(`the ONLY time schlaugh will <i>ever</i> email you is if you lose your password and need to recover it via email. In fact, we only store a hashed form of your email, so we couldn't email you if we tried, and if our database gets hacked your email address won't be compromised. If you still don't want to provide an email, that's fine, it just means we can't help you gain access to your account in the event of a lost or stolen password.`);
 }
 
-var customUrlExplain = function () {
-  uiAlert(`if you'd like to have a convenient/memorable link for this post, you can assign it a custom URL. For example, if you input the text "butts", then your post can be found at: <code>schlaugh.com/`+glo.username+`/butts</code>. Allowed characters are numbers 0-9, upper and lowercase letters A-z, dashes(-), and underscores(_) only. Links ARE case sensitive, so you could assign "BUTTS" to one post, "Butts" to another, and "butts" to another. If you want.`, 'huh!');
+var customUrlExplain = function (old) {
+  var append = "";
+  if (old) {
+    append = `<br><br>edits to URLs on existing posts take effect immediately`
+  }
+  uiAlert(`if you'd like to have a convenient/memorable link for this post, you can assign it a custom URL. For example, if you input the text "butts", then your post can be found at: <code>schlaugh.com/`+glo.username+`/butts</code>. Allowed characters are numbers 0-9, upper and lowercase letters A-z, dashes(-), and underscores(_) only. Links ARE case sensitive, so you could assign "BUTTS" to one post, "Butts" to another, and "butts" to another. If you want.`+append, 'huh!');
 }
 
 var changeUsername = function () {

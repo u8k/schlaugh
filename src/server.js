@@ -885,7 +885,8 @@ var postsFromAuthorListAndDate = function (authorList, date, followingRef, postR
                 authorPic: authorPic,
                 _id: resp.user._id,
                 date: date,
-                title: resp.user.posts[date][0].title
+                title: resp.user.posts[date][0].title,
+                url: resp.user.posts[date][0].url,
               });
             }
             count--;
@@ -948,6 +949,7 @@ var postsFromListOfAuthorsAndDates = function (postList, postRef, callback) {
                   body: resp.user.posts[date][0].body,
                   tags: resp.user.posts[date][0].tags,
                   title: resp.user.posts[date][0].title,
+                  url: resp.user.posts[date][0].url,
                   post_id: post_id,
                   author: resp.user.username,
                   authorPic: authorPic,
@@ -2104,6 +2106,12 @@ app.post('/editOldPost', function (req, res) {
             // on a new post, the following happens as part of updating the rest of the post,
             // here, the post goes into pendingUpdates, so we need to do it separately right away
             user.posts[req.body.date][0].url = url;
+            if (req.body.onlyTheUrlHasBeenChanged) {
+              return writeToDB(user._id, user, function (resp) {
+                if (resp.error) {return sendError(res, errMsg+resp.error);}
+                else {return res.send({error:false, body:"", onlyTheUrlHasBeenChanged:url,});}
+              });
+            }
             //
           } else {
             var tags = {};
@@ -3413,6 +3421,7 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
                   body: author.posts[pL[i].date][pL[i].num].body,
                   tags: author.posts[pL[i].date][pL[i].num].tags,
                   title: author.posts[pL[i].date][pL[i].num].title,
+                  url: author.posts[pL[i].date][pL[i].num].url,
                   post_id: author.posts[pL[i].date][pL[i].num].post_id,
                   date: pL[i].date,
                 });
@@ -3471,6 +3480,7 @@ var getAllAnAuthorsPosts = function(req, res) {
                   body: author.posts[pL[i].date][pL[i].num].body,
                   tags: author.posts[pL[i].date][pL[i].num].tags,
                   title: author.posts[pL[i].date][pL[i].num].title,
+                  url: author.posts[pL[i].date][pL[i].num].url,
                   post_id: author.posts[pL[i].date][pL[i].num].post_id,
                   date: pL[i].date,
                 });
@@ -3582,6 +3592,7 @@ var getAllOfAnAuthorsPostsWithTag = function (req, res) {
                   body: author.posts[pL[i].date][pL[i].num].body,
                   tags: author.posts[pL[i].date][pL[i].num].tags,
                   title: author.posts[pL[i].date][pL[i].num].title,
+                  url: author.posts[pL[i].date][pL[i].num].url,
                   post_id: author.posts[pL[i].date][pL[i].num].post_id,
                   date: pL[i].date,
                 });
