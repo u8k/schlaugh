@@ -860,12 +860,12 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
 
   var preTag = string.substr(0,tagStartPos);
   var postTag = string.substr(innerStartPos);
-  var insert = `<a class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true)">`+linkText
+  var insert = `<a class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true, '`+id+`')">`+linkText
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></a>`
     +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
-    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`')" class="collapse-button-top"><icon class="far fa-minus-square"></icon></clicky>`
-    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`')" class="collapse-button-bottom hidden" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
+    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`')" class="collapse-button-top"><icon class="far fa-minus-square"></icon></clicky>`
+    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`, true')" class="collapse-button-bottom hidden" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
 
   string = preTag+insert+postTag;
 
@@ -1358,39 +1358,50 @@ var preCleanText = function (string) {  //prep editor text for backEnd, prior to
   return recurse(0).replace(/\r?\n|\r/g, '<br>');
 }
 
-var collapseNote = function (buttonId, innerId, dir, postID) {
+var collapseNote = function (buttonId, innerId, expanding, postID, viaBottom) {
   // last arg, postID, is only included when called by the bottom collapse button,
   // and causes the necseary adjustments to the scroll pos to be made on collapse
-  if (dir) {  // expand
+  if (expanding) {
     $(innerId).classList.remove('removed');
     $(innerId+'-note-top-plus').classList.add('removed');
     $(innerId+'-note-top-minus').classList.remove('removed');
-    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, false);}
+    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, false, postID);}
 
     if ($(innerId+"-br")) {
       $(innerId+"-br").classList.add('removed');
     }
-
-    if ($(innerId).offsetHeight > (.75 * window.innerHeight)) {
+    // show the bottom note collapse button if note is sufficently tall
+    if ($(innerId).offsetHeight > (.50 * window.innerHeight)) {
       $(innerId +'-note-close').classList.remove("hidden");
     }
+
+    // show the bottom POST collapse button if whole post is now sufficently tall
+    if ($(postID) && $(postID).offsetHeight > (.50 * window.innerHeight)) {
+      $(postID +'-collapse-button-bottom').classList.remove("hidden");
+    }
+
   } else {  // collapse
-    if (postID) {     // get the height of the post and position on page before collapsing
+    if (viaBottom) {     // get the height of the post and position on page before collapsing
       var initScroll = window.scrollY;
       var initHeight = $(postID).offsetHeight;
     }
     $(innerId).classList.add('removed');    // collapse the note
     $(innerId+'-note-top-plus').classList.remove('removed');
     $(innerId+'-note-top-minus').classList.add('removed');
-    if (postID) {          // if via the bottom button, then adjust the scroll position
+    if (viaBottom) {          // if via the bottom button, then adjust the scroll position
       if (initScroll === window.scrollY) {
         window.scrollBy(0, $(postID).offsetHeight - initHeight);
       }
     }
-    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, true);}
+    $(buttonId).onclick = function () {collapseNote(buttonId, innerId, true, postID);}
 
     if ($(innerId+"-br")) {
       $(innerId+"-br").classList.remove('removed');
+    }
+
+    // HIDE the bottom POST collapse button if whole post is now sufficently short
+    if ($(postID) && $(postID).offsetHeight < (.50 * window.innerHeight)) {
+      $(postID +'-collapse-button-bottom').classList.add("hidden");
     }
 
   }
@@ -2533,7 +2544,7 @@ var renderOnePost = function (postData, type, postID) {
   // give a bit for images to load then check if posts are long enough for bottom collapse button
   (function (uniqueID) {
     setTimeout(function () {
-      if ($(uniqueID) && $(uniqueID).offsetHeight > (.75 * window.innerHeight)) {
+      if ($(uniqueID) && $(uniqueID).offsetHeight > (.50 * window.innerHeight)) {
         $(uniqueID +'-collapse-button-bottom').classList.remove("hidden");
       }
     }, 1000);
@@ -2567,7 +2578,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
     btnElem2.title = 'collapse';
     btnElem2.innerHTML = '<i class="far fa-minus-square"></i>';
-    if ($(uniqueID).offsetHeight > (.75 * window.innerHeight)) {
+    if ($(uniqueID).offsetHeight > (.50 * window.innerHeight)) {
       btnElem2.classList.remove("hidden");
     }
     var collapse = false;
@@ -4843,6 +4854,10 @@ var setAppearance = function () {
     loadThemesFromBank();
     loadFontsFromBank();
     var defaultTheme = 'lorelei';
+    // detect if browser is set to prefer dark mode
+    if ( window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      defaultTheme = 'slate';
+    }
     glo.newSettings = {colors:{}}
     if (!glo.settings) {glo.settings = {};}
     if (!glo.settings.colors) {glo.settings.colors = {};}
