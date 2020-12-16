@@ -2525,11 +2525,13 @@ var renderOnePost = function (postData, type, postID) {
   }
 
   // give a bit for images to load then check if posts are long enough for bottom collapse button
-  setTimeout(function () {
-    if ($(uniqueID).offsetHeight > (.75 * window.innerHeight)) {
-      $(uniqueID +'-collapse-button-bottom').classList.remove("hidden");
-    }
-  }, 500);
+  (function (uniqueID) {
+    setTimeout(function () {
+      if ($(uniqueID) && $(uniqueID).offsetHeight > (.75 * window.innerHeight)) {
+        $(uniqueID +'-collapse-button-bottom').classList.remove("hidden");
+      }
+    }, 1000);
+  })(uniqueID)
   //
   return post;
 }
@@ -2577,7 +2579,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     }
     $(uniqueID+'body').classList.add('removed');
     if (isBtmBtn) {
-      if (initScroll === window.scrollY) {  //huh? "6435886"
+      if (initScroll === window.scrollY) {  //after the post has been removed, if the scrollPos hasn't changed, then change it
         window.scrollBy(0, $(uniqueID).offsetHeight - initHeight);
       }
     }
@@ -2883,13 +2885,13 @@ var createBookmarkButton = function (parent, post) {
     elem.title = "bookmark";
   }
   elem.onclick = function() {
-    if (alreadyMarked) {    // so we're removing it
+    if (alreadyMarked) {                            // so we're un-marking a post
       if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
         glo.bookmarks[author_id][post.date] = false;
       }
       //
       _npa(['glo','pRef','bookmarks'], false);
-    } else {
+    } else {                                    // we are marking
       if (!glo.bookmarks[author_id]) {glo.bookmarks[author_id] = {}}
       glo.bookmarks[author_id][post.date] = true;
       //
@@ -2900,6 +2902,7 @@ var createBookmarkButton = function (parent, post) {
         markArray = [post.post_id];
       }
       if (glo.postPanelStatus.postCode === "MARK") {
+        // marking a post from the bookmarks page seems... impossible? does this need to be here? ¯\_(ツ)_/¯
         fetchPosts(true);
       }
     }
@@ -2909,7 +2912,39 @@ var createBookmarkButton = function (parent, post) {
     ajaxCall('/bookmarks', 'POST', {author_id:author_id, date:post.date, remove:alreadyMarked}, function(json) {
       // are we looking at the page of bookmarked posts right NOW??
       if (alreadyMarked && glo.postPanelStatus.postCode === "MARK") {
-        fetchPosts(true);
+        var postElem = parent.parentNode.parentNode;
+        postElem.classList.add('post-wipe');
+        postElem.style.height = window.getComputedStyle(postElem).height;
+        postElem.style.boxShadow = window.getComputedStyle(postElem).boxShadow;
+        postElem.style.padding = window.getComputedStyle(postElem).padding;
+        postElem.style.marginBottom = window.getComputedStyle(postElem).marginBottom;
+        postElem.style.top = window.getComputedStyle(postElem).top;
+        postElem.style.left = window.getComputedStyle(postElem).left;
+        postElem.style.opacity = window.getComputedStyle(postElem).opacity;
+        var initScroll = window.scrollY;
+        var initHeight = postElem.offsetHeight;
+        //
+        // apparently there's some latency to setting the prop explicitly, so animation doesn't work right away, but does work after 1ms?
+        setTimeout(function () {
+          postElem.style.height = "0px";
+          postElem.style.boxShadow = "none";
+          postElem.style.marginTop = "0px";
+          postElem.style.marginBottom = "0px";
+          postElem.style.paddingTop = "0px";
+          postElem.style.paddingBottom = "0px";
+          postElem.style.top = "-100px";
+          postElem.style.left = "300px";
+          postElem.style.opacity = "0";
+          setTimeout(function () {
+            if (initScroll === window.scrollY) {  //after the post has been removed, if the scrollPos hasn't changed, then change it
+              window.scrollBy(0, -initHeight);
+            }
+          }, 100);
+        }, 1);
+
+        setTimeout(function () {
+          //postElem.classList.add('removed')
+        }, 1000);
       }
     });
   }

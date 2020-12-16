@@ -206,6 +206,7 @@ clicky, .clicky, spoil {
 
 .spoil {
   border-right-style: solid;
+  border-left-style: solid;
 }
 
 .no-select {
@@ -258,7 +259,6 @@ clicky, .clicky, spoil {
   width: 75%;
   max-width: 1000px;
   margin: auto;
-  margin-top:16px;
   margin-bottom: 24px;
   border-radius: 6px;
   padding: 18px;
@@ -272,6 +272,14 @@ clicky, .clicky, spoil {
   white-space: pre-wrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+#post-bucket {
+  margin-top: 24px;
+}
+
+.post-wipe {
+  transition: height .2s ease-in, padding .2s ease-in, margin .2s ease-in, box-shadow .2s ease-in, top .2s ease-in, left .2s ease-in, opacity .2s ease-in;
 }
 
 .tag-feed-option-button {
