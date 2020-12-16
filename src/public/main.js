@@ -1557,6 +1557,8 @@ var dateJump = function (target) {
 
     if (newDateString > pool.getCurDate()) {
       return uiAlert("and no future vision either!");
+    } else if (newDateString < '2017-11-18') {
+      return uiAlert("too far!<br><br>back on "+newDateString+" there was not even a schlaugh yet!");
     } else {
       if (glo.postPanelStatus.date) {   // this is already a dated post, and the only thing we need to change is the date
         glo.postPanelStatus.date = newDateString;
@@ -2045,7 +2047,11 @@ var notSchlaugh = function (postCode, date) {
   div.appendChild(document.createElement("br"));
   var post = document.createElement("div");
   if ((postCode === "FFTF" || postCode === "FFTT") && date) {
-    post.innerHTML = '~not schlaugh~<br><clicky onclick="uiAlert(`for the day you are viewing, '+date+', none of the people or tags you are following have made posts`)" class="special">(?)</clicky>';
+    if (date < '2017-11-18') {
+      post.innerHTML = '~pre schlaugh~<br><clicky onclick="uiAlert(`on '+date+' schlaugh did not yet exist!`)" class="special">(?)</clicky>';
+    } else {
+      post.innerHTML = '~not schlaugh~<br><clicky onclick="uiAlert(`for the day you are viewing, '+date+', none of the people or tags you are following have made posts`)" class="special">(?)</clicky>';
+    }
   } else {
     post.innerHTML = "~no posts~";
   }
