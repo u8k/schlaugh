@@ -2997,7 +2997,7 @@ var editPost = function (post) {
     showWriter('old-post');
   }
   //
-  $("old-tag-box").classList.remove("removed");
+  $("old-post-editor-meta").classList.remove("removed");
   if (glo.pendingUpdates[post.date]) {                 // there is already a pending edit
     var savedPost = glo.pendingUpdates[post.date][0];
     $('old-post-editor').value = prepTextForEditor(savedPost.body);
@@ -3159,7 +3159,7 @@ var editBio = function () {
   $('edit-post-button').onclick = function () {
     showWriter('old-post');
   }
-  $("old-tag-box").classList.add("removed");
+  $("old-post-editor-meta").classList.add("removed");
   //
   if (glo.pendingUpdates['bio']) {
     $('old-post-editor').value = prepTextForEditor(glo.pendingUpdates['bio']);

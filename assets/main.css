@@ -241,9 +241,29 @@ clicky, .clicky, spoil {
   margin: 2px;
 }
 
-#editor-post-meta {
-  /*text-align: left;*/
+.editor-meta {
+  display: inline-block;
+  width: 345px;
+  text-align: right;
+  transform: translate(-24px, 0px);
 }
+@media screen and (max-width: 500px) {
+  .editor-meta {
+    transform: translate(-12px, 0px);
+  }
+}
+@media screen and (max-width: 415px) {
+  .editor-meta {
+    transform: none;
+  }
+}
+@media screen and (max-width: 370px) {
+  .editor-meta {
+    text-align: left;
+    width: 290px;
+  }
+}
+
 
 #thread-box {
   width: 80%;
@@ -519,7 +539,7 @@ input {
   outline-style: none;
   margin-bottom: 2px;
   padding: 3px 5px 3px 5px;
-  width: 280px;
+  width: 290px;
 }
 
 /*hack to make Chrome not force formatting when it autofills*/
