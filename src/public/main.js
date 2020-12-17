@@ -850,7 +850,10 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
     var classAsign = "removed";
   }
 
-  if (string.substr(tagStartPos).search(/<note linkText="/) !== 0) {return string;}
+  if (string.substr(tagStartPos).search(/<note linkText="/) !== 0) {
+    if (string.substr(tagStartPos).search(/<note>/) !== 0) {return string;}
+    string = insertStringIntoStringAtPos(string, ` linkText=""`, tagStartPos+5);
+  }
   var startLinkPos = tagStartPos+16;
   var qPos = string.substr(startLinkPos).search(/"/);
   if (qPos === -1) {return string += '">';}
@@ -865,7 +868,7 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></a>`
     +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
     +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`')" class="collapse-button-top"><icon class="far fa-minus-square"></icon></clicky>`
-    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`, true')" class="collapse-button-bottom hidden" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
+    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="collapse-button-bottom hidden" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
 
   string = preTag+insert+postTag;
 

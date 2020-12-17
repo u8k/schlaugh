@@ -243,6 +243,9 @@
           */
           //else {pos += 2;}
           removeExtraBreak(pos+qPos+2);
+        } else if (string.substr(pos+1,5) === "note>") {
+          note = true;
+          pos += 5;
         } else if (string.substr(pos+1,6) === "/note>") {
           note = false;
           pos += 6;
