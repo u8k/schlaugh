@@ -4972,8 +4972,9 @@ var performFrontEndSchlaupdate = function () {
       });
     }
   }
-  if (postPanelStatus && postPanelStatus.date && postPanelStatus.date < pool.getCurDate()) {
+  if (glo.postPanelStatus && glo.postPanelStatus.date && glo.postPanelStatus.date < pool.getCurDate()) {
     $("top-right-date-arrow").classList.remove('hidden');
+    $("bot-right-date-arrow").classList.remove('hidden');
   }
 }
 
