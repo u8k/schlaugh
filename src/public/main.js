@@ -4429,6 +4429,7 @@ var populateThread = function (i) {
 }
 
 var populateThreadlist = function () {
+  destroyAllChildrenOfElement($("thread-list"));
   var noThreads = true;
   for (var i = 0; i < glo.threads.length; i++) {
     if (glo.threads[i].thread.length !== 0) {
@@ -4727,7 +4728,6 @@ var signIn = function (url, data, callback) {
             keys.newUserMessage = encryptedMessage.data;
             ajaxCall('/keys', 'POST', keys, function(json) {
               parseUserData(json.payload);
-              setAppearance();
               unlockInbox(data.password);
               if (callback) {callback(json.payload);}
             });
@@ -4735,7 +4735,6 @@ var signIn = function (url, data, callback) {
         } else {
           ajaxCall('/keys', 'POST', keys, function(json) {
             parseUserData(json.payload);
-            setAppearance();
             unlockInbox(data.password);
             if (callback) {callback(json.payload);}
           });
@@ -4743,7 +4742,6 @@ var signIn = function (url, data, callback) {
       });
     } else {
       parseUserData(json.payload);
-      setAppearance();
       unlockInbox(data.password);
       if (callback) {callback(json.payload);}
     }
@@ -4924,6 +4922,80 @@ var initSchlaugh = function (user, callback) {
   } else {
     if (callback) {callback();}
   }
+  // set the schlaupdate clock in the footer
+  manageSchlaupdateClock();
+}
+
+var manageSchlaupdateClock = function () {
+  var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+
+  var hoursRemaining = 24 - time.getUTCHours();
+  var minutesRemaining = 60 - time.getUTCMinutes();
+  var secondsRemaining = 60 - time.getUTCSeconds();
+  var millisecondsRemaining = 1000 - time.getUTCMilliseconds();
+
+  if (hoursRemaining === 1) {
+    if (minutesRemaining === 1) {
+      if (secondsRemaining === 1) {
+        $('schlaupdate-timer').innerHTML =  "1 second to schlaupdate";
+        setTimeout(function () {
+          $('schlaupdate-timer').innerHTML =  "s c h l a u p d a t e";
+          performFrontEndSchlaupdate();
+          setTimeout(function () {
+            manageSchlaupdateClock();
+          }, 2000);
+        }, 1000);
+      } else {
+        $('schlaupdate-timer').innerHTML = secondsRemaining+" seconds to schlaupdate";
+        setTimeout(function () { manageSchlaupdateClock(); }, millisecondsRemaining);
+      }
+    } else {
+      $('schlaupdate-timer').innerHTML =  "< "+minutesRemaining+" minutes to schlaupdate";
+      setTimeout(function () { manageSchlaupdateClock(); }, (secondsRemaining-1)*1000 + millisecondsRemaining);
+    }
+  } else {
+    $('schlaupdate-timer').innerHTML = "< "+hoursRemaining+" hours to schlaupdate";
+    setTimeout(function () { manageSchlaupdateClock(); }, ((minutesRemaining-1)*60 + (secondsRemaining-1))*1000 + millisecondsRemaining);
+  }
+}
+
+var performFrontEndSchlaupdate = function () {
+  if (glo.username) {
+    if (isAnEditorOpen()) {
+      uiAlert(`It's Schlaupdate isn't it? Isn't it Schlaupdate?<br><br>And it seems you have an editor open, potentially holding unsaved changes! Just a heads up, if you submit the text in the editor, it will now be scheduled to post for the <i>next</i> schlaugh day, after this one that just started right now. If you had previously submitted a prior version of that post/message, then that will have just published/sent for today.`)
+    } else {
+      updatePendingPost(null);  // removes a saved pending post, now that it's published
+      ajaxCall('/getInbox', 'POST', {}, function(json) {
+        glo.threads = json.threads;
+        glo.threadRef = {};
+        populateThreadlist();
+      });
+    }
+  }
+  if (postPanelStatus && postPanelStatus.date && postPanelStatus.date < pool.getCurDate()) {
+    $("top-right-date-arrow").classList.remove('hidden');
+  }
+}
+
+var schlaupdateExplain = function () {
+  var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+  var hoursRemaining = 24 - time.getUTCHours();
+  var minutesRemaining = 60 - time.getUTCMinutes();
+  var timeString;
+  if (hoursRemaining === 1) {
+    if (minutesRemaining === 1) {
+      timeString =  " less than 1 minute "
+    } else {
+      timeString = " less than "+minutesRemaining+" minutes "
+    }
+  } else {
+    if (minutesRemaining === 1) {
+      timeString = " about "+(hoursRemaining-1)+" hours and 1 minute "
+    } else {
+      timeString = " about "+(hoursRemaining-1)+" hours and "+minutesRemaining+" minutes "
+    }
+  }
+  uiAlert(`all pending posts and messages will be published/sent at the strike of schlaupdate and not a moment sooner<br><br>you have `+timeString+` until the next schlaupdate`);
 }
 
 var showPassword = function (bool, elemName, elemArr) {       //or hide pass, if !bool

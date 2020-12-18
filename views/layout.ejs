@@ -36,7 +36,7 @@
         var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
         var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours to schlaupdate";
       %>
-      <text><%= hoursRemaining %></text>
+      <text id="schlaupdate-timer"><%= hoursRemaining %></text> <clicky onclick="schlaupdateExplain()" class="special">(?)</clicky>
       <br>
       <div id="footer-footer">
         <a href="/~" class="clicky special footer-text" onclick="modKeyCheck(event, function () {switchPanel('~about-panel'); simulatePageLoad('~', false);});">about</a>

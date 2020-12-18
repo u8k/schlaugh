@@ -2455,6 +2455,37 @@ app.post('/inbox', function(req, res) {
   });
 });
 
+// get inbox
+app.post('/getInbox', function (req,res) {
+  var errMsg = "unable to retrieve message data<br><br>";
+  lookUpCurrentUser(req, res, errMsg, {inbox:1}, function (user) {
+    var threads = [];
+    if (user.inbox) {
+      var bump = bumpThreadList(user.inbox);
+      if (bump) {
+        writeToDB(ObjectId(req.session.user._id), user, function () {});
+      }
+      var list = user.inbox.list;
+      //reverse thread order so as to send a list ordered newest to oldest
+      for (var i = list.length-1; i > -1; i--) {
+        if (user.inbox.threads[list[i]] && user.inbox.threads[list[i]].thread && user.inbox.threads[list[i]].thread.length !== undefined) {
+          //check the last two messages of each thread, see if they are allowed
+          var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, pool.getCurDate(-1), true);
+          if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
+          // add in the authorID for the FE
+          user.inbox.threads[list[i]]._id = list[i];
+          // all threads are locked until unlocked on the FE
+          user.inbox.threads[list[i]].locked = true;
+          threads.push(user.inbox.threads[list[i]]);
+        }
+      }
+      res.send({error: false, threads:threads});
+    } else {
+      res.send({error: false, threads:threads});
+    }
+  });
+});
+
 // block/unblock a user from messaging you
 app.post('/block', function(req, res) {
   var errMsg = "block/unblock error<br><br>"
