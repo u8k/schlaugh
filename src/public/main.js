@@ -3029,10 +3029,11 @@ var editPost = function (post) {
   } else {                                            // there is not a pending edit
     if (glo.postStash && glo.postStash[post.post_id]) {     // is it already stashed?
       var tags = getTagString(glo.postStash[post.post_id].tags);
-      glo.fetchedPosts[post.date] = [glo.postStash[post.post_id]];
       $('old-tag-input').value = tags;
-      if (glo.postStash[post.post_id].title) {$('old-title-input').value = post.title;}
-      if (glo.postStash[post.post_id].url) {$('old-url-input').value = post.url;}
+      if (post.title) {$('old-title-input').value = post.title;}
+      else {$('old-title-input').value = "";}
+      if (post.url) {$('old-url-input').value = post.url;}
+      else {$('old-url-input').value = "";}
       $("old-post-status").innerHTML = "no pending edit for your post on "+post.date;
       $('old-post-editor').value = prepTextForEditor(glo.postStash[post.post_id].body);
       $('delete-pending-old-post').classList.add("removed");
@@ -3053,12 +3054,13 @@ var editPost = function (post) {
     data.url = $('old-url-input').value;
     var onlyTheUrlHasBeenChanged = false;
     // have changes been made?
-    if (glo.fetchedPosts[post.date][0]) {   // make sure thing even exists first...
-      if (prepTextForEditor(glo.fetchedPosts[post.date][0].body) === data.text) {
-        var oldTitle = glo.fetchedPosts[post.date][0].title || "";
+
+    if (glo.postStash[post.post_id]) {   // make sure thing even exists first...
+      if (prepTextForEditor(glo.postStash[post.post_id].body) === data.text) {
+        var oldTitle = glo.postStash[post.post_id].title || "";
         if (oldTitle === data.title) {
-          if (getTagString(glo.fetchedPosts[post.date][0].tags) === data.tags) {
-            var oldURL = glo.fetchedPosts[post.date][0].url || "";
+          if (getTagString(glo.postStash[post.post_id].tags) === data.tags) {
+            var oldURL = glo.postStash[post.post_id].url || "";
             if (oldURL === data.url) {
               return hideWriter('old-post');  // no changes, return
             } else {
@@ -3076,21 +3078,30 @@ var editPost = function (post) {
     ajaxCall("/editOldPost", 'POST', data, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
       updatePendingEdit(json);
-      if (!glo.pendingUpdates[post.date]) {glo.pendingUpdates[post.date] = [{}];}
-      glo.pendingUpdates[post.date][0].body = json.body;
-      glo.pendingUpdates[post.date][0].tags = json.tags;
-      glo.pendingUpdates[post.date][0].url = json.url;
-      glo.fetchedPosts[post.date][0].body = json.body;
-      glo.fetchedPosts[post.date][0].tags = json.tags;
-      glo.fetchedPosts[post.date][0].url = json.url;
+      if (!onlyTheUrlHasBeenChanged) {
+        if (!glo.pendingUpdates[post.date]) {glo.pendingUpdates[post.date] = [{}];}
+        glo.pendingUpdates[post.date][0].body = json.body;
+        glo.pendingUpdates[post.date][0].tags = json.tags;
+        glo.pendingUpdates[post.date][0].title = json.title;
+        glo.pendingUpdates[post.date][0].url = json.url;
+      }
+      glo.postStash[post.post_id].url = json.url;
     });
   }
   //set cancel button
   $('cancel-edit-button').onclick = function () {
-    var oldText = prepTextForEditor(glo.fetchedPosts[post.date][0].body);
-    var oldTags = getTagString(glo.fetchedPosts[post.date][0].tags);
-    var oldTitle = glo.fetchedPosts[post.date][0].title;
-    var oldURL = glo.fetchedPosts[post.date][0].url;
+    // is there a currently pending edit of this post to revert to? or are we comparing to the live version?
+    if (glo.pendingUpdates[post.date]) {
+      var oldText = prepTextForEditor(glo.pendingUpdates[post.date][0].body);
+      var oldTags = getTagString(glo.pendingUpdates[post.date][0].tags);
+      var oldTitle = glo.pendingUpdates[post.date][0].title;
+      var oldURL = glo.pendingUpdates[post.date][0].url;
+    } else {
+      var oldText = prepTextForEditor(glo.postStash[post.post_id].body);
+      var oldTags = getTagString(glo.postStash[post.post_id].tags);
+      var oldTitle = glo.postStash[post.post_id].title;
+      var oldURL = glo.postStash[post.post_id].url;
+    }
     if (!oldTitle) {oldTitle = "";}
     if (!oldURL) {oldURL = "";}
     // have changes been made?
@@ -3116,7 +3127,6 @@ var editPost = function (post) {
       ajaxCall("/editOldPost", 'POST', data, function(json) {
         if (json.deny) {loading(true); return uiAlert(json.deny);}
         glo.pendingUpdates[post.date] = null;
-        glo.fetchedPosts[post.date] = null;
         updatePendingEdit(json);
         $('edit-post-button').onclick = function () {
           editPost(post);
@@ -3129,7 +3139,7 @@ var editPost = function (post) {
 
 var updatePendingEdit = function (post, bio) {
   if (post.body === "") {
-    $('old-post-status').innerHTML = "no "+$('old-post-status').innerHTML;
+    $('old-post-status').innerHTML = "no pending edit for your post on "+post.date;
     $('delete-pending-old-post').classList.add("removed");
     if (bio) {$('author-header-edit').classList.add("removed");}
     else {$('pending-post-edit').classList.add("removed");}
@@ -3143,28 +3153,32 @@ var updatePendingEdit = function (post, bio) {
     $('edit-post-button').innerHTML = "edit edit";
   }
   if (post.onlyTheUrlHasBeenChanged) {
-    uiAlert(`successfull url edit<br>post is accessible now at:<br><a class='special' target='_blank' href='/`+glo.username+"/"+post.onlyTheUrlHasBeenChanged+"'>schlaugh.com/"+glo.username+"/"+post.onlyTheUrlHasBeenChanged+"</a>")
-  }
-  var tags = getTagString(post.tags);
-  $('old-tag-input').value = tags;
-  if (post.title) {$('old-title-input').value = post.title;}
-  if (post.url) {$('old-url-input').value = post.url;}
-  $('old-post-editor').value = prepTextForEditor(post.body);
-  if (bio) {
-    setAuthorHeader('edit', {
-      _id: glo.userID,
-      author: glo.username,
-      authorPic: glo.userPic,
-      bio: post.body,
-    });
-  }
-  else {
-    post.author = glo.username;
-    var newEditElem = renderOnePost(post, "preview-edit");
-    if ($('pending-post-edit').childNodes[0]) {
-      $('pending-post-edit').replaceChild(newEditElem, $('pending-post-edit').childNodes[0]);
-    } else {
-      $('pending-post-edit').appendChild(newEditElem);
+    uiAlert(`successfull url edit<br>post is accessible now at:<br><a class='special' target='_blank' href='/`+glo.username+"/"+post.url+"'>schlaugh.com/"+glo.username+"/"+post.url+"</a>")
+  } else {
+    var tags = getTagString(post.tags);
+    $('old-tag-input').value = tags;
+    if (post.title) {$('old-title-input').value = post.title;}
+    else {$('old-title-input').value = "";}
+    if (post.url) {$('old-url-input').value = post.url;}
+    else {$('old-url-input').value = "";}
+    $('old-post-editor').value = prepTextForEditor(post.body);
+
+    if (bio) {
+      setAuthorHeader('edit', {
+        _id: glo.userID,
+        author: glo.username,
+        authorPic: glo.userPic,
+        bio: post.body,
+      });
+    }
+    else {
+      post.author = glo.username;
+      var newEditElem = renderOnePost(post, "preview-edit");
+      if ($('pending-post-edit').childNodes[0]) {
+        $('pending-post-edit').replaceChild(newEditElem, $('pending-post-edit').childNodes[0]);
+      } else {
+        $('pending-post-edit').appendChild(newEditElem);
+      }
     }
   }
   hideWriter('old-post');
@@ -4759,8 +4773,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
   glo.threadRef = {};
   glo.settings = data.settings;
   glo.pending = data.pending;
-  glo.pendingUpdates = Object.create(data.pendingUpdates);
-  glo.fetchedPosts = Object.create(data.pendingUpdates);
+  glo.pendingUpdates = data.pendingUpdates;
   glo.userPic = data.userPic;
   glo.muteingRef = data.muted;
   glo.followingRef = {};
@@ -4992,6 +5005,8 @@ var schlaupdateExplain = function () {
   } else {
     if (minutesRemaining === 1) {
       timeString = " about "+(hoursRemaining-1)+" hours and 1 minute "
+    } else if (minutesRemaining === 60) {
+      timeString = " about "+hoursRemaining+" hours "
     } else {
       timeString = " about "+(hoursRemaining-1)+" hours and "+minutesRemaining+" minutes "
     }

@@ -2109,7 +2109,7 @@ app.post('/editOldPost', function (req, res) {
             if (req.body.onlyTheUrlHasBeenChanged) {
               return writeToDB(user._id, user, function (resp) {
                 if (resp.error) {return sendError(res, errMsg+resp.error);}
-                else {return res.send({error:false, body:"", onlyTheUrlHasBeenChanged:url,});}
+                else {return res.send({error:false, body:"", onlyTheUrlHasBeenChanged:true, url:url});}
               });
             }
             //
