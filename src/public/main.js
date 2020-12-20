@@ -646,7 +646,7 @@ var uiAlert = function (message, btnTxt, callback) {
   }
 }
 
-var verify = function (message, yesText, noText, callback) {
+var verify = function (message, yesText, noText, callback, noFocus) {
   loading(true, true);
   if (!message) {  //close the confirm
     $("confirm").classList.add("hidden");
@@ -667,7 +667,9 @@ var verify = function (message, yesText, noText, callback) {
     }
     var exit = function(){
       verify(false);
-      oldFocus.focus();
+      if (!noFocus) {   // for some reason setting focus glitches the post if you selective quote when another editor is open and then cancel the quoting
+        oldFocus.focus();
+      }
       if (callback) {callback(false);}
     }
     $("confirm-no").onclick = exit;
@@ -1053,28 +1055,37 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         if (tag === "note") {                               // do note conversion stuff
           if (extracting) {
             elemCount+=2;
-            if (string.substr(pos).search(/ linkText="/) !== 0) {return {error:"malformed note a"}}
+            if (string.substr(pos,1) === ">") { // the short form textless note button
+              var fullButtonString = "";
+            } else {
+              if (string.substr(pos).search(/ linkText="/) !== 0) {return {error:"malformed note a"}}
+              //
+              var startLinkPos = pos+11;
+              var qPos = string.substr(startLinkPos).search(/">/);
+              if (qPos === -1) {return {error:"malformed note b"}}
+              var fullButtonString = string.substr(pos-5, 18+qPos);
 
-            var startLinkPos = pos+11;
-            var qPos = string.substr(startLinkPos).search(/">/);
-            if (qPos === -1) {return {error:"malformed note b"}}
-            var fullButtonString = string.substr(pos-5, 18+qPos);
+              var buttStart = pos-5;
+              var buttEnd = pos+qPos+12;
+              var innerStart = buttEnd+1;
 
-            // find the end of the noteInner for the current noteButt
-            var noteEndPos = findClosingNoteTag(string, pos) - (pos+qPos+8);
-            if (noteEndPos === -1) {return {error:"malformed note c"}}
-            var fullInnerString = string.substr(pos+qPos+13, noteEndPos);
+              // find the end of the noteInner for the current noteButt
+              var noteEndPos = findClosingNoteTag(string, pos);
+              if (noteEndPos === -1) {return {error:"malformed note c"}}
+              var fullInnerString = string.substr(innerStart, noteEndPos+7-innerStart); // 7 is ("</note>").length
 
-            if (!extracting.noteTrack) {extracting.noteTrack = []}
-            extracting.noteTrack.push({
-              buttStart:pos-5,
-              buttEnd:pos+qPos+12,
-              fullInnerString:fullInnerString,
-            });
+              if (!extracting.noteTrack) {extracting.noteTrack = []}
+              extracting.noteTrack.push({
+                buttStart:buttStart,
+                buttEnd:buttEnd,
+                fullInnerString:fullInnerString,
+              });
+            }
+            //
             tagStack.push({tag:tag, fullButtonString: fullButtonString,});
 
             // is there a "<" leading off the link text?
-            if (string[startLinkPos] !== "<" && qPos !== 0) {
+            if (fullButtonString !== "" && string[startLinkPos] !== "<" && qPos !== 0) {
               var x = checkOrInsertElem(string, startLinkPos, id, elemCount, extracting, tagStack);
               if (x.error) {return x;}
               if (x.extracting && x.extracting.done) {return x.extracting.returnString}
@@ -1252,7 +1263,8 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
               }
             }
             if (noMatch) {
-              string = extracting.startTags[i].fullButtonString + string;
+              var buttonString = extracting.startTags[i].fullButtonString || "<note>";
+              string = buttonString + string;
             }
           } else {
             string = "<"+ extracting.startTags[i].tag +">"+ string;
@@ -1282,7 +1294,7 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
 
 var findClosingNoteTag = function (string, pos, noteCount) {
   if (!noteCount) {noteCount = 0;}
-  var nextClose = string.substr(pos).search(/note>/);
+  var nextClose = string.substr(pos).search(/<\/note>/);
   var nextOpen = string.substr(pos).search(/<note/);
 
   if (nextClose === -1) {return -1;}
@@ -3708,7 +3720,7 @@ var showPostWriter = function (callback) {
           ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:true});
           if (callback) {callback();}
         }
-      });
+      }, true);
     } else {
       showWriter('post');
       ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:true});
@@ -4196,8 +4208,12 @@ var openThread = function (i) {
         $("message-preview").classList.add('removed');
       } else {
         $('block-button').innerHTML = 'block';
-        $("mark-unread").classList.remove('removed');
         $("message-preview").classList.remove('removed');
+        if (glo.threads[i].thread && glo.threads[i].thread.length) {
+          $("mark-unread").classList.remove('removed');
+        } else {
+          $("mark-unread").classList.add('removed');
+        }
       }
       $('block-button').classList.remove('removed');
       $("thread-list").classList.add('removed');
@@ -4231,7 +4247,7 @@ var markUnread = function () {
   $(i+'-thread-name').classList.add("special");
   closeThread();
   glo.unread++;
-  ajaxCall('/unread', 'POST', {_id:glo.threads[i]._id, bool:true}, function(json) {})
+  ajaxCall('/unread', 'POST', {_id:glo.threads[i]._id, bool:true}, function(json) {});
   $("inbox-panel-button").classList.add("special");
 }
 
@@ -4414,20 +4430,21 @@ var createThread = function (i, top) {
   if (glo.threads[i].image && glo.threads[i].image !== "") {
     var authorPic = document.createElement("img");
     authorPic.setAttribute('src', glo.threads[i].image);
-    authorPic.setAttribute('class', 'user-pic removed clicky');
-    authorPic.setAttribute('id', i+'-thread-pic');
-    var authorPicBox = document.createElement("a");
+    authorPic.setAttribute('class', 'user-pic clicky');
+    var authorPicWrapper = document.createElement("a");
+    authorPicWrapper.setAttribute('id', i+'-thread-pic');
+    authorPicWrapper.setAttribute('class', 'removed');
     (function (id) {
-      authorPicBox.onclick = function(event){
+      authorPicWrapper.onclick = function(event){
         modKeyCheck(event, function(){
           fetchPosts(true, {postCode:'TFFF', author:id});
         });
       }
     })(glo.threads[i]._id);
-    authorPicBox.setAttribute('href', "/"+glo.threads[i].name);
-    authorPicBox.appendChild(authorPic);
-    //authorPicBox.appendChild(document.createElement("br"));
-    $("thread-title-area").insertBefore(authorPicBox, $("thread-title"));
+    authorPicWrapper.setAttribute('href', "/"+glo.threads[i].name);
+    authorPicWrapper.appendChild(authorPic);
+
+    $('thread-pic-box').appendChild(authorPicWrapper);
   }
   //
   populateThread(i);
@@ -4444,6 +4461,7 @@ var populateThread = function (i) {
 
 var populateThreadlist = function () {
   destroyAllChildrenOfElement($("thread-list"));
+  destroyAllChildrenOfElement($('thread-pic-box'));
   var noThreads = true;
   for (var i = 0; i < glo.threads.length; i++) {
     if (glo.threads[i].thread.length !== 0) {

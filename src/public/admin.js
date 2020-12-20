@@ -112,6 +112,18 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [prepTextForRender(`<quote>aaa<br><quote><quote>ccc<br><r>-scr3<br></r></quote>bbb<br><r>-scr2<br></r></quote>aaa<br><r>-scr1<br></r></quote>`,`id`,null,{startElem:0, endElem:0, startOffset:1, endOffset:3}), "<quote>aa<r>-scr1<br></r></quote>"],
   [prepTextForRender(`<quote><quote>bbb<br><r><a href="/~/">-src2</a></r></quote>aaa<br><r>-scr1</r></quote>`,`id`,null,{startElem:2, endElem:2, startOffset:1, endOffset:2}), "<quote>a<r>-scr1</r></quote>"],
   [prepTextForRender(`&lt;3`,`id`,null,{startElem:0, endElem:0, startOffset:0, endOffset:2}), "<3"],
+  [prepTextForRender(`123<note>aaaa</note>456`,`id`,null,{startElem:0, endElem:4, startOffset:2, endOffset:1}), "3<note>aaaa</note>4"],
+  [prepTextForRender(`123<note>aaaa</note>456`,`id`,null,{startElem:4, endElem:4, startOffset:0, endOffset:1}), "4"],
+  // #95
+  [prepTextForRender(`123<note>aaaa</note>456`,`id`,null,{startElem:0, endElem:3, startOffset:2, endOffset:1}), "3<note>a</note>"],
+  [prepTextForRender(`123<note>aaaa</note>456`,`id`,null,{startElem:3, endElem:4, startOffset:3, endOffset:1}), "<note>a</note>4"],
+  [prepTextForRender(`123<note>aaaa</note>456`,`id`,null,{startElem:3, endElem:3, startOffset:1, endOffset:3}), "aa"],
+  [prepTextForRender(`123<note linkText="">aaaa</note>456`,`id`,null,{startElem:0, endElem:4, startOffset:2, endOffset:1}), `3<note linkText="">aaaa</note>4`],
+  [prepTextForRender(`123<note linkText="">aaaa</note>456`,`id`,null,{startElem:4, endElem:4, startOffset:0, endOffset:1}), "4"],
+  // #100
+  [prepTextForRender(`123<note linkText="">aaaa</note>456`,`id`,null,{startElem:0, endElem:3, startOffset:2, endOffset:1}), `3<note linkText="">a</note>`],
+  [prepTextForRender(`123<note linkText="">aaaa</note>456`,`id`,null,{startElem:3, endElem:4, startOffset:3, endOffset:1}), `<note linkText="">a</note>4`],
+  [prepTextForRender(`123<note linkText="">aaaa</note>456`,`id`,null,{startElem:3, endElem:3, startOffset:1, endOffset:3}), "aa"],
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,
