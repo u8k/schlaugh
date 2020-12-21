@@ -21,6 +21,17 @@
 #game-round-back {left: 8px; right: unset;}
 #game-round-forward {left: 34px; right: unset;}
 
+#forfeit-button {
+  position: absolute;
+  right: 7px;
+  bottom: 11px;
+  border-radius: 10px;
+  font-size: 0.75em;
+  background: rgba(100, 100, 100);
+  color: gainsboro;
+  border: none;
+}
+
 polygon {
   fill: rgba(0, 0, 0, 0);
   stroke: rgba(60, 60, 60);

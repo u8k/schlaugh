@@ -69,6 +69,7 @@ var setUpGameBoards = function (json) {
   gameRef.radius = json.radius;
   gameRef.startDate = json.startDate;
   gameRef.victor = json.victor;
+  gameRef.forfeitures = json.forfeitures;
   var height = ((json.radius*2)-1)*gameRef.tileHeight;
   var width = gameRef.tileWidth*(1 +(1.5*((json.radius-1))));
   gameRef.originX = (width/2) - (.5*gameRef.tileWidth);
@@ -144,13 +145,16 @@ var renderTiles = function (delay, date) {
   // highlight a player's spots
   if (glo.userID && gameRef.players[glo.userID]) {
     setTimeout(function () {
-      for (var spot in gameRef.dates[date]) {
-        if (gameRef.dates[date].hasOwnProperty(spot)) {
-          if (gameRef.dates[date][spot].ownerID === glo.userID) {
-            highlightTile(spot, date);
+      for (var spot in gameRef.dates[date]) {if (gameRef.dates[date].hasOwnProperty(spot)) {
+        if (gameRef.dates[date][spot].ownerID === glo.userID) {
+          highlightTile(spot, date);
+          // flag player as "active" if they have spots on the board today
+          if (date === pool.getCurDate()) {
+            gameRef.active = true;
           }
         }
-      }
+      }}
+      setForfeitButton();
     }, (i)*delay);
   }
 }
@@ -339,6 +343,36 @@ var sendMove = function (coord, date) {
   });
 }
 
+var forfeit = function (dir) {
+  if (dir) {dir = pool.getCurDate();}
+  ajaxCall('/~moveSchlaunquer', 'POST', {forfeit:dir, game_id:gameRef.game_id}, function(json) {
+    if (dir) {  // forfeiting
+      uiAlert(`🎵sad trombone🎵<br><br>at the schlaupdate, all of your units will expire<br><br>you have until then to change your mind`,'understood');
+    } else {    // de-forfeiting
+      uiAlert(`get'cha get'cha get'cha get'cha head in the game`);
+    }
+    gameRef.players[glo.userID].forfeit = dir;
+    setForfeitButton();
+  });
+}
+
+var setForfeitButton = function () {
+  if (!gameRef.victor && gameRef.active && glo.userID && gameRef.players[glo.userID]) {
+    if (!gameRef.players[glo.userID].forfeit) {
+      $('forfeit-button').innerHTML = "give up";
+      $('forfeit-button').onclick = function () {forfeit(true)}
+      $('forfeit-button').classList.remove('hidden');
+      return;
+    } else if (gameRef.players[glo.userID].forfeit === pool.getCurDate()) {
+      $('forfeit-button').innerHTML = "un-give up";
+      $('forfeit-button').onclick = function () {forfeit(false)}
+      $('forfeit-button').classList.remove('hidden');
+      return;
+    }
+  }
+  $('forfeit-button').classList.add('hidden');
+}
+
 var setMoveLabels = function (coord, date) {
   var map = gameRef.dates[date][coord];
   if (map.moveLabels && map.moveLabels.length) {
@@ -401,6 +435,25 @@ var changeBoardRound = function (offset) {
   $(gameRef.currentBoardDate+"-board").classList.add('removed');
   gameRef.currentBoardDate = newDate;
   $(gameRef.currentBoardDate+"-board").classList.remove('removed');
+  // forfeiture notification
+  if (gameRef.forfeitures && gameRef.forfeitures[newDate]) {
+    var arr = [];
+    for (var userID in gameRef.forfeitures[newDate]) {if (gameRef.forfeitures[newDate].hasOwnProperty(userID)) {
+      arr.push(gameRef.players[userID].username);
+    }}
+    if (arr.length === 1) {
+      var string = arr[0]+' has forfeited';
+    } else if (arr.length === 2) {
+      var string = arr[0]+" and "+arr[1]+" have forfeited";
+    } else if (arr.length > 2) {
+      var string = arr[0];
+      for (var i = 1; i < arr.length-1; i++) {
+        string = string +", "+arr[i];
+      }
+      string = string + ", and "+arr[arr.length-1]+" have forfeited";
+    }
+    uiAlert(string)
+  }
 }
 
 var showVictory = function () {

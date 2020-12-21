@@ -70,7 +70,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
   }
 
   exp.tidyUp = function (userID, match, res, errMsg, devFlag) {
-    if (match.victor || devFlag || (userID && String(userID) === "5a0f87ec1d2b9000148368b3")) { // give it up
+    if (match.victor || devFlag || (userID && String(userID) === "5a0f87ec1d2b9000148368b3")) { // give it all up
       return res.send(match);
     } else if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
       return res.send(exp.cleanMatchData(match, userID));
@@ -105,7 +105,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
   }
 
   exp.nightAudit = function (match) {
-    if (match.victor || match.dates[pool.getCurDate()]) {return null }; // no night audit needed
+    if (match.victor || match.dates[pool.getCurDate()]) { return null }; // no night audit needed
 
     var daysAgo = 1;
     while (!match.dates[pool.getCurDate(daysAgo)]) {
@@ -115,27 +115,35 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     var warMap = {};
     var newMap = {};
 
+
     // Migration
     var unitCap = exp.gameRef.unitCap;
     if (match.unitCap) {unitCap = match.unitCap;}
     //
     for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
       spot = spot.split(",");
-      var stayers = oldMap[spot].score;
-      for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
-        stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
-        var x = Number(spot[0]) + exp.gameRef.moves[move][0];   // determine immigration spot
-        var y = Number(spot[1]) + exp.gameRef.moves[move][1];
-        if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
-        if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
-        warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
-      //  warMap[[x,y]][oldMap[spot].ownerID] = Math.min(unitCap, warMap[[x,y]][oldMap[spot].ownerID]) // popCap
-      }}
-      // add back the Stayers, to the init Spot
-      if (!warMap[spot]) {warMap[spot] = {};}
-      if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
-      warMap[spot][oldMap[spot].ownerID] += stayers;
-      //warMap[spot][oldMap[spot].ownerID] = Math.min(unitCap, warMap[spot][oldMap[spot].ownerID]);
+      // check for forfeit
+      if (!match.players[oldMap[spot].ownerID].forfeit) {
+        var stayers = oldMap[spot].score;
+        for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
+          stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
+          var x = Number(spot[0]) + exp.gameRef.moves[move][0];   // determine immigration spot
+          var y = Number(spot[1]) + exp.gameRef.moves[move][1];
+          if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
+          if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
+          warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
+        }}
+        // add back the Stayers, to the init Spot
+        if (!warMap[spot]) {warMap[spot] = {};}
+        if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
+        warMap[spot][oldMap[spot].ownerID] += stayers;
+      } else {
+        if (!match.forfeitures) {match.forfeitures = {}}
+        if (!match.forfeitures[pool.getCurDate(daysAgo)]) {match.forfeitures[pool.getCurDate(daysAgo)] = {};}
+        if (!match.forfeitures[pool.getCurDate(daysAgo)][oldMap[spot].ownerID]) {
+          match.forfeitures[pool.getCurDate(daysAgo)][oldMap[spot].ownerID] = true;
+        }
+      }
     }}
 
     // War
@@ -228,7 +236,14 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     // are they a player in this game?
     if ((!match.players || !match.players[userID]) && !devFlag) {return {error:"userID miscoresponce"};}
 
-    if (!req.body || !req.body.coord || !req.body.moves) {return {error:"malformed request 8875"};}
+    if (!req.body) {return {error:"malformed request 8874"};}
+
+    if (typeof req.body.forfeit !== 'undefined' && match.players[userID]) {
+      match.players[userID].forfeit = req.body.forfeit;
+      return match;
+    }
+
+    if (!req.body.coord || !req.body.moves) {return {error:"malformed request 8875"};}
     if (!match.dates[pool.getCurDate()]) {return {error:"malformed request 8876"};}
 
     var map = match.dates[pool.getCurDate()];
