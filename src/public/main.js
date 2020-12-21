@@ -2412,7 +2412,9 @@ var renderOnePost = function (postData, type, postID) {
     addToPostStash(postData);
   }
 
-  if (postData.post_id && type !== 'preview-edit') {
+  if (type === "preview") {
+    var uniqueID = "post-preview-"+pool.getCurDate(-1);
+  } else if (postData.post_id && type !== 'preview-edit') {
     var uniqueID = 'post-'+postData.post_id;
   } else {
     var uniqueID = 'post-'+type;
