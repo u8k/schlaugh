@@ -3298,7 +3298,9 @@ var submitPost = function (remove) { //also handles editing and deleting
   var title = $('title-input').value;
   var url = $('url-input').value;
   if (text === "" && tags === "" && title === "" && !glo.pending) {
-    ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+    if (!glo.debugMode) {
+      ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+    }
     return hideWriter('post');
   }
   // have changes been made?
@@ -3306,7 +3308,9 @@ var submitPost = function (remove) { //also handles editing and deleting
     if (glo.pending.title === title) {
       if (glo.pending.url === url) {
         if (getTagString(glo.pending.tags) === tags) {
-          ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+          if (!glo.debugMode) {
+            ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+          }
           return hideWriter('post');
         }
       }
@@ -3343,28 +3347,36 @@ var cancelPost = function () {
       if (glo.pending.title === $('title-input').value) {
         if (glo.pending.url === $('url-input').value) {
           if (getTagString(glo.pending.tags) === $('tag-input').value) {
-            ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+            if (!glo.debugMode) {
+              ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+            }
             return hideWriter('post');
-        }
+          }
         }
       }
     }
     verify("you want to lose any current edits and revert to the last saved version?", null, null, function (result) {
       if (!result) {return;}
       else {
-        ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+        if (!glo.debugMode) {
+          ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+        }
         updatePendingPost(glo.pending);
       }
     });
   } else {        // there is NOT a current saved/pending post
     if ($('post-editor').value === "" && $('tag-input').value === "" && $('title-input').value === "" && $('url-input').value === "") {
-      ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+      if (!glo.debugMode) {
+        ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+      }
       return hideWriter('post');
     }
     verify("you want to lose all current text in the editor?", null, null, function (result) {
       if (!result) {return;}
       else {
-        ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+        if (!glo.debugMode) {
+          ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+        }
         updatePendingPost(null);
       }
     });
@@ -3666,9 +3678,10 @@ var prepTextForEditor = function (text) {
 }
 
 var pingPong = function (key, delay) {
+  if (glo.debugMode) { return; }
   ajaxCall('/~pingPong', 'POST', {key:key, editorOpenElsewhere:glo.editorOpenElsewhere}, function (json) {
     if (json === false) {
-      if (delay) {    // fail to connect to server, give in a minute and try again
+      if (delay) {    // fail to connect to server, give it a minute and try again
         setTimeout(function () {
           pingPong(key, true)
         }, 60000);
@@ -3719,13 +3732,17 @@ var showPostWriter = function (callback) {
       'yeah, do it anyway', 'nah, hold up', function (resp) {
         if (resp) {
           showWriter('post');
-          ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:true});
+          if (!glo.debugMode) {
+            ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:true});
+          }
           if (callback) {callback();}
         }
       }, true);
     } else {
       showWriter('post');
-      ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:true});
+      if (!glo.debugMode) {
+        ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:true});
+      }
       if (callback) {callback();}
     }
   }
@@ -3738,6 +3755,14 @@ var hideWriter = function (kind) {
   if (!isAnEditorOpen()) {
     document.body.onclick = null;
   }
+}
+
+var debugMode = function () {
+  glo.debugMode = true;
+  $('post-editor').oninput = null;
+  $('post-editor').onkeydown = null;
+  document.body.onkeydown = null;
+  return 'you have entered debug mode, this persists only for this session, to go back to normal: refresh. If you want debug mode on in your next session, enter the command again';
 }
 
 var resizeEditor = function (kind) {
@@ -4070,7 +4095,7 @@ var updateEditorStateList = function (kind, loop) {
   } else {
     $(kind+"-redo-button").classList.add('faded');
   }
-  if (loop) {
+  if (loop && !glo.debugMode) {
     setTimeout(function () {
       updateEditorStateList(kind, loop);
     }, 2000);
