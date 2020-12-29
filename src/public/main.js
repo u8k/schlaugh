@@ -567,7 +567,7 @@ var passPrompt = function (options) {
     blackBacking();
     //
     $("password-prompt-label").innerHTML = options.label;
-    if (typeof glo !== undefined && glo.username) {
+    if (typeof glo !== 'undefined' && glo.username) {
       $("prompt-username").value = glo.username;
       setCursorPosition($("prompt-password"), 0, $("prompt-password").value.length);
     } else {
@@ -1597,6 +1597,9 @@ var dateJump = function (target) {
 }
 
 var moveDateByOneDay = function (dir) {
+  if (glo.settings && glo.settings.newPostsToTheLeft) {
+    dir = -dir;
+  }
   if (glo.postPanelStatus.date) {
     glo.postPanelStatus.date = calcDateByOffest(glo.postPanelStatus.date, dir);
     fetchPosts(true);
@@ -1617,6 +1620,13 @@ var calcDateByOffest = function (date, offset) {
     if (newDay < 10) {newDay = "0"+newDay}
     return newYear+"-"+newMon+"-"+newDay;
   }
+}
+
+var pageTurn = function (dir) { // -1 = left, 1 = right
+  if (glo.settings && glo.settings.newPostsToTheLeft) {
+    dir = -dir;
+  }
+  pageJump(dir);
 }
 
 var pageJump = function (input, loc) {
@@ -1747,6 +1757,9 @@ var fetchPosts = function (display, input, callback) {
     if ((pc === 'FFTT' || pc === 'FFTF') && !_npa(['glo','pRef','date'])) {
       input.getFollowingList = true;
     }
+    if (glo.settings && glo.settings.postsPerPage) {
+      input.postsPerPage = glo.settings.postsPerPage;
+    }
     ajaxCall('/getPosts', 'POST', input, function(json) {
       if (json.authorInfo && json.four04) {             // author found, but NOT post
         json.posts = [];
@@ -1860,7 +1873,7 @@ var displayPosts = function (idArr, input, callback) {
   }
 
   // the actual display of the literal posts
-  if (pc === 'MARK') {
+  if (pc === 'MARK' || (glo.settings && glo.settings.sortOldestPostsAtTop && (postType === "author" || pc === "FTFT" || pc === "FTFF"))) {  // reverse the order, when appropriate
     for (var i = idArr.length-1; i > -1; i--) {
       $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
     }
@@ -1910,12 +1923,15 @@ if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
     $("bot-date-box").classList.remove('removed');
     $("top-date-display").innerHTML = input.date;
     $("bot-date-display").innerHTML = input.date;
+    // show/hide the date arrows
+    var dir = "right";
+    if (glo.settings && glo.settings.newPostsToTheLeft) {dir = "left";}
     if (input.date >= pool.getCurDate()) {
-      $("top-right-date-arrow").classList.add('hidden');
-      $("bot-right-date-arrow").classList.add('hidden');
+      $("top-"+dir+"-date-arrow").classList.add('hidden');
+      $("bot-"+dir+"-date-arrow").classList.add('hidden');
     } else {
-      $("top-right-date-arrow").classList.remove('hidden');
-      $("bot-right-date-arrow").classList.remove('hidden');
+      $("top-"+dir+"-date-arrow").classList.remove('hidden');
+      $("bot-"+dir+"-date-arrow").classList.remove('hidden');
     }
   } else {
     $("top-date-box").classList.add('removed');
@@ -2275,15 +2291,18 @@ var setPageNumbersAndArrows = function (page, totalPages, macguffin) {
     pageNumberRight.setAttribute('class', "monospace page-number-right-triple-digit");
   }
   // arrow visibility
+  var dir1 = "left";
+  var dir2 = "right";
+  if (glo.settings && glo.settings.newPostsToTheLeft) {dir1 = "right"; dir2 = "left";}
   if (page == 1) {
-    $(macguffin+"-left-page-arrow").classList.add('hidden');
+    $(macguffin+"-"+dir1+"-page-arrow").classList.add('hidden');
   } else {
-    $(macguffin+"-left-page-arrow").classList.remove('hidden');
+    $(macguffin+"-"+dir1+"-page-arrow").classList.remove('hidden');
   }
   if (page == totalPages) {
-    $(macguffin+"-right-page-arrow").classList.add('hidden');
+    $(macguffin+"-"+dir2+"-page-arrow").classList.add('hidden');
   } else {
-    $(macguffin+"-right-page-arrow").classList.remove('hidden');
+    $(macguffin+"-"+dir2+"-page-arrow").classList.remove('hidden');
   }
 }
 
@@ -3418,7 +3437,7 @@ var updatePendingPost = function (post) {
   $('tag-input').value = tags;
   if (post.title === undefined) {post.title = "";}
   $('title-input').value = post.title;
-  if (typeof post.url === undefined) {post.url = "";}
+  if (typeof post.url === 'undefined') {post.url = "";}
   $('url-input').value = post.url;
   var postData = {
     body: post.body,
@@ -3569,6 +3588,46 @@ var toggleTaggedPostsInclusion = function () {
     }
     fetchPosts(true);
   });
+}
+
+var setPostStreamDirection = function () {
+  ajaxCall('/toggleSetting', 'POST', {setting: "sortOldestPostsAtTop"}, function(json) {});
+  if (glo.settings.sortOldestPostsAtTop) {
+    glo.settings.sortOldestPostsAtTop = false;
+  } else {
+    glo.settings.sortOldestPostsAtTop = true;
+  }
+}
+
+var setPaginationDirection = function () {
+  ajaxCall('/toggleSetting', 'POST', {setting: "newPostsToTheLeft"}, function(json) {});
+  if (glo.settings.newPostsToTheLeft) {
+    glo.settings.newPostsToTheLeft = false;
+    $('pagination-direction-toggle1').value = "left";
+    $('pagination-direction-toggle2').value = "right";
+  } else {
+    glo.settings.newPostsToTheLeft = true;
+    $('pagination-direction-toggle1').value = "right";
+    $('pagination-direction-toggle2').value = "left";
+  }
+}
+
+var setPostsPerPage = function () {
+  ajaxCall('/setPostsPerPage', 'POST', {number: Number($("posts-per-page").value)}, function(json) {});
+  glo.settings.postsPerPage = Number($("posts-per-page").value);
+  // throw out any loaded paginiated postLists
+  if (glo.pRef && glo.pRef.author) {
+    for (var author in glo.pRef.author) {if (glo.pRef.author.hasOwnProperty(author)) {
+      delete glo.pRef.author[author].page;
+      delete glo.pRef.author[author].totalPages;
+    }}
+  }
+  if (glo.pRef && glo.pRef.tag) {
+    for (var tag in glo.pRef.tag) {if (glo.pRef.tag.hasOwnProperty(tag)) {
+      delete glo.pRef.tag[tag].page;
+      delete glo.pRef.tag[tag].totalPages;
+    }}
+  }
 }
 
 var prepTextForEditor = function (text) {
@@ -4890,6 +4949,22 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     } else {
       $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-square"></icon>';
     }
+    //
+    if (glo.settings.sortOldestPostsAtTop) {
+      $('post-stream-toggle').value = "oldest";
+    }
+    //
+    if (glo.settings.postsPerPage) {
+      $("posts-per-page").value = glo.settings.postsPerPage;
+    } else {
+      $("posts-per-page").value = 7;
+    }
+    //
+    if (glo.settings.newPostsToTheLeft) {
+      $('pagination-direction-toggle1').value = "right";
+      $('pagination-direction-toggle2').value = "left";
+    }
+    //
     $('sign-to-save2').classList.add('removed');
     $('sign-to-save3').classList.add('removed');
     $('revert-appearance2').classList.add('removed');
@@ -5089,6 +5164,10 @@ var customUrlExplain = function (old) {
     append = `<br><br>edits to URLs on existing posts take effect immediately`
   }
   uiAlert(`if you'd like to have a convenient/memorable link for this post, you can assign it a custom URL. For example, if you input the text "butts", then your post can be found at: <code>schlaugh.com/`+glo.username+`/butts</code>. Allowed characters are numbers 0-9, upper and lowercase letters A-z, dashes(-), and underscores(_) only. Links ARE case sensitive, so you could assign "BUTTS" to one post, "Butts" to another, and "butts" to another. If you want.`+append, 'huh!');
+}
+
+var postsPerPageExplain = function () {
+  uiAlert(`this only has an effect on paginated post streams. Namely, when viewing posts by a single author, or all posts with a tag<br><br>please note that large amounts of posts per page may increase page loading times`)
 }
 
 var changeUsername = function () {

@@ -2311,7 +2311,7 @@ app.post('/inbox', function(req, res) {
   var errMsg = "your message may not be saved, please copy your text if you want to keep it<br><br>";
   if (!req.session.user) {return sendError(res, errMsg+"no user session 3653");}
   // the incoming text is encrypted, so we can not cleanse it
-  if (typeof req.body.encSenderText === undefined || typeof req.body.encRecText === undefined) {return sendError(res, errMsg+"malformed request 188<br><br>"+req.body.encSenderText+"<br><br>"+req.body.encRecText);}
+  if (typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(res, errMsg+"malformed request 188<br><br>"+req.body.encSenderText+"<br><br>"+req.body.encRecText);}
   var recipientID = String(req.body.recipient);
   var senderID = String(req.session.user._id);
   if (recipientID === senderID) {return sendError(res, errMsg+"you want to message yourself??? freak.");}
@@ -2716,6 +2716,28 @@ app.post('/toggleSetting', function(req, res) {
           } else {
             user.settings[setting] = true;
           }
+          writeToDB(userID, user, function (resp) {
+            if (resp.error) {sendError(res, resp.error);}
+            else {res.send({error: false});}
+          });
+        }
+      }
+    );
+  });
+});
+
+// set number of posts rendered on each page for paginated streams
+app.post('/setPostsPerPage', function(req, res) {
+  var errMsg = "PostsPerPage setting not successfully updated<br><br>";
+  if (!req.body || !req.body.number || !Number.isInteger(req.body.number) || req.body.number < 1) {return sendError(res, errMsg+"malformed request 994");}
+  idScreen(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}
+      , {_id:0, settings:1}
+      , function (err, user) {
+        if (err) {return sendError(res, errMsg+err);}
+        else if (!user) {return sendError(res, errMsg+"user not found");}
+        else {
+          user.settings.postsPerPage = Number(req.body.number);
           writeToDB(userID, user, function (resp) {
             if (resp.error) {sendError(res, resp.error);}
             else {res.send({error: false});}
@@ -3437,15 +3459,18 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
           author = resp.user;
           var authorPic = getUserPic(author);
           var posts = [];
+
+          var postsPerPage = getPostsPerPage(req);
+
           var pL = author.postList;
-          var pages = Math.ceil(pL.length /7);
+          var pages = Math.ceil(pL.length /postsPerPage);
           if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
             var page = pages;
           } else {
             var page = req.body.page;
           }
-          var start = (page * 7) - 1;
-          for (var i = start; i > start - 7; i--) {
+          var start = (page * postsPerPage) - 1;
+          for (var i = start; i > start - postsPerPage; i--) {
             if (pL[i]) {
               if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
                 posts.push({
@@ -3653,6 +3678,14 @@ var getAllOfAnAuthorsPostsWithTag = function (req, res) {
   });
 }
 
+var getPostsPerPage = function (req) {
+  var postsPerPage = 7;
+  if (req.body.postsPerPage && isNumeric(req.body.postsPerPage) && Number.isInteger(req.body.postsPerPage) && req.body.postsPerPage > 0) {
+    postsPerPage = req.body.postsPerPage;
+  }
+  return postsPerPage;
+}
+
 var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
   var errMsg = "tag by page fetch error<br><br>"
   if (req.body.page === undefined) {req.body.page = 0;}
@@ -3676,16 +3709,18 @@ var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
       }
       dateFilter(tagListing.list.length-1);
 
+      var postsPerPage = getPostsPerPage(req);
+
       filterMutedAuthors(req, tagListing.list, function (filteredList) {
         var lookUpList = [];
-        var totalPageCount = Math.ceil(filteredList.length /7);
+        var totalPageCount = Math.ceil(filteredList.length /postsPerPage);
         if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
           var page = totalPageCount;
         } else {
           var page = req.body.page;
         }
-        var start = (page * 7) - 1;
-        for (var i = start; i > start - 7; i--) {
+        var start = (page * postsPerPage) - 1;
+        for (var i = start; i > start - postsPerPage; i--) {
           if (filteredList[i]) {
             lookUpList.push(filteredList[i]);
           }

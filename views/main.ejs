@@ -166,6 +166,37 @@
       <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
     </form>
     <br><br><br><hr><br>
+    <text>posts per page<clicky onclick="postsPerPageExplain()" class="special">(?)</clicky>: </text>
+    <select id="posts-per-page" onchange="setPostsPerPage()">
+      <option>2</option>
+      <option>3</option>
+      <option>5</option>
+      <option>7</option>
+      <option>11</option>
+      <option>13</option>
+      <option>17</option>
+      <option>19</option>
+      <option>23</option>
+    </select>
+    <br>
+    <text>posts on author and tag pages are ordered by </text>
+    <select id="post-stream-toggle" onchange="setPostStreamDirection()">
+      <option>newest</option>
+      <option>oldest</option>
+    </select>
+    <text> at the top</text>
+    <br>
+    <text>yesterday is to your </text>
+    <select id="pagination-direction-toggle1" onchange="setPaginationDirection()">
+      <option>left</option>
+      <option>right</option>
+    </select>
+    <text> and tomorrow is to your </text>
+    <select id="pagination-direction-toggle2" onchange="setPaginationDirection()">
+      <option>right</option>
+      <option>left</option>
+    </select>
+    <br><br><br><hr><br>
 
     <text>change username</text><br>
     <form action="javascript:void(0);">
