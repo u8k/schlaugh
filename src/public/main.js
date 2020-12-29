@@ -3615,6 +3615,10 @@ var setPaginationDirection = function () {
 var setPostsPerPage = function () {
   ajaxCall('/setPostsPerPage', 'POST', {number: Number($("posts-per-page").value)}, function(json) {});
   glo.settings.postsPerPage = Number($("posts-per-page").value);
+  //
+  if (glo.postPanelStatus && glo.postPanelStatus.page) {
+    delete glo.postPanelStatus.page;
+  }
   // throw out any loaded paginiated postLists
   if (glo.pRef && glo.pRef.author) {
     for (var author in glo.pRef.author) {if (glo.pRef.author.hasOwnProperty(author)) {
