@@ -4976,6 +4976,14 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
 
     $("save-tag-form").classList.remove("removed");
     $("saved-tags-list").classList.remove("removed");
+    //
+    $('start-new-schlaunquer-game').classList.remove("removed");
+    ajaxCall('/~checkPendingSchlaunquerMatches', 'POST', {}, function(json) {
+      if (!json.noUpdate) {
+        glo.games.schlaunquer = json;
+      }
+      // fudge, here is where to put the inFeed notifications about active games
+    });
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}

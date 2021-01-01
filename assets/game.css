@@ -7,7 +7,7 @@
   background: gainsboro;
 }
 
-#game-wrapper {
+#schlaunquer-board-wrapper {
   position: relative;
   color: #404040;
 }
@@ -83,8 +83,26 @@ polygon {
   margin: 10px;
 }
 
-.game-listing {
+#schlaunquer-match-link {
+  width: 324px;
+  height: 30px;
+  font-family: monospace;
+}
+@media screen and (max-width: 360px) {
+  #schlaunquer-match-link {
+    width: 100%;
+    font-size: 1em;
+    height: 25px;
+  }
+}
+
+.schlaunquer-game-info {
+  margin-top: 10px;
+  margin-bottom: 10px;
   display: block;
+}
+
+.game-listing {
   font-size: 1.3em;
 }
 

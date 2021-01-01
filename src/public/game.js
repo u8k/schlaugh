@@ -12,44 +12,101 @@ var openSchlaunquerPanel = function (game_id) {
   simulatePageLoad('~schlaunquer', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
   // load menu page
   if (game_id) {loadGame(game_id);}
-  else {refreshMenu(game_id);}
+  else {refreshMenu();}
 }
 
 var refreshMenu = function (game_id) {
-  destroyAllChildrenOfElement($('games-list'));
   if (glo.username) {
-    var matches = _npa(['glo','games','schlaunquer','matches']);
-    var noMatch = true;
-    for (var match in matches) {if (matches.hasOwnProperty(match)) {
-      noMatch = false;
-      var listing = document.createElement("a");
-      if (!game_id || game_id !== match) {
-        listing.innerHTML = match;
-        listing.setAttribute('href', "/~schlaunquer/"+match);
-        listing.setAttribute('class', "special clicky game-listing");
-        (function (match) {
-          listing.onclick = function(event){
-            modKeyCheck(event, function(){
-              loadGame(match)
-            });
-          }
-        })(match);
-      } else {
-        listing.innerHTML = match+' (this one)';
-        listing.setAttribute('class', "game-listing");
+    $('games-list').classList.remove('removed');
+    $('sign-in-to-schlaunquer').classList.add('removed');
+    $("start-new-schlaunquer-game").classList.remove('removed');
+    //
+    var matchTypes = ['active','pending','finished'];
+    for (var i = 0; i < matchTypes.length; i++) {
+      destroyAllChildrenOfElement($(matchTypes[i]+'-game-list'));
+      var matches = _npa(['glo','games','schlaunquer', matchTypes[i]]);
+      var noMatch = true;
+      for (var match in matches) {if (matches.hasOwnProperty(match)) {
+        noMatch = false;
+        var listingWrapper = document.createElement("li");
+        var listing = document.createElement("a");
+        if (!game_id || game_id !== match) {
+          listing.innerHTML = match;
+          listing.setAttribute('href', "/~schlaunquer/"+match);
+          listing.setAttribute('class', "special clicky game-listing");
+          (function (match) {
+            listing.onclick = function(event){
+              modKeyCheck(event, function(){
+                loadGame(match)
+              });
+            }
+          })(match);
+        } else {
+          listing.innerHTML = match+' (this one)';
+          listing.setAttribute('class', "game-listing");
+        }
+        listingWrapper.appendChild(listing);
+        $(matchTypes[i]+'-game-list').appendChild(listingWrapper);
+      }}
+      if (noMatch) {
+        var listing = document.createElement("div");
+        listing.innerHTML = "(empty)";
+        $(matchTypes[i]+'-game-list').appendChild(listing);
       }
-      $('games-list').appendChild(listing);
-    }}
-    if (noMatch) {
-      var listing = document.createElement("div");
-      listing.innerHTML = "(you have no games)";
-      $('games-list').appendChild(listing);
     }
   } else {
-    var listing = document.createElement("div");
-    listing.innerHTML = "(in order to schlaunquer, you must first sign in to schlaugh)";
-    $('games-list').appendChild(listing);
+    $('games-list').classList.add('removed');
+    $("start-new-schlaunquer-game").classList.add('removed');
+    $('sign-in-to-schlaunquer').classList.remove('removed');
   }
+}
+
+var showGameCreationMenu = function (close) {
+  if (close) {
+    $("start-new-schlaunquer-game").classList.remove('removed');
+    $("schlaunquer-game-creation-menu").classList.add('removed');
+  } else {
+    $("schlaunquer-game-creation-menu").classList.remove('removed');
+    $("start-new-schlaunquer-game").classList.add('removed');
+    $('schlaunquer-game-info').classList.add('removed');
+    $('schlaunquer-board-wrapper').classList.add('removed');
+    simulatePageLoad('~schlaunquer', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
+    refreshMenu();
+  }
+}
+
+var gameCreationCall = function () {
+  loading();
+  var params = {
+  players: Number($('schlaunquer-game-creation-players').value),
+  unitCap: Number($('schlaunquer-game-creation-unitCap').value),
+  spawnValue: Number($('schlaunquer-game-creation-spawnValue').value),
+  }
+  if ($('schlaunquer-game-creation-opaqueEnemyUnits').value === "true") {
+    params.opaqueEnemyUnits = true;
+  }
+  ajaxCall('/~initSchlaunquerMatch', 'POST', params, function(json) {
+    loading(true);
+    showGameCreationMenu(true);
+    _npa(['glo','games','schlaunquer','pending', json.game_id], true);
+    loadGame(json.game_id);
+  });
+}
+
+var joinMatch = function (leave) {
+  loading()
+  ajaxCall('/~joinSchlaunquerMatch', 'POST', {game_id:gameRef.game_id, remove:leave}, function(json) {
+    loading(true);
+    if (leave) {
+      delete glo.games.schlaunquer.pending[gameRef.game_id];
+      $('schlaunquer-game-info').classList.add('removed');
+      simulatePageLoad('~schlaunquer', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
+      refreshMenu();
+    } else {
+      _npa(['glo','games','schlaunquer','pending', gameRef.game_id], true);
+      loadGame(gameRef.game_id);
+    }
+  });
 }
 
 var loadGame = function (game_id) {
@@ -57,14 +114,80 @@ var loadGame = function (game_id) {
   ajaxCall('/~getSchlaunquer', 'POST', {game_id:game_id}, function(json) {
     simulatePageLoad('~schlaunquer/'+game_id, 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
     loading(true);
+    showGameCreationMenu(true);
     gameRef.game_id = game_id;
-    setUpGameBoards(json);
+    if (!json.gameState || json.gameState !== 'pending') {
+      setUpGameBoards(json);
+    } else {
+      $('schlaunquer-board-wrapper').classList.add('removed');
+    }
+    setUpGameInfo(json);
     refreshMenu(game_id);
   });
 }
 
+var setUpGameInfo = function (data) {
+  //
+  $('schlaunquer-match-link').value = `schlaugh.com/~schlaunquer/`+data._id;
+  $('schlaunquer-match-unitCap').innerHTML = data.unitCap;
+  $('schlaunquer-match-spawnValue').innerHTML = data.spawnValue;
+  if (data.opaqueEnemyUnits) {
+    $('schlaunquer-match-opaqueEnemyUnits').innerHTML = "true";
+  } else {
+    $('schlaunquer-match-opaqueEnemyUnits').innerHTML = "false";
+  }
+  //
+  destroyAllChildrenOfElement($('schlaunquer-game-player-list'));
+  var playerCount = 0;
+  for (var player in data.players) {if (data.players.hasOwnProperty(player)) {
+    playerCount++;
+    // put in the iconURI
+
+    var listing = document.createElement("li");
+    listing.setAttribute('class', "game-listing");
+    // make these links to the users
+
+
+    listing.innerHTML = data.players[player].username;
+    $('schlaunquer-game-player-list').appendChild(listing);
+  }}
+  for (var i = playerCount; i < data.totalPlayers; i++) {
+    var listing = document.createElement("li");
+    listing.setAttribute('class', "game-listing");
+    listing.innerHTML = "(open)";
+    $('schlaunquer-game-player-list').appendChild(listing);
+  }
+  //
+  if (data.gameState === 'pending') {
+    $("join-schlaunquer-game-info").classList.remove('removed');
+    $('schlaunquer-application-pending').classList.add('removed');
+    if (glo.username) {
+      $('sign-in-to-join').classList.add('removed');
+      if (_npa(['glo','games','schlaunquer','pending',data._id])) {
+        if (!data.players[glo.userID]) {
+          $('schlaunquer-application-pending').classList.remove('removed');
+        }
+        $('join-schlaunquer-game').classList.add('removed');
+        $('leave-schlaunquer-game').classList.remove('removed');
+      } else {
+        $('join-schlaunquer-game').classList.remove('removed');
+        $('leave-schlaunquer-game').classList.add('removed');
+      }
+    } else {
+      $('join-schlaunquer-game').classList.add('removed');
+      $('leave-schlaunquer-game').classList.add('removed');
+      $('sign-in-to-join').classList.remove('removed');
+    }
+  } else {
+    $("join-schlaunquer-game-info").classList.add('removed');
+  }
+  //
+  $('schlaunquer-game-info').classList.remove('removed');
+}
+
 var setUpGameBoards = function (json) {
   if (json.notFound) { return uiAlert('404<br><br>game not found');}
+  $('schlaunquer-board-wrapper').classList.remove('removed');
   //
   gameRef.radius = json.radius;
   gameRef.startDate = json.startDate;
@@ -479,7 +602,14 @@ var closeVictory = function () {
   blackBacking(true);
 }
 
-var exposition = `<u>Objective:</u><br>Be the only player left with any units on the board <note linkText="">(it might take a very long time for someone to achieve such a complete victory. I don't know. This is the first playtest. The winning condition may be revised to be whoever holds the most tiles or units after round X. If that change is made, I'll give plenty of notice and it will only happen if there's a consensus of the players to do it.)<br></note><br><br><u>Mechanics:</u><br>You control the movement of your Units. You can schedule movements at any time during the day. All the action takes place at the schlaupdate. Your scheduled moves are secret until the schlaupdate.<br><br>Units live on Tiles. A tile containing at least one of your units is Occupied by you. The color of a tile indicates which player currently occupies it.<br><br>A tile may hold a maximum of 17 units<br><br><i>The number of units on a tile is <b>secret</b>, displayed only to the occupying player</i><br><br><u>The Schlaupdate:</u><br>at the strike of Schlaupdate, the following occurs, in order:<br><ol><li>Migration</li><li>War</li><li>Entropy</li><li>Creation</li></ol><br><u>Migration</u><br>Every unit, on every turn, can either Move or Stay. You may pick <i>one</i> of a tile's adjacent tiles to move units to, and can move some or all units, leaving the rest on their original tile.<br><br>By default, all units Stay. They only Move if you assign it.<br><br>If you move more than 17 units to a tile, then at this time the extra units will be destroyed, leaving exactly 17.<br><br><u>War</u><br>Units on the same Tile as another player's Units will fight. Units on opposing sides destroy each other one-for-one. I.e., if 7 red and 10 blue units occupy the same Tile, then after the battle the tile will be held by Blue with 3 remaining units. Ties result in all units destroyed and no one occupying the Tile.<br><br>If more than 2 players have units on a tile, then units from all players simultaneously destroy each other in the same manner. E.g., if red has 6 units in a tile , and all 5 other players also each have 5 units in the tile, then only 1 red unit will remain.<br><br><u>Entropy</u><br>1 unit is subtracted from every occupied tile on the board<br><br><u>Creation</u><br>If a tile is: <br><ol><li>unoccupied</li><li>adjacent to <i>exactly</i> 4(four) tiles that are occupied by the same player</li></ol>Then: 7(seven) new units will spawn on the tile, belonging to the player occupying the four(4) adjacent tiles<br><br><note linkText="">an alternate metaphor, which may or may not make the gameplay more or less easy to grok:<br>is to think of the units instead as health, belonging to a single unit<br>you spawn in a new unit that starts with a default HP of 7<br>units can fuse with each other to combine HP, up to a max of 17<br>a unit can un-fuse, splitting off part of itself to live on an adjacent tile<br>(but can only perform one such split at a time)<br>you can see that a tile contains an enemy unit, but don't know their HP until you start fighting them<br></note><br><hr>i am probably forgetting things, please ask questions<br><br>`
+var tilePopulationCapExplain = function () {
+  uiAlert(`enter 0 to have no limit`)
+}
+var spawnValueExplain = function () {
+  uiAlert(`this is also the number of units that each of each player's initial 3 tiles will have to start the game`)
+}
+
+  var exposition = `<u>Objective:</u><br>Be the only player left with any units on the board <note linkText="">(it might take a very long time for someone to achieve such a complete victory. I don't know. This is the first playtest. The winning condition may be revised to be whoever holds the most tiles or units after round X. If that change is made, I'll give plenty of notice and it will only happen if there's a consensus of the players to do it.)<br></note><br><br><u>Mechanics:</u><br>You control the movement of your Units. You can schedule movements at any time during the day. All the action takes place at the schlaupdate. Your scheduled moves are secret until the schlaupdate.<br><br>Units live on Tiles. A tile containing at least one of your units is Occupied by you. The color of a tile indicates which player currently occupies it.<br><br>A tile may hold a maximum of 17 units<br><br><i>The number of units on a tile is <b>secret</b>, displayed only to the occupying player</i><br><br><u>The Schlaupdate:</u><br>at the strike of Schlaupdate, the following occurs, in order:<br><ol><li>Migration</li><li>War</li><li>Entropy</li><li>Creation</li></ol><br><u>Migration</u><br>Every unit, on every turn, can either Move or Stay. You may pick <i>one</i> of a tile's adjacent tiles to move units to, and can move some or all units, leaving the rest on their original tile.<br><br>By default, all units Stay. They only Move if you assign it.<br><br>If you move more than 17 units to a tile, then at this time the extra units will be destroyed, leaving exactly 17.<br><br><u>War</u><br>Units on the same Tile as another player's Units will fight. Units on opposing sides destroy each other one-for-one. I.e., if 7 red and 10 blue units occupy the same Tile, then after the battle the tile will be held by Blue with 3 remaining units. Ties result in all units destroyed and no one occupying the Tile.<br><br>If more than 2 players have units on a tile, then units from all players simultaneously destroy each other in the same manner. E.g., if red has 6 units in a tile , and all 5 other players also each have 5 units in the tile, then only 1 red unit will remain.<br><br><u>Entropy</u><br>1 unit is subtracted from every occupied tile on the board<br><br><u>Creation</u><br>If a tile is: <br><ol><li>unoccupied</li><li>adjacent to <i>exactly</i> 4(four) tiles that are occupied by the same player</li></ol>Then: 7(seven) new units will spawn on the tile, belonging to the player occupying the four(4) adjacent tiles<br><br><note linkText="">an alternate metaphor, which may or may not make the gameplay more or less easy to grok:<br>is to think of the units instead as health, belonging to a single unit<br>you spawn in a new unit that starts with a default HP of 7<br>units can fuse with each other to combine HP, up to a max of 17<br>a unit can un-fuse, splitting off part of itself to live on an adjacent tile<br>(but can only perform one such split at a time)<br>you can see that a tile contains an enemy unit, but don't know their HP until you start fighting them<br></note><br><hr>i am probably forgetting things, please ask questions. You can do so by messaging the <a href="/schlaunquer">schlaunquer account</a>, or tagging a post with <code>schlaunquer</code><br><br>`
 
 /* rotation
 var rotateGrid = function () {

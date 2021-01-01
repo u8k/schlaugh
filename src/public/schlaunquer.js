@@ -85,26 +85,41 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     cleanedData.radius = match.radius;
     cleanedData.version = match.version;
     cleanedData.startDate = match.startDate;
+    cleanedData.gameState = match.gameState;
+    cleanedData.totalPlayers = match.totalPlayers;
     cleanedData.victor = match.victor;
+    cleanedData._id = match._id;
+    cleanedData.unitCap = match.unitCap;
+    cleanedData.spawnValue = match.spawnValue;
+    cleanedData.opaqueEnemyUnits = match.opaqueEnemyUnits;
     cleanedData.dates = {};
     if (match.dates) {
       for (var date in match.dates) {if (match.dates.hasOwnProperty(date)) {
-        cleanedData.dates[date] = {};
-        for (var tile in match.dates[date]) {if (match.dates[date].hasOwnProperty(tile)) {
-          cleanedData.dates[date][tile] = {
-            ownerID: match.dates[date][tile].ownerID,
-          }
-          if (userID && String(match.dates[date][tile].ownerID) === String(userID)) {
-            cleanedData.dates[date][tile].score = match.dates[date][tile].score;
-            cleanedData.dates[date][tile].pendingMoves = match.dates[date][tile].pendingMoves;
-          }
-        }}
+        if (!match.opaqueEnemyUnits && date !== pool.getCurDate()) {
+          cleanedData.dates[date] = match.dates[date];
+        } else {
+          cleanedData.dates[date] = {};
+          for (var tile in match.dates[date]) {if (match.dates[date].hasOwnProperty(tile)) {
+            cleanedData.dates[date][tile] = {
+              ownerID: match.dates[date][tile].ownerID,
+            }
+            if (!match.opaqueEnemyUnits || (userID && String(match.dates[date][tile].ownerID) === String(userID))) {
+              cleanedData.dates[date][tile].score = match.dates[date][tile].score;
+              if (userID && String(match.dates[date][tile].ownerID) === String(userID)) {
+                cleanedData.dates[date][tile].pendingMoves = match.dates[date][tile].pendingMoves;
+              }
+            }
+          }}
+        }
       }}
     }
     return cleanedData;
   }
 
   exp.nightAudit = function (match) {
+    if (match.gameState && match.gameState === "pending") {
+      return exp.pendingAudit(match);
+    }
     if (match.victor || match.dates[pool.getCurDate()]) { return null }; // no night audit needed
 
     var daysAgo = 1;
@@ -116,10 +131,11 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     var newMap = {};
 
 
-    // Migration
-    var unitCap = exp.gameRef.unitCap;
-    if (match.unitCap) {unitCap = match.unitCap;}
     //
+    var unitCap = exp.gameRef.unitCap;
+    if (typeof match.unitCap !== "undefined") {unitCap = match.unitCap;}
+    if (unitCap === 0) {unitCap = Infinity;}
+    // Migration
     for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
       spot = spot.split(",");
       // check for forfeit
@@ -218,7 +234,11 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       newMap[spot] = {
         ownerID: spawnMap[spot],
       }
-      if (match.spawnValue) {newMap[spot].score = match.spawnValue;}
+      if (typeof match.spawnValue !== "undefined") {
+        if (match.spawnValue > 0) {
+          newMap[spot].score = match.spawnValue;
+        }
+      }
       else {newMap[spot].score = exp.gameRef.spawnValue;}
     }}
 
@@ -229,6 +249,63 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       return match;
     } else {
       return exp.nightAudit(match);
+    }
+  }
+
+  exp.pendingAudit = function (match) { // nightAudit when a game is in the "pending" state
+    if (match.lastUpdatedOn === pool.getCurDate()) { return false; }
+    match.lastUpdatedOn = pool.getCurDate();
+    var available = match.totalPlayers;
+    for (var player in match.players) {if (match.players.hasOwnProperty(player)) {
+      available--;
+    }}
+    var waitList = [];
+    for (var player in match.pendingPlayers) {if (match.pendingPlayers.hasOwnProperty(player)) {
+      waitList.push(player);
+    }}
+    waitList.sort(function(a, b){return 0.5 - Math.random()});
+    //
+    if (available > waitList.length) {    // not full
+      for (var i = 0; i < waitList.length; i++) {
+        match.players[waitList[i]] = match.pendingPlayers[waitList[i]];
+      }
+      match.pendingPlayers = {};
+      return match;
+    } else {                // full up
+      for (var i = 0; i < available; i++) {
+        match.players[waitList[i]] = match.pendingPlayers[waitList[i]];
+      }
+      // initiate the match
+      match.gameState = 'active';
+      delete match.pendingPlayers;
+
+      var playArr = [];
+      for (var player in match.players) {if (match.players.hasOwnProperty(player)) {
+        playArr.push(player)
+      }}
+      playArr.sort(function(a, b){return 0.5 - Math.random()});
+
+      var map = {};
+      //
+      var ref = exp.gameRef.init.players[match.totalPlayers];
+      for (var i = 0; i < playArr.length; i++) {
+        // assign color
+        match.players[playArr[i]].color = ref.pos[i].color;
+        // assign init tiles
+        for (var j = 0; j < ref.pos[i].tiles.length; j++) {
+          map[ref.pos[i].tiles[j]] = {
+            ownerID: playArr[i],
+            score: match.spawnValue,
+          }
+        }
+      }
+      match.dates = {};
+      match.dates[pool.getCurDate()] = map;
+      //
+      match.radius = ref.radius;
+      match.startDate = pool.getCurDate();
+      //
+      return match;
     }
   }
 

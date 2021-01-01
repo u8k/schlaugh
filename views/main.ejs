@@ -411,7 +411,7 @@
 
 <div id="schlaunquer-panel" class="removed">
   <h2 id="schlaunquer-title">schlaunquer</h2>
-  <wrapper id="game-wrapper">
+  <wrapper id="schlaunquer-board-wrapper">
     <wrapper id="board-bucket"></wrapper>
     <icon id='game-round-back' onclick="changeBoardRound(-1)" class="clicky removed no-select">◀ </icon>
     <icon id='game-round-forward' onclick="changeBoardRound(1)" class="clicky removed no-select">▶</icon>
@@ -421,9 +421,72 @@
   -->
 
   </wrapper>
+  <div id="schlaunquer-game-creation-menu" class="content-box removed">
+    <form action="javascript:void(0);">
+      <text class="post-title">match options:</text>
+      <br><br>
+      <text>how many players?: </text>
+      <select id="schlaunquer-game-creation-players">
+        <option>2</option>
+        <option>3</option>
+        <option>4</option>
+        <option selected="selected">6</option>
+      </select>
+      <br><br>
+      <text>maximum number of units allowed on each tile<clicky onclick="tilePopulationCapExplain()" class="special">(?)</clicky>: </text>
+      <input type="number" id="schlaunquer-game-creation-unitCap" class="game-move-input" min="0" step="1" value="17">
+      <br><br>
+      <text>number of units created by spawning<clicky onclick="spawnValueExplain()" class="special">(?)</clicky>: </text>
+      <input type="number" id="schlaunquer-game-creation-spawnValue" class="game-move-input" min="0" step="1" value="7">
+      <br><br>
+      <text>enemy unit counts are hidden: </text>
+      <select id="schlaunquer-game-creation-opaqueEnemyUnits">
+        <option>true</option>
+        <option>false</option>
+      </select>
+      <br><br>
+      <text>after creating the schlaunquer match, it's up to you to distribute the link to whoever you'd like to play with. Anyone with the link will be able to join the game. If more people join than there are spots, then players will be chosen randomly from the pool of entrants</text>
+      <br><br>
+      <button onclick="gameCreationCall()" type="submit">initiate</button> &nbsp
+      <button onclick="showGameCreationMenu(true);">nvmd</button>
+    </form>
+  </div>
+  <div id="schlaunquer-game-info" class="content-box removed">
+    <text class="game-listing">match link: </text><input id="schlaunquer-match-link" class="game-listing"></input><br>
+    <wrapper class="schlaunquer-game-info">
+      <text>maximum number of units allowed on each tile<clicky onclick="tilePopulationCapExplain()" class="special">(?)</clicky>: </text><text id="schlaunquer-match-unitCap"></text>
+    </wrapper>
+    <wrapper class="schlaunquer-game-info">
+      <text>number of units created by spawning<clicky onclick="spawnValueExplain()" class="special">(?)</clicky>: </text><text id="schlaunquer-match-spawnValue"></text>
+    </wrapper>
+    <wrapper class="schlaunquer-game-info">
+      <text>enemy unit counts are hidden: </text><text id="schlaunquer-match-opaqueEnemyUnits"></text>
+    </wrapper>
+    <u class="game-listing">PARTICIPANTS:</u>
+    <ol id="schlaunquer-game-player-list"></ol>
+    <wrapper id="join-schlaunquer-game-info" class="removed">
+      <br>
+      <text>(participants are added at the schlaupdate. If more people apply than there are open spots in the match, then spots are filled by choosing randomly from the applicants that applied on that day)</text>
+      <br><br>
+      <text id="schlaunquer-application-pending">APPLICATION PENDING<br>you have successfully applied for this match. Check back tomorrow to see if you got in<br><br></text>
+      <button id="join-schlaunquer-game" onclick="joinMatch()">join match</button>
+      <button id="leave-schlaunquer-game" onclick="joinMatch(true)">leave match</button>
+      <text id="sign-in-to-join">you must be signed in to schlaugh to join a match</text>
+    </wrapper>
+  </div>
   <div id="game-select" class="content-box">
+    <wrapper id="start-new-schlaunquer-game" class="removed">
+      <button onclick="showGameCreationMenu()">start new game</button><br>
+    </wrapper>
     <text class="post-title">your games:</text>
-    <div id="games-list">
+    <text id="sign-in-to-schlaunquer" class="removed">(in order to schlaunquer, you must first sign in to schlaugh)</text>
+    <div id="games-list" class="removed">
+      <u class="game-listing">ACTIVE:</u>
+      <ul id="active-game-list"></ul>
+      <u class="game-listing">PENDING:</u>
+      <ul id="pending-game-list"></ul>
+      <u class="game-listing">FINISHED:</u>
+      <ul id="finished-game-list"></ul>
     </div>
   </div>
   <div class="post"><text class="post-title">Exposition</text>
