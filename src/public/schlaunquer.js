@@ -235,7 +235,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
         ownerID: spawnMap[spot],
       }
       if (typeof match.spawnValue !== "undefined") {
-        if (match.spawnValue > 0) {
+        if (match.spawnValue > 0) {         // 0 is a valid spawnValue, to indicate no spawning
           newMap[spot].score = match.spawnValue;
         }
       }

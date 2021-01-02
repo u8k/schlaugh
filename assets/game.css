@@ -86,12 +86,13 @@ polygon {
 #schlaunquer-match-link {
   width: 324px;
   height: 30px;
-  font-family: monospace;
+  font-family:  'Consolas', Courier, monospace;
+  font-size: 1.05em;
 }
 @media screen and (max-width: 360px) {
   #schlaunquer-match-link {
     width: 100%;
-    font-size: 1em;
+    font-size: .87em;
     height: 25px;
   }
 }

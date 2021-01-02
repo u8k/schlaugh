@@ -603,7 +603,7 @@ var closeVictory = function () {
 }
 
 var tilePopulationCapExplain = function () {
-  uiAlert(`enter 0 to have no limit`)
+  uiAlert(`'0' indicates no limit`);
 }
 var spawnValueExplain = function () {
   uiAlert(`this is also the number of units that each of each player's initial 3 tiles will have to start the game`)

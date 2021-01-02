@@ -4978,12 +4978,16 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     $("saved-tags-list").classList.remove("removed");
     //
     $('start-new-schlaunquer-game').classList.remove("removed");
-    ajaxCall('/~checkPendingSchlaunquerMatches', 'POST', {}, function(json) {
-      if (!json.noUpdate) {
-        glo.games.schlaunquer = json;
-      }
-      // fudge, here is where to put the inFeed notifications about active games
-    });
+
+    if (glo.games.schlaunquer.matchListsLastUpdatedOn !== pool.getCurDate()) { // don't call for the check at all if we already know we're current
+      ajaxCall('/~checkPendingSchlaunquerMatches', 'POST', {}, function(json) {
+        if (!json.noUpdate) {
+          glo.games.schlaunquer = json;
+        }
+        // fudge, here is where to put the inFeed notifications about active games
+      });
+    }
+    // fudge, here is where to put the inFeed notifications about active games
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}

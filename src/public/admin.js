@@ -248,16 +248,8 @@ var getSchlaunquerMatches = function () {
   });
 }
 
-var initSchlaunquerMatch = function () {
-  var obj = {
-    game_id: $('schlaunquer-game-id').value,
-    players: $('schlaunquer-players-input').value.split(","),
-  }
-  var spawnValue = Number($('schlaunquer-spawnValue-input').value);
-  var unitCap = Number($('schlaunquer-unitCap-input').value);
-  if (Number.isInteger(spawnValue) && spawnValue !== 0) {obj.spawnValue = spawnValue;}
-  if (Number.isInteger(unitCap) && unitCap !== 0) {obj.unitCap = unitCap;}
-  ajaxCall('/admin/initSchlaunquerMatch', 'POST', obj, function(json) {
+var schlaunquerMatchDataUpdate = function () {
+  ajaxCall('/admin/schlaunquerMatchDataUpdate', 'POST', {userID: $('schlaunquer-userID').value}, function(json) {
     console.log(json);
   });
 }

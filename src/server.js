@@ -1539,6 +1539,28 @@ app.post('/admin/schlaunquer', function(req, res) {
   });
 });
 
+app.post('/admin/schlaunquerMatchDataUpdate', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('users').findOne({_id: ObjectId(req.body.userID)}, { games:1,}, function (err, user) {
+      if (err) {return sendError(res, err);}
+      if (!user) {return res.send({error:"user not found"});}
+      //
+      if (user.games && user.games.schlaunquer && user.games.schlaunquer.matches) {
+        if (!user.games.schlaunquer.finished) {user.games.schlaunquer.finished = {}}
+        for (var match in user.games.schlaunquer.matches) {if (user.games.schlaunquer.matches.hasOwnProperty(match)) {
+          user.games.schlaunquer.finished[match] = true;
+        }}
+        delete user.games.schlaunquer.matches;
+        //
+        writeToDB(user._id, user, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          return res.send(user);
+        });
+      } else { return res.send({error:"no eligible matches to be moved"}); }
+    });
+  });
+});
+
 app.post('/admin/schlaunquerUserSwap', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('schlaunquerMatches').findOne({ _id: req.body.gameID }, {}, function (err, match) {
@@ -1785,6 +1807,16 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
   if (!req.body.players || !Number.isInteger(req.body.players)) {return sendError(res, errMsg+"malformed request 9048");}
   if (!(req.body.players === 6 || req.body.players === 3 || req.body.players === 4 || req.body.players === 2)) {return sendError(res, errMsg+"malformed request 9046");}
   lookUpCurrentUser(req, res, errMsg, {username:1, iconURI:1, games:1}, function (user) {
+    //
+    if (user.games && user.games.schlaunquer && user.games.schlaunquer.pending) {
+      var count = 0;
+      for (var match in user.games.schlaunquer.pending) {if (user.games.schlaunquer.pending.hasOwnProperty(match)) {
+        count++;
+      }}
+    }
+    if (count > 20) {return sendError(res, errMsg+`woah there cowboy!<br>it seems you're already enrolled in an awful lot of schlaunquer matches. If you'd genuinely like to create additional matches, message @staff and I can bump the limit higher for you. I had to put the limit somewhere and I did not imagine anyone would legitimately want to be in this many matches at once`);}
+
+    //
     genID('schlaunquerMatches', 7, function (resp) {
       if (resp.error) {return sendError(res, errMsg+resp.error);}
       db.collection('schlaunquerMatches').findOne({ _id: resp._id }, {}, function (err, match) {
@@ -1897,14 +1929,16 @@ app.post('/~checkPendingSchlaunquerMatches', function(req, res) {
   var errMsg = "failed pending schlaunquer match check<br><br>";
   lookUpCurrentUser(req, res, errMsg, {games:1}, function (user) {
     if (!user.games || !user.games.schlaunquer || !user.games.schlaunquer.pending) {return res.send({noUpdate:true});}
-    if (user.games.schlaunquer.lastPendingCheck && user.games.schlaunquer.lastPendingCheck === pool.getCurDate()) {return res.send({noUpdate:true});}
+    if (user.games.schlaunquer.matchListsLastUpdatedOn && user.games.schlaunquer.matchListsLastUpdatedOn === pool.getCurDate()) {return res.send({noUpdate:true});}
 
-    user.games.schlaunquer.lastPendingCheck = pool.getCurDate();
+    user.games.schlaunquer.matchListsLastUpdatedOn = pool.getCurDate();
 
     checkPendingSchlaunquerMatches(req, res, errMsg, user, function (user) {
-      writeToDB(user._id, user, function (resp) {
-        if (resp.error) {return sendError(res, errMsg+resp.error);}
-        return res.send(user.games.schlaunquer);
+      checkActiveSchlaunquerMatches(req, res, errMsg, user, function (user) {
+        writeToDB(user._id, user, function (resp) {
+          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          return res.send(user.games.schlaunquer);
+        });
       });
     });
   });
@@ -1951,6 +1985,31 @@ var checkPendingSchlaunquerMatches = function (req, res, errMsg, user, callback,
       if (matchArr.length === i) { return callback(user);}
       else {return checkPendingSchlaunquerMatches(req, res, errMsg, user, callback, matchArr, i);}
     }
+  });
+}
+var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) {
+  // this is a passive check of if a match victor has already been declared
+  // we do NOT want this to actually go through and perform an audit and check for victory on these matches
+  // because then it will move matches to 'finished' before the user even knows that's the case
+  // this way they stay in active, until the day after the user has found out the match ended
+  if (!user.games || !user.games.schlaunquer || !user.games.schlaunquer.active) {return callback(user);}
+  var matchArr = [];
+  for (var match in user.games.schlaunquer.active) {if (user.games.schlaunquer.active.hasOwnProperty(match)) {
+    matchArr.push(match);
+  }}
+  if (matchArr.length === 0) { return callback(user); }
+  if (!user.games.schlaunquer.finished) {user.games.schlaunquer.finished = {}}
+
+  db.collection('schlaunquerMatches').find({_id: {$in: matchArr}}, {victor:1,}).toArray(function(err, matchList) {
+    if (err) {return sendError(res, errMsg+err);}
+
+    for (var i = 0; i < matchList.length; i++) {
+      if (matchList[i].victor) {
+        user.games.schlaunquer.finished[matchList[i]._id] = true;
+        delete user.games.schlaunquer.active[matchList[i]._id];
+      }
+    }
+    return callback(user);
   });
 }
 
