@@ -49,6 +49,12 @@
 </div>
 
 <div id="posts-panel" class="removed">
+  <div id="schlaunquer-reminder" class="removed post-background">
+    <u>REMINDER</u><br>
+    <text id="schlaunquer-reminder-single" class="removed">your are currently engaged in a match of <a href="/~schlaunquer" class="clicky special" onclick="modKeyCheck(event, function () {openSchlaunquerPanel();});"><b>schlaunquer</b></a><br>be sure to input your moves before the schlaupdate!</text>
+    <text id="schlaunquer-reminder-multiple" class="removed">your are currently engaged in matches of <a href="/~schlaunquer" class="clicky special" onclick="modKeyCheck(event, function () {openSchlaunquerPanel();});"><b>schlaunquer</b></a><br>be sure to input your moves before the schlaupdate!</text>
+    <br><button id="schlaunquer-reminder-dismiss" onclick="setSchlaunquerReminder()">dismiss</button>
+  </div>
 
   <%- include("authorHeader", {kind: "top"}) %>
 
@@ -166,36 +172,49 @@
       <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
     </form>
     <br><br><br><hr><br>
-    <text>posts per page<clicky onclick="postsPerPageExplain()" class="special">(?)</clicky>: </text>
-    <select id="posts-per-page" onchange="setPostsPerPage()">
-      <option>2</option>
-      <option>3</option>
-      <option>5</option>
-      <option>7</option>
-      <option>11</option>
-      <option>13</option>
-      <option>17</option>
-      <option>19</option>
-      <option>23</option>
+    <wrapper class="setting-wrapper">
+      <text>posts per page<clicky onclick="postsPerPageExplain()" class="special">(?)</clicky>: </text>
+      <select id="posts-per-page" onchange="setPostsPerPage()">
+        <option>2</option>
+        <option>3</option>
+        <option>5</option>
+        <option>7</option>
+        <option>11</option>
+        <option>13</option>
+        <option>17</option>
+        <option>19</option>
+        <option>23</option>
+      </select>
+    </wrapper>
+    <wrapper class="setting-wrapper">
+      <text>posts on author and tag pages are ordered by </text>
+      <select id="post-stream-toggle" onchange="setPostStreamDirection()">
+        <option>newest</option>
+        <option>oldest</option>
+      </select>
+      <text> at the top</text>
+    </wrapper>
+    <wrapper class="setting-wrapper">
+      <text>yesterday is to your </text>
+      <select id="pagination-direction-toggle1" onchange="setPaginationDirection()">
+        <option>left</option>
+        <option>right</option>
+      </select>
+      <text> and tomorrow is to your </text>
+      <select id="pagination-direction-toggle2" onchange="setPaginationDirection()">
+        <option>right</option>
+        <option>left</option>
+      </select>
+    </wrapper>
+
+    <br><br>
+
+    <text>show a schlaunquer reminder on my post feed when i have active matches: </text>
+    <select id="schlaunquer-game-reminder-setting" onchange="setSchlaunquerReminder(true)">
+      <option>true</option>
+      <option>false</option>
     </select>
-    <br>
-    <text>posts on author and tag pages are ordered by </text>
-    <select id="post-stream-toggle" onchange="setPostStreamDirection()">
-      <option>newest</option>
-      <option>oldest</option>
-    </select>
-    <text> at the top</text>
-    <br>
-    <text>yesterday is to your </text>
-    <select id="pagination-direction-toggle1" onchange="setPaginationDirection()">
-      <option>left</option>
-      <option>right</option>
-    </select>
-    <text> and tomorrow is to your </text>
-    <select id="pagination-direction-toggle2" onchange="setPaginationDirection()">
-      <option>right</option>
-      <option>left</option>
-    </select>
+
     <br><br><br><hr><br>
 
     <text>change username</text><br>

@@ -1077,6 +1077,7 @@ var snakeBank = [
 ];
 
 var isStringValidDate = function (string) {
+  if (typeof string !== 'string') {return false;}
   if (string.length !== 10 || string[4] !== "-" || string[7] !== "-" || !isNumeric(string.slice(0,4)) || !isNumeric(string.slice(5,7)) || !isNumeric(string.slice(8,10))) {
     return false;
   } else {
@@ -1539,28 +1540,6 @@ app.post('/admin/schlaunquer', function(req, res) {
   });
 });
 
-app.post('/admin/schlaunquerMatchDataUpdate', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('users').findOne({_id: ObjectId(req.body.userID)}, { games:1,}, function (err, user) {
-      if (err) {return sendError(res, err);}
-      if (!user) {return res.send({error:"user not found"});}
-      //
-      if (user.games && user.games.schlaunquer && user.games.schlaunquer.matches) {
-        if (!user.games.schlaunquer.finished) {user.games.schlaunquer.finished = {}}
-        for (var match in user.games.schlaunquer.matches) {if (user.games.schlaunquer.matches.hasOwnProperty(match)) {
-          user.games.schlaunquer.finished[match] = true;
-        }}
-        delete user.games.schlaunquer.matches;
-        //
-        writeToDB(user._id, user, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
-          return res.send(user);
-        });
-      } else { return res.send({error:"no eligible matches to be moved"}); }
-    });
-  });
-});
-
 app.post('/admin/schlaunquerUserSwap', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('schlaunquerMatches').findOne({ _id: req.body.gameID }, {}, function (err, match) {
@@ -1988,10 +1967,8 @@ var checkPendingSchlaunquerMatches = function (req, res, errMsg, user, callback,
   });
 }
 var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) {
-  // this is a passive check of if a match victor has already been declared
+  // this is a passive check of if a match victor has already been declared,
   // we do NOT want this to actually go through and perform an audit and check for victory on these matches
-  // because then it will move matches to 'finished' before the user even knows that's the case
-  // this way they stay in active, until the day after the user has found out the match ended
   if (!user.games || !user.games.schlaunquer || !user.games.schlaunquer.active) {return callback(user);}
   var matchArr = [];
   for (var match in user.games.schlaunquer.active) {if (user.games.schlaunquer.active.hasOwnProperty(match)) {
@@ -2000,11 +1977,11 @@ var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) 
   if (matchArr.length === 0) { return callback(user); }
   if (!user.games.schlaunquer.finished) {user.games.schlaunquer.finished = {}}
 
-  db.collection('schlaunquerMatches').find({_id: {$in: matchArr}}, {victor:1,}).toArray(function(err, matchList) {
+  db.collection('schlaunquerMatches').find({_id: {$in: matchArr}}, {victor:1, dates:1}).toArray(function(err, matchList) {
     if (err) {return sendError(res, errMsg+err);}
 
     for (var i = 0; i < matchList.length; i++) {
-      if (matchList[i].victor) {
+      if (matchList[i].victor && !matchList[i].dates[pool.getCurDate()]) {  // if there IS a map for today, then the game ended today, and we want to leave it in active until tomorrow
         user.games.schlaunquer.finished[matchList[i]._id] = true;
         delete user.games.schlaunquer.active[matchList[i]._id];
       }
@@ -2012,6 +1989,27 @@ var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) 
     return callback(user);
   });
 }
+app.post('/~setSchlaunquerReminder', function(req, res) {
+  var errMsg = "schlaunquer reminder status not successfully updated<br><br>";
+  if (!req.body || !req.body.date || !isStringValidDate(req.body.date)) {return sendError(res, errMsg+"malformed request 294");}
+  idScreen(req, res, errMsg, function (userID) {
+    db.collection('users').findOne({_id: userID}, {_id:0, games:1}, function (err, user) {
+      if (err) {return sendError(res, errMsg+err);}
+      if (!user) {return sendError(res, errMsg+"user not found");}
+      //
+      if (!user.games) {user.games = {}};
+      if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
+      user.games.schlaunquer.remindNextOn = req.body.date;
+      //
+      writeToDB(userID, user, function (resp) {
+        if (resp.error) {sendError(res, resp.error);}
+        else {res.send({error: false});}
+      });
+
+    });
+  });
+});
+
 
 //admin
 app.post('/admin/adminSchlaunquerTweak', function(req, res) {

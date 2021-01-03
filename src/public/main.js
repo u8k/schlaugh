@@ -4979,20 +4979,68 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     //
     $('start-new-schlaunquer-game').classList.remove("removed");
 
+    if (glo.games && glo.games.schlaunquer && glo.games.schlaunquer.remindNextOn && glo.games.schlaunquer.remindNextOn > pool.getCurDate(-1)) {
+      $('schlaunquer-game-reminder-setting').value = 'false';
+    }
+
     if (glo.games.schlaunquer.matchListsLastUpdatedOn !== pool.getCurDate()) { // don't call for the check at all if we already know we're current
       ajaxCall('/~checkPendingSchlaunquerMatches', 'POST', {}, function(json) {
         if (!json.noUpdate) {
           glo.games.schlaunquer = json;
         }
-        // fudge, here is where to put the inFeed notifications about active games
+        setSchlaunquerNotificationOnFeed();
       });
     }
-    // fudge, here is where to put the inFeed notifications about active games
+    setSchlaunquerNotificationOnFeed();
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
-
+  //
   cookieNotification();
+}
+
+var setSchlaunquerNotificationOnFeed = function () {
+  var remindNextOn = _npa(['glo', 'games', 'schlaunquer', 'remindNextOn']);
+  if (remindNextOn && remindNextOn >= pool.getCurDate()) {
+    $('schlaunquer-reminder').classList.add("removed");
+    return;
+  }
+  if (glo.games && glo.games.schlaunquer && glo.games.schlaunquer.active) {
+    var count = 0;
+    for (var match in glo.games.schlaunquer.active) {if (glo.games.schlaunquer.active.hasOwnProperty(match)) {
+      count++;
+    }}
+    if (count > 0) {
+      if (count === 1) {
+        $('schlaunquer-reminder-single').classList.remove("removed");
+        $('schlaunquer-reminder-multiple').classList.add("removed");
+      } else {
+        $('schlaunquer-reminder-single').classList.add("removed");
+        $('schlaunquer-reminder-multiple').classList.remove("removed");
+      }
+      $('schlaunquer-reminder').classList.remove("removed");
+    } else {
+      $('schlaunquer-reminder').classList.add("removed");
+    }
+  } else {
+    $('schlaunquer-reminder').classList.add("removed");
+  }
+}
+
+var setSchlaunquerReminder = function (fromSettings) {
+  if (fromSettings) {
+    if ($('schlaunquer-game-reminder-setting').value === 'false') {
+      var date = pool.getCurDate(-999999);
+    } else {
+      var date = pool.getCurDate(1);
+    }
+  } else {
+    var date = pool.getCurDate();
+  }
+  ajaxCall('/~setSchlaunquerReminder', 'POST', {date:date}, function(json) {
+    _npa(['glo', 'games', 'schlaunquer', 'remindNextOn'], date);
+    setSchlaunquerNotificationOnFeed();
+  });
 }
 
 var setAppearance = function () {

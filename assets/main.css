@@ -288,6 +288,16 @@ clicky, .clicky, spoil {
 .message {width: 85%; max-width: 800px;}
 #settings-container, #thread-list {text-align: center;}
 
+.setting-wrapper {
+  display: block;
+  margin-bottom: 5px;
+}
+@media screen and (max-width: 510px) {
+  .setting-wrapper {
+    margin-bottom: 15px;
+  }
+}
+
 .post, .message, #tag-display, .top-tag, .author-header-right, .author-on-post, #thread-list {
   white-space: pre-wrap;
   overflow: hidden;

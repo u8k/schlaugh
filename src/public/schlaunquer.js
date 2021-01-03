@@ -203,8 +203,10 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     }}
     if (activePlayerList.length === 0) {  // nobody wins(but match is over)
       match.victor = true;
+      match.gameState = 'finished';
     } else if (activePlayerList.length === 1) {
       match.victor = activePlayerList[0];
+      match.gameState = 'finished';
     }
 
     // Creation
