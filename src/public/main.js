@@ -4979,19 +4979,21 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     //
     $('start-new-schlaunquer-game').classList.remove("removed");
 
-    if (glo.games && glo.games.schlaunquer && glo.games.schlaunquer.remindNextOn && glo.games.schlaunquer.remindNextOn > pool.getCurDate(-1)) {
-      $('schlaunquer-game-reminder-setting').value = 'false';
-    }
+    if (glo.games && glo.games.schlaunquer) {
+      if (glo.games.schlaunquer.remindNextOn && glo.games.schlaunquer.remindNextOn > pool.getCurDate(-1)) {
+        $('schlaunquer-game-reminder-setting').value = 'false';
+      }
 
-    if (glo.games.schlaunquer.matchListsLastUpdatedOn !== pool.getCurDate()) { // don't call for the check at all if we already know we're current
-      ajaxCall('/~checkPendingSchlaunquerMatches', 'POST', {}, function(json) {
-        if (!json.noUpdate) {
-          glo.games.schlaunquer = json;
-        }
-        setSchlaunquerNotificationOnFeed();
-      });
+      if (glo.games.schlaunquer.matchListsLastUpdatedOn && glo.games.schlaunquer.matchListsLastUpdatedOn !== pool.getCurDate()) { // don't call for the check at all if we already know we're current
+        ajaxCall('/~checkPendingSchlaunquerMatches', 'POST', {}, function(json) {
+          if (!json.noUpdate) {
+            glo.games.schlaunquer = json;
+          }
+          setSchlaunquerNotificationOnFeed();
+        });
+      }
+      setSchlaunquerNotificationOnFeed();
     }
-    setSchlaunquerNotificationOnFeed();
   }
   //
   if (glo.userPic) {updateUserPic(false, glo.userPic);}
