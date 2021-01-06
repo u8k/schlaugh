@@ -4094,12 +4094,12 @@ var closePrompt = function (elem) {
 
 var toggleMoreEditorButtons = function (kind, elem) {
   var cursorPos = getCursorPosition($(kind+'-editor'));
-  if (elem.innerHTML === "◀") {
-    elem.innerHTML = "▶";
+  if (elem.title === "more buttons") {
+    elem.innerHTML = `<icon class="fas fa-minus editor-more-less"></icon>`;
     elem.title = "less buttons";
   $(kind+"-more-buttons").classList.remove("removed");
   } else {
-    elem.innerHTML = "◀";
+    elem.innerHTML = `<icon class="fas fa-plus editor-more-less"></icon>`;
     elem.title = "more buttons";
     $(kind+"-more-buttons").classList.add("removed");
   }

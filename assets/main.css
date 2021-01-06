@@ -240,6 +240,14 @@ clicky, .clicky, spoil {
 .editor-button  {
   margin: 2px;
 }
+.editor-italic {
+  position: relative;
+  left: -2px;
+}
+.editor-more-less {
+  position: relative;
+  top: 0.7px;
+}
 
 .editor-meta {
   display: inline-block;

@@ -1,7 +1,7 @@
 <br>
 <div id="editor-options-<%- kind %>" class="editor-options">
   <button class="editor-button" title="bold" onclick="styleText('b', '<%- kind %>')"><b>B</b></button><!--
---><button class="editor-button" title="italic" onclick="styleText('i', '<%- kind %>')"><i>I</i></button><!--
+--><button class="editor-button" title="italic" onclick="styleText('i', '<%- kind %>')"><i class="editor-italic">I</i></button><!--
 --><button class="editor-button" title="underline" onclick="styleText('u', '<%- kind %>')"><u>U</u></button><!--
 --><button class="editor-button" title="strikethrough" onclick="styleText('s', '<%- kind %>')"><s>S</s></button><!--
 --><button class="editor-button" title="list item" onclick="styleText('li', '<%- kind %>')">li</button><!--
@@ -16,13 +16,13 @@
 --><button class="editor-button" title="redo" onclick="redo('<%- kind %>')" id='<%- kind + "-redo-button"%>'>↪</button><!--
 
 --><wrapper id="<%- kind + '-more-buttons'%>" class="removed"><!--
-  --><button class="editor-button" title="left align" onclick="styleText('l', '<%- kind %>', true)">L</button><!--
-  --><button class="editor-button" title="center align" onclick="styleText('c', '<%- kind %>', true)">C</button><!--
-  --><button class="editor-button" title="right align" onclick="styleText('r', '<%- kind %>', true)">R</button><!--
+  --><button class="editor-button" title="left align" onclick="styleText('l', '<%- kind %>', true)"><icon class="fas fa-align-left"></icon></button><!--
+  --><button class="editor-button" title="center align" onclick="styleText('c', '<%- kind %>', true)"><icon class="fas fa-align-center"></icon></button><!--
+  --><button class="editor-button" title="right align" onclick="styleText('r', '<%- kind %>', true)"><icon class="fas fa-align-right"></icon></button><!--
   --><button class="editor-button" onclick="styleText('cut', '<%- kind %>')">cut</button><!--
   --><button class="editor-button" onclick="styleText('code', '<%- kind %>')">code</button><!--
   --><button class="editor-button" onclick="styleText('ascii', '<%- kind %>', true)">ascii</button><!--
   --><button class="editor-button" onclick="styleText('spoil', '<%- kind %>', false)">spoil</button><!--
 --></wrapper><!--
---><button class="editor-button" title="more buttons" onclick="toggleMoreEditorButtons('<%- kind %>',this)">◀</button>
+--><button class="editor-button" title="more buttons" onclick="toggleMoreEditorButtons('<%- kind %>',this)"><icon class="fas fa-plus editor-more-less"></icon></button>
 </div>
