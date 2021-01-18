@@ -153,6 +153,38 @@ var imageValidate = function (arr, callback) {
   } else {return callback({error:false});}
 }
 
+var linkValidate = function (arr, callback, i, problems) {
+  if (!arr || arr.length === 0) {return callback(false);}
+  // init
+  if (!i) {
+    i = 0;
+    problems = [];
+  }
+
+  var url = arr[i];
+  request.head(url, function (error, resp) {
+    if (error || !resp || !resp.statusCode) {
+      problems.push(url);
+    }
+    //
+    i++;
+    if (i === arr.length) { // done
+      if (problems.length === 0) {return callback(false);}
+      if (problems.length === 1) {
+        return callback(`your url: <code>`+problems[0]+`</code> does not seem to be valid. It might be fine, but schlaugh's link checker is flagging it, so please try clicking on it yourself to make sure it works<br><br>were you perhaps intending to link to schlaugh itself using the shorter form of link? please note that URL must start with a "/" character`);
+      } else {
+        var badUrls = "<br>";
+        for (var j = 0; j < problems.length; j++) {
+          badUrls += problems[j]+"<br>"
+        }
+        return callback(`your urls: <code>`+badUrls+`</code> do not seem to be valid. They might be fine, but schlaugh's link checker is flagging them, so please try clicking on them yourself to make sure they work<br><br>were you perhaps intending to link to schlaugh itself using the shorter form of link? please note that URL must start with a "/" character`);
+      }
+    } else {
+      return linkValidate(arr, callback, i, problems);
+    }
+  });
+}
+
 var writeToDB = function (userID, data, callback) { // to the USER collection
   if (!ObjectId.isValid(userID)) {return callback({error:"invalid ID format"});}
   db.collection('users').updateOne({_id: ObjectId(userID)},
@@ -2184,27 +2216,30 @@ app.post('/', function(req, res) {
         }
       });
     } else {
-      var tags = parseInboundTags(req.body.tags);
-      if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
-      var title = validatePostTitle(req.body.title);
-      if (title.error) {return sendError(res, errMsg+title.error);}
-      //
-      var urlVal = validatePostURL(user, tmrw, req.body.url);
-      if (urlVal.error) {return sendError(res, errMsg+urlVal.error);}
-      if (urlVal.deny) {return res.send(urlVal);}
-      var url = urlVal.url;
-      user = urlVal.user;
-      //
-      imageValidate(x[0], function (resp) {
-        if (resp.error) {return sendError(res, errMsg+resp.error);}
-        updateUserPost(x[1], tags, title, url, user._id, user, function (resp) {
+      linkValidate(x[2], function (linkProblems) {
+        //
+        var tags = parseInboundTags(req.body.tags);
+        if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+        var title = validatePostTitle(req.body.title);
+        if (title.error) {return sendError(res, errMsg+title.error);}
+        //
+        var urlVal = validatePostURL(user, tmrw, req.body.url);
+        if (urlVal.error) {return sendError(res, errMsg+urlVal.error);}
+        if (urlVal.deny) {return res.send(urlVal);}
+        var url = urlVal.url;
+        user = urlVal.user;
+        //
+        imageValidate(x[0], function (resp) {
           if (resp.error) {return sendError(res, errMsg+resp.error);}
-          return writeToDB(user._id, user, function (resp) {
+          updateUserPost(x[1], tags, title, url, user._id, user, function (resp) {
             if (resp.error) {return sendError(res, errMsg+resp.error);}
-            else {
-              pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title, url:url});
-              return res.send({error:false, body:x[1], tags:tags, title:title, url:url});
-            }
+            return writeToDB(user._id, user, function (resp) {
+              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              else {
+                pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title, url:url});
+                return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
+              }
+            });
           });
         });
       });
@@ -2266,24 +2301,28 @@ app.post('/editOldPost', function (req, res) {
             var title = "";
             var url = "";
           }
-          imageValidate(x[0], function (resp) {
-            if (resp.error) {return sendError(res, errMsg+resp.error);}
-            if (req.body.post_id === "bio") {
-              var newPost = x[1];
-            } else {
-              var newPost = [{
-                body: x[1],
-                tags: tags,
-                title: title,
-                url: url,
-                post_id: req.body.post_id,
-                edited: true,
-              }];
-            }
-            user.pendingUpdates.updates[req.body.date] = newPost;
-            return writeToDB(user._id, user, function (resp) {
+          //
+          linkValidate(x[2], function (linkProblems) {
+            //
+            imageValidate(x[0], function (resp) {
               if (resp.error) {return sendError(res, errMsg+resp.error);}
-              else {return res.send({error:false, body:x[1], tags:tags, title:title, url:url});}
+              if (req.body.post_id === "bio") {
+                var newPost = x[1];
+              } else {
+                var newPost = [{
+                  body: x[1],
+                  tags: tags,
+                  title: title,
+                  url: url,
+                  post_id: req.body.post_id,
+                  edited: true,
+                }];
+              }
+              user.pendingUpdates.updates[req.body.date] = newPost;
+              return writeToDB(user._id, user, function (resp) {
+                if (resp.error) {return sendError(res, errMsg+resp.error);}
+                else {return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});}
+              });
             });
           });
         }
@@ -2704,16 +2743,12 @@ app.post('/image', function(req, res) {
 // validate links
 app.post('/link', function(req, res) {
   // cant do this on the FE cause CORS
+  var errMsg = "URL validation error<br><br>";
   if (req.body && typeof req.body.url === "string") {
-    var url = req.body.url;
-    request.head(url, function (error, resp) {
-      if (error || !resp || !resp.statusCode) {
-        return res.send({issue:'your url: "'+url+`" does not seem to be valid. It might be fine, but schlaugh's link checker doesn't like it, so please try clicking on it yourself to make sure it works<br><br>you sure you want to link to "`+url+'"?'});
-      } else {
-        res.send({issue:false});
-      }
+    linkValidate([req.body.url], function (linkProblems) {
+      res.send({linkProblems:linkProblems});
     });
-  } else {sendError(res,"boy i hope no one ever sees this error message!");}
+  } else {return sendError(res, errMsg+"malformed request 503");}
 });
 
 // toggle collapsed status of posts

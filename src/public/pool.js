@@ -58,7 +58,7 @@
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
     if (typeof string !== "string") {return "";}
 
-    var buttonUp = function (b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList) {
+    var buttonUp = function (b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList) {
       if (b) {string += "</b>"}
       if (i) {string += "</i>"}
       if (a) {string += "</a>"}
@@ -77,7 +77,7 @@
       if (c) {string += "</c>"}
       if (quote) {string += "</quote>"}
       if (note) {string += "</note>"}
-      return [imgList, string];
+      return [imgList, string, linkList];
     }
 
     var removeExtraBreak = function (pos) {
@@ -86,9 +86,9 @@
       }
     }
 
-    var recurse = function (pos, b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList) {
+    var recurse = function (pos, b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList) {
       var next = string.substr(pos).search(/</);
-      if (next === -1) {return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);}
+      if (next === -1) {return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);}
       else {
         pos += next;
         if (string.substr(pos+1,2) === "b>" && !b) {
@@ -215,9 +215,18 @@
           var qPos = string.substr(pos+1).search(/"/);
           if (qPos === -1) {
             string += '">';
-            return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
+            return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);
+          } else {
+            if (string.substr(pos+1, 1) !== "/") {
+              if (string.substr(pos+1, 4) !== "http") {
+                string = string.substr(0,pos+1) + 'http://' + string.substr(pos+1);
+                qPos += 7;
+              }
+              var link = string.substr(pos+1, qPos);
+              linkList.push(link);
+            }
+            pos += qPos;
           }
-          else {pos += qPos;}
           if (string[pos+2] !== ">") {
             string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
           }
@@ -231,7 +240,7 @@
           var qPos = string.substr(pos+1).search(/"/);
           if (qPos === -1) {
             string += '">';
-            return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
+            return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);
           }
           //else {pos += qPos;}
           /*
@@ -264,7 +273,7 @@
             } else {
               string += '">';
             }
-            return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
+            return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);
           } else {
             imgList.push(string.substr(pos+1,qPos))
             pos += qPos+1;
@@ -281,7 +290,7 @@
               imgList.push(string.substr(pos+1));
               if (singleQuote) {string += `'>`;}
               else {string += '">';}
-              return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
+              return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);
             } else {
               pos += qPos+1;
             }
@@ -298,7 +307,7 @@
               imgList.push(string.substr(pos+1));
               if (singleQuote) {string += `'>`;}
               else {string += '">';}
-              return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
+              return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);
             } else {
               pos += qPos+1;
             }
@@ -314,10 +323,10 @@
         } else {  // the found tag is not on the sanctioned list, so kill it
           string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
         }
-        return recurse(pos+1, b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList);
+        return recurse(pos+1, b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);
       }
     }
-    return recurse(0, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, []);
+    return recurse(0, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, [], []);
   }
 
 }(typeof exports === 'undefined' ? this.pool = {} : exports));

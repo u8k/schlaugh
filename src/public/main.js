@@ -1103,11 +1103,17 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
           }
         } else if (tag === "a" && !extracting) {          // if it's an "a", do link conversion stuff
           var linkStart = pos+7;
+          //
+          if (string.substr(linkStart,1) !== "/" && string.substr(linkStart,4) !== "http") {
+            string = insertStringIntoStringAtPos(string, "/", linkStart);
+          }
+          //
           var b = `class='clicky special ex-link' target="_blank" `;
           if (string.substr(linkStart,1) === "/" || string.substr(linkStart,24) === "https://www.schlaugh.com" || string.substr(linkStart,19) === "http://schlaugh.com") {
             b = `class='clicky special' target="_blank" `;
           }
           string = insertStringIntoStringAtPos(string, b, pos+1);
+          //
         } else if (tag === "a" && extracting && string.substr(pos,7) === ` href="`) {
                     // that last check there for ` href="` isn't strictly necesary, just another format enforcement
           var aClose = string.substr(pos+7).search(/"/)+8;
@@ -3110,6 +3116,7 @@ var editPost = function (post) {
     }
     ajaxCall("/editOldPost", 'POST', data, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
+      if (json.linkProblems) {uiAlert(json.linkProblems);}
       updatePendingEdit(json);
       if (!onlyTheUrlHasBeenChanged) {
         if (!glo.pendingUpdates[post.date]) {glo.pendingUpdates[post.date] = [{}];}
@@ -3159,6 +3166,7 @@ var editPost = function (post) {
       data.tags = "";
       ajaxCall("/editOldPost", 'POST', data, function(json) {
         if (json.deny) {loading(true); return uiAlert(json.deny);}
+        if (json.linkProblems) {uiAlert(json.linkProblems);}
         glo.pendingUpdates[post.date] = null;
         updatePendingEdit(json);
         $('edit-post-button').onclick = function () {
@@ -3256,6 +3264,7 @@ var editBio = function () {
     data.text = preCleanText(data.text);
     ajaxCall("/editOldPost", 'POST', data, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
+      if (json.linkProblems) {uiAlert(json.linkProblems);}
       updatePendingEdit(json, true);
       glo.pendingUpdates['bio'] = json.body;
     });
@@ -3354,6 +3363,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     text = preCleanText(text);
     ajaxCall("/", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey}, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
+      if (json.linkProblems) {uiAlert(json.linkProblems);}
       updatePendingPost(json);
     });
   }
@@ -3931,10 +3941,12 @@ var checkLink = function (target, linkText, area, y, a, b) {
   else if (marget.slice(0,8) !== "https://" && marget.slice(0,7) !== "http://") {
     marget = target = "http://" + marget;
   }
-  ajaxCall('/link', 'POST', {url:marget}, function(json) {
-    if (json.issue) {
+  ajaxCall('/link', 'POST', {url:marget,}, function(json) {
+    if (json.linkProblems) {uiAlert(json.linkProblems);}
+    /*
+    if (json.linkProblems) {
       var cursorPos = getCursorPosition(area);
-      verify(json.issue, null, null, function (res) {
+      verify(json.linkProblems, null, null, function (res) {
         if (!res) {
           area.value = y;
           setCursorPosition(area, a, b);
@@ -3943,6 +3955,7 @@ var checkLink = function (target, linkText, area, y, a, b) {
         }
       });
     }
+    */
   });
   area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
   var bump = a+target.length+linkText.length+15;
@@ -4437,6 +4450,9 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     // cleanse and image validate
     var x = pool.cleanseInputText(preCleanText(text));
     text = x[1];
+
+    // fudge, need to call the backend for link checking here, x[2]
+
     if (x[0].length !== 0) {
       ajaxCall('/image', 'POST', x[0], function(json) {
         encryptAndSend();
