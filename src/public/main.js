@@ -852,16 +852,16 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
     var classAsign = "removed";
   }
 
+  // is it the buttonless note syntax?
   if (string.substr(tagStartPos).search(/<note linkText="/) !== 0) {
     if (string.substr(tagStartPos).search(/<note>/) !== 0) {return string;}
     string = insertStringIntoStringAtPos(string, ` linkText=""`, tagStartPos+5);
   }
   var startLinkPos = tagStartPos+16;
-  var qPos = string.substr(startLinkPos).search(/"/);
-  if (qPos === -1) {return string += '">';}
-  var linkText = string.substr(startLinkPos, qPos);
-  if (string.substr(startLinkPos+qPos,2) !== '">') {return string;}
-  var innerStartPos = startLinkPos+qPos+2;
+  var closePos = string.substr(startLinkPos).search(/">/);
+  if (closePos === -1) {return string += '">';}
+  var linkText = string.substr(startLinkPos, closePos);
+  var innerStartPos = startLinkPos+closePos+2;
 
   var preTag = string.substr(0,tagStartPos);
   var postTag = string.substr(innerStartPos);
@@ -3673,13 +3673,13 @@ var prepTextForEditor = function (text) {
     var next = text.substr(pos).search(/<note linkText="/);
     if (next !== -1) {
       pos = pos+next+15;
-      var qPos = text.substr(pos+1).search(/"/)+2;
-      if (qPos === 1) {
+      var closePos = text.substr(pos+1).search(/">/)+2;
+      if (closePos === -1) {
         text += '">';
         return;
       }
       else {
-        pos += qPos;
+        pos += closePos;
         text = insertStringIntoStringAtPos(text, "<br>", pos+1);
       }
       noteRecurse(pos+1);

@@ -237,8 +237,8 @@
         } else if (string.substr(pos+1,15) === 'note linkText="') {
           note = true;
           pos += 15;
-          var qPos = string.substr(pos+1).search(/"/);
-          if (qPos === -1) {
+          var closePos = string.substr(pos+1).search(/">/);
+          if (closePos === -1) {
             string += '">';
             return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);
           }
@@ -251,7 +251,7 @@
           }
           */
           //else {pos += 2;}
-          removeExtraBreak(pos+qPos+2);
+          removeExtraBreak(pos+closePos+2);
         } else if (string.substr(pos+1,5) === "note>") {
           note = true;
           pos += 5;
