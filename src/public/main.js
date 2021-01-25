@@ -526,36 +526,6 @@ var isNumeric = function (n) {
   return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
-var uiPrompt = function (options) {
-  // options is an object that can include props for
-  //      'label', 'placeholder', 'value', 'callback'(function)
-  if (!options) {  //close the prompt
-    $("prompt").classList.add("hidden");
-    blackBacking(true);
-  } else {
-    $("prompt").classList.remove("hidden");
-    blackBacking();
-    //
-    $("prompt-label").innerHTML = options.label;
-    if (options.placeholder) {$("prompt-input").placeholder = options.placeholder;}
-    if (options.value) {$("prompt-input").value = options.value;}
-    else {$("prompt-input").value = "";}
-    $("prompt-input").type = "";
-    setCursorPosition($("prompt-input"), 0, $("prompt-input").value.length);
-    //
-    $("prompt-submit").onclick = function(){
-      uiPrompt(false);
-      options.callback($("prompt-input").value);
-    }
-    var exit = function(){
-      options.callback(null);
-      uiPrompt(false);
-    }
-    $("prompt-close").onclick = exit;
-    $("pop-up-backing").onclick = exit;
-  }
-}
-
 var passPrompt = function (options) {
   // options is an object that can include props for
   //      'label', 'username', 'orUp'(boolean), 'callback'(function)

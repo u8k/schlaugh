@@ -1,12 +1,12 @@
 <wrapper id="panel-buttons-wrapper" class="removed no-select">
   <panelButtons id="panel-buttons">
-    <a href="/~write" id="write-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'write')"><!--
+    <a href="/~write" id="write-panel-button" title="write" class="clicky panel-button" onclick="panelButtonClick(event,'write')"><!--
     --><icon class="fas fa-pencil-alt"></icon></a><!--
-    --><a href="/" id="posts-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'posts')"><!--
+    --><a href="/" id="posts-panel-button" title="read" class="clicky panel-button" onclick="panelButtonClick(event,'posts')"><!--
     --><icon class="fas fa-book"></icon></a><!--
-    --><a href="/~inbox" id="inbox-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'inbox')"><!--
+    --><a href="/~inbox" id="inbox-panel-button" title="inbox" class="clicky panel-button" onclick="panelButtonClick(event,'inbox')"><!--
     --><icon class="fas fa-envelope"></icon></a><!--
-    --><a href="/~settings" id="settings-panel-button" class="clicky panel-button" onclick="panelButtonClick(event,'settings')"><!--
+    --><a href="/~settings" id="settings-panel-button" title="settings" class="clicky panel-button" onclick="panelButtonClick(event,'settings')"><!--
     --><icon class="fas fa-cog"></icon></a>
   </panelButtons>
   <br>
@@ -624,17 +624,6 @@
 
 <div id="pop-up-backing" class="hidden" onclick="blackBackingClickHandler()"></div>
 
-<div id="prompt" class="pop-up hidden">
-  <form action="javascript:void(0);">
-    <text id="prompt-label"></text>
-    <br><br>
-    <input id="prompt-input">
-    <br><br>
-    <button id="prompt-submit" type="submit">submit</button> &nbsp &nbsp
-    <button id="prompt-close">x</button>
-  </form>
-</div>
-
 <div id="link-prompt" class="pop-up hidden">
   <form action="javascript:void(0);">
     <div class="editor-pop-up-inner-box">
@@ -644,7 +633,7 @@
       <input id="link-prompt-input2" placeholder= "butts.cash">
     </div>
     <br>
-    <button id="link-prompt-submit" type="submit">submit</button> &nbsp &nbsp
+    <button id="link-prompt-submit" type="submit">insert</button> &nbsp &nbsp
     <button id="link-prompt-exit" onclick="closePrompt($('link-prompt'))">x</button>
   </form>
 </div>
@@ -660,7 +649,7 @@
       <input id="img-input-prompt-input3" placeholder= "(optional)">
     </div>
     <br>
-    <button id="img-input-prompt-submit" type="submit">submit</button> &nbsp &nbsp
+    <button id="img-input-prompt-submit" type="submit">insert</button> &nbsp &nbsp
     <button id="img-input-prompt-exit" onclick="closePrompt($('img-input-prompt'))">x</button>
   </form>
 </div>
@@ -676,7 +665,7 @@
       <input id="quote-prompt-input3" placeholder= "https://www.dumbledore.com">
     </div>
     <br>
-    <button id="quote-prompt-submit" type="submit">submit</button> &nbsp &nbsp
+    <button id="quote-prompt-submit" type="submit">insert</button> &nbsp &nbsp
     <button id="quote-prompt-exit" onclick="closePrompt($('quote-prompt'))">x</button>
   </form>
 </div>
@@ -692,7 +681,7 @@
     <icon id="eye4" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye4', ['prompt-password'])"></icon>
     <icon id="eye4c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye4', ['prompt-password'])"></icon>
     <br>
-    <button id="password-prompt-submit" type="submit">submit</button>
+    <button id="password-prompt-submit" type="submit">schlaugh in</button>
   </form>
   <div id="or-schlaugh-up" class="removed">
     <br>
