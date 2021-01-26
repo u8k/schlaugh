@@ -3672,11 +3672,15 @@ var prepTextForEditor = function (text) {
     preTagLineBreakRecurse(1, tagArr[i]);
   }
 
-  var imgRecurse = function (pos) {
-    var next = text.substr(pos).search(/<img src="/);
+  var imgRecurse = function (pos, singleQuote) {   //image code shows on it's own line, since it displays as block
+    if (singleQuote) {
+      var next = text.substr(pos).search(/<img src='/);
+    } else {
+      var next = text.substr(pos).search(/<img src="/);
+    }
     if (next !== -1) {
       pos = pos+next;
-      if (pos !== 0) {
+      if (pos !== 0) {        // is there a line break before the img tag?
         if (text.substr(pos-4, 4) !== '<br>' && text.substr(pos-5, 5) !== '<cut>') {
           text = text.substr(0,pos)+'<br>'+text.substr(pos);
         }
@@ -3684,17 +3688,24 @@ var prepTextForEditor = function (text) {
       pos = pos+9;
       var closePos = text.substr(pos+1).search(/>/)+2;
       if (closePos === -1) {
-        text += '">';
+        if (singleQuote) {
+          text += "'>";
+        } else {
+          text += '">';
+        }
         return;
       }
       else {
-        pos += closePos;
-        text = text.substr(0,pos) + '<br>' + text.substr(pos);
+        pos += closePos;         // is there a line break after the img tag?
+        if (text.substr(pos, 4) !== '<br>') {
+          text = text.substr(0,pos) + '<br>' + text.substr(pos);
+        }
       }
-      imgRecurse(pos+1);
+      imgRecurse(pos+1, singleQuote);
     }
   }
-  imgRecurse(0);
+  imgRecurse(0, false);
+  imgRecurse(0, true);
 
   text = text.replace(/<br>/g, '\n');
 
