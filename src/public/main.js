@@ -660,6 +660,7 @@ var blackBacking = function (away) {
       for (var i = 0; i < elemList.length; i++) {
         elemList[i].classList.add('hidden');
       }
+      $('following-list').classList.add('removed');
     }
   } else {
     if (!glo.backingCount) {glo.backingCount = 1;}
@@ -1510,14 +1511,14 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
 var followingListDisplay = function (open) {
   if (_npa(['glo','pRef','date'])) {
     if (open) {
-      $('following-list').classList.remove('hidden');
+      $('following-list').classList.remove('removed');
       blackBacking();
       $("pop-up-backing").onclick = function () {
         followingListDisplay(false);
       }
     }
     else {
-      $('following-list').classList.add('hidden');
+      $('following-list').classList.add('removed');
       blackBacking(true);
     }
   } else {  // following list has not been fetched/rendered, so do that

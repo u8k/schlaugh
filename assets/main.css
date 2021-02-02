@@ -753,6 +753,15 @@ slogan {
   text-align: left;
   overflow-y: auto;
   top: 50%;
+  /* from pop-up class */
+  padding: 15px;
+  position: fixed;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  border-radius: 4px;
+  box-shadow: 0px 0px 4px 0px;
+  z-index: 11;
+  min-width: 300px;
 }
 
 #loading-box {
