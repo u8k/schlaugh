@@ -592,17 +592,17 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
   });
 }
 
-var uiAlert = function (message, btnTxt, callback) {
+var uiAlert = function (message, btnTxt, callback, annoying) {
   if (!$("alert")) {return console.log(message);}
   loading(true, true);
   if (!message) {  //close the alert
     $("alert").classList.add("hidden");
     blackBacking(true);
+    $("pop-up-backing").onclick = blackBackingClickHandler;
   } else {
     var oldFocus = document.activeElement;
     $("alert").classList.remove("hidden");
     blackBacking();
-    $('alert-submit').focus();
     $("alert-text").innerHTML = message;
     if (btnTxt) {$('alert-submit').innerHTML = btnTxt;}
     else {$('alert-submit').innerHTML = "'kay";}
@@ -611,8 +611,13 @@ var uiAlert = function (message, btnTxt, callback) {
       oldFocus.focus();
       uiAlert(false);
     }
+    if (!annoying) {
+      $('alert-submit').focus();
+      $("pop-up-backing").onclick = exit;
+    } else {
+      $("pop-up-backing").onclick = null;
+    }
     $("alert-submit").onclick = exit;
-    $("pop-up-backing").onclick = exit;
   }
 }
 
@@ -3532,7 +3537,7 @@ var saveTag = function (remove, tag) {
   if (tag === undefined) {tag = $("tag-picker").value;}
   if (!tag) {tag = glo.postPanelStatus.tag}
   if (!tag) {return uiAlert("ya can't save nothin!");}
-  if (_npa(['glo','savedTags', tag])) {return;}     // tag is already saved
+  if (_npa(['glo','savedTags', tag]) && !remove) {return;}     // tag is already saved
   ajaxCall("/saveTag", 'POST', {tag, remove:remove}, function(json) {
     if (remove) {glo.savedTags[tag] = false;}
     else {glo.savedTags[tag] = true;}
@@ -5190,7 +5195,7 @@ var manageSchlaupdateClock = function () {
 var performFrontEndSchlaupdate = function () {
   if (glo.username) {
     if (isAnEditorOpen()) {
-      uiAlert(`It's Schlaupdate isn't it? Isn't it Schlaupdate?<br><br>And it seems you have an editor open, potentially holding unsaved changes! Just a heads up, if you submit the text in the editor, it will now be scheduled to post for the <i>next</i> schlaugh day, after this one that just started right now. If you had previously submitted a prior version of that post/message, then that will have just published/sent for today.`)
+      uiAlert(`It's Schlaupdate isn't it? Isn't it Schlaupdate?<br><br>And it seems you have an editor open, potentially holding unsaved changes! Just a heads up, if you submit the text in the editor, it will now be scheduled to post for the <i>next</i> schlaugh day, not this day that just started right now. If you had previously submitted a prior version of that post/message, then that will have just published/sent for today.`, null, null, true)
     } else {
       updatePendingPost(null);  // removes a saved pending post, now that it's published
       ajaxCall('/getInbox', 'POST', {}, function(json) {
