@@ -2404,7 +2404,7 @@ app.post('/bookmarks', function(req, res) {
 // save/unsave tags
 app.post('/saveTag', function(req, res) {
   var errMsg = "tag not successfully saved<br><br>";
-  if (!req.body || !req.body.tag) {return sendError(res, errMsg+"malformed request 552");}
+  if (!req.body || !req.body.tag || typeof(req.body.tag) !== "string") {return sendError(res, errMsg+"malformed request 552");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, savedTags:1}

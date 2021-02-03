@@ -63,9 +63,9 @@
       <form id="tag-search" action="javascript:void(0);">
         <h2 id="tags-search-title">tag search:</h2>
         <input id="tag-picker" oninput="tagPickerCheck(this)" type="text" placeholder="milkshake">
-        <div id='tag-actions' class="faded">
-          <button id="search-tag-form" type="submit">search</button>
-          <button id="save-tag-form" class="removed">save tag</button>
+        <div id='tag-actions'>
+          <button id="search-tag-form" class="faded" type="submit">search</button>
+          <button id="save-tag-form" class="faded" class="removed">save tag</button>
         </div>
       </form>
 
@@ -76,6 +76,9 @@
         <text class="monospace">include tagged posts in feed</text>
         <text id="include-tagged-posts-toggle" onclick="toggleTaggedPostsInclusion()"></text>
         <clicky onclick="uiAlert(`checking this box means that posts with tags you are tracking will show up in your main feed alongside posts of people you are following`, `aight`)" class="special"> (?)</clicky>
+        <br>
+        <text class="monospace">auto save tags you use on your own posts</text>
+        <text id="auto-save-tags-on-use-toggle" onclick="toggleAutoSaveTagsOnUse()"></text>
       </div>
       <button onclick="openTagMenu(true)">x</button>
     </div>

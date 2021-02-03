@@ -328,7 +328,7 @@ clicky, .clicky, spoil {
   font-size: .75em;
 }
 
-#include-tagged-posts-toggle {
+#include-tagged-posts-toggle, #auto-save-tags-on-use-toggle {
   font-size: .9em;
 }
 

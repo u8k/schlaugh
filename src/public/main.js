@@ -3336,6 +3336,14 @@ var submitPost = function (remove) { //also handles editing and deleting
       if (json.deny) {loading(true); return uiAlert(json.deny);}
       if (json.linkProblems) {uiAlert(json.linkProblems);}
       updatePendingPost(json);
+      // save tags on the post, if they have that setting on
+      if (_npa(['glo','settings','autoSaveTagsOnUse'])) {
+        for (var tagString in json.tags) {
+          if (json.tags.hasOwnProperty(tagString)) {
+            saveTag(false, tagString)
+          }
+        }
+      }
     });
   }
 }
@@ -3524,6 +3532,7 @@ var saveTag = function (remove, tag) {
   if (tag === undefined) {tag = $("tag-picker").value;}
   if (!tag) {tag = glo.postPanelStatus.tag}
   if (!tag) {return uiAlert("ya can't save nothin!");}
+  if (_npa(['glo','savedTags', tag])) {return;}     // tag is already saved
   ajaxCall("/saveTag", 'POST', {tag, remove:remove}, function(json) {
     if (remove) {glo.savedTags[tag] = false;}
     else {glo.savedTags[tag] = true;}
@@ -3534,28 +3543,33 @@ var saveTag = function (remove, tag) {
 
 var tagPickerCheck = function (elem) {
   if (elem.value !== "") {
-    $('tag-actions').classList.remove('faded');
+    $('search-tag-form').classList.remove('faded');
     $('search-tag-form').onclick = function () {tagSearch();}
-    $('save-tag-form').onclick = function () {saveTag();}
+    if (_npa(['glo','savedTags', elem.value])) {      // tag is already saved
+      $('save-tag-form').classList.add('faded');
+      $('save-tag-form').onclick = null;
+    } else {
+      $('save-tag-form').classList.remove('faded');
+      $('save-tag-form').onclick = function () {saveTag();}
+    }
   } else {
-    $('tag-actions').classList.add  ('faded');
+    $('save-tag-form').classList.add('faded');
+    $('search-tag-form').classList.add('faded');
     $('search-tag-form').onclick = null;
     $('save-tag-form').onclick = null;
   }
 }
 
 var flushPostListAndReloadCurrentDate = function () {
-  var parms = glo.postPanelStatus;
-  //    if (parms.postCode === "FFTT") {var arr = ['glo','pRef','date',parms.date,'page',parms.page];}
-  //    alter this for pagination if we do that later
-  _npa(['glo','pRef','date',parms.date], false);
   var x = _npa(['glo','pRef','date']);
   for (var dateObj in x) {
     if (x.hasOwnProperty(dateObj)) {
       delete x[dateObj];
     }
   }
-  fetchPosts(true);
+  if (glo.postPanelStatus && glo.openPanel === "posts-panel") {
+    fetchPosts(true);
+  }
 }
 
 var toggleTaggedPostsInclusion = function () {
@@ -3577,6 +3591,17 @@ var setPostStreamDirection = function () {
     glo.settings.sortOldestPostsAtTop = false;
   } else {
     glo.settings.sortOldestPostsAtTop = true;
+  }
+}
+
+var toggleAutoSaveTagsOnUse = function () {
+  ajaxCall('/toggleSetting', 'POST', {setting: "autoSaveTagsOnUse"}, function(json) {});
+  if (glo.settings.autoSaveTagsOnUse) {
+    $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+    glo.settings.autoSaveTagsOnUse = false;
+  } else {
+    glo.settings.autoSaveTagsOnUse = true;
+    $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
   }
 }
 
@@ -4950,6 +4975,12 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
       $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
     } else {
       $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+    }
+    //
+    if (glo.settings.autoSaveTagsOnUse) {
+      $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
+    } else {
+      $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-square"></icon>';
     }
     //
     if (glo.settings.sortOldestPostsAtTop) {
