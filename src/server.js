@@ -52,7 +52,9 @@ if (process.env.ATLAS_DB_KEY) {app.use(enforce.HTTPS({ trustProtoHeader: true })
 
 // sendgrid email config
 var sgMail = require('@sendgrid/mail');
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+//sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+sgMail.setApiKey("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");
+console.log('sendit');
 
 
 
@@ -3286,6 +3288,7 @@ app.post('/changePasswordStart', function (req, res) {
             var y = pool.passwordValidate(req.body.newPass);
             if (y) {return res.send({error:y});}
             else {
+              if (!user.inbox) {user.inbox = {}}
               return res.send({error: false, threads:user.inbox.threads, key:user.keys.privKey});
             }
           }
