@@ -4877,6 +4877,7 @@ var signIn = function (url, data, callback) {
           }).then(function(encryptedMessage) {
             keys.newUserMessage = encryptedMessage.data;
             ajaxCall('/keys', 'POST', keys, function(json) {
+              if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, A <br><br>please check the console for more information and show that to Staff"); console.log("A" ,json);};
               parseUserData(json.payload);
               unlockInbox(data.password);
               if (callback) {callback(json.payload);}
@@ -4884,6 +4885,7 @@ var signIn = function (url, data, callback) {
           });
         } else {
           ajaxCall('/keys', 'POST', keys, function(json) {
+            if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, B <br><br>please check the console for more information and show that to Staff"); console.log("B" ,json);};
             parseUserData(json.payload);
             unlockInbox(data.password);
             if (callback) {callback(json.payload);}
@@ -4891,6 +4893,7 @@ var signIn = function (url, data, callback) {
         }
       });
     } else {
+      if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, C <br><br>please check the console for more information and show that to Staff"); console.log("C" ,json);};
       parseUserData(json.payload);
       unlockInbox(data.password);
       if (callback) {callback(json.payload);}
@@ -5148,6 +5151,7 @@ var initSchlaugh = function (user, callback) {
       //  with a persistent login cookie, such that they will have to sign in and make keys
       if (json.needKeys) {return signOut();}
       else {
+        if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, D <br><br>please check the console for more information and show that to Staff"); console.log("D" ,json);};
         parseUserData(json.payload);
         if (callback) {callback();}
       }

@@ -237,6 +237,12 @@ var getResetCodes = function () {
   });
 }
 
+var getErrorLogs = function () {
+  ajaxCall('/admin/errorLogs', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
 var getUser = function () {
   ajaxCall('/admin/user', 'POST', {name: $("get-user-input").value}, function(json) {
     console.log(json);

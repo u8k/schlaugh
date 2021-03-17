@@ -282,23 +282,23 @@ var removeListRefIfRemovingOnlyMessage = function (box, id, remove, tmrw) {
   } return false;
 }
 
-var newGameKey = function (userID) {
+var newSessionKey = function (userID) {
   var key = genRandString(5)
   if (sessions && sessions[userID] && sessions[userID][key]) {
-    return newGameKey();
+    return newSessionKey();
   } else {
     return key;
   }
 }
 
 var getPayload = function (req, res, callback) {
-  if (!req.session.user) {return sendError(res, "no user session 0234");}
+  if (!req.session.user) {return sendError(req, res, "no user session 0234");}
   else {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, muted:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1, savedTags:1, games:1}
     , function (err, user) {
-      if (err) {return sendError(res, err);}
-      else if (!user) {return sendError(res, "user not found");}
+      if (err) {return sendError(req, res, err);}
+      else if (!user) {return sendError(req, res, "user not found");}
       else {
         var tmrw = pool.getCurDate(-1);
         // check if user needs keys
@@ -323,7 +323,7 @@ var getPayload = function (req, res, callback) {
           games: user.games,
         }
         // session key set
-        var sessionKey = newGameKey(req.session.user._id);
+        var sessionKey = newSessionKey(req.session.user._id);
         payload.sessionKey = sessionKey;
 
         //pending post
@@ -331,7 +331,7 @@ var getPayload = function (req, res, callback) {
           payload.pending = user.posts[tmrw][0];
         }
         checkUpdates(user, function (check) {
-          if (check.error) {return sendError(res, check.error);}
+          if (check.error) {return sendError(req, res, check.error);}
           user = check.user;
           if (user.pendingUpdates && user.pendingUpdates.updates) {
             payload.pendingUpdates = user.pendingUpdates.updates;
@@ -376,8 +376,8 @@ var getSettings = function (req, res, callback) {
   db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
   , {_id:0, settings:1}
   , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, "user not found");}
+    if (err) {return sendError(req, res, err);}
+    else if (!user) {return sendError(req, res, "user not found");}
     else {
       var settings = {};
       settings.colors = user.settings.colors;
@@ -431,7 +431,7 @@ var incrementStat = function (kind) {
   // does statBucket already exist for day?
   db.collection('stats').findOne({_id: date},
     function(err, stat) {
-      if (err) {return console.log(err);}
+      if (err) {return sendError(req, res, "error incrementing stat: "+err);}
       if (!stat) {createStat(date, function () {
         updateStat(date, kind, 1);
       })} else {
@@ -449,8 +449,8 @@ var updateStat = function (date, kind, val) {
   db.collection('stats').updateOne({_id: date},
     {$set: obj},
     function(err, stat) {
-      if (err) {return console.log(err);}
-      if (!stat) {return console.log("statBucket not found???");}
+      if (err) {return sendError(req, res, "error updating stat: "+err);}
+      if (!stat) {return sendError(req, res, "statBucket not found???");}
     }
   );
 }
@@ -580,7 +580,7 @@ var updateUserPost = function (text, newTags, title, url, userID, user, callback
 
 var deletePost = function (res, errMsg, userID, user, date, callback) {
   if (safeMode) {return callback({error:safeMode});}
-  if (!user.posts[date]) {return sendError(res, errMsg+"post not found");}
+  if (!user.posts[date]) {return sendError(req, res, errMsg+"post not found");}
   var deadTags = [];
   for (var tag in user.posts[date][0].tags) {
     if (user.posts[date][0].tags.hasOwnProperty(tag)) {
@@ -588,7 +588,7 @@ var deletePost = function (res, errMsg, userID, user, date, callback) {
     }
   }
   deleteTagRefs(deadTags, date, userID, function (resp) {
-    if (resp.error) {return sendError(res, errMsg+resp.error);}
+    if (resp.error) {return sendError(req, res, errMsg+resp.error);}
     else {
       if (user.posts[date][0].url) {
         delete user.customURLs[user.posts[date][0].url];
@@ -597,11 +597,11 @@ var deletePost = function (res, errMsg, userID, user, date, callback) {
       if (date === pool.getCurDate(-1)) {
         user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
         deletePostFromPosts(user.posts[date][0].post_id, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           else {
             delete user.posts[date];
             return writeToDB(userID, user, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {callback({error: false});}
             });
           }
@@ -617,11 +617,11 @@ var deletePost = function (res, errMsg, userID, user, date, callback) {
           delete user.pendingUpdates.updates[date];
         }
         nullPostFromPosts(user.posts[date][0].post_id, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           else {
             delete user.posts[date];
             return writeToDB(userID, user, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {callback({error: false});}
             });
           }
@@ -870,9 +870,21 @@ var validatePostURL = function (user, date, string) {
   return {user:user, url:string};
 }
 
-var sendError = function (res, msg) {
-  // PUT error logging stuff HERE
+var sendError = function (req, res, msg) {
+  // log it
+  var newErrorLog = {
+    error: msg,
+    creationTime: new Date(),
+  }
+  if (req && req.session && req.session.user && req.session.user._id) {
+    newErrorLog.user = req.session.user._id;
+  }
 
+  db.collection('errorLogs').insertOne(newErrorLog, {}, function (err, result) {
+    // do nothing, don't report an error if reporting the error doesn't work, because loop
+  });
+
+  //
   msg = "ERROR! SORRY! Please screenshot this and note all details of the situation and tell staff. SORRY<br><br>" + msg;
   res.send({error: msg});
 }
@@ -1088,8 +1100,8 @@ var genInboxTemplate = function () {
 }
 
 var idScreen = function (req, res, errMsg, callback) {
-  if (!req.session.user) {return sendError(res, errMsg+"no user session 6481");}
-  if (!ObjectId.isValid(req.session.user._id)) {return sendError(res, errMsg+"invalid userID format");}
+  if (!req.session.user) {return sendError(req, res, errMsg+"no user session 6481");}
+  if (!ObjectId.isValid(req.session.user._id)) {return sendError(req, res, errMsg+"invalid userID format");}
   return callback(ObjectId(req.session.user._id));
 }
 
@@ -1120,8 +1132,8 @@ var isStringValidDate = function (string) {
 var lookUpCurrentUser = function (req, res, errMsg, propRef, callback) {
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}, propRef, function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
-      else if (!user) {return sendError(res, errMsg+"user not found");}
+      if (err) {return sendError(req, res, errMsg+err);}
+      else if (!user) {return sendError(req, res, errMsg+"user not found");}
       else {
         callback(user);
       }
@@ -1144,7 +1156,7 @@ var adminGate = function (req, res, callback) {
     db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
     , {_id:0, username:1, codes:1 }
     , function (err, user) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else if (user && user.username === "admin") {callback(res, user);} //no need to pass 'user' once we take out the code nonsense
       else {
         return return404author(req, res);
@@ -1196,7 +1208,7 @@ app.post('/admin/posts', function(req, res) {
     //var fields = {_id:1, body:1, date:1, authorID:1, tags:1};
     //fields[req.body.text] = 1;
     db.collection('posts').find({},{}).toArray(function(err, posts) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else {
         return res.send(posts);
       }
@@ -1207,9 +1219,20 @@ app.post('/admin/posts', function(req, res) {
 app.post('/admin/resetCodes', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('resetCodes').find({},{code:1, username:1, attempts:1, creationTime:1}).toArray(function(err, codes) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else {
         return res.send(codes);
+      }
+    });
+  });
+});
+
+app.post('/admin/errorLogs', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    db.collection('errorLogs').find({},{}).toArray(function(err, logs) {
+      if (err) {return sendError(req, res, err);}
+      else {
+        return res.send(logs);
       }
     });
   });
@@ -1234,7 +1257,7 @@ app.post('/admin/users', function(req, res) {
     var fields = {_id:1, username:1};
     fields[req.body.text] = 1;
     db.collection('users').find({}, fields).toArray(function(err, users) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else {
         return res.send(users);
       }
@@ -1244,7 +1267,7 @@ app.post('/admin/users', function(req, res) {
 
 app.post('/admin/stats', function(req, res) {
   db.collection('stats').find({}, {}).toArray(function(err, stats) {
-    if (err) {return sendError(res, err);}
+    if (err) {return sendError(req, res, err);}
     else {
       return res.send(stats);
     }
@@ -1255,11 +1278,11 @@ app.post('/admin/user', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
     , function (err, user) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else if (!user) {return res.send({error:"user not found"});}
       else {
         db.collection('users').findOne({_id: user.authorID}, {}, function (err, user) {
-          if (err) {return sendError(res, err);}
+          if (err) {return sendError(req, res, err);}
           else if (!user) {return res.send({error:"user not found, 2"});}
           else {return res.send(user);}
         });
@@ -1271,7 +1294,7 @@ app.post('/admin/user', function(req, res) {
 app.post('/admin/getUserUrls', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('userUrls').find({},{_id:1, authorID:1}).toArray(function(err, users) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else {
         return res.send(users);
       }
@@ -1310,7 +1333,7 @@ app.post('/admin/testCreateTagIndexItem', function(req, res) {
 app.post('/admin/getTagIndex', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('tagIndex').find({},{_id:0,}).toArray(function(err, tags) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else {
         return res.send(tags);
       }
@@ -1346,7 +1369,7 @@ app.post('/admin/genPosts', function(req, res) {
           var title = validatePostTitle(shitPost.title);
           if (title.error) {return callback({error:"bad title"});}
           imageValidate(x[0], function (resp) {
-            if (resp.error) {return sendError(res, resp.error);}
+            if (resp.error) {return sendError(req, res, resp.error);}
             return res.send({text:x[1], tags:tags, title:title, userID:userID, user:user});
           });
         }
@@ -1359,7 +1382,7 @@ app.post('/admin/genPostsBounce', function(req, res) {
   adminGate(req, res, function (res, user) {
     req.body.progress++;
     updateUserPost(req.body.text, req.body.tags, req.body.title, req.body.url, req.body.userID, req.body.user, function (resp) {
-      if (resp.error) {return sendError(res, resp.error);}
+      if (resp.error) {return sendError(req, res, resp.error);}
       return writeToDB(req.body.userID, req.body.user, function (resp) {
         if (resp.error) {return callback({error: resp.error});}
         return res.send(req.body);
@@ -1376,18 +1399,18 @@ app.post('/admin/faq', function(req, res) {
       text: x[1],
     }
     db.collection('siteStuff').findOne({name: "faq"}, {}, function (err, doc) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else if (doc) {
         db.collection('siteStuff').updateOne({name: "faq"},
           {$set: faq},
           function(err, doc) {
-            if (err) {return sendError(res, err);}
+            if (err) {return sendError(req, res, err);}
             else {res.send({error:false});}
           }
         );
       } else {
         db.collection('siteStuff').insertOne(faq, {}, function (err, result) {
-          if (err) {return sendError(res, err);}
+          if (err) {return sendError(req, res, err);}
           else {res.send({error:false});}
         });
       }
@@ -1398,7 +1421,7 @@ app.post('/admin/faq', function(req, res) {
 app.post('/admin/followStaff', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('users').find({},{_id:1, following:1}).toArray(function(err, users) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else {
         var count = users.length;
         for (var i = 0; i < users.length; i++) {
@@ -1440,7 +1463,7 @@ app.post('/admin/resetTest', function(req, res) {
       {$set: mrah},
       {upsert: true},
       function(err, user) {
-        if (err) {return sendError(res, err);}
+        if (err) {return sendError(req, res, err);}
         else { res.send({error:false}); }
       }
     );
@@ -1451,11 +1474,11 @@ app.post('/admin/removeUser', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
     , function (err, user) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else if (!user) {return res.send({error:"user not found"});}
       else {
         db.collection('users').remove({_id: user.authorID}, function(err, user) {
-          if (err) {return sendError(res, err);}
+          if (err) {return sendError(req, res, err);}
           else {res.send({error:false});}
         });
       }
@@ -1475,16 +1498,16 @@ app.post('/admin/makePostIDs', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('users').findOne({username: req.body.name}, {posts:1,}
     , function (err, user) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else if (!user) {return res.send({error:"user not found"});}
       else {
         if (req.body.date && user.posts[req.body.date] && user.posts[req.body.date][0]) {
           createPost(user._id, function (resp) {
-            if (resp.error) {sendError(res, resp.error);}
+            if (resp.error) {sendError(req, res, resp.error);}
             else {
               user.posts[req.body.date][0].post_id = resp.post_id;
               writeToDB(user._id, user, function (resp) {
-                if (resp.error) {sendError(res, resp.error);}
+                if (resp.error) {sendError(req, res, resp.error);}
                 else {res.send({error:false, newID: user.posts[req.body.date][0].post_id});}
               });
             }
@@ -1507,8 +1530,8 @@ app.post('/admin/getPost', function(req, res) {
         db.collection('users').findOne({_id: userID}
         , {_id:0, posts:1,}
         , function (err, user) {
-          if (err) {return sendError(res, err);}
-          else if (!user) {return sendError(res, "user not found");}
+          if (err) {return sendError(req, res, err);}
+          else if (!user) {return sendError(req, res, "user not found");}
           else {return res.send({error:false, post:user.posts[post.date][0]});}
         });
       }
@@ -1526,8 +1549,8 @@ app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT POSTS(bo
         db.collection('users').findOne({_id: userID}
           , {_id:0, posts:1,}
           , function (err, user) {
-            if (err) {return sendError(res, err);}
-            else if (!user) {return sendError(res, "user not found");}
+            if (err) {return sendError(req, res, err);}
+            else if (!user) {return sendError(req, res, "user not found");}
             else {
               user.posts[post.date][0].body = req.body.input;
               writeToDB(userID, user, function (resp) {
@@ -1564,7 +1587,7 @@ app.post('/admin/getSessions', function (req, res) {
 app.post('/admin/schlaunquer', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('schlaunquerMatches').find({}).toArray(function(err, matches) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else {
         return res.send(matches);
       }
@@ -1575,21 +1598,21 @@ app.post('/admin/schlaunquer', function(req, res) {
 app.post('/admin/schlaunquerUserSwap', function(req, res) {
   adminGate(req, res, function (res, user) {
     db.collection('schlaunquerMatches').findOne({ _id: req.body.gameID }, {}, function (err, match) {
-      if (err) {return sendError(res, err);}
-      else if (!match) {return sendError(res, 'match not found');}
+      if (err) {return sendError(req, res, err);}
+      else if (!match) {return sendError(req, res, 'match not found');}
       else {
         db.collection('userUrls').findOne({_id: req.body.oldOwnerName.toLowerCase()}, {}
         , function (err, oldUser) {
-          if (err) {return sendError(res, err);}
+          if (err) {return sendError(req, res, err);}
           else if (!oldUser) {return res.send({error:"old user not found"});}
           else {
             db.collection('userUrls').findOne({_id: req.body.newOwnerName.toLowerCase()}, {}
             , function (err, newUser) {
-              if (err) {return sendError(res, err);}
+              if (err) {return sendError(req, res, err);}
               else if (!newUser) {return res.send({error:"new user not found"});}
               else {
                 db.collection('users').findOne({_id: newUser.authorID}, {}, function (err, user) {
-                  if (err) {return sendError(res, err);}
+                  if (err) {return sendError(req, res, err);}
                   else if (!user) {return res.send({error:"new user not found, 2"});}
                   else {
                     for (var date in match.dates) { if (match.dates.hasOwnProperty(date)) {
@@ -1613,7 +1636,7 @@ app.post('/admin/schlaunquerUserSwap', function(req, res) {
                     db.collection('schlaunquerMatches').updateOne({_id: req.body.gameID},
                       {$set: match},
                       function(err, match) {
-                        if (err) {return sendError(res, errMsg+err);}
+                        if (err) {return sendError(req, res, errMsg+err);}
                         return res.send({error:false});
                       }
                     );
@@ -1634,7 +1657,7 @@ app.post('/admin/schlaunquerUserSwap', function(req, res) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, posts:1, postList:1, postListPending:1}
     , function (err, user) {
-      if (err) {return sendError(res, err);}
+      if (err) {return sendError(req, res, err);}
       else {
         checkFreshness(user);
         var today = pool.getCurDate();
@@ -1667,7 +1690,7 @@ app.post('/admin/schlaunquerUserSwap', function(req, res) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, username:1, codes:1}
       , function (err, admin) {
-        if (err) {return sendError(res, err);}
+        if (err) {return sendError(req, res, err);}
         else if (!admin || admin.username !== "admin") {
           res.render('layout', {pagename:'404', type:'user'});
         } else {
@@ -1676,7 +1699,7 @@ app.post('/admin/schlaunquerUserSwap', function(req, res) {
           db.collection('users').updateOne({_id: userID},
             {$set: admin },
             function(err, user) {
-              if (err) {return sendError(res, err);}
+              if (err) {return sendError(req, res, err);}
               else {res.render('admin', { codes: admin.codes });}
             }
           );
@@ -1697,8 +1720,8 @@ app.post('/~clicker', function(req, res) {
   var errMsg = "error fetching clicker game info<br><br>";
   idCheck(req, function (userID) {
     db.collection('users').findOne({ username: "admin" }, {_id:1, clicker:1}, function (err, admin) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!admin) {return sendError(res, errMsg+"data not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!admin) {return sendError(req, res, errMsg+"data not found");}
         else {
           // if game not init, then init
           if (!admin.clicker) {admin.clicker = {totalScore:0, lastClickDate:pool.getCurDate(), clickerRef:{}}}
@@ -1722,7 +1745,7 @@ app.post('/~clicker', function(req, res) {
             }
           }
           writeToDB(admin._id, admin, function (resp) {
-            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
             else {
               return res.send({totalScore:admin.clicker.totalScore, signedIn:signedIn, eligible:eligible});
             }
@@ -1735,17 +1758,17 @@ app.post('/~clickClicker', function(req, res) {
   var errMsg = "error executing click<br><br>";
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({ username: "admin" }, {_id:1, clicker:1}, function (err, admin) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!admin) {return sendError(res, errMsg+"data not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!admin) {return sendError(req, res, errMsg+"data not found");}
         else {
           if (!admin.clicker || !admin.clicker.lastClickDate || admin.clicker.lastClickDate !== pool.getCurDate()) {
-            return sendError(res, errMsg+"malformed request 318");
+            return sendError(req, res, errMsg+"malformed request 318");
           } else if (admin.clicker.clickerRef[userID]) {
-            sendError(res, errMsg+"pretty sneaky sis!");
+            sendError(req, res, errMsg+"pretty sneaky sis!");
           } else {
             admin.clicker.clickerRef[userID] = true;
             writeToDB(admin._id, admin, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {
                 return res.send({error:false});
               }
@@ -1766,10 +1789,10 @@ app.get('/~schlaunquer/:game_id', function(req, res) {
 });
 app.post('/~getSchlaunquer', function(req, res) {
   var errMsg = "error fetching schlaunquer game info<br><br>";
-  if (!req.body.game_id) {return sendError(res, errMsg+"malformed request 6048");}
+  if (!req.body.game_id) {return sendError(req, res, errMsg+"malformed request 6048");}
   idCheck(req, function (userID) {
     db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
-      if (err) {return sendError(res, errMsg+err);}
+      if (err) {return sendError(req, res, errMsg+err);}
       if (!match) {return res.send({notFound:true});}
 
       var updateMatch = schlaunquer.nightAudit(match);
@@ -1779,7 +1802,7 @@ app.post('/~getSchlaunquer', function(req, res) {
         db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
           {$set: updateMatch},
           function(err, resp) {
-            if (err) {return sendError(res, errMsg+err);}
+            if (err) {return sendError(req, res, errMsg+err);}
             else {
               return schlaunquer.tidyUp(userID, updateMatch, res, errMsg, devFlag);
             }
@@ -1793,20 +1816,20 @@ app.post('/~getSchlaunquer', function(req, res) {
 });
 app.post('/~moveSchlaunquer', function(req, res) {
   var errMsg = "error updating schlaunquer<br><br>";
-  if (!req.body.game_id) {return sendError(res, errMsg+"malformed request 5048");}
+  if (!req.body.game_id) {return sendError(req, res, errMsg+"malformed request 5048");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
-      if (err) {return sendError(res, errMsg+err);}
-      else if (!match) {return sendError(res, errMsg+'match not found? 8871, please refresh and try again');}
+      if (err) {return sendError(req, res, errMsg+err);}
+      else if (!match) {return sendError(req, res, errMsg+'match not found? 8871, please refresh and try again');}
 
       var match = schlaunquer.validateMove(match, req, res, devFlag, userID);
-      if (match.error) { return sendError(res, errMsg+match.error);}
+      if (match.error) { return sendError(req, res, errMsg+match.error);}
 
       // all requirements have been met, save the move
       db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
         {$set: match},
         function(err, resMatch) {
-          if (err) {return sendError(res, errMsg+err);}
+          if (err) {return sendError(req, res, errMsg+err);}
           return res.send({error:false});
         }
       );
@@ -1815,8 +1838,8 @@ app.post('/~moveSchlaunquer', function(req, res) {
 });
 app.post('/~initSchlaunquerMatch', function(req, res) {
   var errMsg = "failed schlaunquer match creations<br><br>";
-  if (!req.body.players || !Number.isInteger(req.body.players)) {return sendError(res, errMsg+"malformed request 9048");}
-  if (!(req.body.players === 6 || req.body.players === 3 || req.body.players === 4 || req.body.players === 2)) {return sendError(res, errMsg+"malformed request 9046");}
+  if (!req.body.players || !Number.isInteger(req.body.players)) {return sendError(req, res, errMsg+"malformed request 9048");}
+  if (!(req.body.players === 6 || req.body.players === 3 || req.body.players === 4 || req.body.players === 2)) {return sendError(req, res, errMsg+"malformed request 9046");}
   lookUpCurrentUser(req, res, errMsg, {username:1, iconURI:1, games:1}, function (user) {
     //
     if (user.games && user.games.schlaunquer && user.games.schlaunquer.pending) {
@@ -1825,14 +1848,14 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
         count++;
       }}
     }
-    if (count > 20) {return sendError(res, errMsg+`woah there cowboy!<br>it seems you're already enrolled in an awful lot of schlaunquer matches. If you'd genuinely like to create additional matches, message @staff and I can bump the limit higher for you. I had to put the limit somewhere and I did not imagine anyone would legitimately want to be in this many matches at once`);}
+    if (count > 20) {return sendError(req, res, errMsg+`woah there cowboy!<br>it seems you're already enrolled in an awful lot of schlaunquer matches. If you'd genuinely like to create additional matches, message @staff and I can bump the limit higher for you. I had to put the limit somewhere and I did not imagine anyone would legitimately want to be in this many matches at once`);}
 
     //
     genID('schlaunquerMatches', 7, function (resp) {
-      if (resp.error) {return sendError(res, errMsg+resp.error);}
+      if (resp.error) {return sendError(req, res, errMsg+resp.error);}
       db.collection('schlaunquerMatches').findOne({ _id: resp._id }, {}, function (err, match) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (match) {return sendError(res, errMsg+'collision!');}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (match) {return sendError(req, res, errMsg+'collision!');}
         //
         var match = {}
         match._id = resp._id;
@@ -1858,7 +1881,7 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
         }
         //
         db.collection('schlaunquerMatches').insertOne(match, {}, function (err, result) {
-          if (err) {return sendError(res, errMsg+err);}
+          if (err) {return sendError(req, res, errMsg+err);}
           else {
             if (!user.games) {user.games = {}};
             if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
@@ -1866,7 +1889,7 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
             user.games.schlaunquer.pending[match._id] = true;
             //
             writeToDB(user._id, user, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               return res.send({error:false, game_id:match._id});
             });
            }
@@ -1877,13 +1900,13 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
 });
 app.post('/~joinSchlaunquerMatch', function(req, res) { // also handles de-joining
   var errMsg = "failed schlaunquer join<br><br>";
-  if (!req.body.game_id) {return sendError(res, errMsg+"malformed request 7048");}
+  if (!req.body.game_id) {return sendError(req, res, errMsg+"malformed request 7048");}
   lookUpCurrentUser(req, res, errMsg, {username:1, iconURI:1, games:1}, function (user) {
       db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
-        if (err) {return sendError(res, errMsg+err);}
-        if (!match) {return sendError(res, errMsg+'match not found');}
-        if (!match.gameState || match.gameState !== "pending") {return sendError(res, errMsg+'this match is not accepting entrants');}
-        if (!match.lastUpdatedOn || match.lastUpdatedOn !== pool.getCurDate()) {return sendError(res, errMsg+'match is out of date');}
+        if (err) {return sendError(req, res, errMsg+err);}
+        if (!match) {return sendError(req, res, errMsg+'match not found');}
+        if (!match.gameState || match.gameState !== "pending") {return sendError(req, res, errMsg+'this match is not accepting entrants');}
+        if (!match.lastUpdatedOn || match.lastUpdatedOn !== pool.getCurDate()) {return sendError(req, res, errMsg+'match is out of date');}
         //
         if (!match.pendingPlayers) {match.pendingPlayers = {};}
         var empty = false;
@@ -1903,7 +1926,7 @@ app.post('/~joinSchlaunquerMatch', function(req, res) { // also handles de-joini
           }}
         } else {
           if (match.players[user._id]) { // don't add a player that's already enrolled
-            return sendError(res, errMsg+'user is already registered for this match');
+            return sendError(req, res, errMsg+'user is already registered for this match');
           }
           match.pendingPlayers[user._id] = {
             username: user.username,
@@ -1915,11 +1938,11 @@ app.post('/~joinSchlaunquerMatch', function(req, res) { // also handles de-joini
           user.games.schlaunquer.pending[req.body.game_id] = true;
         }
         writeToDB(user._id, user, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           if (empty) {
             db.collection('schlaunquerMatches').remove({_id: req.body.game_id},
               function(err, resMatch) {
-                if (err) {return sendError(res, errMsg+err);}
+                if (err) {return sendError(req, res, errMsg+err);}
                 return res.send({error:false});
               }
             );
@@ -1927,7 +1950,7 @@ app.post('/~joinSchlaunquerMatch', function(req, res) { // also handles de-joini
             db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
               {$set: match},
               function(err, resMatch) {
-                if (err) {return sendError(res, errMsg+err);}
+                if (err) {return sendError(req, res, errMsg+err);}
                 return res.send({error:false});
               }
             );
@@ -1947,7 +1970,7 @@ app.post('/~checkPendingSchlaunquerMatches', function(req, res) {
     checkPendingSchlaunquerMatches(req, res, errMsg, user, function (user) {
       checkActiveSchlaunquerMatches(req, res, errMsg, user, function (user) {
         writeToDB(user._id, user, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           return res.send(user.games.schlaunquer);
         });
       });
@@ -1967,8 +1990,8 @@ var checkPendingSchlaunquerMatches = function (req, res, errMsg, user, callback,
   }
   //
   db.collection('schlaunquerMatches').findOne({ _id: matchArr[i] }, {}, function (err, match) {
-    if (err) {return sendError(res, errMsg+err);}
-    if (!match) {return sendError(res, errMsg+"match "+matchArr[i]+" not found");}
+    if (err) {return sendError(req, res, errMsg+err);}
+    if (!match) {return sendError(req, res, errMsg+"match "+matchArr[i]+" not found");}
 
     var updatedMatch = schlaunquer.nightAudit(match);
 
@@ -1986,7 +2009,7 @@ var checkPendingSchlaunquerMatches = function (req, res, errMsg, user, callback,
     // save the updated match
     if (updatedMatch) {
       db.collection('schlaunquerMatches').updateOne({_id: matchArr[i]}, {$set: updatedMatch}, function(err, match0) {
-        if (err) {return sendError(res, errMsg+err);}
+        if (err) {return sendError(req, res, errMsg+err);}
         i++;
         if (matchArr.length === i) { return callback(user);}
         else {return checkPendingSchlaunquerMatches(req, res, errMsg, user, callback, matchArr, i);}
@@ -2010,7 +2033,7 @@ var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) 
   if (!user.games.schlaunquer.finished) {user.games.schlaunquer.finished = {}}
 
   db.collection('schlaunquerMatches').find({_id: {$in: matchArr}}, {victor:1, dates:1}).toArray(function(err, matchList) {
-    if (err) {return sendError(res, errMsg+err);}
+    if (err) {return sendError(req, res, errMsg+err);}
 
     for (var i = 0; i < matchList.length; i++) {
       if (matchList[i].victor && !matchList[i].dates[pool.getCurDate()]) {  // if there IS a map for today, then the game ended today, and we want to leave it in active until tomorrow
@@ -2023,18 +2046,18 @@ var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) 
 }
 app.post('/~setSchlaunquerReminder', function(req, res) {
   var errMsg = "schlaunquer reminder status not successfully updated<br><br>";
-  if (!req.body || !req.body.date || !isStringValidDate(req.body.date)) {return sendError(res, errMsg+"malformed request 294");}
+  if (!req.body || !req.body.date || !isStringValidDate(req.body.date)) {return sendError(req, res, errMsg+"malformed request 294");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}, {_id:0, games:1}, function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
-      if (!user) {return sendError(res, errMsg+"user not found");}
+      if (err) {return sendError(req, res, errMsg+err);}
+      if (!user) {return sendError(req, res, errMsg+"user not found");}
       //
       if (!user.games) {user.games = {}};
       if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
       user.games.schlaunquer.remindNextOn = req.body.date;
       //
       writeToDB(userID, user, function (resp) {
-        if (resp.error) {sendError(res, resp.error);}
+        if (resp.error) {sendError(req, res, resp.error);}
         else {res.send({error: false});}
       });
 
@@ -2047,13 +2070,13 @@ app.post('/~setSchlaunquerReminder', function(req, res) {
 app.post('/admin/adminSchlaunquerTweak', function(req, res) {
   adminGate(req, res, function (res, user) {
     var errMsg = "failed schlaunquer fix<br><br>";
-    if (!req.body.game_id || !req.body.coord || !req.body.player_id) {return sendError(res, errMsg+"malformed request 4038");}
+    if (!req.body.game_id || !req.body.coord || !req.body.player_id) {return sendError(req, res, errMsg+"malformed request 4038");}
     db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
-      if (err) {return sendError(res, errMsg+err);}
-      if (!match) {return sendError(res, errMsg+'match not found?');}
+      if (err) {return sendError(req, res, errMsg+err);}
+      if (!match) {return sendError(req, res, errMsg+'match not found?');}
 
       var map = match.dates[pool.getCurDate()];
-      if (!map) {return sendError(res, errMsg+'no map for this date?');}
+      if (!map) {return sendError(req, res, errMsg+'no map for this date?');}
       req.body.value = Number(req.body.value);
       if (Number.isInteger(req.body.value) && req.body.value > 0) {
         map[req.body.coord] = {
@@ -2067,7 +2090,7 @@ app.post('/admin/adminSchlaunquerTweak', function(req, res) {
       db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
         {$set: match},
         function(err, resMatch) {
-          if (err) {return sendError(res, errMsg+err);}
+          if (err) {return sendError(req, res, errMsg+err);}
           return res.send({error:false});
         }
       );
@@ -2100,9 +2123,10 @@ app.get('/~settings', function(req, res) {
 // payload
 app.get('/~payload', function(req, res) {
   // for the "cookieless" version this should be a POST
-  if (!req.session.user) {return sendError(res, "no user session 7194");}
+  if (!req.session.user) {return sendError(req, res, "no user session 7194");}
   else {
     getPayload(req, res, function (payload) {
+      if (!payload) {return sendError(req, res, "failure to retrieve payload, 7195");}
       return res.send({payload:payload});
     });
   }
@@ -2112,7 +2136,7 @@ var sessions = {}
 // check for pendingPost changes and openEditors
 app.post('/~pingPong', function(req, res) {
   var errMsg = "failure to check for pendingPost update<br><br>";
-  if (!req.body || !req.body.key) {return sendError(res, errMsg+"malformed request 117");}
+  if (!req.body || !req.body.key) {return sendError(req, res, errMsg+"malformed request 117");}
   idScreen(req, res, errMsg, function (userID) {
     var frequency = 25; // seconds between pings
     //
@@ -2158,7 +2182,7 @@ var clearGarbageAndCountEditors = function (userID) {
 
 app.post('/~postEditorOpen', function(req, res) {
   var errMsg = "failure to update openEditor status<br><br>";
-  if (!req.body || !req.body.key) {return sendError(res, errMsg+"malformed request 118");}
+  if (!req.body || !req.body.key) {return sendError(req, res, errMsg+"malformed request 118");}
   idScreen(req, res, errMsg, function (userID) {
     if (!sessions[userID]) {sessions[userID] = {}}
     if (!sessions[userID][req.body.key]) {sessions[userID][req.body.key] = {}}
@@ -2202,14 +2226,14 @@ var pongOnPostSubmit = function (userID, activeKey, post) {
 // new/edit/delete (current) post
 app.post('/', function(req, res) {
   var errMsg = "your post might not be saved, please copy all of your text to be safe<br><br>";
-  if (!req.body || !req.body.key) {return sendError(res, errMsg+"malformed request 119");}
+  if (!req.body || !req.body.key) {return sendError(req, res, errMsg+"malformed request 119");}
   lookUpCurrentUser(req, res, errMsg, {username:1, posts:1, postList:1, postListPending:1, customURLs:1}, function (user) {
     checkFreshness(user);
     var tmrw = pool.getCurDate(-1);
     var x = pool.cleanseInputText(req.body.body);
     if (req.body.remove || (x[1] === "" && !req.body.tags && !req.body.title)) {                 //remove pending post, do not replace
       deletePost(res, errMsg, user._id, user, tmrw, function (resp) {
-        if (resp.error) {return sendError(res, errMsg+resp.error);}
+        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
         else {
           pongOnPostSubmit(user._id, req.body.key, false);
           return res.send({error:false, body:"", tags:{}, title:""});
@@ -2219,22 +2243,22 @@ app.post('/', function(req, res) {
       linkValidate(x[2], function (linkProblems) {
         //
         var tags = parseInboundTags(req.body.tags);
-        if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+        if (typeof tags === 'string') {return sendError(req, res, errMsg+tags);}
         var title = validatePostTitle(req.body.title);
-        if (title.error) {return sendError(res, errMsg+title.error);}
+        if (title.error) {return sendError(req, res, errMsg+title.error);}
         //
         var urlVal = validatePostURL(user, tmrw, req.body.url);
-        if (urlVal.error) {return sendError(res, errMsg+urlVal.error);}
+        if (urlVal.error) {return sendError(req, res, errMsg+urlVal.error);}
         if (urlVal.deny) {return res.send(urlVal);}
         var url = urlVal.url;
         user = urlVal.user;
         //
         imageValidate(x[0], function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           updateUserPost(x[1], tags, title, url, user._id, user, function (resp) {
-            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
             return writeToDB(user._id, user, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {
                 pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title, url:url});
                 return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
@@ -2250,13 +2274,13 @@ app.post('/', function(req, res) {
 // new/edit/delete a pending edit to an old post, also handles bios
 app.post('/editOldPost', function (req, res) {
   var errMsg = "the post was not successfully edited<br><br>";
-  if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 154");}
-  if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"you would seek to edit your future? fool!");}
+  if (!req.body.post_id || !req.body.date) {return sendError(req, res, errMsg+"malformed request 154");}
+  if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(req, res, errMsg+"you would seek to edit your future? fool!");}
   lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1, customURLs:1, username:1}, function (user) {
     checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
     // pending updates MUST be fresh when we add to it, else all goes to shit
     checkUpdates(user, function (resp) {
-      if (resp.error) {return sendError(res, errMsg+resp.error);}
+      if (resp.error) {return sendError(req, res, errMsg+resp.error);}
       user = resp.user;
       // before changing anything, verify the postID corresponds with the date
       if ((req.body.date === "bio" && req.body.post_id === "bio") || (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id)) {
@@ -2265,10 +2289,10 @@ app.post('/editOldPost', function (req, res) {
           if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
             delete user.pendingUpdates.updates[req.body.date];
             return writeToDB(user._id, user, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {return res.send({error:false, body:"", tags:{}, title:"", url:"",});}
             });
-          } else {return sendError(res, errMsg+"edit not found");}
+          } else {return sendError(req, res, errMsg+"edit not found");}
         } else {                                      // new/edit
           var today = pool.getCurDate();
           if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
@@ -2277,12 +2301,12 @@ app.post('/editOldPost', function (req, res) {
           //
           if (req.body.post_id !== "bio") {
             var tags = parseInboundTags(req.body.tags);
-            if (typeof tags === 'string') {return sendError(res, errMsg+tags);}
+            if (typeof tags === 'string') {return sendError(req, res, errMsg+tags);}
             var title = validatePostTitle(req.body.title);
-            if (title.error) {return sendError(res, errMsg+title.error);}
+            if (title.error) {return sendError(req, res, errMsg+title.error);}
             //
             var urlVal = validatePostURL(user, req.body.date, req.body.url);
-            if (urlVal.error) {return sendError(res, errMsg+urlVal.error);}
+            if (urlVal.error) {return sendError(req, res, errMsg+urlVal.error);}
             if (urlVal.deny) {return res.send(urlVal);}
             var url = urlVal.url;
             user = urlVal.user;
@@ -2291,7 +2315,7 @@ app.post('/editOldPost', function (req, res) {
             user.posts[req.body.date][0].url = url;
             if (req.body.onlyTheUrlHasBeenChanged) {
               return writeToDB(user._id, user, function (resp) {
-                if (resp.error) {return sendError(res, errMsg+resp.error);}
+                if (resp.error) {return sendError(req, res, errMsg+resp.error);}
                 else {return res.send({error:false, body:"", onlyTheUrlHasBeenChanged:true, url:url});}
               });
             }
@@ -2305,7 +2329,7 @@ app.post('/editOldPost', function (req, res) {
           linkValidate(x[2], function (linkProblems) {
             //
             imageValidate(x[0], function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               if (req.body.post_id === "bio") {
                 var newPost = x[1];
               } else {
@@ -2320,13 +2344,13 @@ app.post('/editOldPost', function (req, res) {
               }
               user.pendingUpdates.updates[req.body.date] = newPost;
               return writeToDB(user._id, user, function (resp) {
-                if (resp.error) {return sendError(res, errMsg+resp.error);}
+                if (resp.error) {return sendError(req, res, errMsg+resp.error);}
                 else {return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});}
               });
             });
           });
         }
-      } else {return sendError(res, errMsg+"postID and date miscoresponce");}
+      } else {return sendError(req, res, errMsg+"postID and date miscoresponce");}
     });
   });
 });
@@ -2334,18 +2358,18 @@ app.post('/editOldPost', function (req, res) {
 // delete an already posted(non pending) post, also bio
 app.post('/deleteOldPost', function (req, res) {
   var errMsg = "the post was not successfully deleted<br><br>";
-  if (!req.body.post_id || !req.body.date) {return sendError(res, errMsg+"malformed request 813");}
+  if (!req.body.post_id || !req.body.date) {return sendError(req, res, errMsg+"malformed request 813");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1, customURLs:1}
     , function (err, user) {
-      if (err) {return sendError(res, err);}
-      else if (!user) {return sendError(res, errMsg+"user not found");}
+      if (err) {return sendError(req, res, err);}
+      else if (!user) {return sendError(req, res, errMsg+"user not found");}
       else {
         if (req.body.date === "bio" && req.body.post_id === "bio") {
           user.bio = "";
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {return sendError(res, errMsg+resp.error);}
+            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
             else {return res.send({error: false});}
           });
         } else {
@@ -2353,10 +2377,10 @@ app.post('/deleteOldPost', function (req, res) {
           // before changing anything, verify the postID corresponds with the date
           if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
             deletePost(res, errMsg, userID, user, req.body.date, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {return res.send({error:false});}
             });
-          } else {return sendError(res, errMsg+"postID and date miscoresponce");}
+          } else {return sendError(req, res, errMsg+"postID and date miscoresponce");}
         }
       }
     });
@@ -2370,11 +2394,11 @@ app.post('/bookmarks', function(req, res) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, bookmarks:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
-          if (!req.body || !req.body.author_id || !req.body.date) {return sendError(res, errMsg+"malformed request 644");}
-          if (req.body.date > pool.getCurDate()) {return sendError(res, errMsg+"pretty sneaky sis");}
+          if (!req.body || !req.body.author_id || !req.body.date) {return sendError(req, res, errMsg+"malformed request 644");}
+          if (req.body.date > pool.getCurDate()) {return sendError(req, res, errMsg+"pretty sneaky sis");}
           if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
           var found = false;
           for (var i = 0; i < user.bookmarks.length; i++) {
@@ -2393,7 +2417,7 @@ app.post('/bookmarks', function(req, res) {
             });
           }
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, errMsg+resp.error);}
+            if (resp.error) {sendError(req, res, errMsg+resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2404,13 +2428,13 @@ app.post('/bookmarks', function(req, res) {
 // save/unsave tags
 app.post('/saveTag', function(req, res) {
   var errMsg = "tag not successfully saved<br><br>";
-  if (!req.body || !req.body.tag || typeof(req.body.tag) !== "string") {return sendError(res, errMsg+"malformed request 552");}
+  if (!req.body || !req.body.tag || typeof(req.body.tag) !== "string") {return sendError(req, res, errMsg+"malformed request 552");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, savedTags:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
           if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
           var found = false;
@@ -2427,7 +2451,7 @@ app.post('/saveTag', function(req, res) {
             user.savedTags.push(req.body.tag);
           }
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, errMsg+resp.error);}
+            if (resp.error) {sendError(req, res, errMsg+resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2438,13 +2462,13 @@ app.post('/saveTag', function(req, res) {
 // mute/unmute users
 app.post('/mute', function(req, res) {
   var errMsg = "mute status not successfully saved<br><br>";
-  if (!req.body || !req.body.userID) {return sendError(res, errMsg+"malformed request 553");}
+  if (!req.body || !req.body.userID) {return sendError(req, res, errMsg+"malformed request 553");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, muted:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
           if (!user.muted) {user.muted = {};}
           if (req.body.muting) {
@@ -2453,7 +2477,7 @@ app.post('/mute', function(req, res) {
             delete user.muted[req.body.userID];
           }
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, errMsg+resp.error);}
+            if (resp.error) {sendError(req, res, errMsg+resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2468,10 +2492,10 @@ app.post('/follow', function(req, res) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, following:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
-          if (!req.body || !req.body.id) {return sendError(res, errMsg+"malformed request 283");}
+          if (!req.body || !req.body.id) {return sendError(req, res, errMsg+"malformed request 283");}
           // make sure they even have a following array
           if (!user.following || user.following.length === undefined) {user.following = [];}
           if (req.body.remove) {
@@ -2485,7 +2509,7 @@ app.post('/follow', function(req, res) {
             user.following.push(ObjectId(req.body.id));
           }
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, errMsg+resp.error);}
+            if (resp.error) {sendError(req, res, errMsg+resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2496,28 +2520,28 @@ app.post('/follow', function(req, res) {
 // new/edit/delete message
 app.post('/inbox', function(req, res) {
   var errMsg = "your message may not be saved, please copy your text if you want to keep it<br><br>";
-  if (!req.session.user) {return sendError(res, errMsg+"no user session 3653");}
+  if (!req.session.user) {return sendError(req, res, errMsg+"no user session 3653");}
   // the incoming text is encrypted, so we can not cleanse it
-  if (typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(res, errMsg+"malformed request 188<br><br>"+req.body.encSenderText+"<br><br>"+req.body.encRecText);}
+  if (typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(req, res, errMsg+"malformed request 188<br><br>"+req.body.encSenderText+"<br><br>"+req.body.encRecText);}
   var recipientID = String(req.body.recipient);
   var senderID = String(req.session.user._id);
-  if (recipientID === senderID) {return sendError(res, errMsg+"you want to message yourself??? freak.");}
+  if (recipientID === senderID) {return sendError(req, res, errMsg+"you want to message yourself??? freak.");}
   // make both sender and recipient DB calls first
   db.collection('users').findOne({_id: ObjectId(senderID)}
   , {_id:0, inbox:1, username:1, keys:1, iconURI:1,}
   , function (err, sender) {
-    if (err) {return sendError(res, errMsg+err);}
-    else if (!sender) {return sendError(res, errMsg+"sender not found");}
+    if (err) {return sendError(req, res, errMsg+err);}
+    else if (!sender) {return sendError(req, res, errMsg+"sender not found");}
     else {
-      if (!sender.keys) {return sendError(res, errMsg+"missing sender key<br><br>"+sender.keys);}
+      if (!sender.keys) {return sendError(req, res, errMsg+"missing sender key<br><br>"+sender.keys);}
       db.collection('users').findOne({_id: ObjectId(recipientID)}
       , {_id:0, inbox:1, username:1, keys:1, iconURI:1,}
       , function (err, recipient) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!recipient) {return sendError(res, errMsg+"recipient not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!recipient) {return sendError(req, res, errMsg+"recipient not found");}
         else {
           //
-          if (!recipient.keys) {return sendError(res, errMsg+"missing recipient key<br><br>"+recipient.keys);}
+          if (!recipient.keys) {return sendError(req, res, errMsg+"missing recipient key<br><br>"+recipient.keys);}
           var tmrw = pool.getCurDate(-1);
           var overwrite = false;
           var noReKey = true;
@@ -2535,7 +2559,7 @@ app.post('/inbox', function(req, res) {
             // there is an extant thread, so
             // is either person blocking the other?
             if (sender.inbox.threads[recipientID].blocking || sender.inbox.threads[recipientID].blocked) {
-              return sendError(res, errMsg+"this message is not allowed");
+              return sendError(req, res, errMsg+"this message is not allowed");
             }
             // check/update the key
             if (!sender.inbox.threads[recipientID].key || sender.inbox.threads[recipientID].key !== recipient.keys.pubKey) {
@@ -2543,7 +2567,7 @@ app.post('/inbox', function(req, res) {
               noReKey = false;
               sender.inbox.threads[recipientID].key = recipient.keys.pubKey;
               writeToDB(senderID, sender, function (resp) {
-                if (resp.error) {return sendError(res, errMsg+resp.error);}
+                if (resp.error) {return sendError(req, res, errMsg+resp.error);}
                 else {return res.send({error:false, reKey:recipient.keys.pubKey});}
               });
             } else {
@@ -2593,7 +2617,7 @@ app.post('/inbox', function(req, res) {
               // there is an extant thread, so
               // is either person blocking the other?
               if (recipient.inbox.threads[senderID].blocking || recipient.inbox.threads[senderID].blocked) {
-                return sendError(res, errMsg+"this message is not allowed");
+                return sendError(req, res, errMsg+"this message is not allowed");
               }
               // check the last two items, overwrite if there is already a pending message
               if (checkLastTwoForPending(recipient.inbox.threads[senderID].thread, req.body.remove, req.body.encRecText, tmrw, true)) {
@@ -2627,10 +2651,10 @@ app.post('/inbox', function(req, res) {
             }
 
             writeToDB(senderID, sender, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {
                 writeToDB(recipientID, recipient, function (resp) {
-                  if (resp.error) {return sendError(res, errMsg+resp.error);}
+                  if (resp.error) {return sendError(req, res, errMsg+resp.error);}
                   else {return res.send({error:false, reKey:false});}
                 });
               }
@@ -2676,21 +2700,21 @@ app.post('/getInbox', function (req,res) {
 // block/unblock a user from messaging you
 app.post('/block', function(req, res) {
   var errMsg = "block/unblock error<br><br>"
-  if (!req.session.user) {return sendError(res, errMsg+"no user session 8008");}
+  if (!req.session.user) {return sendError(req, res, errMsg+"no user session 8008");}
   var blockerID = ObjectId(req.session.user._id);
-  if (!req.body || !req.body.blockeeID) {return sendError(res, errMsg+"malformed request 844");}
+  if (!req.body || !req.body.blockeeID) {return sendError(req, res, errMsg+"malformed request 844");}
   var blockeeID = ObjectId(req.body.blockeeID);
   db.collection('users').findOne({_id: blockerID}
   , {_id:0, inbox:1}
   , function (err, blocker) {
-    if (err) {return sendError(res, errMsg+err);}
-    else if (!blocker) {return sendError(res, errMsg+"user not found, blocker");}
+    if (err) {return sendError(req, res, errMsg+err);}
+    else if (!blocker) {return sendError(req, res, errMsg+"user not found, blocker");}
     else {
       db.collection('users').findOne({_id: blockeeID}
       , {_id:0, inbox:1}
       , function (err, blockee) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!blockee) {return sendError(res, errMsg+"user not found, blockee");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!blockee) {return sendError(req, res, errMsg+"user not found, blockee");}
         else {
           var inboxTemplate = {name:'', unread:false, image:'', thread:[], key:''}
           if (!blocker.inbox) {blocker.inbox = genInboxTemplate();}
@@ -2715,10 +2739,10 @@ app.post('/block', function(req, res) {
             blockee.inbox.threads[blockerID].blocked = false;
           }
           writeToDB(blockerID, blocker, function (resp) {
-            if (resp.error) {sendError(res, errMsg+resp.error);}
+            if (resp.error) {sendError(req, res, errMsg+resp.error);}
             else {
               writeToDB(blockeeID, blockee, function (resp) {
-                if (resp.error) {sendError(res, errMsg+resp.error);}
+                if (resp.error) {sendError(req, res, errMsg+resp.error);}
                 else {res.send({error: false});}
               });
             }
@@ -2734,10 +2758,10 @@ app.post('/image', function(req, res) {
   // cant do this on the FE cause CORS
   if (req.body) {
     imageValidate(req.body, function (resp) {
-      if (resp.error) {return sendError(res, resp.error);}
+      if (resp.error) {return sendError(req, res, resp.error);}
       res.send({error:false});
     });
-  } else {sendError(res,"boy i hope no one ever sees this error message!");}
+  } else {sendError(req, res,"boy i hope no one ever sees this error message!");}
 });
 
 // validate links
@@ -2748,19 +2772,19 @@ app.post('/link', function(req, res) {
     linkValidate([req.body.url], function (linkProblems) {
       res.send({linkProblems:linkProblems});
     });
-  } else {return sendError(res, errMsg+"malformed request 503");}
+  } else {return sendError(req, res, errMsg+"malformed request 503");}
 });
 
 // toggle collapsed status of posts
 app.post('/collapse', function(req, res) {
   var errMsg = "collapsed property error<br><br>";
-  if (!req.body.id) {return sendError(res, errMsg+"malformed request 501");}
+  if (!req.body.id) {return sendError(req, res, errMsg+"malformed request 501");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, collapsed:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
           if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = []}
           if (req.body.collapse) {
@@ -2778,7 +2802,7 @@ app.post('/collapse', function(req, res) {
             }
           }
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, errMsg+ resp.error);}
+            if (resp.error) {sendError(req, res, errMsg+ resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2790,20 +2814,20 @@ app.post('/collapse', function(req, res) {
 // toggle unread status of threads
 app.post('/unread', function(req, res) {
   var errMsg = "unread property error<br><br>";
-  if (!req.session.user) {return sendError(res, errMsg+ "no user session 4653");}
+  if (!req.session.user) {return sendError(req, res, errMsg+ "no user session 4653");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, inbox:1}
   , function (err, user) {
-    if (err) {return sendError(res, errMsg+ err);}
-    else if (!user) {return sendError(res, errMsg+ "user not found");}
+    if (err) {return sendError(req, res, errMsg+ err);}
+    else if (!user) {return sendError(req, res, errMsg+ "user not found");}
     else {
       if (!user.inbox) {user.inbox = genInboxTemplate();}
       if (!user.inbox.threads) {user.inbox.threads = {};}
-      if (!user.inbox.threads[req.body._id]) {return sendError(res, errMsg+ "thread not found");}
+      if (!user.inbox.threads[req.body._id]) {return sendError(req, res, errMsg+ "thread not found");}
       user.inbox.threads[req.body._id].unread = req.body.bool;
       writeToDB(userID, user, function (resp) {
-        if (resp.error) {sendError(res, errMsg+ resp.error);}
+        if (resp.error) {sendError(req, res, errMsg+ resp.error);}
         else {res.send({error: false});}
       });
     }
@@ -2812,18 +2836,18 @@ app.post('/unread', function(req, res) {
 
 // change user picture URL
 app.post('/changePic', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session 7841");}
+  if (!req.session.user) {return sendError(req, res, "no user session 7841");}
   var userID = ObjectId(req.session.user._id);
   var updateUrl = function (url) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, iconURI:1}
     , function (err, user) {
-      if (err) {return sendError(res, err);}
-      else if (!user) {return sendError(res, "user not found");}
+      if (err) {return sendError(req, res, err);}
+      else if (!user) {return sendError(req, res, "user not found");}
       else {
         user.iconURI = url;
         writeToDB(userID, user, function (resp) {
-          if (resp.error) {sendError(res, resp.error);}
+          if (resp.error) {sendError(req, res, resp.error);}
           else {res.send({error: false});}
         });
       }
@@ -2850,13 +2874,13 @@ app.post('/changePic', function(req, res) {
 // save custom display colors
 app.post('/saveAppearance', function(req, res) {
   var errMsg = "appearance settings not successfully updated<br><br>";
-  if (!req.body) {return sendError(res, errMsg+"malformed request 991");}
+  if (!req.body) {return sendError(req, res, errMsg+"malformed request 991");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, settings:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
           if (!user.settings) {user.settings = {};}
           if (!user.settings.colors) {user.settings.colors = {};}
@@ -2874,7 +2898,7 @@ app.post('/saveAppearance', function(req, res) {
             }
           }
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, errMsg+resp.error);}
+            if (resp.error) {sendError(req, res, errMsg+resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2885,13 +2909,13 @@ app.post('/saveAppearance', function(req, res) {
 // flip a boolean setting
 app.post('/toggleSetting', function(req, res) {
   var errMsg = "settings not successfully updated<br><br>";
-  if (!req.body || !req.body.setting) {return sendError(res, errMsg+"malformed request 992");}
+  if (!req.body || !req.body.setting) {return sendError(req, res, errMsg+"malformed request 992");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, settings:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
           var setting = req.body.setting;
           if (user.settings[setting]) {
@@ -2900,7 +2924,7 @@ app.post('/toggleSetting', function(req, res) {
             user.settings[setting] = true;
           }
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, resp.error);}
+            if (resp.error) {sendError(req, res, resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2912,17 +2936,17 @@ app.post('/toggleSetting', function(req, res) {
 // set number of posts rendered on each page for paginated streams
 app.post('/setPostsPerPage', function(req, res) {
   var errMsg = "PostsPerPage setting not successfully updated<br><br>";
-  if (!req.body || !req.body.number || !Number.isInteger(req.body.number) || req.body.number < 1) {return sendError(res, errMsg+"malformed request 994");}
+  if (!req.body || !req.body.number || !Number.isInteger(req.body.number) || req.body.number < 1) {return sendError(req, res, errMsg+"malformed request 994");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, settings:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
           user.settings.postsPerPage = Number(req.body.number);
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, resp.error);}
+            if (resp.error) {sendError(req, res, resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2934,18 +2958,18 @@ app.post('/setPostsPerPage', function(req, res) {
 // set a date on which the user will be re-notified of something
 app.post('/setReminder', function(req, res) {
   var errMsg = "reminder not successfully set<br><br>";
-  if (!req.body || !req.body.setting || req.body.days === undefined || !Number.isInteger(req.body.days) || req.body.days < 0) {return sendError(res, errMsg+"malformed request 993");}
+  if (!req.body || !req.body.setting || req.body.days === undefined || !Number.isInteger(req.body.days) || req.body.days < 0) {return sendError(req, res, errMsg+"malformed request 993");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, settings:1}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
           var date = pool.getCurDate(-(req.body.days))
           user.settings[req.body.setting] = date;
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, resp.error);}
+            if (resp.error) {sendError(req, res, resp.error);}
             else {res.send({error: false});}
           });
         }
@@ -2972,14 +2996,14 @@ app.post('/register', function(req, res) {
   db.collection('users').findOne({ username: "admin" }
   , { codes:1 }
   , function (err, admin) {
-    if (err) {return sendError(res, err);}
+    if (err) {return sendError(req, res, err);}
     // check if the provided code is a match
     else if (!admin.codes[secretCode]) {return res.send({error:"invalid code"});}
     else {
       */
       //check if there is already a user w/ that name
       db.collection('userUrls').findOne({_id: username.toLowerCase()}, {}, function (err, user) {
-        if (err) {return sendError(res, err);}
+        if (err) {return sendError(req, res, err);}
         else if (user) {return res.send({error:"name taken"});}
         else {
           var today = pool.getCurDate();
@@ -3003,16 +3027,16 @@ app.post('/register', function(req, res) {
             settings: {includeTaggedPosts:true},
             savedTags: ["@"+username, "milkshake"],
           }, {}, function (err, result) {
-            if (err) {return sendError(res, err);}
+            if (err) {return sendError(req, res, err);}
             var newID = ObjectId(result.insertedId);
             createUserUrl(username, newID, function (resp) {
-              if (resp.error) {return sendError(res, resp.error);}
+              if (resp.error) {return sendError(req, res, resp.error);}
               else {
                 bcrypt.hash(password, 10, function(err, passHash){
-                  if (err) {return sendError(res, err);}
+                  if (err) {return sendError(req, res, err);}
                   else {
                     bcrypt.hash(email, 10, function(err, emailHash){
-                      if (err) {return sendError(res, err);}
+                      if (err) {return sendError(req, res, err);}
                       else {
                         var setValue = {
                           password: passHash,
@@ -3025,7 +3049,7 @@ app.post('/register', function(req, res) {
                         db.collection('users').updateOne({_id: newID},
                           {$set: setValue }, {},
                           function(err, r) {
-                            if (err) {return sendError(res, err);}
+                            if (err) {return sendError(req, res, err);}
                             else {
                               incrementStat("signUps");
                               // "sign in" the user
@@ -3059,19 +3083,19 @@ app.post('/register', function(req, res) {
 // log in (aslo password verify)
 app.post('/login', function(req, res) {
   var errMsg = "login error<br><br>"
-  if (!req.body.username || !req.body.password) {return sendError(res, errMsg+"malformed request 147")}
+  if (!req.body.username || !req.body.password) {return sendError(req, res, errMsg+"malformed request 147")}
   var nope = "invalid username/password";
   db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
-    if (err) {return sendError(res, errMsg+err);}
+    if (err) {return sendError(req, res, errMsg+err);}
     else if (!user) {return res.send({error:nope});}
     else {
       db.collection('users').findOne({_id: user.authorID}, {password:1}, function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
+        if (err) {return sendError(req, res, errMsg+err);}
         if (!user) {return res.send({error:nope});}
         else {
           // Match Password
           bcrypt.compare(req.body.password, user.password, function(err, isMatch){
-            if (err) {return sendError(res, errMsg+err);}
+            if (err) {return sendError(req, res, errMsg+err);}
             else if (isMatch) {
               if (req.session.user) { // is there already a logged in user? (via cookie)
                 // this is a password check to unlock an inbox
@@ -3089,6 +3113,7 @@ app.post('/login', function(req, res) {
                   incrementStat("logIns");
                 }
                 getPayload(req, res, function (payload) {
+                  if (!payload) {return sendError(req, res, errMsg+"failure to retrieve payload");}
                   return res.send({error:false, payload:payload});
                 });
               }
@@ -3106,13 +3131,13 @@ app.post('/login', function(req, res) {
 
 // set keys
 app.post('/keys', function(req, res) {
-  if (!req.session.user) {return sendError(res, "no user session");}
+  if (!req.session.user) {return sendError(req, res, "no user session");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, inbox:1, keys:1}
   , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, "user not found");}
+    if (err) {return sendError(req, res, err);}
+    else if (!user) {return sendError(req, res, "user not found");}
     else {
       if (req.body.privKey && req.body.pubKey) {
         // do not overwrite existing keys! (when we need to change keys, we clear them elsewhere)
@@ -3124,7 +3149,7 @@ app.post('/keys', function(req, res) {
           db.collection('users').findOne({_id: staffID}
           , {_id:0, iconURI:1, keys:1}
           , function (err, staff) {
-            if (err) {return sendError(res, err);}
+            if (err) {return sendError(req, res, err);}
             else if (!staff) {
               var staff = {keys:{pubKey:adminB.dumbleKey}};  //this is wrong and will get replaced when a message is actually sent
             }                                         // though is also a backup that *should* never be used in the first place
@@ -3139,7 +3164,7 @@ app.post('/keys', function(req, res) {
             user.inbox.list.push(staffID);
             //
             writeToDB(userID, user, function (resp) {
-              if (resp.error) {sendError(res, resp.error);}
+              if (resp.error) {sendError(req, res, resp.error);}
               else {
                 getPayload(req, res, function (payload) {
                   return res.send({error:false, payload:payload});
@@ -3149,7 +3174,7 @@ app.post('/keys', function(req, res) {
           });
         } else {
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, resp.error);}
+            if (resp.error) {sendError(req, res, resp.error);}
             else {
               getPayload(req, res, function (payload) {
                 return res.send({error:false, payload:payload});
@@ -3157,7 +3182,7 @@ app.post('/keys', function(req, res) {
             }
           });
         }
-      } else {return sendError(res, "malformed request 303");}
+      } else {return sendError(req, res, "malformed request 303");}
     }
   });
 });
@@ -3171,11 +3196,11 @@ app.get('/~logout', function(req, res) {
 // change user name
 app.post('/changeUsername', function (req, res) {
   var errMsg = "username change error<br><br>";
-  if (!req.body.newName) {return sendError(res, errMsg+"malformed request 501");}
+  if (!req.body.newName) {return sendError(req, res, errMsg+"malformed request 501");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}, {_id:0, settings:1, username:1}, function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
-      else if (!user) {return sendError(res, errMsg+"user account not found");}
+      if (err) {return sendError(req, res, errMsg+err);}
+      else if (!user) {return sendError(req, res, errMsg+"user account not found");}
       else {
         var x = pool.userNameValidate(req.body.newName);
         if (x) {return res.send({error:x});}
@@ -3184,7 +3209,7 @@ app.post('/changeUsername', function (req, res) {
             return res.send({error:"seems you've aleady changed your name today...i think that's enough, try again tomorrow"});
           } else {
             db.collection('userUrls').findOne({_id: req.body.newName.toLowerCase()}, {authorID:1}, function (err, extant) {
-              if (err) {return sendError(res, errMsg+err);}
+              if (err) {return sendError(req, res, errMsg+err);}
               else if (extant && String(extant.authorID) !== String(userID)) {return res.send({error: "username is already taken"});}
               else {
                 var oldName = user.username.toLowerCase();
@@ -3192,7 +3217,7 @@ app.post('/changeUsername', function (req, res) {
                 if (!user.settings) {user.settings = {}};
                 user.settings.dateOfPreviousNameChange = pool.getCurDate();
                 writeToDB(userID, user, function (resp) {
-                  if (resp.error) {sendError(res, errMsg+resp.error);}
+                  if (resp.error) {sendError(req, res, errMsg+resp.error);}
                   else {
                     if (req.body.newName.toLowerCase() !== oldName) {
                       createUserUrl(req.body.newName.toLowerCase(), userID, function (resp) {
@@ -3218,18 +3243,18 @@ app.post('/changeUsername', function (req, res) {
 // verify hashed email
 app.post('/verifyEmail', function (req, res) {
   var errMsg = "email verification error<br><br>"
-  if (!req.session.user) {return sendError(res, errMsg+ "no user session");}
+  if (!req.session.user) {return sendError(req, res, errMsg+ "no user session");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, email:1}
   , function (err, user) {
-    if (err) {return sendError(res, errMsg+ err);}
-    else if (!user) {return sendError(res, errMsg+ "user not found");}
+    if (err) {return sendError(req, res, errMsg+ err);}
+    else if (!user) {return sendError(req, res, errMsg+ "user not found");}
     else {
       if (!user.email) {res.send({error: false, match:false});}
       else {
         bcrypt.compare(req.body.email, user.email, function(err, isMatch){
-          if (err) {return sendError(res, errMsg+err);}
+          if (err) {return sendError(req, res, errMsg+err);}
           else if (isMatch) {
             res.send({error: false, match:true});
           } else {
@@ -3244,20 +3269,20 @@ app.post('/verifyEmail', function (req, res) {
 // change user email
 app.post('/changeEmail', function (req, res) {
   var errMsg = "email reset error<br><br>";
-  if (!req.session.user) {return sendError(res, errMsg+ "no user session");}
+  if (!req.session.user) {return sendError(req, res, errMsg+ "no user session");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, email:1}
   , function (err, user) {
-    if (err) {return sendError(res, errMsg+ err);}
-    else if (!user) {return sendError(res, errMsg+ "user not found");}
+    if (err) {return sendError(req, res, errMsg+ err);}
+    else if (!user) {return sendError(req, res, errMsg+ "user not found");}
     else {
       bcrypt.hash(req.body.email, 10, function(err, emailHash) {
-        if (err) {return sendError(res, errMsg+err);}
+        if (err) {return sendError(req, res, errMsg+err);}
         else {
           user.email = emailHash;
           writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(res, errMsg+resp.error);}
+            if (resp.error) {sendError(req, res, errMsg+resp.error);}
             else {res.send({error: false, email: req.body.email});}
           });
         }
@@ -3268,19 +3293,19 @@ app.post('/changeEmail', function (req, res) {
 
 // change user password
 app.post('/changePasswordStart', function (req, res) {
-  if (!req.body.oldPass || !req.body.newPass) {return sendError(res, "malformed request 345")}
-  if (!req.session.user) {return sendError(res, "no user session");}
+  if (!req.body.oldPass || !req.body.newPass) {return sendError(req, res, "malformed request 345")}
+  if (!req.session.user) {return sendError(req, res, "no user session");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, password:1, keys:1, inbox:1}
   , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, "user not found");}
+    if (err) {return sendError(req, res, err);}
+    else if (!user) {return sendError(req, res, "user not found");}
     else {
-      if (!user.keys) {return sendError(res, "user has no keys???");}
+      if (!user.keys) {return sendError(req, res, "user has no keys???");}
       else {
         bcrypt.compare(req.body.oldPass, user.password, function(err, isMatch){
-          if (err) {return sendError(res, err);}
+          if (err) {return sendError(req, res, err);}
           else if (!isMatch) {return res.send({error: false, noMatch:true});}
           else {
             var y = pool.passwordValidate(req.body.newPass);
@@ -3298,28 +3323,28 @@ app.post('/changePasswordStart', function (req, res) {
 
 // swap in re-encrypted inbox and new keys
 app.post('/changePasswordFin', function (req, res) {
-  if (!req.body.newKeys || !req.body.newPass || !req.body.newThreads) {return sendError(res, "malformed request 642")}
-  if (!req.session.user) {return sendError(res, "no user session");}
+  if (!req.body.newKeys || !req.body.newPass || !req.body.newThreads) {return sendError(req, res, "malformed request 642")}
+  if (!req.session.user) {return sendError(req, res, "no user session");}
   var userID = ObjectId(req.session.user._id);
   db.collection('users').findOne({_id: userID}
   , {_id:0, password:1, keys:1, inbox:1}
   , function (err, user) {
-    if (err) {return sendError(res, err);}
-    else if (!user) {return sendError(res, "user not found");}
+    if (err) {return sendError(req, res, err);}
+    else if (!user) {return sendError(req, res, "user not found");}
     else {
-      if (!user.keys) {return sendError(res, "user has no keys???");}
+      if (!user.keys) {return sendError(req, res, "user has no keys???");}
       else {
         var y = pool.passwordValidate(req.body.newPass);
         if (y) {return res.send({error:y});}
         else {
           bcrypt.hash(req.body.newPass, 10, function(err, passHash) {
-            if (err) {return sendError(res, err);}
+            if (err) {return sendError(req, res, err);}
             else {
               user.password = passHash;
               user.inbox.threads = req.body.newThreads;
               user.keys = req.body.newKeys;
               writeToDB(userID, user, function (resp) {
-                if (resp.error) {sendError(res, resp.error);}
+                if (resp.error) {sendError(req, res, resp.error);}
                 else {return res.send({error: false})}
               });
             }
@@ -3333,14 +3358,14 @@ app.post('/changePasswordFin', function (req, res) {
 // request password reset code
 app.post('/passResetRequest', function (req, res) {
   var errMsg = "password reset request error<br><br>";
-  if (!req.body.username || !req.body.email) {return sendError(res, errMsg+"malformed request 258")}
+  if (!req.body.username || !req.body.email) {return sendError(req, res, errMsg+"malformed request 258")}
   db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
-    if (err) {return sendError(res, errMsg+err);}
+    if (err) {return sendError(req, res, errMsg+err);}
     else if (!user) {return res.send({error: false});}
     else {
       db.collection('users').findOne({_id: user.authorID}, {email:1, settings:1}
       , function (err, user) {
-        if (err) {return sendError(res, err);}
+        if (err) {return sendError(req, res, err);}
         else if (!user) {return res.send({error: false});}
         else {            // first check if user already has an active reset code
           var today = pool.getCurDate();
@@ -3358,15 +3383,15 @@ app.post('/passResetRequest', function (req, res) {
             user.settings.recovery[today] = [];
           }
           bcrypt.compare(req.body.email, user.email, function(err, isMatch){
-            if (err) {return sendError(res, err);}
+            if (err) {return sendError(req, res, err);}
             else if (!isMatch) {res.send({error: false});}    // DO NOT send ANY indication of if there was a match
             else {
               // generate code, and send email
               genID('resetCodes', 20, function (resp) {
-                if (resp.error) {return sendError(res, resp.err);}
+                if (resp.error) {return sendError(req, res, resp.err);}
                 else {
                   bcrypt.hash(req.body.username.toLowerCase(), 10, function(err, usernameHash){
-                    if (err) {return sendError(res, err);}
+                    if (err) {return sendError(req, res, err);}
                     else {
                       var msg = {
                         to: req.body.email,
@@ -3376,7 +3401,7 @@ app.post('/passResetRequest', function (req, res) {
                         html: `<a href="https://www.schlaugh.com/~recovery/`+resp._id+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+resp._id+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
                       };
                       sgMail.send(msg, (error, result) => {
-                        if (error) {return sendError(res, "email server malapropriationologification");}
+                        if (error) {return sendError(req, res, "email server malapropriationologification");}
                         else {
                           var newCode = {
                             code: resp._id,
@@ -3385,11 +3410,11 @@ app.post('/passResetRequest', function (req, res) {
                             creationTime: new Date(),
                           }
                           db.collection('resetCodes').insertOne(newCode, {}, function (err, result) {
-                            if (err) {return sendError(res, err);}
+                            if (err) {return sendError(req, res, err);}
                             else {
                               user.settings.recovery[today].push(newCode.creationTime);
                               writeToDB(user._id, user, function (dbResp) {
-                                if (dbResp.error) {sendError(res, dbResp.error);}
+                                if (dbResp.error) {sendError(req, res, dbResp.error);}
                                 else {res.send({error: false});}               // victory state
                               });
                             }
@@ -3414,7 +3439,7 @@ app.get('/~recovery/:code', function (req, res) {
   req.session.user = null;
   db.collection('resetCodes').findOne({code: req.params.code}, {_id:1, code:1, creationTime:1}
   , function (err, code) {
-    if (err) {return sendError(res, err);}
+    if (err) {return sendError(req, res, err);}
     else {
       if (!code) {
         return res.render('layout', {initProps:{user:false, recovery:true, code: false}});
@@ -3423,7 +3448,7 @@ app.get('/~recovery/:code', function (req, res) {
         if ((now - code.creationTime) > 4000000) {  // code is too old, delete
           db.collection('resetCodes').remove({_id: code._id},
             function(err, post) {
-              if (err) {return sendError(res, err);}
+              if (err) {return sendError(req, res, err);}
               else {return res.render('layout', {initProps:{user:false, recovery:true, code: false}});}
             }
           );
@@ -3438,37 +3463,37 @@ app.get('/~recovery/:code', function (req, res) {
 // recovery verify username/change pass
 app.post('/resetNameCheck', function (req, res) {
   var errMsg = "password reset request error<br><br>";
-  if (!req.body.username || !req.body.code) {return sendError(res, errMsg+"malformed request 258")}
+  if (!req.body.username || !req.body.code) {return sendError(req, res, errMsg+"malformed request 258")}
   db.collection('resetCodes').findOne({code: req.body.code}, {_id:1, code:1, creationTime:1, username:1, attempts:1}
   , function (err, code) {
-    if (err) {return sendError(res, errMsg+err);}
+    if (err) {return sendError(req, res, errMsg+err);}
     else {
-      if (!code) {return sendError(res, errMsg+'code not found');}
+      if (!code) {return sendError(req, res, errMsg+'code not found');}
       else {
         var now = new Date();
         if ((now - code.creationTime) > 5000000) {  // code is too old, delete
           db.collection('resetCodes').remove({_id: code._id},
             function(err, post) {
-              if (err) {return sendError(res, errMsg+err);}
-              else {return sendError(res, errMsg+'code has expired');}
+              if (err) {return sendError(req, res, errMsg+err);}
+              else {return sendError(req, res, errMsg+'code has expired');}
             }
           );
         } else {
           bcrypt.compare(req.body.username.toLowerCase(), code.username, function(err, isMatch) {
-            if (err) {return sendError(res, errMsg+err);}
+            if (err) {return sendError(req, res, errMsg+err);}
             else if (isMatch) {
               if (req.body.password) {
                 var y = pool.passwordValidate(req.body.password);
                 if (y) {return res.send({error: errMsg+y});}
                 else {
                   bcrypt.hash(req.body.password, 10, function(err, passHash){
-                    if (err) {return sendError(res, errMsg+err);}
+                    if (err) {return sendError(req, res, errMsg+err);}
                     else {
                       // keys are tied to pass, clear keys, new keys created on sign in
                       var userObj = {password: passHash, keys:null}
 
                       db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
-                        if (err) {return sendError(res, errMsg+err);}
+                        if (err) {return sendError(req, res, errMsg+err);}
                         else if (!user) {return res.send({error: errMsg+"user not found"});}
                         else {
                           db.collection('users').updateOne({_id: user.authorID},
@@ -3478,7 +3503,7 @@ app.post('/resetNameCheck', function (req, res) {
                               else {
                                 db.collection('resetCodes').remove({_id: code._id},
                                   function(err, post) {
-                                    if (err) {return sendError(res, errMsg+err);}
+                                    if (err) {return sendError(req, res, errMsg+err);}
                                     else {res.send({error: false, victory:true});}    //final victory state
                                   }
                                 );
@@ -3498,7 +3523,7 @@ app.post('/resetNameCheck', function (req, res) {
               if (code.attempts === 5) {
                 db.collection('resetCodes').remove({_id: code._id},
                   function(err, post) {
-                    if (err) {return sendError(res, errMsg+err);}
+                    if (err) {return sendError(req, res, errMsg+err);}
                     else {res.send({error: false, attempt:5});}  // total fail state
                   }
                 );
@@ -3536,8 +3561,8 @@ app.get('/~faqText', function (req, res) {
   db.collection('siteStuff').findOne({name: "faq"}
   , {_id:0, text:1}
   , function (err, faq) {
-    if (err) {return sendError(res, errMsg+ err);}
-    else if (!faq) {return sendError(res, errMsg+ "faq not found");}
+    if (err) {return sendError(req, res, errMsg+ err);}
+    else if (!faq) {return sendError(req, res, errMsg+ "faq not found");}
     else {
       res.send({error: false, text: faq.text,})
     }
@@ -3575,13 +3600,13 @@ var return404author = function (req, res) {
 
 var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get FEED
   var errMsg = "error retrieving the posts of following<br><br>";
-  if (!req.body.date) {return sendError(res, errMsg+"malformed request 412");}
+  if (!req.body.date) {return sendError(req, res, errMsg+"malformed request 412");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}
     , {_id:0, following:1, savedTags:1, muted:1}
     , function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
-      else if (!user) {return sendError(res, errMsg+"user not found");}
+      if (err) {return sendError(req, res, errMsg+err);}
+      else if (!user) {return sendError(req, res, errMsg+"user not found");}
       else {
         if (!user.following || !user.following.length) {user.following = [];}
         if (!user.savedTags || !user.savedTags.length) {user.savedTags = [];}
@@ -3594,7 +3619,7 @@ var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get F
           }
         }
         getAuthorListFromTagListAndDate(user.savedTags, req.body.date, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           else {
             // filter muted authors
             // if a user is being followed and muted, they get filtered out then added back in, this is intended
@@ -3608,7 +3633,7 @@ var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get F
             }
             var authorList = resp.authorList.concat(user.following);
             postsFromAuthorListAndDate(authorList, req.body.date, followingRef, req.body.postRef, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {
                 return res.send({error:false, posts:resp.posts, followingList:resp.followingList, tagList:user.savedTags});
               }
@@ -3624,22 +3649,22 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
   var errMsg = "author lookup error<br><br>";
   if (req.body.page === undefined) {req.body.page = 0;}
   req.body.page = parseInt(req.body.page);
-  if (!Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(res, errMsg+"malformed request 301");}
-  if (!req.body.author) {return sendError(res, errMsg+"malformed request 300");}
+  if (!Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(req, res, errMsg+"malformed request 301");}
+  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 300");}
   var authorID = req.body.author;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  else {return sendError(res, errMsg+"invalid author id");}
+  else {return sendError(req, res, errMsg+"invalid author id");}
   db.collection('users').findOne({_id: authorID}
   , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
   , function (err, author) {
-    if (err) {return sendError(res, errMsg+err);}
+    if (err) {return sendError(req, res, errMsg+err);}
     else {
       if (!author) {
           res.send({error: false, four04: true,});      //404
         } else {
         checkFreshness(author);
         checkUpdates(author, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           author = resp.user;
           var authorPic = getUserPic(author);
           var posts = [];
@@ -3692,21 +3717,21 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
 
 var getAllAnAuthorsPosts = function(req, res) {
   var errMsg = "author lookup error<br><br>";
-  if (!req.body.author) {return sendError(res, errMsg+"malformed request 300");}
+  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 300");}
   var authorID = req.body.author;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  else {return sendError(res, errMsg+"invalid author id");}
+  else {return sendError(req, res, errMsg+"invalid author id");}
   db.collection('users').findOne({_id: authorID}
   , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
   , function (err, author) {
-    if (err) {return sendError(res, errMsg+err);}
+    if (err) {return sendError(req, res, errMsg+err);}
     else {
       if (!author) {
           res.send({error: false, four04: true,});      //404
         } else {
         checkFreshness(author);
         checkUpdates(author, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           author = resp.user;
           var authorPic = getUserPic(author);
 
@@ -3772,15 +3797,15 @@ var getAuthorInfo = function (author, req) {
 
 var getSinglePostFromAuthorAndDate = function (req, res) {
   var errMsg = "post retrieval error<br><br>";
-  if (!req.body.author) {return sendError(res, errMsg+"malformed request 513");}
+  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 513");}
   var authorID = req.body.author;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  else {return sendError(res, errMsg+"invalid author id");}
+  else {return sendError(req, res, errMsg+"invalid author id");}
   db.collection('users').findOne({_id: authorID}
   , {username:1, posts:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
   , function (err, author) {
-    if (err) {return sendError(res, errMsg+err);}
-    if (!author) {return sendError(res, errMsg+ "author not found");}
+    if (err) {return sendError(req, res, errMsg+err);}
+    if (!author) {return sendError(req, res, errMsg+ "author not found");}
     else {
       var data = {error: false,}
       if (req.body.needAuthorInfo) {
@@ -3789,7 +3814,7 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
       if (author.posts && author.posts[req.body.date] && req.body.date <= pool.getCurDate()) {
         var authorPic = getUserPic(author);
         checkUpdates(author, function (resp) {
-          if (resp.err) {return sendError(res, errMsg+resp.err);}
+          if (resp.err) {return sendError(req, res, errMsg+resp.err);}
           resp.user.posts[req.body.date][0].authorPic = authorPic;
           resp.user.posts[req.body.date][0].author = author.username;
           resp.user.posts[req.body.date][0]._id = author._id;
@@ -3806,21 +3831,21 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
 
 var getAllOfAnAuthorsPostsWithTag = function (req, res) {
   var errMsg = "author/tag lookup error<br><br>";
-  if (!req.body || !req.body.author || req.body.tag === undefined) {return sendError(res, errMsg+"malformed request 400");}
+  if (!req.body || !req.body.author || req.body.tag === undefined) {return sendError(req, res, errMsg+"malformed request 400");}
   var authorID = req.body.author;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  else {return sendError(res, errMsg+"invalid author id");}
+  else {return sendError(req, res, errMsg+"invalid author id");}
   db.collection('users').findOne({_id: authorID}
   , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, pendingUpdates:1, bio:1, keys:1, inbox:1}
   , function (err, author) {
-    if (err) {return sendError(res, errMsg+err);}
+    if (err) {return sendError(req, res, errMsg+err);}
     else {
       if (!author) {
           res.send({error: false, four04: true,});      //404
         } else {
         checkFreshness(author);
         checkUpdates(author, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           author = resp.user;
           var authorPic = getUserPic(author);
           var posts = [];
@@ -3874,7 +3899,7 @@ var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
   var errMsg = "tag by page fetch error<br><br>"
   if (req.body.page === undefined) {req.body.page = 0;}
   req.body.page = parseInt(req.body.page);
-  if (!req.body.tag || !Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(res, errMsg+"malformed request 710");}
+  if (!req.body.tag || !Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(req, res, errMsg+"malformed request 710");}
   db.collection('tagIndex').findOne({tag: req.body.tag.toLowerCase()}, {list:1}, function (err, tagListing) {
     if (err) {return callback({error:err});}
     else if (!tagListing || !tagListing.list || !tagListing.list.length) {  // tag does not exist/is empty
@@ -3910,7 +3935,7 @@ var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
           }
         }
         postsFromListOfAuthorsAndDates(lookUpList, req.body.postRef, function (resp) {
-          if (resp.error) {return sendError(res, errMsg+resp.error);}
+          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           else {
             return res.send({
               error:false,
@@ -3926,10 +3951,10 @@ var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
 
 var getAllPostsWithTagOnDate = function (req, res) {
   var errMsg = "tag fetch error<br><br>"
-  if (!req.body.date || !req.body.tag) {return sendError(res, errMsg+"malformed request 712");}
+  if (!req.body.date || !req.body.tag) {return sendError(req, res, errMsg+"malformed request 712");}
   if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'IT DOES NOT DO TO DWELL ON DREAMS AND FORGET TO LIVE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
   getAuthorListFromTagListAndDate([req.body.tag], req.body.date, function (resp) {
-    if (resp.error) {return sendError(res, errMsg+resp.error);}
+    if (resp.error) {return sendError(req, res, errMsg+resp.error);}
     else {
       if (resp.authorList.length === 0) {
         return res.send({error:false, posts:[],});
@@ -3949,8 +3974,8 @@ var filterMutedAuthors = function (req, authorList, callback) {
   idCheck(req, function (userID) {
     if (userID) {
       db.collection('users').findOne({_id: userID}, {_id:0, muted:1}, function (err, user) {
-          if (err) {return sendError(res, errMsg+err);}
-          else if (!user) {return sendError(res, errMsg+"user not found");}
+          if (err) {return sendError(req, res, errMsg+err);}
+          else if (!user) {return sendError(req, res, errMsg+"user not found");}
           else {
             if (user.muted) {
               if (authorList && authorList[0] && authorList[0].authorID) {         // for a post list, really
@@ -3984,14 +4009,14 @@ var getBookMarkedPosts = function (req, res) {
     db.collection('users').findOne({_id: userID}
       , {_id:0, bookmarks:1,}
       , function (err, user) {
-        if (err) {return sendError(res, errMsg+err);}
-        else if (!user) {return sendError(res, errMsg+"user not found");}
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!user) {return sendError(req, res, errMsg+"user not found");}
         else {
           if (!user.bookmarks || user.bookmarks.length === undefined) {
             return res.send({error:false, posts:[],});
           } else {
             postsFromListOfAuthorsAndDates(user.bookmarks, req.body.postRef, function (resp) {
-              if (resp.error) {return sendError(res, errMsg+resp.error);}
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
               else {return res.send({error:false, posts:resp.posts,});}
             });
           }
@@ -4002,24 +4027,24 @@ var getBookMarkedPosts = function (req, res) {
 
 app.post('/getPosts', function (req, res) {
   var errMsg = "post fetch error<br><br>"
-  if (!req.body.postCode) {return sendError(res, errMsg+"malformed request 284");}
+  if (!req.body.postCode) {return sendError(req, res, errMsg+"malformed request 284");}
   var postCode = req.body.postCode;
   if (!req.body.postRef) {req.body.postRef = {}};
   if (req.body.date && req.body.date > pool.getCurDate() && postCode !== "TFTF") {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}
   //
   // repsonse must have 'posts', and ,if not included w/ posts: 'authorData'
-  if (postCode === "FTTT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
+  if (postCode === "FTTT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
   else if (postCode === "FTTF") {return getAllPostsWithTagOnDate(req, res);}
   else if (postCode === "FTFT" || postCode === "FTFF") {return getNthPagOfTaggedPostsByAnyAuthor(req, res);}
-  else if (postCode === "FFTT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
+  else if (postCode === "FFTT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
   else if (postCode === "FFTF") {return getPostsOfFollowingWithTrackedTagsForADate(req, res);}
-  else if (postCode === "TTFT") {return sendError(res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
+  else if (postCode === "TTFT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
   else if (postCode === "TTFF") {return getAllOfAnAuthorsPostsWithTag(req, res);}
   else if (postCode === "TFTF") {return getSinglePostFromAuthorAndDate(req, res);}
   else if (postCode === "TFFT" || postCode === "TFFF") {return getOnePageOfAnAuthorsPosts(req, res);}
   else if (postCode === "MARK") {return getBookMarkedPosts(req, res);}
   else if (postCode === "ALL") {return getAllAnAuthorsPosts(req, res);}
-  else {return sendError(res, errMsg+"malformed request 433");}
+  else {return sendError(req, res, errMsg+"malformed request 433");}
 });
 
 // ------- **** ~ THE 14 ROUTES OF POST VIEWING ~ **** ------- //
@@ -4071,7 +4096,7 @@ app.get('/:author/~tagged/:tag/:page', function(req, res) {
   if (!Number.isInteger(page) || target < 0) {return return404author(req, res);}
   db.collection('userUrls').findOne({_id: author}, {authorID:1},
     function (err, user) {
-      if (err) {return sendError(res, "author lookup error<br><br>"+err);}
+      if (err) {return sendError(req, res, "author lookup error<br><br>"+err);}
       if (!user) {
         return return404author(req, res);
       } else {
@@ -4087,7 +4112,7 @@ app.get('/:author/~tagged/:tag', function(req, res) {
   var errMsg = "author lookup error<br><br>";
   db.collection('userUrls').findOne({_id: author}, {authorID:1},
     function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
+      if (err) {return sendError(req, res, errMsg+err);}
       if (!user) {
         return return404author(req, res);
       } else {
@@ -4101,7 +4126,7 @@ app.get('/~/:post_id', function (req, res) {
   if (ObjectId.isValid(req.params.post_id)) {req.params.post_id = ObjectId(req.params.post_id);}
   db.collection('posts').findOne({_id: req.params.post_id,}, {date:1, authorID:1}
     , function (err, post) {
-      if (err) {return sendError(res, resp.error);}
+      if (err) {return sendError(req, res, resp.error);}
       else {
         if (!post) {    //404
           return renderLayout(req, res, {error: false, notFound: true, postCode:'TFTF', post_id: req.params.post_id});
@@ -4135,7 +4160,7 @@ app.get('/:author/~/:num', function(req, res) {
   }
   db.collection('userUrls').findOne({_id: author}, {authorID:1},
     function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
+      if (err) {return sendError(req, res, errMsg+err);}
       if (!user) {
         return return404author(req, res);
       } else {
@@ -4151,7 +4176,7 @@ app.get('/:author/~all', function(req, res) {
   var errMsg = "author lookup error<br><br>";
   db.collection('userUrls').findOne({_id: author}, {authorID:1},
     function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
+      if (err) {return sendError(req, res, errMsg+err);}
       if (!user) {
         return return404author(req, res);
       }
@@ -4168,11 +4193,11 @@ app.get('/:author/:path', function(req, res) {
   var errMsg = "author lookup error<br><br>";
   db.collection('userUrls').findOne({_id: author}, {authorID:1},
     function (err, author) {
-      if (err) {return sendError(res, errMsg+err);}
+      if (err) {return sendError(req, res, errMsg+err);}
       if (!author) {return return404author(req, res);}
       var authorID = author.authorID;
       db.collection('users').findOne({_id: authorID}, {customURLs:1,}, function (err, author) {
-        if (err) {return sendError(res, errMsg+err);}
+        if (err) {return sendError(req, res, errMsg+err);}
         if (!author) {return return404author(req, res);}
         if (author.customURLs && author.customURLs[req.params.path]) {
           return renderLayout(req, res, {author:authorID, date:author.customURLs[req.params.path].date, post_url:req.params.path, postCode:"TFTF",});
@@ -4190,7 +4215,7 @@ app.get('/:author', function(req, res) {
   var errMsg = "author lookup error<br><br>";
   db.collection('userUrls').findOne({_id: author}, {authorID:1},
     function (err, user) {
-      if (err) {return sendError(res, errMsg+err);}
+      if (err) {return sendError(req, res, errMsg+err);}
       if (!user) {
         return return404author(req, res);
       }
