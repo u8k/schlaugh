@@ -3206,7 +3206,7 @@ app.post('/changeUsername', function (req, res) {
         if (x) {return res.send({error:x});}
         else {
           if (user.settings && user.settings.dateOfPreviousNameChange === pool.getCurDate()) {
-            return res.send({error:"seems you've aleady changed your name today...i think that's enough, try again tomorrow"});
+            return res.send({error:"seems you've already changed your name today...i think once a day is enough, try again tomorrow"});
           } else {
             db.collection('userUrls').findOne({_id: req.body.newName.toLowerCase()}, {authorID:1}, function (err, extant) {
               if (err) {return sendError(req, res, errMsg+err);}
@@ -3395,10 +3395,10 @@ app.post('/passResetRequest', function (req, res) {
                     else {
                       var msg = {
                         to: req.body.email,
-                        from: 'schlaugh@protonmail.com',
+                        from: 'noreply@schlaugh.com',
                         subject: 'schlaugh account recovery',
                         text: `visit the following link to reset your schlaugh password: https://www.schlaugh.com/~recovery/`+resp._id+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
-                        html: `<a href="https://www.schlaugh.com/~recovery/`+resp._id+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+resp._id+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
+                        html: `<a href="https://www.schlaugh.com/~recovery/`+resp._id+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+resp._id+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret. But if you need additional assistance accessing your account please do contact schlaugh@protonmail.com`,
                       };
                       sgMail.send(msg, (error, result) => {
                         if (error) {return sendError(req, res, "email server malapropriationologification");}
