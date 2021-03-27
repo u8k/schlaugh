@@ -3343,8 +3343,9 @@ var submitPost = function (remove) { //also handles editing and deleting
     text = preCleanText(text);
     ajaxCall("/", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey}, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
-      if (json.linkProblems) {uiAlert(json.linkProblems);}
-      updatePendingPost(json);
+      var popup = false;
+      if (json.linkProblems) {uiAlert(json.linkProblems); popup = true;}
+      updatePendingPost(json, popup);
       // save tags on the post, if they have that setting on
       if (_npa(['glo','settings','autoSaveTagsOnUse'])) {
         for (var tagString in json.tags) {
@@ -3400,7 +3401,7 @@ var cancelPost = function () {
   }
 }
 
-var updatePendingPost = function (post) {
+var updatePendingPost = function (post, popup) {
   if (!post) {
     glo.pending = false;
     $('pending-status').innerHTML = "no pending post for tomorrow";
@@ -3454,7 +3455,7 @@ var updatePendingPost = function (post) {
   }
   $('post-editor').value = prepTextForEditor(post.body);
   hideWriter('post');
-  loading(true);
+  loading(true, popup);
 }
 
 var cancelMessage = function () {
@@ -5255,7 +5256,7 @@ var showPassword = function (bool, elemName, elemArr) {       //or hide pass, if
 }
 
 var verifyEmailExplain = function () {
-  uiAlert(`schlaugh stores your email in <a class='special' href="https://en.wikipedia.org/wiki/Cryptographic_hash_function#Password_verification" target="_blank">"hashed"</a> form, meaning we can't just tell you what email address you have on file with us. But you can input what you think it is and we can tell you if that's right. And it's good to have a good email address stored with us in case you need to reset your password. But please don't need to reset your password.`)
+  uiAlert(`schlaugh stores your email in <a class='special' href="https://en.wikipedia.org/wiki/Cryptographic_hash_function#Password_verification" target="_blank">"hashed"</a> form, meaning we can't just tell you what email address you have on file with us. But you can input what you think it is and we can tell you if that's right. And it's good to have a good email address stored with us in case you need to reset your password. But please don't need to reset your password, because your private messages are encrypted with your password and will be locked forever after resetting your password via email`)
 }
 
 var imageUploadingExplain = function () {
