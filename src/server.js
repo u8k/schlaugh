@@ -153,22 +153,51 @@ var imageValidate = function (arr, callback) {
   } else {return callback({error:false});}
 }
 
-var linkValidate = function (arr, callback, i, problems) {
+var linkValidate = function (arr, callback) {
   if (!arr || arr.length === 0) {return callback(false);}
-  // init
-  if (!i) {
-    i = 0;
-    problems = [];
+
+  var timer = setTimeout(function () {
+    // this is because of the heroku 30sec response time limit
+    timer = null;
+    return callback("schlaugh's link checker is having trouble checking multiple links in your post. So much so that it got tired and gave up. They might be fine, but schlaugh's link checker is stalling when trying to follow them, so please try clicking on all your links yourself to make sure they work");
+  }, 28000);
+
+  var manageLinkValidate = function (i, problems) {
+    // init
+    if (!i) {
+      i = 0;
+      problems = [];
+      //
+    }
+
+    var url = arr[i];
+    // give it 10 seconds to try checking the link
+    var linkTimer = setTimeout(function () {
+      // after 10 seconds:
+      problems.push(url);
+      linkTimer = null;
+      wrapUpLinkValidate(i, problems);
+    }, 10000);
+
+    request.head(url, function (error, resp) {
+      if (linkTimer !== null) { // otherwise, the timer already went off and this link has already been marked as bad, so do nothing
+        clearTimeout(linkTimer);
+        if (error || !resp || !resp.statusCode) {
+          problems.push(url);
+        }
+        //
+        wrapUpLinkValidate(i, problems);
+      }
+    });
   }
 
-  var url = arr[i];
-  request.head(url, function (error, resp) {
-    if (error || !resp || !resp.statusCode) {
-      problems.push(url);
-    }
-    //
+  var wrapUpLinkValidate = function (i, problems) {
     i++;
     if (i === arr.length) { // done
+      if (timer === null) {
+        return;
+      }
+      clearTimeout(timer);
       if (problems.length === 0) {return callback(false);}
       if (problems.length === 1) {
         return callback(`your url: <code>`+problems[0]+`</code> does not seem to be valid. It might be fine, but schlaugh's link checker is flagging it, so please try clicking on it yourself to make sure it works<br><br>were you perhaps intending to link to schlaugh itself using the shorter form of link? please note that URL must start with a "/" character`);
@@ -180,9 +209,11 @@ var linkValidate = function (arr, callback, i, problems) {
         return callback(`your urls: <code>`+badUrls+`</code> do not seem to be valid. They might be fine, but schlaugh's link checker is flagging them, so please try clicking on them yourself to make sure they work<br><br>were you perhaps intending to link to schlaugh itself using the shorter form of link? please note that URL must start with a "/" character`);
       }
     } else {
-      return linkValidate(arr, callback, i, problems);
+      return manageLinkValidate(i, problems);
     }
-  });
+  }
+
+  manageLinkValidate();
 }
 
 var writeToDB = function (userID, data, callback) { // to the USER collection
