@@ -598,7 +598,9 @@ var uiAlert = function (message, btnTxt, callback, annoying) {
   if (!message) {  //close the alert
     $("alert").classList.add("hidden");
     blackBacking(true);
-    $("pop-up-backing").onclick = blackBackingClickHandler;
+    $("pop-up-backing").onclick = function () {
+      blackBackingClickHandler();
+    }
   } else {
     var oldFocus = document.activeElement;
     $("alert").classList.remove("hidden");
@@ -687,6 +689,8 @@ var loading = function (stop, keepBacking) {
     glo.loading = false;
     if (!keepBacking) {
       blackBacking(true);
+    } else {
+      if (glo.backingCount) {glo.backingCount--;}
     }
     $("loading-box").style.opacity="0";
     glo.loadingTimer = setTimeout(function () {
