@@ -800,8 +800,10 @@ quote {
   background-color: rgba(255, 255, 255, 0.07);
   border-radius: 4px;
   display: block;
-  padding: 15px;
+  padding: 5px 5px 5px 9px;
   font-style: italic;
+  border-left-style: solid;
+  border-width: 2px;
 }
 
 innerNote {

@@ -171,13 +171,13 @@ var linkValidate = function (arr, callback) {
     }
 
     var url = arr[i];
-    // give it 10 seconds to try checking the link
+    // give it 4 seconds to try checking the link
     var linkTimer = setTimeout(function () {
-      // after 10 seconds:
+      // after 4 seconds:
       problems.push(url);
       linkTimer = null;
       wrapUpLinkValidate(i, problems);
-    }, 10000);
+    }, 4000);
 
     request.head(url, function (error, resp) {
       if (linkTimer !== null) { // otherwise, the timer already went off and this link has already been marked as bad, so do nothing
