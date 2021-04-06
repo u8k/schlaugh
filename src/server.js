@@ -42,8 +42,8 @@ app.use("/app", express.static(path.join(__dirname, 'public')));
 // Configure cookie-session middleware
 app.use(session({
   name: 'session',
-  keys: ['SECRETSECRETIVEGOTTASECRET'],
-  maxAge: 90 * 24 * 60 * 60 * 1000 // (90 days?)
+  keys: process.env.COOKIE_SESSION_KEY || ['SECRETSECRETIVEGOTTASECRET'],
+  maxAge: 90 * 24 * 60 * 60 * 1000, // (90 days?)
 }))
 
 // enforce https, "trustProtoHeader" is because heroku proxy
