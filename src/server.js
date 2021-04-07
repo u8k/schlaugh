@@ -39,10 +39,14 @@ app.use(bodyParser.json({limit: '5mb'}));
 app.use("/assets", express.static(path.join(__dirname, '../assets')));
 app.use("/app", express.static(path.join(__dirname, 'public')));
 
+var sessionKey = ['SECRETSECRETIVEGOTTASECRET'];
+if (process.env.COOKIE_SESSION_KEY) {
+  sessionKey = [process.env.COOKIE_SESSION_KEY];
+}
 // Configure cookie-session middleware
 app.use(session({
   name: 'session',
-  keys: process.env.COOKIE_SESSION_KEY || ['SECRETSECRETIVEGOTTASECRET'],
+  keys: sessionKey,
   maxAge: 90 * 24 * 60 * 60 * 1000, // (90 days?)
 }))
 
