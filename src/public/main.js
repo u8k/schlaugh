@@ -4787,40 +4787,48 @@ var makeKeys = function (pass, callback) {
   });
 }
 
-var logInPageSubmit = function(inOrUp) {
-  if (inOrUp === 'in') {
-    var data = {
-      username: $('in-name-input').value.toLowerCase(),
-      password: $('in-pass-input').value,
-    }
-  } else {
-    var data = {
-      username: $('name-input').value,
-      password: $('pass-input').value,
-    }
-  }
-  // validate
+var nameAndPassValidation = function (data) {
   var x = pool.userNameValidate(data.username);
+  if (x) {return x;}
   var y = pool.passwordValidate(data.password);
-  if (x) {uiAlert(x);}
-  else if (y) {uiAlert(y);}
-  else {
-    if (inOrUp === 'in') {
-      var url = '/login';
-    } else {
-      var url = '/register';
-      data.email = $('email-input').value.toLowerCase();
-      //data.secretCode = $('secret-code').value;
-      if (data.password !== $('pass-input-two').value) {
-        uiAlert('passwords are not the same');
-        return;
-      }
-    }
-    signIn(url, data, function () {
+  if (y) {return y;}
+  return false;
+}
+
+var login = function() {
+  var data = {
+    username: $('in-name-input').value.toLowerCase(),
+    password: $('in-pass-input').value,
+  }
+  var invalid = nameAndPassValidation(data);
+  if (invalid) {return uiAlert(invalid);}
+  //
+  signIn('/login', data, function () {
+    switchPanel('posts-panel');
+    fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
+  });
+}
+
+var signUp = function () {
+  var data = {
+    username: $('name-input').value,
+    password: $('pass-input').value,
+  }
+  var invalid = nameAndPassValidation(data);
+  if (invalid) {return uiAlert(invalid);}
+  //
+  data.email = $('email-input').value.toLowerCase();
+  if (data.password !== $('pass-input-two').value) {
+    uiAlert('passwords are not the same<br><br>they must be the same!');
+    return;
+  }
+  verify("now is the time to make sure your password is stored in your password manager or otherwise secured such that it's not lost after you submit this form<br><br>we good?", "yes sir!", "...no, hold up", function (resp) {
+    if (!resp) {return;}
+    signIn('/register', data, function () {
       switchPanel('posts-panel');
       fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
-    })
-  }
+    });
+  });
 }
 
 var cookieNotification = function () {
