@@ -211,11 +211,17 @@ var allFollowStaff = function () {
   });
 }*/
 
-var removeUser = function () {
+var removeUser = function (id) {
   if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
-  ajaxCall('/admin/removeUser', 'POST', {name: $("name-to-be-removed").value}, function(json) {
-    console.log(json);
-  });
+  if (id) {
+    ajaxCall('/admin/removeUser', 'POST', {id: $("user-id-to-be-removed").value}, function(json) {
+      console.log(json);
+    });
+  } else {
+    ajaxCall('/admin/removeUser', 'POST', {name: $("name-to-be-removed").value}, function(json) {
+      console.log(json);
+    });
+  }
 }
 
 var removePost = function () {

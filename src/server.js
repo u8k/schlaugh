@@ -1515,23 +1515,31 @@ app.post('/admin/resetTest', function(req, res) {
 });
 
 app.post('/admin/removeUser', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
-    , function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else if (!user) {return res.send({error:"user not found"});}
-      else {
-        db.collection('userUrls').remove({_id: req.body.name.toLowerCase()}, function(err, user) {
-          if (err) {return sendError(req, res, err);}
-          //
-          db.collection('users').remove({_id: user.authorID}, function(err, user) {
+  if (req.body.name) {
+    adminGate(req, res, function (res, user) {
+      db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
+      , function (err, user) {
+        if (err) {return sendError(req, res, err);}
+        else if (!user) {return res.send({error:"user not found"});}
+        else {
+          db.collection('userUrls').remove({_id: req.body.name.toLowerCase()}, function(err) {
             if (err) {return sendError(req, res, err);}
-            else {res.send({error:false});}
+            //
+            db.collection('users').remove({_id: user.authorID}, function(err, user) {
+              if (err) {return sendError(req, res, err);}
+              else {res.send({error:false});}
+            });
           });
-        });
-      }
+        }
+      });
     });
-  });
+  } else {
+    if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id"});}
+    db.collection('users').remove({_id: ObjectId(req.body.id)}, function(err, user) {
+      if (err) {return sendError(req, res, err);}
+      else {res.send({error:false});}
+    });
+  }
 });
 
 /*app.post('/admin/removePost', function(req, res) { //only from the post db...don't use this
