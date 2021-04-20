@@ -243,10 +243,16 @@ var getErrorLogs = function () {
   });
 }
 
-var getUser = function () {
-  ajaxCall('/admin/user', 'POST', {name: $("get-user-input").value}, function(json) {
-    console.log(json);
-  });
+var getUser = function (id) {
+  if (id) {
+    ajaxCall('/admin/user', 'POST', {id: $("get-user-by-id-input").value}, function(json) {
+      console.log(json);
+    });
+  } else {
+    ajaxCall('/admin/user', 'POST', {name: $("get-user-input").value}, function(json) {
+      console.log(json);
+    });
+  }
 }
 
 var getSchlaunquerMatches = function () {

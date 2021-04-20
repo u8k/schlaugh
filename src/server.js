@@ -1311,18 +1311,27 @@ app.post('/admin/stats', function(req, res) {
 
 app.post('/admin/user', function(req, res) {
   adminGate(req, res, function (res, user) {
-    db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
-    , function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else if (!user) {return res.send({error:"user not found"});}
-      else {
-        db.collection('users').findOne({_id: user.authorID}, {}, function (err, user) {
-          if (err) {return sendError(req, res, err);}
-          else if (!user) {return res.send({error:"user not found, 2"});}
-          else {return res.send(user);}
-        });
-      }
-    });
+    if (req.body.name) {
+      db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
+      , function (err, user) {
+        if (err) {return sendError(req, res, err);}
+        else if (!user) {return res.send({error:"username not found"});}
+        else {
+          db.collection('users').findOne({_id: user.authorID}, {}, function (err, user) {
+            if (err) {return sendError(req, res, err);}
+            else if (!user) {return res.send({error:"username found, but user not found"});}
+            else {return res.send(user);}
+          });
+        }
+      });
+    } else {
+      if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id"});}
+      db.collection('users').findOne({_id: ObjectId(req.body.id)}, {}, function (err, user) {
+        if (err) {return sendError(req, res, err);}
+        else if (!user) {return res.send({error:"userID not found"});}
+        else {return res.send(user);}
+      });
+    }
   });
 });
 
@@ -1512,9 +1521,13 @@ app.post('/admin/removeUser', function(req, res) {
       if (err) {return sendError(req, res, err);}
       else if (!user) {return res.send({error:"user not found"});}
       else {
-        db.collection('users').remove({_id: user.authorID}, function(err, user) {
+        db.collection('userUrls').remove({_id: req.body.name.toLowerCase()}, function(err, user) {
           if (err) {return sendError(req, res, err);}
-          else {res.send({error:false});}
+          //
+          db.collection('users').remove({_id: user.authorID}, function(err, user) {
+            if (err) {return sendError(req, res, err);}
+            else {res.send({error:false});}
+          });
         });
       }
     });
@@ -2557,7 +2570,7 @@ app.post('/inbox', function(req, res) {
   var errMsg = "your message may not be saved, please copy your text if you want to keep it<br><br>";
   if (!req.session.user) {return sendError(req, res, errMsg+"no user session 3653");}
   // the incoming text is encrypted, so we can not cleanse it
-  if (typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(req, res, errMsg+"malformed request 188<br><br>"+req.body.encSenderText+"<br><br>"+req.body.encRecText);}
+  if (typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(req, res, errMsg+"malformed request 188<br>");}
   var recipientID = String(req.body.recipient);
   var senderID = String(req.session.user._id);
   if (recipientID === senderID) {return sendError(req, res, errMsg+"you want to message yourself??? freak.");}
