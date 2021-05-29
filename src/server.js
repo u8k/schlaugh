@@ -594,6 +594,7 @@ var updateUserPost = function (text, newTags, title, url, userID, user, callback
         user.posts[tmrw] = [{
             body: text,
             tags: newTags,
+            title: title,
             url: url,
             post_id: resp.post_id,
           }];
