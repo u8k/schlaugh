@@ -809,7 +809,7 @@ var convertCut = function (string, id, type, pos) {
   string = insertStringIntoStringAtPos(string, b, pos);
   pos += b.length
 
-  var expandIcon = `<icon class="far fa-plus-square expand-button"></icon>`;
+  var expandIcon = `<icon class="far fa-plus-square expand-button" tabindex="0"></icon>`;
 
   // find the closing cut tag and insert an innerCut after it, leave the innerCut open, to be closed later by prepTextForRender
   var gap = string.substr(pos).search('</cut>');
@@ -845,7 +845,7 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
 
   var preTag = string.substr(0,tagStartPos);
   var postTag = string.substr(innerStartPos);
-  var insert = `<a class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true, '`+id+`')">`+linkText
+  var insert = `<a href="javascript:void(0);" class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true, '`+id+`')">`+linkText
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></a>`
     +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
@@ -2671,8 +2671,8 @@ var createPostFooter = function (postElem, postData, type) {
     if (glo.username) {
       if (postData.post_id && postData.post_id.length !== 8) {  // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
         // quote button
-        var quoteBtn = document.createElement("footerButton");
-        quoteBtn.setAttribute('class', 'no-select');
+        var quoteBtn = document.createElement("button");
+        quoteBtn.setAttribute('class', 'no-select, footerButton');
         quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
         quoteBtn.title = "quote";
         quoteBtn.onclick = function(event) {
@@ -2715,6 +2715,7 @@ var createPostFooter = function (postElem, postData, type) {
         link = null;
       }
       var permalink = document.createElement("footerButton");
+      permalink.setAttribute('class', 'no-select, footerButton');
       permalink.innerHTML = '<i class="fas fa-link"></i>';
       permalink.title = "permalink";
       permalink.onclick = function(event) {
@@ -2728,7 +2729,8 @@ var createPostFooter = function (postElem, postData, type) {
     //
     if ((type === 'author' || type === 'perma') && glo.username && glo.username === postData.author) {
       //edit button
-      var editBtn = document.createElement("footerButton");
+      var editBtn = document.createElement("button");
+      editBtn.setAttribute('class', 'no-select, footerButton');
       editBtn.innerHTML = '<i class="fas fa-pen"></i>';
       editBtn.title = "edit";
       editBtn.onclick = function() {
@@ -2736,7 +2738,8 @@ var createPostFooter = function (postElem, postData, type) {
       }
       footerButtons.appendChild(editBtn);
       // delete button
-      var deleteBtn = document.createElement("footerButton");
+      var deleteBtn = document.createElement("button");
+      deleteBtn.setAttribute('class', 'no-select, footerButton');
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
       deleteBtn.title = "delete";
       deleteBtn.onclick = function() {
@@ -2911,8 +2914,8 @@ var createBookmarkButton = function (parent, post) {
   if (x[x.length-2] && x[1].classList[0] === "bookmark-button") {
     var insert = x[1];
   }
-  var elem = document.createElement("footerButton");
-  elem.setAttribute('class', "bookmark-button");
+  var elem = document.createElement("button");
+  elem.setAttribute('class', "bookmark-button footerButton");
   var alreadyMarked = false;
   if (!glo.bookmarks) {glo.bookmarks = {}}
   if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
@@ -2989,6 +2992,7 @@ var createBookmarkButton = function (parent, post) {
   }
   if (insert) {
     parent.insertBefore(elem, insert);
+    elem.focus();
     removeElement(insert);
   } else {
     parent.appendChild(elem);
