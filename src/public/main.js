@@ -805,11 +805,11 @@ var convertCut = function (string, id, type, pos) {
   }
 
   // put the class and clickhandler props on the cut tag to make it into a working button
-  var b = ` class='clicky special' onclick='$("`+id+`").classList.remove("removed"); this.classList.add("removed");'`;
+  var b = ` class='clicky special' tabindex='0' onclick='$("`+id+`").classList.remove("removed"); this.classList.add("removed");'`;
   string = insertStringIntoStringAtPos(string, b, pos);
-  pos += b.length
+  pos += b.length;
 
-  var expandIcon = `<icon class="far fa-plus-square expand-button" tabindex="0"></icon>`;
+  var expandIcon = `<icon class="far fa-plus-square expand-button"></icon>`;
 
   // find the closing cut tag and insert an innerCut after it, leave the innerCut open, to be closed later by prepTextForRender
   var gap = string.substr(pos).search('</cut>');
@@ -2076,9 +2076,9 @@ var notSchlaugh = function (postCode, date) {
   var post = document.createElement("div");
   if ((postCode === "FFTF" || postCode === "FFTT") && date) {
     if (date < '2017-11-18') {
-      post.innerHTML = '~pre schlaugh~<br><clicky onclick="uiAlert(`on '+date+' schlaugh did not yet exist!`)" class="special">(?)</clicky>';
+      post.innerHTML = '~pre schlaugh~<br><a href="javascript:void(0);" onclick="uiAlert(`on '+date+' schlaugh did not yet exist!`)" class="special clicky">(?)</a>';
     } else {
-      post.innerHTML = '~not schlaugh~<br><clicky onclick="uiAlert(`for the day you are viewing, '+date+', none of the people or tags you are following have made posts`)" class="special">(?)</clicky>';
+      post.innerHTML = '~not schlaugh~<br><a href="javascript:void(0);" onclick="uiAlert(`for the day you are viewing, '+date+', none of the people or tags you are following have made posts`)" class="special clicky">(?)</a>';
     }
   } else {
     post.innerHTML = "~no posts~";
@@ -2432,7 +2432,7 @@ var renderOnePost = function (postData, type, postID) {
   // selective quote button
   if (type !== 'preview' && type !== 'preview-edit') {
     var quoteBtn = document.createElement("button");
-    quoteBtn.setAttribute('class', 'panel-button-selected selective-quote-button');
+    quoteBtn.setAttribute('class', 'panel-button-selected selective-quote-button removed');
     quoteBtn.setAttribute('id', uniqueID+'-selective-quote-button');
     quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
     quoteBtn.onclick = function (event) {
@@ -2447,9 +2447,10 @@ var renderOnePost = function (postData, type, postID) {
   }
 
   // collapse button(s)
-  var collapseBtn = document.createElement("clicky");
-  collapseBtn.setAttribute('class', 'collapse-button-top');
+  var collapseBtn = document.createElement("a");
+  collapseBtn.setAttribute('class', 'collapse-button-top clicky');
   collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
+  collapseBtn.setAttribute('href', 'javascript:void(0);');
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit' && type !== 'authorAll') {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
     collapseBtn.title = 'expand';
@@ -2460,7 +2461,7 @@ var renderOnePost = function (postData, type, postID) {
   collapseBtn.onclick = function () {collapsePost(uniqueID, postData.post_id, false);}
   post.appendChild(collapseBtn);
   var collapseBtn2 = collapseBtn.cloneNode(true);
-  collapseBtn2.setAttribute('class', 'collapse-button-bottom hidden');
+  collapseBtn2.setAttribute('class', 'collapse-button-bottom hidden clicky');
   collapseBtn2.setAttribute('id', uniqueID+'-collapse-button-bottom');
   collapseBtn2.onclick = function () {collapsePost(uniqueID, postData.post_id, true);}
   post.appendChild(collapseBtn2);
@@ -2541,8 +2542,11 @@ var renderOnePost = function (postData, type, postID) {
         var postVertOffest = $(uniqueID).getBoundingClientRect().y;
         var selectProps = $("post-"+postData.post_id+"-"+x.endElem).getBoundingClientRect()
         var selectionVertOffest = (selectProps.y + selectProps.bottom)/2;
-        $(uniqueID+'-selective-quote-button').classList.add("show-selective-quote-button");
+        $(uniqueID+'-selective-quote-button').classList.remove("removed");
         $(uniqueID+'-selective-quote-button').style.top = (selectionVertOffest-postVertOffest) + "px";
+        setTimeout(function () {
+          $(uniqueID+'-selective-quote-button').classList.add("show-selective-quote-button");
+        }, 0);
         isStillQuotable(postData.post_id, uniqueID);
       }
     }
@@ -2758,6 +2762,9 @@ var isStillQuotable = function (postID, postElemID) {
   } else {
     if ($(postElemID+'-selective-quote-button')) {
       $(postElemID+'-selective-quote-button').classList.remove("show-selective-quote-button");
+      setTimeout(function () {
+        $(postElemID+'-selective-quote-button').classList.add("removed");
+      }, 200);  // .2 seconds, to match the animaion time set on the .selective-quote-button in css
     }
   }
 }
@@ -4531,9 +4538,10 @@ var createThread = function (i, top) {
   //creates the name and the box where messages will go
   glo.threadRef[glo.threads[i]._id] = i;
   var nameBox = document.createElement("div");
-  var name = document.createElement("clicky");
+  var name = document.createElement("a");
   name.innerHTML = glo.threads[i].name;
-  name.setAttribute('class', 'thread-name');
+  name.setAttribute('class', 'thread-name clicky');
+  name.setAttribute('href', 'javascript:void(0);');
   name.setAttribute('id', i+'-thread-name');
   (function (index) {
     name.onclick = function(){openThread(index);}

@@ -21,9 +21,9 @@
       <a href="/" onclick="backToMain(event);"><h1>schlaugh</h1></a>
 
       <userInfo>
-        <a id="username" class="clicky removed special user-info-item"></a>
-        <text id="sign-in" class="clicky user-info-item" onclick="passPromptSubmit()">schlaugh in</text>
-        <text id="sign-out" class="clicky removed user-info-item" onclick="signOut()">schlaugh out</text>
+        <a href="javascript:void(0);" id="username" class="clicky removed special user-info-item"></a>
+        <a href="javascript:void(0);" id="sign-in" class="clicky user-info-item" onclick="passPromptSubmit()">schlaugh in</a>
+        <a href="javascript:void(0);" id="sign-out" class="clicky removed user-info-item" onclick="signOut()">schlaugh out</a>
       </userInfo>
     </header>
 
@@ -36,7 +36,7 @@
         var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
         var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours to schlaupdate";
       %>
-      <text id="schlaupdate-timer"><%= hoursRemaining %></text> <clicky onclick="schlaupdateExplain()" class="special">(?)</clicky>
+      <text id="schlaupdate-timer"><%= hoursRemaining %></text> <a href="javascript:void(0);" onclick="schlaupdateExplain()" class="special clicky">(?)</a>
       <br>
       <div id="footer-footer">
         <a href="/~" class="clicky special footer-text" onclick="modKeyCheck(event, function () {switchPanel('~about-panel'); simulatePageLoad('~', false);});">about</a>
@@ -44,8 +44,8 @@
         <a href="/~faq" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openFAQ();});">faq</a>
         •
         <a href="/~click" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openClickerGame();});">click</a>
-        •
-        <a href="/~schlaunquer" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openSchlaunquerPanel();});">schlaunquer</a>
+        <!-- •
+        <a href="/~schlaunquer" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openSchlaunquerPanel();});">schlaunquer</a> -->
       </div>
     </footer>
 

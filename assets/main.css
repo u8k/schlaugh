@@ -461,7 +461,6 @@ a, a.visited {
   position: absolute;
   right: -26px;
   transition: right .2s;
-  display: none;
 }
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
   .selective-quote-button {
@@ -470,7 +469,6 @@ a, a.visited {
 }
 .show-selective-quote-button {
   right: 2px;
-  display: initial;
 }
 
 .footerButton {
