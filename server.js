@@ -4139,8 +4139,8 @@ app.get('/:author/~rss', function (req, res) {
               var feed = new RSS({
                 title: author.username,
                 description: "posts on schlaugh.com by "+author.username,
-                site_url: "schlaugh.com/" +author.username,
-                feed_url: "schlaugh.com/" +author.username+"/~rss",
+                site_url: "https://www.schlaugh.com/" +author.username,
+                feed_url: "https://www.schlaugh.com/" +author.username+"/~rss",
               });
               if (author.iconURI) {
                 feed.image_url = author.iconURI;
@@ -4157,7 +4157,7 @@ app.get('/:author/~rss', function (req, res) {
                   feed.item({
                     title: author.posts[post.date][post.num].title,
                     //description: author.posts[post.date][post.num].body,
-                    url: "schlaugh.com/~/" + author.posts[post.date][post.num].post_id,
+                    url: "https://www.schlaugh.com/~/" + author.posts[post.date][post.num].post_id,
                     // categories: // eh? i could put the tags there i guess?
                     //tags: author.posts[post.date][post.num].tags,
                     date: post.date,
