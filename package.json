@@ -22,7 +22,8 @@
     "express": "^4.15.3",
     "express-sslify": "^1.2.0",
     "mongodb": "^2.2.31",
-    "request": "^2.85.0"
+    "request": "^2.85.0",
+    "rss": "^1.2.2"
   },
   "devDependencies": {
     "chai": "^4.2.0",

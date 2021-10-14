@@ -8,6 +8,9 @@ var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
 var request = require('request');
 var enforce = require('express-sslify');
+var RSS = require('rss');
+var fs = require("fs");
+var path = require('path');
 var pool = require('./public/pool.js');
 var schlaunquer = require('./public/schlaunquer.js');
 var adminB = require('./public/adminB.js');
@@ -4103,6 +4106,88 @@ app.post('/getPosts', function (req, res) {
   else if (postCode === "ALL") {return getAllAnAuthorsPosts(req, res);}
   else {return sendError(req, res, errMsg+"malformed request 433");}
 });
+
+
+
+
+// RSS feed routes
+app.get('/:author/~rss', function (req, res) {
+  var errMsg = "rss error<br><br>";
+
+  var author = req.params.author.toLowerCase();
+  if (!req.params.author) {return sendError(req, res, errMsg+"malformed request 3041");}
+
+  db.collection('userUrls').findOne({_id: author}, {authorID:1}, function (err, user) {
+    if (err) {return sendError(req, res, errMsg+err);}
+    if (!user) {return res.send("author not found");}
+
+    var authorID = user.authorID;
+    if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
+    else {return sendError(req, res, errMsg+"invalid author id");}
+    db.collection('users').findOne({_id: authorID},
+      {username:1, posts:1, postList:1, postListPending:1, iconURI:1, pendingUpdates:1, bio:1},
+      function (err, author) {
+        if (err) {return sendError(req, res, errMsg+err);}
+        else {
+          if (!author) {
+            res.send({error: false, four04: true,});      //404
+          } else {
+            checkFreshness(author);
+            checkUpdates(author, function (resp) {
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+              author = resp.user;
+
+              var feed = new RSS({
+                title: author.username,
+                description: "posts on schlaugh.com by "+author.username,
+                site_url: "schlaugh.com/" +author.username,
+                feed_url: "schlaugh.com/" +author.username+"/~rss",
+              });
+              if (author.iconURI) {
+                feed.image_url = author.iconURI;
+              }
+              // get the minutes until schlaupdate, no need to check the feed again until then (:
+              var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+              var hoursRemaining = 24 - time.getUTCHours();
+              var minutesRemaining = 60 - time.getUTCMinutes();
+              feed.ttl = (hoursRemaining*60) + minutesRemaining;
+
+              for (var i = 0; i < author.postList.length && i < 10; i++) {
+                var post = author.postList[author.postList.length-1-i];
+                if (post) {
+                  feed.item({
+                    title: author.posts[post.date][post.num].title,
+                    //description: author.posts[post.date][post.num].body,
+                    url: "schlaugh.com/~/" + author.posts[post.date][post.num].post_id,
+                    // categories: // eh? i could put the tags there i guess?
+                    //tags: author.posts[post.date][post.num].tags,
+                    date: post.date,
+                  });
+                }
+              }
+
+              var fileName = "feed.xml";
+              var xml = feed.xml({ indent: true });
+                    // save the xml file, just so we have a path from which to send it
+              fs.writeFile(fileName, xml, function (err) {
+                if (err) {return sendError(req, res, errMsg+err);}
+                fileName = path.resolve(fileName);      // get the full path
+                //
+                res.sendFile(fileName, function (err) {
+                  if (err) {return sendError(req, res, errMsg+err);}
+                  // delete the file
+                  fs.unlink(fileName, (err) => {
+                    if (err) throw err;
+                  });
+                });
+              });
+            });
+          }
+        }
+      });
+    });
+});
+
 
 // ------- **** ~ THE 14 ROUTES OF POST VIEWING ~ **** ------- //
 // https://docs.google.com/spreadsheets/d/1JM39RfQonAbxT3VBbNwMEsqEO_96DG76RHoGStNMDJo/edit?usp=sharing
