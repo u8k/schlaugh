@@ -2,15 +2,11 @@
   "name": "schlaugh",
   "version": "1.0.0",
   "description": "a quiet place to write",
-  "engines": {
-	"node": "10.19.0"
-  },
   "license": "UNLICENSED",
   "private": true,
-  "main": "build/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node build/server.js",
-    "build": "tsc"
+	"start": "node server"
   },
   "author": "u8k",
   "dependencies": {
@@ -21,14 +17,8 @@
     "ejs": "^2.5.6",
     "express": "^4.15.3",
     "express-sslify": "^1.2.0",
-    "mongodb": "^2.2.31",
+    "mongodb": "^3.1.13",
     "request": "^2.85.0",
     "rss": "^1.2.2"
-  },
-  "devDependencies": {
-    "chai": "^4.2.0",
-    "mocha": "^6.1.4",
-    "tslint": "^5.16.0",
-    "typescript": "^3.4.5"
   }
 }

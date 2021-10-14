@@ -8,9 +8,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./assets:/usr/app/assets
-      - ./src:/usr/app/src
+      - ./public:/usr/app/public
       - ./views:/usr/app/views
+      - ./server.js:/usr/app/server.js
     links:
       - mongo
     depends_on:

@@ -31,7 +31,7 @@ MongoClient.connect(dbURI, function(err, database) {
 var app = express();
 
 // Load View Engine
-app.set('views', path.join(__dirname, '../views'));
+app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
 // Body Parser Middleware
@@ -39,8 +39,7 @@ app.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
 app.use(bodyParser.json({limit: '5mb'}));
 
 // Set Public Folder
-app.use("/assets", express.static(path.join(__dirname, '../assets')));
-app.use("/app", express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 var sessionKey = ['SECRETSECRETIVEGOTTASECRET'];
 if (process.env.COOKIE_SESSION_KEY) {
@@ -4110,7 +4109,7 @@ app.post('/getPosts', function (req, res) {
 
 
 
-// RSS feed routes
+// RSS feed route for an author
 app.get('/:author/~rss', function (req, res) {
   var errMsg = "rss error<br><br>";
 

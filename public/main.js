@@ -763,7 +763,7 @@ var changeFavicon = function (src) {
   link.rel = 'icon';
   link.type = "image/png";
   if (src) {link.href = src;}
-  else {link.href = "/assets/favicon.png";}
+  else {link.href = "favicon.png";}
   if (oldLink) {document.head.removeChild(oldLink);}
   document.head.appendChild(link);
 }
@@ -4667,7 +4667,7 @@ var block = function (threadIndex) {
 }
 
 // encryption stuff
-openpgp.initWorker({ path:'/assets/openpgp.worker.min.js' });
+openpgp.initWorker({ path:'openpgp.worker.min.js' });
 
 var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
   openpgp.encrypt({
@@ -4786,7 +4786,7 @@ var backToLogInMenu = function () {
 }
 
 var makeKeys = function (pass, callback) {
-  openpgp.initWorker({ path:'/assets/openpgp.worker.min.js' });
+  openpgp.initWorker({ path:'openpgp.worker.min.js' });
   openpgp.generateKey({
     userIds: [{ name:'bob', email:'bob@example.com' }],
     curve: "curve25519",
