@@ -19,7 +19,7 @@ var adminB = require('./public/adminB.js');
 var db;
 var dbURI = process.env.ATLAS_DB_KEY || 'mongodb://mongo:27017/schlaugh';
 
-MongoClient.connect(dbURI, function(err, database) {
+MongoClient.connect(dbURI, { useUnifiedTopology: true }, function(err, database) {
   if (err) {throw err;}
   else {
     console.log("MONGO IS ALIVE");
@@ -513,7 +513,7 @@ var createPost = function (authorID, callback, date) {    //creates a postID and
 }
 
 var deletePostFromPosts = function (postID, callback) {
-  db.collection('posts').remove({_id: postID},
+  db.collection('posts').deleteOne({_id: postID},
     function(err, post) {
       if (err) {return callback({error:err});}
       else {return callback({error:false});}
@@ -1525,10 +1525,10 @@ app.post('/admin/removeUser', function(req, res) {
         if (err) {return sendError(req, res, err);}
         else if (!user) {return res.send({error:"user not found"});}
         else {
-          db.collection('userUrls').remove({_id: req.body.name.toLowerCase()}, function(err) {
+          db.collection('userUrls').deleteOne({_id: req.body.name.toLowerCase()}, function(err) {
             if (err) {return sendError(req, res, err);}
             //
-            db.collection('users').remove({_id: user.authorID}, function(err, user) {
+            db.collection('users').deleteOne({_id: user.authorID}, function(err, user) {
               if (err) {return sendError(req, res, err);}
               else {res.send({error:false});}
             });
@@ -1538,7 +1538,7 @@ app.post('/admin/removeUser', function(req, res) {
     });
   } else {
     if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id"});}
-    db.collection('users').remove({_id: ObjectId(req.body.id)}, function(err, user) {
+    db.collection('users').deleteOne({_id: ObjectId(req.body.id)}, function(err, user) {
       if (err) {return sendError(req, res, err);}
       else {res.send({error:false});}
     });
@@ -1999,7 +1999,7 @@ app.post('/~joinSchlaunquerMatch', function(req, res) { // also handles de-joini
         writeToDB(user._id, user, function (resp) {
           if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           if (empty) {
-            db.collection('schlaunquerMatches').remove({_id: req.body.game_id},
+            db.collection('schlaunquerMatches').deleteOne({_id: req.body.game_id},
               function(err, resMatch) {
                 if (err) {return sendError(req, res, errMsg+err);}
                 return res.send({error:false});
@@ -3280,7 +3280,7 @@ app.post('/changeUsername', function (req, res) {
                   else {
                     if (req.body.newName.toLowerCase() !== oldName) {
                       createUserUrl(req.body.newName.toLowerCase(), userID, function (resp) {
-                        db.collection('userUrls').remove({_id: oldName},
+                        db.collection('userUrls').deleteOne({_id: oldName},
                           function(err, url) {
                             if (err) {return callback({error: errMsg+err});}
                             else {res.send({error: false, name: req.body.newName});}
@@ -3505,7 +3505,7 @@ app.get('/~recovery/:code', function (req, res) {
       } else {
         var now = new Date();
         if ((now - code.creationTime) > 4000000) {  // code is too old, delete
-          db.collection('resetCodes').remove({_id: code._id},
+          db.collection('resetCodes').deleteOne({_id: code._id},
             function(err, post) {
               if (err) {return sendError(req, res, err);}
               else {return res.render('layout', {initProps:{user:false, recovery:true, code: false}});}
@@ -3531,7 +3531,7 @@ app.post('/resetNameCheck', function (req, res) {
       else {
         var now = new Date();
         if ((now - code.creationTime) > 5000000) {  // code is too old, delete
-          db.collection('resetCodes').remove({_id: code._id},
+          db.collection('resetCodes').deleteOne({_id: code._id},
             function(err, post) {
               if (err) {return sendError(req, res, errMsg+err);}
               else {return sendError(req, res, errMsg+'code has expired');}
@@ -3560,7 +3560,7 @@ app.post('/resetNameCheck', function (req, res) {
                             function(err, user) {
                               if (err) {res.send({error: errMsg+err});}
                               else {
-                                db.collection('resetCodes').remove({_id: code._id},
+                                db.collection('resetCodes').deleteOne({_id: code._id},
                                   function(err, post) {
                                     if (err) {return sendError(req, res, errMsg+err);}
                                     else {res.send({error: false, victory:true});}    //final victory state
@@ -3580,7 +3580,7 @@ app.post('/resetNameCheck', function (req, res) {
             } else {
               code.attempts++;
               if (code.attempts === 5) {
-                db.collection('resetCodes').remove({_id: code._id},
+                db.collection('resetCodes').deleteOne({_id: code._id},
                   function(err, post) {
                     if (err) {return sendError(req, res, errMsg+err);}
                     else {res.send({error: false, attempt:5});}  // total fail state
@@ -4147,7 +4147,7 @@ app.get('/:author/~rss', function (req, res) {
               }
               // get the minutes until schlaupdate, no need to check the feed again until then (:
               var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
-              var hoursRemaining = 24 - time.getUTCHours();
+              var hoursRemaining = 23 - time.getUTCHours();
               var minutesRemaining = 60 - time.getUTCMinutes();
               feed.ttl = (hoursRemaining*60) + minutesRemaining;
 
