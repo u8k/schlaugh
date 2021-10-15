@@ -4160,7 +4160,7 @@ app.get('/:author/~rss', function (req, res) {
                     url: "https://www.schlaugh.com/~/" + author.posts[post.date][post.num].post_id,
                     // categories: // eh? i could put the tags there i guess?
                     //tags: author.posts[post.date][post.num].tags,
-                    date: post.date,
+                    date: post.date+"T09:00:00",
                   });
                 }
               }

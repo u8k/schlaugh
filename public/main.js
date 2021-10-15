@@ -118,6 +118,15 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
   } else if (type === "linkText") {
     var selector = ".special";
     var attribute = "color";
+    // box shadow color when focused
+    for (var i = sheet.cssRules.length-1; i > -1; i--) {
+      if (sheet.cssRules[i].selectorText === '*:focus') {
+        sheet.deleteRule(i);
+        i = -1;
+      }
+    }
+    sheet.insertRule("*:focus {box-shadow: inset 0 0 2px 2px "+colorCode+";}", sheet.cssRules.length);
+
 
   } else if (type === "text") {
     var selector = "body, h1, input, select, .post, .message, .editor, .content-box, button, .pop-up, .post-background, a, a.visited, a.hover, spoil";
