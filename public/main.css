@@ -6,14 +6,13 @@
 
  *:focus {
    outline:0;
-   box-shadow: inset 0 0 2px 2px #0004FF;
+   /* box-shadow: inset 0 0 2px 2px #0004FF; */
  }
-
 /*alt-focus*/
-/* .filter-focus {
-  filter: drop-shadow(0 0 4px #AFDCFA) drop-shadow(0 0 4px #AFDCFA);
+.filter-focus:focus {
+  /* filter: drop-shadow(0 0 5px #0004FF) drop-shadow(0 0 2px #0004FF); */
   box-shadow: none;
-} */
+}
 
 .reader-font {font-family: "Roboto", "Helvetica", sans-serif;;}
 

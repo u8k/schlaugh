@@ -126,7 +126,14 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
       }
     }
     sheet.insertRule("*:focus {box-shadow: inset 0 0 2px 2px "+colorCode+";}", sheet.cssRules.length);
-
+    // alt focus, drop shadow
+    for (var i = sheet.cssRules.length-1; i > -1; i--) {
+      if (sheet.cssRules[i].selectorText === '.filter-focus:focus') {
+        sheet.deleteRule(i);
+        i = -1;
+      }
+    }
+    sheet.insertRule(".filter-focus:focus {filter: drop-shadow(1px 1px 2px "+colorCode+") drop-shadow(-1px -1px 2px "+colorCode+");}", sheet.cssRules.length);
 
   } else if (type === "text") {
     var selector = "body, h1, input, select, .post, .message, .editor, .content-box, button, .pop-up, .post-background, a, a.visited, a.hover, spoil";
@@ -2457,7 +2464,7 @@ var renderOnePost = function (postData, type, postID) {
 
   // collapse button(s)
   var collapseBtn = document.createElement("a");
-  collapseBtn.setAttribute('class', 'collapse-button-top clicky');
+  collapseBtn.setAttribute('class', 'collapse-button-top clicky filter-focus');
   collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
   collapseBtn.setAttribute('href', 'javascript:void(0);');
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit' && type !== 'authorAll') {
@@ -2470,7 +2477,7 @@ var renderOnePost = function (postData, type, postID) {
   collapseBtn.onclick = function () {collapsePost(uniqueID, postData.post_id, false);}
   post.appendChild(collapseBtn);
   var collapseBtn2 = collapseBtn.cloneNode(true);
-  collapseBtn2.setAttribute('class', 'collapse-button-bottom hidden clicky');
+  collapseBtn2.setAttribute('class', 'collapse-button-bottom hidden clicky filter-focus');
   collapseBtn2.setAttribute('id', uniqueID+'-collapse-button-bottom');
   collapseBtn2.onclick = function () {collapsePost(uniqueID, postData.post_id, true);}
   post.appendChild(collapseBtn2);
@@ -2493,7 +2500,8 @@ var renderOnePost = function (postData, type, postID) {
         }
       })(postData._id);
       authorPicWrapper.setAttribute('href', "/"+postData.author);
-      authorPic.setAttribute('class', 'author-pic clicky');
+      authorPicWrapper.setAttribute('class', 'author-pic clicky filter-focus');
+      authorPic.setAttribute('class', 'author-pic');
       authorPicWrapper.appendChild(authorPic);
       /*
       if (glo.collapsed && glo.collapsed[postData.post_id]) {
