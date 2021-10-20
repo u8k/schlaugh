@@ -73,14 +73,18 @@
         <h2 id="saved-tags-title">saved tags:</h2>
         <text id="none-tags">(none)</text>
         <div id="tag-bucket"></div>
-        <text class="monospace">include tagged posts in feed</text>
-        <text id="include-tagged-posts-toggle" onclick="toggleTaggedPostsInclusion()"></text>
+        <a href="javascript:void(0)" onclick="toggleTaggedPostsInclusion()">
+          <text class="monospace">include tagged posts in feed</text>
+          <text id="include-tagged-posts-toggle"></text>
+        </a>
         <a href="javascript:void(0);" onclick="uiAlert(`checking this box means that posts with tags you are tracking will show up in your main feed alongside posts of people you are following`, `aight`)" class="special clicky"> (?)</a>
         <br>
-        <text class="monospace">auto save tags you use on your own posts</text>
-        <text id="auto-save-tags-on-use-toggle" onclick="toggleAutoSaveTagsOnUse()"></text>
+        <a href="javascript:void(0)" onclick="toggleAutoSaveTagsOnUse()">
+          <text class="monospace">auto save tags you use on your own posts</text>
+          <text id="auto-save-tags-on-use-toggle"></text>
+        </a>
       </div>
-      <button onclick="openTagMenu(true)">x</button>
+      <button onclick="openTagMenu(true); $('tag-menu-open').focus();">x</button>
     </div>
 
     <form id="date-jump" class="removed" action="javascript:void(0);">
@@ -91,7 +95,7 @@
       </script>
       <br>
       <button type="submit" onclick="dateJump()">go</button>
-      <button onclick="openDateJump(true)">x</button>
+      <button onclick="openDateJump(true); $('date-jump-open').focus();">x</button>
     </form>
   </div>
 

@@ -2295,26 +2295,34 @@ var renderAllTagListings = function (date) {
 
 var renderTagListing = function (tagName, count) {
   var tagShell = document.createElement("div");
-  var tagElem = document.createElement("text");
+  var tagElem = document.createElement("a");
   tagElem.setAttribute('class', 'clicky top-tag special');
+  if (glo.postPanelStatus.date) {
+    tagElem.setAttribute('href', '/~tagged/'+tagName+'/'+glo.postPanelStatus.date);
+  } else {
+    tagElem.setAttribute('href', '/~tagged/'+tagName);
+  }
   if (count !== undefined) {
     tagElem.innerHTML = tagName + "("+count+")";
   } else {
     tagElem.innerHTML = tagName;
   }
   (function (tagString) {
-    tagElem.onclick = function(){
-      openTagMenu(true);
-      if (glo.postPanelStatus.date) {
-        fetchPosts(true, {postCode: "FTTF", tag:tagString, date:glo.postPanelStatus.date});
-      } else {
-        fetchPosts(true, {postCode: "FTFF", tag:tagString,});
-      }
+    tagElem.onclick = function(event){
+      modKeyCheck(event, function(){
+        openTagMenu(true);
+        if (glo.postPanelStatus.date) {
+          fetchPosts(true, {postCode: "FTTF", tag:tagString, date:glo.postPanelStatus.date});
+        } else {
+          fetchPosts(true, {postCode: "FTFF", tag:tagString,});
+        }
+      });
     }
   })(tagName);
-  var detag = document.createElement("text");
+  //
+  var detag = document.createElement("button");
   detag.setAttribute('class', 'clicky de-tag-button special');
-  detag.innerHTML = ' &nbsp; <icon class="fas fa-trash-alt"></icon>';
+  detag.innerHTML = '<icon class="fas fa-trash-alt"></icon>';
   (function (tagString) {
     detag.onclick = function(){
       saveTag(true, tagString);
@@ -2430,7 +2438,6 @@ var renderOnePost = function (postData, type, postID) {
   var collapseBtn = document.createElement("button");
   collapseBtn.setAttribute('class', 'collapse-button-top filter-focus');
   collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
-  //collapseBtn.setAttribute('href', 'javascript:void(0);');
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit' && type !== 'authorAll') {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
     collapseBtn.title = 'expand';
