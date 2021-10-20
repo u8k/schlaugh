@@ -1,20 +1,20 @@
 <wrapper id="panel-buttons-wrapper" class="removed no-select">
   <panelButtons id="panel-buttons">
-    <a href="/~write" id="write-panel-button" title="write" class="clicky panel-button" onclick="panelButtonClick(event,'write')"><!--
+    <a href="/~write" id="write-panel-button" title="write" class="inset-focus clicky panel-button" onclick="panelButtonClick(event,'write')"><!--
     --><icon class="fas fa-pencil-alt"></icon></a><!--
-    --><a href="/" id="posts-panel-button" title="read" class="clicky panel-button" onclick="panelButtonClick(event,'posts')"><!--
+    --><a href="/" id="posts-panel-button" title="read" class="inset-focus clicky panel-button" onclick="panelButtonClick(event,'posts')"><!--
     --><icon class="fas fa-book"></icon></a><!--
-    --><a href="/~inbox" id="inbox-panel-button" title="inbox" class="clicky panel-button" onclick="panelButtonClick(event,'inbox')"><!--
+    --><a href="/~inbox" id="inbox-panel-button" title="inbox" class="inset-focus clicky panel-button" onclick="panelButtonClick(event,'inbox')"><!--
     --><icon class="fas fa-envelope"></icon></a><!--
-    --><a href="/~settings" id="settings-panel-button" title="settings" class="clicky panel-button" onclick="panelButtonClick(event,'settings')"><!--
+    --><a href="/~settings" id="settings-panel-button" title="settings" class="inset-focus clicky panel-button" onclick="panelButtonClick(event,'settings')"><!--
     --><icon class="fas fa-cog"></icon></a>
   </panelButtons>
   <br>
   <feedOptions id="feed-options" class="post-background">
-    <a id="following-list-open" class="feed-button clicky" href="javascript:void(0);" onclick="followingListDisplay(true)">following</a><!--
-    --><a id="date-jump-open" class="feed-button clicky" href="javascript:void(0);" onclick="openDateJump()">date</a><!--
-    --><a id="tag-menu-open" class="feed-button clicky" href="javascript:void(0);" onclick="openTagMenu()">tags</a><!--
-    --><a id="bookmarks-open" class="feed-button clicky" href="javascript:void(0);" onclick="displayBookmarks()">bookmarks</a>
+    <a id="following-list-open" class="feed-button clicky inset-focus" href="javascript:void(0);" onclick="followingListDisplay(true)">following</a><!--
+    --><a id="date-jump-open" class="feed-button clicky inset-focus" href="javascript:void(0);" onclick="openDateJump()">date</a><!--
+    --><a id="tag-menu-open" class="feed-button clicky inset-focus" href="javascript:void(0);" onclick="openTagMenu()">tags</a><!--
+    --><a id="bookmarks-open" class="feed-button clicky inset-focus" href="javascript:void(0);" onclick="displayBookmarks()">bookmarks</a>
   </feedOptions>
 </wrapper>
 
@@ -244,7 +244,7 @@
       <button type="submit" class="change-pass-button-bump" onclick="changePassword()">change</button>
     </form>
     <br><br><br>
-    <a class="clicky" onclick="signOut()">schlaugh out</a>
+    <a href="javascript:void(0);" class="clicky" onclick="signOut()">schlaugh out</a>
     <br><br><br>
   </div>
 </div>
@@ -319,21 +319,21 @@
     <3
   </div>
   <br>
-  <a href="/~faq" class="clicky special" onclick="modKeyCheck(event, function () {openFAQ();});">
-    <h2>faq</h2>
-  </a>
+  <h2>
+  <a href="/~faq" class="clicky special" onclick="modKeyCheck(event, function () {openFAQ();});">faq</a>
+  </h2>
   <br>
-  <a href="/" class="clicky special" onclick="backToMain(event);">
-    <h2>back</h2>
-  </a>
+  <h2>
+  <a href="/" class="clicky special" onclick="backToMain(event);">back</a>
+  </h2>
 </div>
 
 <div id="~faq-panel" class="removed">
   <h2>faq</h2>
   <div id="faq-bucket"></div>
-  <a href="/" class="clicky" onclick="backToMain(event);">
-    <h2>back</h2>
-  </a>
+  <h2>
+  <a href="/" class="clicky" onclick="backToMain(event);">back</a>
+  </h2>
 </div>
 
 <div id="o-panel" class="removed">
@@ -553,10 +553,11 @@
 
 <div id="following-list" class="post-background removed">
   <h2>following:</h2>
-  <div id="following-bucket">
-  </div>
+  <div id="following-bucket"></div>
   <br>
-  <button onclick="followingListDisplay(false)">x</button>
+  <c>
+    <button id="following-list-close" onclick="followingListDisplay(false)">x</button>
+  </c>
 </div>
 
 <div id="text-options-pop-up" class="hidden post-background">
@@ -598,7 +599,7 @@
   </div>
   <button id="save-appearance2" type="button" class="removed" onclick="saveAppearance()">save</button>
   <button id="revert-appearance2" type="button" class="removed" onclick="revertAppearance()">revert</button>
-  <button onclick="$('text-options-pop-up').classList.add('hidden')">close</button><br>
+  <button onclick="$('text-options-pop-up').classList.add('hidden'); $('text-options-open').focus();">close</button><br>
   <text id="sign-to-save2" class="removed">(sign in to save settings)</text>
 </div>
 
@@ -618,7 +619,7 @@
   </div>
   <button id="save-appearance3" type="button" class="removed" onclick="saveAppearance()">save</button>
   <button id="revert-appearance3" type="button" class="removed" onclick="revertAppearance()">revert</button>
-  <button onclick="$('color-options-pop-up').classList.add('hidden')">close</button><br>
+  <button onclick="$('color-options-pop-up').classList.add('hidden'); $('color-options-open').focus();">close</button><br>
   <text id="sign-to-save3" class="removed">(sign in to save settings)</text>
 </div>
 

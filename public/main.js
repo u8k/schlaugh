@@ -104,7 +104,7 @@ var revertAppearance = function () {
 var changeColor = function (colorCode, type) {          // makes the new CSS rule
   var sheet = document.styleSheets[document.styleSheets.length-1];
   if (type === "postBackground") {
-    var selector = ".post, .message, .editor, .content-box, button, .pop-up, .post-background, panelButtons";
+    var selector = ".post, .message, .editor, .content-box, button, .footer-button, .pop-up, .post-background, panelButtons";
     var attribute = "background-color";
     // selected(highlighted) text color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
@@ -125,7 +125,8 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
         i = -1;
       }
     }
-    sheet.insertRule("*:focus {box-shadow: inset 0 0 2px 2px "+colorCode+";}", sheet.cssRules.length);
+    sheet.insertRule("*:focus {box-shadow: 0 0 4px 2px "+colorCode+";}", sheet.cssRules.length);
+
     // alt focus, drop shadow
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
       if (sheet.cssRules[i].selectorText === '.filter-focus:focus') {
@@ -133,7 +134,25 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
         i = -1;
       }
     }
-    sheet.insertRule(".filter-focus:focus {filter: drop-shadow(1px 1px 2px "+colorCode+") drop-shadow(-1px -1px 2px "+colorCode+");}", sheet.cssRules.length);
+    sheet.insertRule(".filter-focus:focus {filter: drop-shadow(0px 0px 3px "+colorCode+") drop-shadow(0px 0px 2px "+colorCode+") drop-shadow(0px 0px 3px "+colorCode+");}", sheet.cssRules.length);
+
+    // alt focus2, INSET box shadow
+    for (var i = sheet.cssRules.length-1; i > -1; i--) {
+      if (sheet.cssRules[i].selectorText === '.inset-focus:focus') {
+        sheet.deleteRule(i);
+        i = -1;
+      }
+    }
+    sheet.insertRule(".inset-focus:focus {box-shadow: inset 0 0 5px 4px "+colorCode+";}", sheet.cssRules.length);
+
+    // alt focus3, shifted box shadow just for collapse buttons
+    // for (var i = sheet.cssRules.length-1; i > -1; i--) {
+    //   if (sheet.cssRules[i].selectorText === '.collapse-focus:focus') {
+    //     sheet.deleteRule(i);
+    //     i = -1;
+    //   }
+    // }
+    // sheet.insertRule(".collapse-focus:focus {box-shadow: 0 0 4px 2px "+colorCode+";}", sheet.cssRules.length);
 
   } else if (type === "text") {
     var selector = "body, h1, input, select, .post, .message, .editor, .content-box, button, .pop-up, .post-background, a, a.visited, a.hover, spoil";
@@ -305,41 +324,11 @@ var themeBank = {
     linkText: '#8B1313',
     background: '#FAF8FA',
   },
-  "valentine":{
-    postBackground: '#E66689',
-    text: '#543A3C',
-    linkText: '#A4009C',
-    background: '#DC4160',
-  },
-  "hot dog stand":{
-    postBackground: '#E0E000',
-    text: '#000000',
-    linkText: '#0077F6',
-    background: '#8A0000',
-  },
-  "shamrock":{
-    postBackground: '#F4FF78',
-    text: '#92800C',
-    linkText: '#28D800',
-    background: '#106926',
-  },
   "rain":{
     postBackground: '#B4E7DC',
     text: '#464E74',
     linkText: '#407FD6',
     background: '#7B98A9',
-  },
-  "floral":{
-    postBackground: '#C4EB98',
-    text: '#6F0524',
-    linkText: '#72328E',
-    background: '#F9627D',
-  },
-  "purple":{
-    postBackground: '#EFE6F6',
-    text: '#401962',
-    linkText: '#5C45A9',
-    background: '#AB7DD2',
   },
   "campground":{
     postBackground: '#E5D6AB',
@@ -352,18 +341,6 @@ var themeBank = {
     text: '#6E5E52',
     linkText: '#B52F35',
     background: '#92CBDB',
-  },
-  "schoolbus":{
-    postBackground: '#E1D800',
-    text: '#000000',
-    linkText: '#CE2029',
-    background: '#DCDCDC',
-  },
-  "jack-o-lantern":{
-    postBackground: '#FF7700',
-    text: '#000000',
-    linkText: '#FCF574',
-    background: '#BD6B19',
   },
   "wicked witch":{
     postBackground: '#A5E058',
@@ -395,23 +372,11 @@ var themeBank = {
     linkText: '#FDB6BC',
     background: '#D6FFF5',
   },
-  "steven":{
-    postBackground: '#2070A0',
-    text: '#FFCF50',
-    linkText: '#201000',
-    background: '#E25563',
-  },
   "garnet":{
     postBackground: '#0B0000',
     text: '#F7BB22',
     linkText: '#FF75A9',
     background: '#72002A',
-  },
-  "amethyst":{
-    postBackground: '#C08FCA',
-    text: '#232228',
-    linkText: '#EAE0FF',
-    background: '#AC04F3',
   },
   "lapis":{
     postBackground: '#3268B3',
@@ -865,7 +830,7 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></a>`
     +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
-    +`<clicky tabindex='0' onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="clicky collapse-button-bottom" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
+    +`<clicky tabindex="0" onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="clicky collapse-button-bottom filter-focus" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
 
   string = preTag+insert+postTag;
 
@@ -1519,9 +1484,19 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
 }
 
 var followingListDisplay = function (open) {
+  // have we already fetched the data?
   if (_npa(['glo','pRef','date'])) {
     if (open) {
       $('following-list').classList.remove('removed');
+
+      // set focus
+      var followingListings = $('following-bucket').childNodes;
+      if (followingListings.length !== 0 && followingListings[0]) {
+        var followingLink = followingListings[0].childNodes[0];
+        followingLink.focus();
+      } else {
+        $('following-list-close').focus();
+      }
       blackBacking();
       $("pop-up-backing").onclick = function () {
         followingListDisplay(false);
@@ -1529,6 +1504,7 @@ var followingListDisplay = function (open) {
     }
     else {
       $('following-list').classList.add('removed');
+      $('following-list-open').focus();
       blackBacking(true);
     }
   } else {  // following list has not been fetched/rendered, so do that
@@ -1546,6 +1522,7 @@ var openDateJump = function (close) {
   } else {
     $('date-jump-open').onclick = function () {openDateJump(true)}
     $('date-jump').classList.remove('removed');
+    $('date-picker').focus();
     $('tag-feed-options').classList.add('removed');
     openTagMenu(true)
   }
@@ -2120,6 +2097,7 @@ var setAuthorHeader = function (loc, aInfo) {
     }
     title.classList.add("clicky");
     title.classList.add('special');
+    title.classList.add('inset-focus');
     title.setAttribute('href', "/"+aInfo.author);
   }
   title.innerHTML = aInfo.author;
@@ -2353,6 +2331,7 @@ var renderFollowingList = function (followingList) {
     var listing = document.createElement("div");
     listing.setAttribute('class', 'following-listing');
     var link = document.createElement("a");
+    link.setAttribute('class', 'following-link-wrapper');
     link.setAttribute('href', "/"+followingList[i].name);
     (function (id) {
       link.onclick = function(){
@@ -2448,10 +2427,10 @@ var renderOnePost = function (postData, type, postID) {
   }
 
   // top post collapse button
-  var collapseBtn = document.createElement("a");
-  collapseBtn.setAttribute('class', 'collapse-button-top clicky filter-focus');
+  var collapseBtn = document.createElement("button");
+  collapseBtn.setAttribute('class', 'collapse-button-top filter-focus');
   collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
-  collapseBtn.setAttribute('href', 'javascript:void(0);');
+  //collapseBtn.setAttribute('href', 'javascript:void(0);');
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit' && type !== 'authorAll') {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
     collapseBtn.title = 'expand';
@@ -2672,7 +2651,7 @@ var createPostFooter = function (postElem, postData, type) {
       if (postData.post_id && postData.post_id.length !== 8) {  // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
         // quote button
         var quoteBtn = document.createElement("button");
-        quoteBtn.setAttribute('class', 'no-select, footerButton');
+        quoteBtn.setAttribute('class', 'footer-button filter-focus');
         quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
         quoteBtn.title = "quote";
         quoteBtn.onclick = function(event) {
@@ -2706,31 +2685,29 @@ var createPostFooter = function (postElem, postData, type) {
     }
     // perma-link
     if (postData.post_id && postData.post_id.length !== 8) { // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
-      var permalinkWrapper = document.createElement("a");
+      var permalinkButton = document.createElement("a");
+      permalinkButton.setAttribute('class', 'footer-button filter-focus permalink-footer-button');
       var link = postData.url;
       if (postData.url && type !== 'perma') {
-        permalinkWrapper.setAttribute('href', "/"+postData.author+"/"+postData.url);
+        permalinkButton.setAttribute('href', "/"+postData.author+"/"+postData.url);
       } else {
-        permalinkWrapper.setAttribute('href', "/~/"+postData.post_id);
+        permalinkButton.setAttribute('href', "/~/"+postData.post_id);
         link = null;
       }
-      var permalink = document.createElement("footerButton");
-      permalink.setAttribute('class', 'no-select, footerButton');
-      permalink.innerHTML = '<i class="fas fa-link"></i>';
-      permalink.title = "permalink";
-      permalink.onclick = function(event) {
+      permalinkButton.innerHTML = '<i class="fas fa-link"></i>';
+      permalinkButton.title = "permalink";
+      permalinkButton.onclick = function(event) {
         modKeyCheck(event, function(){
           fetchPosts(true, {postCode:"TFTF", author:postData._id , date:postData.date , post_url:link , post_id:postData.post_id})
         });
       }
-      permalinkWrapper.appendChild(permalink);
-      footerButtons.appendChild(permalinkWrapper);
+      footerButtons.appendChild(permalinkButton);
     }
     //
     if ((type === 'author' || type === 'perma') && glo.username && glo.username === postData.author) {
       //edit button
       var editBtn = document.createElement("button");
-      editBtn.setAttribute('class', 'no-select, footerButton');
+      editBtn.setAttribute('class', 'footer-button filter-focus');
       editBtn.innerHTML = '<i class="fas fa-pen"></i>';
       editBtn.title = "edit";
       editBtn.onclick = function() {
@@ -2739,7 +2716,7 @@ var createPostFooter = function (postElem, postData, type) {
       footerButtons.appendChild(editBtn);
       // delete button
       var deleteBtn = document.createElement("button");
-      deleteBtn.setAttribute('class', 'no-select, footerButton');
+      deleteBtn.setAttribute('class', 'footer-button filter-focus');
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
       deleteBtn.title = "delete";
       deleteBtn.onclick = function() {
@@ -2918,7 +2895,7 @@ var createBookmarkButton = function (parent, post) {
     var insert = x[1];
   }
   var elem = document.createElement("button");
-  elem.setAttribute('class', "bookmark-button footerButton");
+  elem.setAttribute('class', 'footer-button filter-focus');
   var alreadyMarked = false;
   if (!glo.bookmarks) {glo.bookmarks = {}}
   if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
@@ -3529,6 +3506,7 @@ var openTagMenu = function (close) {
   } else {
     $('tag-menu-open').onclick = function () {openTagMenu(true)}
     $('tag-menu').classList.remove('removed');
+    $('tag-picker').focus();
     $('tag-feed-options').classList.add('removed');
     openDateJump(true);
   }

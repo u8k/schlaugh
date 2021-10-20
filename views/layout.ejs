@@ -21,9 +21,9 @@
       <h1><a href="/" onclick="backToMain(event);">schlaugh</a></h1>
 
       <userInfo>
-        <a href="javascript:void(0);" id="username" class="clicky removed special user-info-item"></a>
-        <a href="javascript:void(0);" id="sign-in" class="clicky user-info-item" onclick="passPromptSubmit()">schlaugh in</a>
-        <a href="javascript:void(0);" id="sign-out" class="clicky removed user-info-item" onclick="signOut()">schlaugh out</a>
+        <user-info-item><a href="javascript:void(0);" id="username" class="clicky removed special"></a></user-info-item>
+        <user-info-item><a href="javascript:void(0);" id="sign-in" class="clicky" onclick="passPromptSubmit()">schlaugh in</a></user-info-item>
+        <user-info-item><a href="javascript:void(0);" id="sign-out" class="clicky removed" onclick="signOut()">schlaugh out</a></user-info-item>
       </userInfo>
     </header>
 
@@ -50,12 +50,12 @@
     </footer>
 
     <div id="display-button-box">
-      <a href="javascript:void(0);" onclick="$('text-options-pop-up').classList.remove('hidden')">
-        <icon class="clicky fas fa-font"></icon>
-      </a>
-      <a href="javascript:void(0);" onclick="$('color-options-pop-up').classList.remove('hidden')">
+      <button id="text-options-open" class="display-button" onclick="$('text-options-pop-up').classList.remove('hidden'); $('font-family-select2').focus();"><!--
+        --><icon class="clicky fas fa-font"></icon><!--
+      --></button>
+      <button id="color-options-open" class="display-button" onclick="$('color-options-pop-up').classList.remove('hidden'); $('preset-select2').focus();">
         <icon class="clicky fas fa-palette"></icon>
-      </a>
+      </button>
     </div>
 
     <script type="text/javascript">

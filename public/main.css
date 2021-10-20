@@ -4,14 +4,17 @@
   font-family: 'Rajdhani', 'Consolas', Courier, monospace;
 }
 
+/* these are set via JS, here but commented out for refference */
  *:focus {
    outline:0;
    /* box-shadow: inset 0 0 2px 2px #0004FF; */
  }
-/*alt-focus*/
 .filter-focus:focus {
   /* filter: drop-shadow(0 0 5px #0004FF) drop-shadow(0 0 2px #0004FF); */
   box-shadow: none;
+}
+.inset-focus:focus {
+  /* box-shadow: inset 0 0 2px 2px #0004FF; */
 }
 
 .reader-font {font-family: "Roboto", "Helvetica", sans-serif;;}
@@ -163,12 +166,11 @@ userInfo {
   max-width: 60%;
 }
 
-.user-info-item {
+user-info-item {
   display: block;
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 header {
@@ -350,6 +352,7 @@ clicky, .clicky, spoil {
 
 #clicker-panel {
   font-size: 1.55em;
+  padding-bottom: 10px;
 }
 .clicker {
   display: block;
@@ -414,13 +417,17 @@ a, a.visited {
 .collapse-button-top, .collapse-button-bottom {
   position: absolute;
   left: 4px;
-  top: 2px;
+  top: -2px;
   font-size: 16px;
   opacity: .7;
+  border: none;
+  padding: 0;
+  height: 16px;
+  background-color: #ffffff00;
 }
 .collapse-button-bottom {
   top: auto;
-  bottom: 0.5px;
+  bottom: 4px;
 }
 .expand-button {
   margin: 2px 3px 0px;
@@ -479,13 +486,25 @@ a, a.visited {
   right: 2px;
 }
 
-.footerButton {
-  margin-left: 0px;
+.footer-button {
+  margin: 0;
   border: none;
   font-size: 1em;
+  padding: 0px 4px;
+  height: 24px;
+  display: inline-block;
+  border-radius: 3px;
 }
-.bookmark-button {
-  margin-right: 5px;
+.permalink-footer-button{
+  padding-top: 3px;
+}
+
+.display-button {
+  border: none;
+  font-size: 1em;
+  padding: 0px 1px;
+  margin: 0;
+  background-color: #ffffff00;
 }
 
 #o-pic {border-radius: 3%; max-width: 500px;}
@@ -556,10 +575,12 @@ button, .button {
   padding-bottom: 2.5px;
 }
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  button, .button, input, color-button, select, .footerButton {font-size: 1.2em;}
+  button, .button, input, color-button, select, .footer-button {font-size: 1.2em;}
   .author-button {width: 140px;}
   .collapse-button-top, .collapse-button-bottom {font-size: 20px;}
+  .collapse-button-bottom {bottom: 10px;}
   .color-button {width: 75px; height: 28px;}
+  .footer-button {height: 29px;}
 }
 
 input {
@@ -675,11 +696,15 @@ slogan {
 
 .following-listing {
   font-size: 25px;
-  height: 35px;
   margin-bottom: 5px;
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
+}
+
+.following-link-wrapper {
+  height: 35px;
+  padding: 10px 0px 0px;
 }
 
 .little-pic {
