@@ -267,12 +267,6 @@ var getSchlaunquerMatches = function () {
   });
 }
 
-var schlaunquerMatchDataUpdate = function () {
-  ajaxCall('/admin/schlaunquerMatchDataUpdate', 'POST', {userID: $('schlaunquer-userID').value}, function(json) {
-    console.log(json);
-  });
-}
-
 var adminSchlaunquerTweak = function () {
   var obj = {
     game_id: $('schlaunquer-tweak-game_id').value,

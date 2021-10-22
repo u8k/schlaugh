@@ -135,6 +135,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     var unitCap = exp.gameRef.unitCap;
     if (typeof match.unitCap !== "undefined") {unitCap = match.unitCap;}
     if (unitCap === 0) {unitCap = Infinity;}
+
     // Migration
     for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
       spot = spot.split(",");

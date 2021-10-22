@@ -58,6 +58,9 @@ polygon {
 .score-label {
   font-size: 4.4em;
 }
+.preview-label {
+  font-size: 2.6em;
+}
 .move-label {
   font-size: 3.1em;
 }
