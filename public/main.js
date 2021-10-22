@@ -2825,8 +2825,12 @@ var convertImgTagsToLinks = function (string) {
   }
   else {
     var linkString = string.substr(next+10, string.substr(next+10).search(/"/));
+    var textString = linkString;
     var closingTagPos = string.substr(next+10).search(/>/) + next+11;
-    string = string.substr(0,next) + `<a href="`+linkString+`">`+linkString+`</a>` + string.substr(closingTagPos);
+    if (string.substr(next+10+linkString.length, 7) === '" alt="') {
+      textString = string.substr(next+17+linkString.length, string.substr(next+17+linkString.length).search(/"/));
+    }
+    string = string.substr(0,next) + `<a href="`+linkString+`">`+textString+`</a>` + string.substr(closingTagPos);
   }
   return convertImgTagsToLinks(string);
 }
