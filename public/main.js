@@ -2070,16 +2070,6 @@ var notSchlaugh = function (postCode, date) {
 var setAuthorHeader = function (loc, aInfo) {
   if (!loc || !aInfo) {return;}
 
-  // rss thingy
-  if ($('rssLink')) {removeElement($('rssLink'))}
-  var rssLink = document.createElement("link");
-  rssLink.setAttribute('id', 'rssLink');
-  rssLink.setAttribute('rel', "alternate");
-  rssLink.setAttribute('type', "application/rss+xml");
-  rssLink.setAttribute('title', "RSS 2.0");
-  rssLink.setAttribute('href', "/"+aInfo.author+"/~rss");
-  document.head.appendChild(rssLink);
-
   // pic
   if (aInfo.authorPic !== "") {
     $("author-panel-pic-"+loc).setAttribute('src', aInfo.authorPic);

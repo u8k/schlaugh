@@ -3640,6 +3640,7 @@ var renderLayout = function (req, res, data) {
       user:resp.user,
       settings:resp.settings,
       author:data.author,
+      authorName:data.authorName,
       post_id:data.post_id,
       post_url:data.post_url,
       date:data.date,
@@ -4370,7 +4371,8 @@ app.get('/:author/:path', function(req, res) {
 });
 //	TFFF
 app.get('/:author', function(req, res) {
-  var author = req.params.author.toLowerCase();
+  var authorName = req.params.author.toLowerCase();
+  var author = authorName.toLowerCase();
   if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
   db.collection('userUrls').findOne({_id: author}, {authorID:1},
@@ -4380,7 +4382,7 @@ app.get('/:author', function(req, res) {
         return return404author(req, res);
       }
       else {
-        return renderLayout(req, res, {author: user.authorID, page:0, postCode:"TFFF",});
+        return renderLayout(req, res, {author: user.authorID, page:0, postCode:"TFFF", authorName:authorName});
       }
     }
   );
