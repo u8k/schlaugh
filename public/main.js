@@ -2070,6 +2070,16 @@ var notSchlaugh = function (postCode, date) {
 var setAuthorHeader = function (loc, aInfo) {
   if (!loc || !aInfo) {return;}
 
+  // rss thingy
+  if ($('rssLink')) {removeElement($('rssLink'))}
+  var rssLink = document.createElement("link");
+  rssLink.setAttribute('id', 'rssLink');
+  rssLink.setAttribute('rel', "alternate");
+  rssLink.setAttribute('type', "application/rss+xml");
+  rssLink.setAttribute('title', "RSS 2.0");
+  rssLink.setAttribute('href', "/"+aInfo.author+"/~rss");
+  document.head.appendChild(rssLink);
+
   // pic
   if (aInfo.authorPic !== "") {
     $("author-panel-pic-"+loc).setAttribute('src', aInfo.authorPic);
@@ -5031,7 +5041,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
         $('schlaunquer-game-reminder-setting').value = 'false';
       }
 
-      if (glo.games.schlaunquer.matchListsLastUpdatedOn && glo.games.schlaunquer.matchListsLastUpdatedOn !== pool.getCurDate()) { // don't call for the check at all if we already know we're current
+      if (glo.games.schlaunquer.matchListsLastUpdatedOn !== pool.getCurDate()) { // don't call for the check at all if we already know we're current
         ajaxCall('/~checkPendingSchlaunquerMatches', 'POST', {}, function(json) {
           if (!json.noUpdate) {
             glo.games.schlaunquer = json;

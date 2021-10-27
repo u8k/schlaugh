@@ -27,12 +27,12 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
           ],
         },
         4: {
-          radius: 4,
+          radius: 5,
           pos: [
-            {color:'yellow', tiles:[[-3, 3],[-2,3],[-3,2]]},     //e
-            {color:'green', tiles:[[-3, 0],[-3,1],[-2,-1]]},     //d
-            {color:'purple', tiles:[[3,-3],[3,-2],[2,-3]]},      //a
-            {color:'red', tiles:[[3,0],[2,1],[3,-1]]},           //q
+            {color:'yellow', tiles:[[-4, 4],[-3,4],[-4,3]]},     //e
+            {color:'green', tiles:[[-4, 0],[-4,1],[-3,-1]]},     //d
+            {color:'purple', tiles:[[4,-4],[4,-3],[3,-4]]},      //a
+            {color:'red', tiles:[[4,0],[3,1],[4,-1]]},           //q
           ],
         },
         3: {

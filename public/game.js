@@ -238,7 +238,11 @@ var createBoard = function (dayCount, i, date) {
   board.classList.add("gameBoard");
   var animationDelay = 0;
   if (i === 0) {
-    animationDelay = 50;
+    if (gameRef.radius === 5) {
+      animationDelay = 30;
+    } else {
+      animationDelay = 50;
+    }
   } else {
     board.classList.add("removed");
   }

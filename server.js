@@ -2022,7 +2022,8 @@ app.post('/~checkPendingSchlaunquerMatches', function(req, res) {
   var errMsg = "failed pending schlaunquer match check<br><br>";
   lookUpCurrentUser(req, res, errMsg, {games:1}, function (user) {
     if (!user.games || !user.games.schlaunquer || !user.games.schlaunquer.pending) {return res.send({noUpdate:true});}
-    if (user.games.schlaunquer.matchListsLastUpdatedOn && user.games.schlaunquer.matchListsLastUpdatedOn === pool.getCurDate()) {return res.send({noUpdate:true});}
+    if (user.games.schlaunquer.matchListsLastUpdatedOn === pool.getCurDate()) {return res.send({noUpdate:true});}
+
 
     user.games.schlaunquer.matchListsLastUpdatedOn = pool.getCurDate();
 
@@ -2056,12 +2057,12 @@ var checkPendingSchlaunquerMatches = function (req, res, errMsg, user, callback,
 
     // move/remove the match in the user's records if necesary
     var curMatch = updatedMatch || match;
-    if (curMatch.gameState === 'active') {
+    if (curMatch.gameState !== 'pending') {
       delete user.games.schlaunquer.pending[matchArr[i]];
       //
       if (curMatch.players[user._id]) {   // are they in the game?
-        if (!user.games.schlaunquer.active) {user.games.schlaunquer.active = {}}
-        user.games.schlaunquer.active[matchArr[i]] = true;
+        if (!user.games.schlaunquer[curMatch.gameState]) {user.games.schlaunquer[curMatch.gameState] = {}}
+        user.games.schlaunquer[curMatch.gameState][matchArr[i]] = true;
       }
     }
 
@@ -4153,10 +4154,28 @@ app.get('/:author/~rss', function (req, res) {
 
               for (var i = 0; i < author.postList.length && i < 10; i++) {
                 var post = author.postList[author.postList.length-1-i];
+                var description = "schlaugh post by "+author.username+" for "+post.date;
                 if (post) {
+                  if (author.posts[post.date][post.num].title) {
+                    var title = author.posts[post.date][post.num].title;
+                  } else {
+                    var title = description;
+                  }
+                  var tagString = "";
+                  if (author.posts[post.date][post.num].tags) {
+                    for (var tag in author.posts[post.date][post.num].tags) {
+                      if (author.posts[post.date][post.num].tags.hasOwnProperty(tag)) {
+                        tagString += tag + ", "
+                      }
+                    }
+                  }
+                  if (tagString !== "") {
+                    tagString = tagString.substr(0, (tagString.length-2));
+                    description = description + ", tagged:" +tagString;
+                  }
                   feed.item({
-                    title: author.posts[post.date][post.num].title,
-                    //description: author.posts[post.date][post.num].body,
+                    title: title,
+                    description: description,
                     url: "https://www.schlaugh.com/~/" + author.posts[post.date][post.num].post_id,
                     // categories: // eh? i could put the tags there i guess?
                     //tags: author.posts[post.date][post.num].tags,
