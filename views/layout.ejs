@@ -19,7 +19,7 @@
     <%
       if(initProps && initProps.authorName) {
     %>
-        <link id="rssLink" rel="alternate" type="application/rss+xml" title="RSS 2.0" href=<%= '/'+initProps.authorName+'/~rss' %>>
+        <link id="rssLink" rel="alternate" type="application/rss+xml" title=<%= initProps.authorName %> href=<%= '/'+initProps.authorName+'/~rss' %>>
     <%
       }
     %>
