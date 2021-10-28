@@ -18,7 +18,7 @@ services:
   mongo:
     container_name: mongo
     image: mongo
-    command: --quiet
+    command: mongod --quiet --logpath /dev/null
     volumes:
       - ./data:/data
     ports:

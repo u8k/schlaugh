@@ -81,46 +81,46 @@ var checkFreshness = function (user) {  // pushes New pending posts to postlist
   }
 }
 
-var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, and BIO
-  var today = pool.getCurDate();        // "user"obj MUST have pendingUpdates, posts, bio, and _id props
+var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, BIO, and userPic
+  var today = pool.getCurDate();        // "user"obj MUST have pendingUpdates, posts, bio, iconURI, and _id props
   if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.lastUpdatedOn) {
     if (!safeMode && user.pendingUpdates.lastUpdatedOn !== today) {
       user.pendingUpdates.lastUpdatedOn = today;
       var ref = user.pendingUpdates.updates;
       var count = 0;
-      for (var date in ref) {
-        if (ref.hasOwnProperty(date)) {
-          count++;
-          if (date === "bio") {
-            user.bio = ref[date];
-            delete ref[date];
-            count--;
-          } else if (user.posts[date]) {
-            // check existing tags
-            var badTagArr = [];
-            for (var tag in user.posts[date][0].tags) {
-              if (user.posts[date][0].tags.hasOwnProperty(tag)) {
-                if (!ref[date][0].tags[tag]) {       // if the old tag is NOT a new tag too
-                  badTagArr.push(tag.toLowerCase());
-                }
+      for (var date in ref) { if (ref.hasOwnProperty(date)) {
+        count++;
+        if (date === "bio" || "iconURI") {
+          user[date] = ref[date];
+          delete ref[date];
+          count--;
+        } else if (user.posts[date]) {      // it's an edit to an old post
+          // check existing tags
+          var badTagArr = [];
+          for (var tag in user.posts[date][0].tags) {
+            if (user.posts[date][0].tags.hasOwnProperty(tag)) {
+              if (!ref[date][0].tags[tag]) {       // if the old tag is NOT a new tag too
+                badTagArr.push(tag.toLowerCase());
               }
             }
-            deleteTagRefs(badTagArr, date, user._id, function (resp) {
-              if (resp.error) {return callback({error:resp.error});}
-              else {
-                count--;
-                user.posts[resp.date] = ref[resp.date];         // the line where the update actually happens!
-                delete ref[resp.date];
-                setTimeout(function () {
-                  if (count === 0) {
-                    count--;
-                    return callback({change:true, user:user});
-                  }
-                }, 0);
-              }
-            });
-          } else {delete ref[date];}
-        }
+          }
+          deleteTagRefs(badTagArr, date, user._id, function (resp) {
+            if (resp.error) {return callback({error:resp.error});}
+            else {
+              count--;
+              user.posts[resp.date] = ref[resp.date];         // the line where the update actually happens!
+              delete ref[resp.date];
+              setTimeout(function () {
+                if (count === 0) {
+                  count--;
+                  return callback({change:true, user:user});
+                }
+              }, 0);
+            }
+          });
+        } else {delete ref[date];}
+      }
+
       }
       if (count === 0) {
         count--;
@@ -130,11 +130,14 @@ var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, an
   } else {return callback({change:false, user:user});}
 }
 
-var imageValidate = function (arr, callback) {
+var imageValidate = function (arr, callback, byteLimit) {
   if (!arr) {return callback({error:'"""type error""" on the "imageValidate" probably because staff is a dingus'})}
   if (arr.length !== 0) {       // does the post contain images?
     var count = arr.length;
-    var bitCount = 104857600;   // 100mb(-ish...maybe)
+    var byteCount = 104857600;   // 100mb(-ish...)
+    if (byteLimit) {
+      byteCount = byteLimit;
+    }
     for (var i = 0; i < arr.length; i++) {
       (function (index) {
         request.head(arr[index], function (error, resp) {
@@ -142,14 +145,14 @@ var imageValidate = function (arr, callback) {
             count -=1;
             if (error || resp.statusCode !== 200) {
               count = 0;
-              return callback({error:'the url for image '+(index+1)+' seems to be invalid<br><br>your post has not been saved'});
+              return callback({error:'the url for image '+(index+1)+' seems to be invalid'});
             } else if (!resp.headers['content-type'] || (resp.headers['content-type'].substr(0,5) !== "image" && resp.headers.server !== "AmazonS3")) {
               count = 0;
-              return callback({error:'the url for image '+(index+1)+' is not a url for an image<br><br>your post has not been saved'});
-            } else {bitCount -= resp.headers['content-length'];}
+              return callback({error:'the url for image '+(index+1)+' is not a url for an image'});
+            } else {byteCount -= resp.headers['content-length'];}
             if (count === 0) {
-              if (bitCount < 0) {
-                return callback({error:"your image(s) exceed the byte limit by "+(-bitCount)+" bytes<br><br>your post has not been saved"});
+              if (byteCount < 0) {
+                return callback({error:"your image(s) exceed the byte limit by "+(-byteCount)+" bytes"});
               } else {return callback({error:false});}
             }
           }
@@ -2285,7 +2288,7 @@ var pongOnPostSubmit = function (userID, activeKey, post) {
 
 // new/edit/delete (current) post
 app.post('/', function(req, res) {
-  var errMsg = "your post might not be saved, please copy all of your text to be safe<br><br>";
+  var errMsg = "your post was not successfully saved<br><br>";
   if (!req.body || !req.body.key) {return sendError(req, res, errMsg+"malformed request 119");}
   lookUpCurrentUser(req, res, errMsg, {username:1, posts:1, postList:1, postListPending:1, customURLs:1}, function (user) {
     checkFreshness(user);
@@ -2336,7 +2339,7 @@ app.post('/editOldPost', function (req, res) {
   var errMsg = "the post was not successfully edited<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(req, res, errMsg+"malformed request 154");}
   if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(req, res, errMsg+"you would seek to edit your future? fool!");}
-  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1, customURLs:1, username:1}, function (user) {
+  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1, customURLs:1, username:1, iconURI:1}, function (user) {
     checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
     // pending updates MUST be fresh when we add to it, else all goes to shit
     checkUpdates(user, function (resp) {
@@ -2579,7 +2582,7 @@ app.post('/follow', function(req, res) {
 
 // new/edit/delete message
 app.post('/inbox', function(req, res) {
-  var errMsg = "your message may not be saved, please copy your text if you want to keep it<br><br>";
+  var errMsg = "your message has not been successfully saved<br><br>";
   if (!req.session.user) {return sendError(req, res, errMsg+"no user session 3653");}
   // the incoming text is encrypted, so we can not cleanse it
   if (typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(req, res, errMsg+"malformed request 188<br>");}
@@ -2813,15 +2816,15 @@ app.post('/block', function(req, res) {
   });
 });
 
-// validate images
+// validate images, for messages
 app.post('/image', function(req, res) {
   // cant do this on the FE cause CORS
-  if (req.body) {
+  if (req.body && typeof req.body === "object" && req.body.length) {
     imageValidate(req.body, function (resp) {
       if (resp.error) {return sendError(req, res, resp.error);}
       res.send({error:false});
     });
-  } else {sendError(req, res,"boy i hope no one ever sees this error message!");}
+  } else {return sendError(req, res, errMsg+"malformed request 1504");}
 });
 
 // validate links
@@ -2896,39 +2899,49 @@ app.post('/unread', function(req, res) {
 
 // change user picture URL
 app.post('/changePic', function(req, res) {
-  if (!req.session.user) {return sendError(req, res, "no user session 7841");}
-  var userID = ObjectId(req.session.user._id);
-  var updateUrl = function (url) {
-    db.collection('users').findOne({_id: userID}
-    , {_id:0, iconURI:1}
-    , function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else if (!user) {return sendError(req, res, "user not found");}
-      else {
-        user.iconURI = url;
-        writeToDB(userID, user, function (resp) {
-          if (resp.error) {sendError(req, res, resp.error);}
-          else {res.send({error: false});}
-        });
-      }
-    });
-  }
-  var url = req.body.url;
-  //validate URL
-  if (url === "") {updateUrl(url);}
-  else {
-    request.head(url, function (error, resp) {
-      if (error || resp.statusCode !== 200) {
-        return res.send({error:'your image url seems to be invalid'});
-      } else if (resp.headers['content-type'].substr(0,5) !== "image") {
-        return res.send({error:'i have seen an image<br><br>and that is no image'});
-      } else if (resp.headers['content-length'] > 10485760) {
-        return res.send({error:"your image is "+resp.headers['content-length']+" bytes<br>which is "+(resp.headers['content-length'] - 10485760)+" bytes too many<br><br>sorry pal"});
-      } else {
-        updateUrl(url);
-      }
-    });
-  }
+  var errMsg = "error updating user image<br><br>";
+  if (!req.body || req.body.url === undefined || typeof req.body.url !== "string") {return sendError(req, res, errMsg+"malformed request 7227");}
+  lookUpCurrentUser(req, res, errMsg, {iconURI:1, pendingUpdates:1, posts:1, bio:1}, function (user) {
+    //
+    if (req.body.url === "" && !req.body.pending) {   // we're removing the non-pending image, not replacing, do it now
+      user.iconURI = "";
+      writeToDB(user._id, user, function (resp) {
+        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+        else {return res.send({error: false});}
+      });
+      //
+    } else {
+      checkUpdates(user, function (resp) {
+        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+        user = resp.user;
+        //
+        var today = pool.getCurDate();
+        if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
+        if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
+        if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
+        //
+        if (req.body.url === "") {
+          delete user.pendingUpdates.updates.iconURI;
+          writeToDB(user._id, user, function (resp) {
+            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+            else {return res.send({error: false});}
+          });
+        } else {
+          //
+          imageValidate([req.body.url], function (resp) {
+            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+            //
+            user.pendingUpdates.updates.iconURI = req.body.url;
+            //
+            writeToDB(user._id, user, function (resp) {
+              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+              else {return res.send({error: false});}
+            });
+          }, 10485760);
+        }
+      });
+    }
+  });
 });
 
 // save custom display colors

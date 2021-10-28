@@ -28,27 +28,55 @@ window.addEventListener('beforeunload', function (e) {
   }
 });
 
-var submitPic = function (remove) {
-  if (remove) {$('pic-url').value = "";}
-  var picURL = $('pic-url').value;
+var submitPic = function (remove, pending) {
   loading();
-  ajaxCall('/changePic', 'POST', {url:picURL}, function(json) {
-    updateUserPic(remove, picURL);
+  if (remove) {
+    picURL = "";
+  } else if (pending) {
+    var picURL = $('pending-image-url').value;
+  } else {
+    var picURL = $('current-image-url').value;
+  }
+  ajaxCall('/changePic', 'POST', {url:picURL, pending:pending}, function(json) {
+    if (pending || !remove) {
+      _npa(['glo', 'pendingUpdates', 'iconURI'], picURL);
+    } else {
+      glo.userPic = picURL;
+    }
+    updateUserPic();
     loading(true);
   });
 }
 
-var updateUserPic = function (remove, picURL) {
-  if (remove) {
-    $("remove-pic").classList.add('removed');
-    $("user-pic").classList.add('removed');
-    $("no-user-pic").classList.remove('removed');
+var updateUserPic = function () {
+  $("pending-image-url").value = glo.pendingUpdates.iconURI;
+  $("current-image-url").value = glo.userPic;
+  if (glo.pendingUpdates.iconURI) {
+    $("pending-user-image").setAttribute('src', glo.pendingUpdates.iconURI);
+    $("pending-user-image").classList.remove('removed');
+    $("submit-current-image").classList.add('removed');
+    $('current-user-image-label').innerHTML = "current user image:";
+    //
+    $('pending-user-image-box').classList.remove('removed');
   } else {
-    $("user-pic").setAttribute('src', picURL);
-    $("user-pic").classList.remove('removed');
-    $("no-user-pic").classList.add('removed');
-    $("remove-pic").classList.remove('removed');
-    $('pic-url').value = picURL;
+    $('current-user-image-label').innerHTML = "user image:"
+    $("submit-current-image").classList.remove('removed');
+    $('pending-user-image-box').classList.add('removed');
+  }
+  if (glo.userPic) {
+    $("current-user-image").setAttribute('src', glo.userPic);
+    $("current-user-image").classList.remove('removed');
+    $("remove-current-image").classList.remove('removed');
+    $("no-user-image").classList.add('removed');
+    //
+    $('current-user-image-box').classList.remove('removed');
+  } else if (!glo.pendingUpdates.iconURI) {
+    $("no-user-image").classList.remove('removed');
+    $("current-user-image").classList.add('removed');
+    //
+    $('current-user-image-box').classList.remove('removed');
+  } else {
+    $('current-user-image-box').classList.add('removed');
   }
 }
 
@@ -5043,7 +5071,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     }
   }
   //
-  if (glo.userPic) {updateUserPic(false, glo.userPic);}
+  updateUserPic();
   //
   cookieNotification();
 }

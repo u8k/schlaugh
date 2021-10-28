@@ -306,6 +306,25 @@ clicky, .clicky, spoil {
 .message {width: 85%; max-width: 800px;}
 #settings-container, #thread-list {text-align: center;}
 
+#user-image-center {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+#pending-user-image-box {
+  margin-top: 20px;
+}
+
+.user-image-input {
+  width: 220px;
+}
+.user-image-form {
+  margin-top: 8px;
+}
+
 .setting-wrapper {
   display: block;
   margin-bottom: 5px;

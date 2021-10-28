@@ -168,17 +168,31 @@
 <div id="settings-panel" class="removed">
   <h2>schlettings</h2>
   <div id="settings-container" class="content-box">
-    <br><br>user image:
-    <img id="user-pic" class="removed user-pic" src="">
-    <div id="no-user-pic"><br>(none)<br></div>
-    <br>
-    <form action="javascript:void(0);">
-      <label for="pic-url">image url<a href="javascript:void(0);" onclick="imageUploadingExplain()" class="special clicky">(?)</a></label><br>
-      <input id="pic-url" type="text" name="pic-url" value=""><br>
-      <button type="submit" onclick="submitPic()">update image</button>
-      <button id="remove-pic" class="removed" onclick="submitPic(true)">remove</button>
-    </form>
-    <br><br><br><hr><br>
+    <br><br>
+    <div id="user-image-center">
+      <wrapper id="current-user-image-box">
+        <text id="current-user-image-label">user image:</text>
+        <img id="current-user-image" class="removed user-pic" src="">
+        <div id="no-user-image"><br>(none)<br></div>
+        <form action="javascript:void(0);" class="user-image-form">
+          <label for="current-image-url">image url<a href="javascript:void(0);" onclick="imageUploadingExplain()" class="special clicky">(?)</a></label><br>
+          <input class="user-image-input" id="current-image-url" type="text" name="current-image-url" value=""><br>
+          <button id="submit-current-image" type="submit" onclick="submitPic()">update image</button>
+          <button id="remove-current-image" class="removed" onclick="submitPic(true)">remove</button>
+        </form>
+      </wrapper>
+      <wrapper id="pending-user-image-box" class="removed">
+        <text id="pending-user-image-label">pending image:</text>
+        <img id="pending-user-image" class="removed user-pic" src="">
+        <form action="javascript:void(0);" class="user-image-form">
+          <label for="pending-image-url">image url<a href="javascript:void(0);" onclick="imageUploadingExplain()" class="special clicky">(?)</a></label><br>
+          <input class="user-image-input" id="pending-image-url" type="text" name="pending-image-url" value=""><br>
+          <button id="submit-pending-image" type="submit" onclick="submitPic(false, true)">update image</button>
+          <button id="remove-pending-image" onclick="submitPic(true, true)">remove</button>
+        </form>
+      </wrapper>
+    </div>
+    <br><br><hr><br>
     <wrapper class="setting-wrapper">
       <text>posts per page<a href="javascript:void(0);" onclick="postsPerPageExplain()" class="special clicky">(?)</a>: </text>
       <select id="posts-per-page" onchange="setPostsPerPage()">
