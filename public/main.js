@@ -805,7 +805,7 @@ var insertStringIntoStringAtPos = function (stringOuter, stringInner, pos) {
 }
 
 var convertCut = function (string, id, type, pos) {
-  // changes cut tags into functional cuts, needs id so that every cut has a unique id tag on the front end,
+  // changes cut tags into functional cuts, needs unique id
 
   if (type === "authorAll") {
     var classAsign = "removed expandable";
@@ -813,20 +813,30 @@ var convertCut = function (string, id, type, pos) {
     var classAsign = "removed";
   }
 
-  // put the class and clickhandler props on the cut tag to make it into a working button
-  var b = ` class='clicky special' tabindex='0' onclick='$("`+id+`").classList.remove("removed"); this.classList.add("removed");'`;
+  // convert the cut element into a button
+  // first clip out the "cut"
+  string = string.substr(0,pos-3) + string.substr(pos);
+  pos = pos-3;
+
+  // replace with a button and class/click stuff
+  var b = `button class='text-button special' onclick='$("`+id+`").classList.remove("removed"); this.classList.add("removed");'`;
   string = insertStringIntoStringAtPos(string, b, pos);
   pos += b.length;
+  var buttonAndexpandIcon = `<icon class="far fa-plus-square expand-button"></icon></button>`;
 
-  var expandIcon = `<icon class="far fa-plus-square expand-button"></icon>`;
-
-  // find the closing cut tag and insert an innerCut after it, leave the innerCut open, to be closed later by prepTextForRender
+  // find the closing cut tag
   var gap = string.substr(pos).search('</cut>');
   if (gap === -1) { // if there is no closing cut tag...(there always should be)
-    string = string + expandIcon +"</cut><innerCut class='"+classAsign+"'>";
+    string = string + buttonAndexpandIcon +"<innerCut class='"+classAsign+"'>";
   } else {                   // the case that is actually important
-    string = insertStringIntoStringAtPos(string, expandIcon, pos+gap);
-    pos = pos+gap+6+expandIcon.length;
+    pos += gap;
+
+    //snip out the closing cut tag
+    string = string.substr(0,pos) + string.substr(pos+6);
+    //pos = pos-6;
+    string = insertStringIntoStringAtPos(string, buttonAndexpandIcon, pos);
+    pos = pos+buttonAndexpandIcon.length;
+    //insert an innerCut, leave the innerCut open, to be closed later by prepTextForRender
     var insrt = "<innerCut id="+id+" class='"+classAsign+"'>";
     string = insertStringIntoStringAtPos(string, insrt, pos);
   }
@@ -858,7 +868,7 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></a>`
     +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
-    +`<clicky tabindex="0" onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="clicky collapse-button-bottom filter-focus" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
+    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="clicky collapse-button-bottom filter-focus" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
 
   string = preTag+insert+postTag;
 
@@ -979,7 +989,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
     }
   } else {
     pos += next
-    if (extracting) {
+    if (extracting) { //.... why is this here??? i mean it's doing nothing but wtf?
     }
     // get text following <, up to a space or ">"
     var close = string.substr(pos).search(/[ >]/);
@@ -1117,6 +1127,8 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         if (tag !== "x" && tag !== 'innerNote' && tag !== 'note') { //innerNote must get special assignment to match BRs
           if (extracting && tag === 'quote') {
             tagStack.push({tag:tag, cite:findQuoteCite(string, pos)});
+          } else if (!extracting && tag === 'cut') {
+            tagStack.push({tag:"button"});
           } else {
             tagStack.push({tag:tag});
           }

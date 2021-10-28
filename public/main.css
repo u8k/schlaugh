@@ -858,6 +858,15 @@ slogan {
   }
 }
 
+.text-button {
+  border: none;
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+  background-color: #ffffff00;
+}
+
 quote {
   box-shadow: 0px 0px 1px 2px rgba(0, 0, 0, .1);
   background-color: rgba(255, 255, 255, 0.07);
@@ -902,7 +911,7 @@ secret {display: none;}
 
 ul, ol {margin: 0}
 
-b, i, u, s, quote, li, ul, ol, l, c, r, innerCut, p, cut, x, note, innerNote, spoil {font-family: inherit;}
+b, i, u, s, quote, li, ul, ol, l, c, r, innerCut, p, .text-button, x, note, innerNote, spoil {font-family: inherit;}
 
 l {text-align: left;}
 c {text-align: center;}
