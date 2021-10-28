@@ -1161,15 +1161,6 @@ var snakeBank = [
   "https://i.imgur.com/NQOT1Fc.jpg",
 ];
 
-var isStringValidDate = function (string) {
-  if (typeof string !== 'string') {return false;}
-  if (string.length !== 10 || string[4] !== "-" || string[7] !== "-" || !isNumeric(string.slice(0,4)) || !isNumeric(string.slice(5,7)) || !isNumeric(string.slice(8,10))) {
-    return false;
-  } else {
-    return true;
-  }
-}
-
 var lookUpCurrentUser = function (req, res, errMsg, propRef, callback) {
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}, propRef, function (err, user) {
@@ -1849,6 +1840,9 @@ app.get('/~schlaunquer', function(req, res) {
 app.get('/~schlaunquer/:game_id', function(req, res) {
   renderLayout(req, res, {panel:"schlaunquer", game_id:req.params.game_id});
 });
+app.get('/~schlaunquer/:game_id/:day', function(req, res) {
+  renderLayout(req, res, {panel:"schlaunquer", game_id:req.params.game_id, day:req.params.day});
+});
 app.post('/~getSchlaunquer', function(req, res) {
   var errMsg = "error fetching schlaunquer game info<br><br>";
   if (!req.body.game_id) {return sendError(req, res, errMsg+"malformed request 6048");}
@@ -2109,7 +2103,7 @@ var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) 
 }
 app.post('/~setSchlaunquerReminder', function(req, res) {
   var errMsg = "schlaunquer reminder status not successfully updated<br><br>";
-  if (!req.body || !req.body.date || !isStringValidDate(req.body.date)) {return sendError(req, res, errMsg+"malformed request 294");}
+  if (!req.body || !req.body.date || !pool.isStringValidDate(req.body.date)) {return sendError(req, res, errMsg+"malformed request 294");}
   idScreen(req, res, errMsg, function (userID) {
     db.collection('users').findOne({_id: userID}, {_id:0, games:1}, function (err, user) {
       if (err) {return sendError(req, res, errMsg+err);}
@@ -3649,22 +3643,15 @@ var renderLayout = function (req, res, data) {
     if (!resp.user && (data.postCode === "MARK" || data.postCode === "FFTF" || data.postCode === "FFTT")) {
       data.postCode = undefined;
     }
-    res.render('layout', {initProps: {
-      user:resp.user,
-      settings:resp.settings,
-      author:data.author,
-      authorName:data.authorName,
-      post_id:data.post_id,
-      post_url:data.post_url,
-      date:data.date,
-      tag:data.tag,
-      page:data.page,
-      existed:data.existed,
-      panel:data.panel,
-      notFound:data.notFound,
-      postCode:data.postCode,
-      game_id:data.game_id,
-    },});
+    var initProps = {};
+    for (var key in data) {if (data.hasOwnProperty(key)) {
+        initProps[key] = data[key];
+    }}
+    for (var key in resp) {if (resp.hasOwnProperty(key)) {
+        initProps[key] = resp[key];
+    }}
+
+    res.render('layout', {initProps:initProps});
   });
 }
 
@@ -4231,7 +4218,7 @@ app.get('/~bookmarks', function(req, res) {
 });
 //	FTTT
 app.get('/~tagged/:tag/:date/:page', function(req, res) {
-  if (!isStringValidDate(req.params.date)) {return return404author(req, res);}
+  if (!pool.isStringValidDate(req.params.date)) {return return404author(req, res);}
   var page = parseInt(req.params.page);
   if (!Number.isInteger(page) || page < 0) {return return404author(req, res);}
   renderLayout(req, res, {tag:req.params.tag, page:page, date:req.params.date, postCode:"FTTT",});
@@ -4239,7 +4226,7 @@ app.get('/~tagged/:tag/:date/:page', function(req, res) {
 //	FTTF and FTFT
 app.get('/~tagged/:tag/:num', function(req, res) {
   var target = req.params.num;
-  if (isStringValidDate(target)) {
+  if (pool.isStringValidDate(target)) {
     renderLayout(req, res, {tag:req.params.tag, date:target, postCode:"FTTF",});
   } else {
     target = parseInt(target);
@@ -4320,7 +4307,7 @@ app.get('/:author/~/:num', function(req, res) {
   var page = undefined;
   var date = undefined;
   var target = req.params.num;
-  if (isStringValidDate(target)) {
+  if (pool.isStringValidDate(target)) {
     date = target;
     var postCode = "TFTF";
   } else {

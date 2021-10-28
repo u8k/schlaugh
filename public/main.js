@@ -593,7 +593,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
           } else if (glo.openPanel === "clicker-panel") {
             openClickerGame();
           } else if (glo.openPanel === "schlaunquer-panel") {
-            openSchlaunquerPanel(gameRef.game_id);
+            openSchlaunquerPanel(gameRef.game_id, gameRef.currentBoardDate);
           }
         });
       }
@@ -735,13 +735,15 @@ var signOut = function() {
 
 }
 
-var simulatePageLoad = function (newPath, newTitle, faviconSrc) {
+var simulatePageLoad = function (newPath, newTitle, faviconSrc, noScroll) {
   // scrolls to top, updates the url, and the browser/tab title
   // defaults to home if no args given, second arg defaults to first if not given
   // if path parmeter === true, then it doesn't change
-  setTimeout(function () {
-    window.scroll(0, 0);
-  }, 100);
+  if (!noScroll) {
+    setTimeout(function () {
+      window.scroll(0, 0);
+    }, 100);
+  }
   if (!newPath) {
     newPath = "";
   }
@@ -1570,7 +1572,7 @@ var openDateJump = function (close) {
 
 var dateJump = function (target) {
   if (!target) {target = $("date-picker").value;}
-  if (target.length !== 10 || target[4] !== "-" || target[7] !== "-" || !isNumeric(target.slice(0,4)) || !isNumeric(target.slice(5,7)) || !isNumeric(target.slice(8,10))) {
+  if (!pool.isStringValidDate(target)) {
     return uiAlert("date must be formatted YYYY-MM-DD");
   } else {
     var year = target.slice(0,4);

@@ -55,6 +55,15 @@
     return year+"-"+mon+"-"+date;
   }
 
+  exports.isStringValidDate = function (string) {
+    if (typeof string !== 'string') {return false;}
+    if (string.length !== 10 || string[4] !== "-" || string[7] !== "-" || !isNumeric(string.slice(0,4)) || !isNumeric(string.slice(5,7)) || !isNumeric(string.slice(8,10))) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text
     if (typeof string !== "string") {return "";}
 

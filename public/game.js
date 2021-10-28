@@ -5,13 +5,13 @@ var gameRef = {
   tileWidth:200,
 }
 
-var openSchlaunquerPanel = function (game_id) {
+var openSchlaunquerPanel = function (game_id, num) {
   $("panel-buttons-wrapper").classList.add("removed");
   $('schlaunquer-exposition').innerHTML = prepTextForRender(exposition, "schlaunquer-exposition");
   switchPanel("schlaunquer-panel");
-  simulatePageLoad('~schlaunquer', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
+  simulatePageLoad('~schlaunquer', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png', true);
   // load menu page
-  if (game_id) {loadGame(game_id);}
+  if (game_id) {loadGame(game_id, num);}
   else {refreshMenu();}
 }
 
@@ -109,15 +109,18 @@ var joinMatch = function (leave) {
   });
 }
 
-var loadGame = function (game_id) {
+var loadGame = function (game_id, num) {
   loading();
   ajaxCall('/~getSchlaunquer', 'POST', {game_id:game_id}, function(json) {
-    simulatePageLoad('~schlaunquer/'+game_id, 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
     loading(true);
     showGameCreationMenu(true);
     gameRef.game_id = game_id;
+    var urlAppend = game_id;
     if (!json.gameState || json.gameState !== 'pending') {
-      setUpGameBoards(json);
+      if (num !== undefined) {
+        urlAppend += "/"+num;
+      }
+      setUpGameBoards(json, num);
     } else {
       $('schlaunquer-board-wrapper').classList.add('removed');
     }
@@ -185,10 +188,11 @@ var setUpGameInfo = function (data) {
   $('schlaunquer-game-info').classList.remove('removed');
 }
 
-var setUpGameBoards = function (json) {
+var setUpGameBoards = function (json, num) {
   if (json.notFound) { return uiAlert('404<br><br>game not found');}
   $('schlaunquer-board-wrapper').classList.remove('removed');
   //
+  gameRef.gameState = json.gameState;
   gameRef.radius = json.radius;
   gameRef.startDate = json.startDate;
   gameRef.victor = json.victor;
@@ -217,19 +221,32 @@ var setUpGameBoards = function (json) {
   gameRef.totalDays = dayCount;
   gameRef.currentBoardDate = latestDate;
   //
+  if (isNumeric(num) && Number.isInteger(Number(num))) {
+    var targetDate = calcDateByOffest(gameRef.startDate, Number(num));
+  } else if (pool.isStringValidDate(num)) {
+    var targetDate = num;
+  }
+  if (!gameRef.dates[targetDate]) {
+    if (gameRef.gameState === 'active') {
+      targetDate = latestDate;
+    } else {
+      targetDate = gameRef.startDate;
+    }
+  }
+  //
   for (var i = 0; i < dayCount; i++) {    // render the boards starting most recent day and going backwards in time
     var date = calcDateByOffest(latestDate, -i);
     if (gameRef.dates[date]) {
-      createBoard(dayCount, i, date);
+      createBoard(dayCount, i, date, targetDate);
     } else {
       dayCount++;
     }
   }
-  changeBoardRound(0); //this is just to hide/display the date arrows
-  setTimeout(function () {window.scroll(0, 50);}, 100);
+
+  setTimeout(function () {window.scroll(0, 50);}, 50);
 }
 
-var createBoard = function (dayCount, i, date) {
+var createBoard = function (dayCount, i, date, initBoard) {
   var board = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   board.setAttribute("viewBox", "-7 -7 "+(gameRef.boardWidth+14)+" "+(gameRef.boardHeight+14));   // 14 is margarine
   board.setAttribute("id", date+"-board");
@@ -237,7 +254,8 @@ var createBoard = function (dayCount, i, date) {
   $('board-bucket').appendChild(board);
   board.classList.add("gameBoard");
   var animationDelay = 0;
-  if (i === 0) {
+  if (date === initBoard) {
+    gameRef.currentBoardDay = (dayCount-i)-1;
     if (gameRef.radius === 5) {
       animationDelay = 30;
     } else {
@@ -265,6 +283,11 @@ var createBoard = function (dayCount, i, date) {
   label.appendChild(toolTip);
   board.appendChild(label);
   //
+  if (date === initBoard) {
+    // we do this here to display the board as the units pop up onto it
+    // but will have to do it again when we have everything loaded that determines arrow visibility
+    changeBoardRound(false, date);
+  }
   renderTiles(animationDelay, date);
 }
 
@@ -414,12 +437,13 @@ var renderTiles = function (delay, date) {
       if (delay) {            // delay is only non zero once
         setForfeitButton();
         changeBoardRound(0); //this is just to hide/display the date arrows
+        // because we need to check that again after all boards are rendered and "active" status determined
       }
     }, (i)*delay);
-  } else {
-    if (delay) {
+  } else if (delay) {
+    setTimeout(function () {
       changeBoardRound(0); //this is just to hide/display the date arrows
-    }
+    }, (i)*delay);
   }
 }
 
@@ -682,8 +706,13 @@ var highlightTile = function (coord, date) {
   tile.parentElement.appendChild(tile);
 }
 
-var changeBoardRound = function (offset) {
-  var newDate = calcDateByOffest(gameRef.currentBoardDate, offset);
+var changeBoardRound = function (offset, date) {
+  if (offset !== false) {
+    var newDate = calcDateByOffest(gameRef.currentBoardDate, offset);
+    gameRef.currentBoardDay += offset;
+  } else {
+    var newDate = date;
+  }
 
   // disable/enabel left/right buttons
   var prevDate = calcDateByOffest(newDate, -1);
@@ -706,25 +735,32 @@ var changeBoardRound = function (offset) {
     } else {
       $('game-round-forward').classList.remove('removed');
     }
-//  } else if (nextDate === pool.getCurDate(-1)) {
-
   } else {                      // on the latest day
     $('game-round-forward').classList.add('removed');
     if (gameRef.victor) {
       showVictory();
     }
   }
-  // show/hide the actual boards
-  if (newDate === pool.getCurDate(-1)) {  // refresh if preview board
-    if ($(newDate+"-board")) {
-      removeElement($(newDate+"-board"));
+
+
+  simulatePageLoad('~schlaunquer/'+gameRef.game_id+'/'+gameRef.currentBoardDay, 'schlaunquer', 'https://i.imgur.com/i4Py62f.png', true);
+
+  if (gameRef.currentBoardDate !== newDate) { // do we actually need to switch anything?
+
+    // refresh if preview board
+    if (newDate === pool.getCurDate(-1)) {
+      if ($(newDate+"-board")) {
+        removeElement($(newDate+"-board"));
+      }
+      delete gameRef.dates[newDate];
+      createBoard(gameRef.totalDays, -1, newDate);
     }
-    delete gameRef.dates[newDate];
-    createBoard(gameRef.totalDays, -1, newDate);
+
+    // show/hide the actual boards
+    $(gameRef.currentBoardDate+"-board").classList.add('removed');
+    gameRef.currentBoardDate = newDate;
+    $(gameRef.currentBoardDate+"-board").classList.remove('removed');
   }
-  $(gameRef.currentBoardDate+"-board").classList.add('removed');
-  gameRef.currentBoardDate = newDate;
-  $(gameRef.currentBoardDate+"-board").classList.remove('removed');
 
   // forfeiture notification
   if (gameRef.forfeitures && gameRef.forfeitures[newDate]) {

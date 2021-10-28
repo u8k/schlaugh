@@ -108,7 +108,7 @@
         } else if (input.panel === "clicker") {
           initSchlaugh(input.user, function () {openClickerGame();});
         } else if (input.panel === "schlaunquer") {
-          initSchlaugh(input.user, function () {openSchlaunquerPanel(input.game_id);});
+          initSchlaugh(input.user, function () {openSchlaunquerPanel(input.game_id, input.day);});
         } else {
           initSchlaugh(input.user, function () {switchPanel(input.panel+"-panel")});
         }
