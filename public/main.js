@@ -2162,7 +2162,8 @@ var setFollowButton = function (loc, authInf) {
   if (glo.username && authInf._id) {
     // is the user already following the author?
     if (_npa(['glo', 'followingRef', authInf._id])) {
-      follow.innerHTML = "defollow";
+      follow.innerHTML = "shun";
+      follow.title = "unfollow";
       var remove = true;
     } else {
       follow.innerHTML = "follow";

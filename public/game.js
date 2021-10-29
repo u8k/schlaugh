@@ -170,14 +170,14 @@ var setUpGameInfo = function (data) {
         if (!data.players[glo.userID]) {
           $('schlaunquer-application-pending').classList.remove('removed');
         }
-        $('join-schlaunquer-game').classList.add('removed');
+        //$('join-schlaunquer-game').classList.add('removed');
         $('leave-schlaunquer-game').classList.remove('removed');
       } else {
-        $('join-schlaunquer-game').classList.remove('removed');
+        //$('join-schlaunquer-game').classList.remove('removed');
         $('leave-schlaunquer-game').classList.add('removed');
       }
     } else {
-      $('join-schlaunquer-game').classList.add('removed');
+      //$('join-schlaunquer-game').classList.add('removed');
       $('leave-schlaunquer-game').classList.add('removed');
       $('sign-in-to-join').classList.remove('removed');
     }
