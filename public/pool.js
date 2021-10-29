@@ -57,11 +57,15 @@
 
   exports.isStringValidDate = function (string) {
     if (typeof string !== 'string') {return false;}
-    if (string.length !== 10 || string[4] !== "-" || string[7] !== "-" || !isNumeric(string.slice(0,4)) || !isNumeric(string.slice(5,7)) || !isNumeric(string.slice(8,10))) {
+    if (string.length !== 10 || string[4] !== "-" || string[7] !== "-" || !exports.isNumeric(string.slice(0,4)) || !exports.isNumeric(string.slice(5,7)) || !exports.isNumeric(string.slice(8,10))) {
       return false;
     } else {
       return true;
     }
+  }
+
+  exports.isNumeric = function (n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
   }
 
   exports.cleanseInputText = function (string) { // returns an "imgList" and the cleaned text

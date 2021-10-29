@@ -531,10 +531,6 @@ var setCursorPosition = function (elem, start, end) {
 	}
 }
 
-var isNumeric = function (n) {
-  return !isNaN(parseFloat(n)) && isFinite(n);
-}
-
 var passPrompt = function (options) {
   // options is an object that can include props for
   //      'label', 'username', 'orUp'(boolean), 'callback'(function)
@@ -2810,7 +2806,7 @@ var isQuotableSelection = function (postID, retry) {
 
       var startIdNumber = Number(startID.substr(startID.substr(5).search(/-/)+6));
       var endIdNumber = Number(endID.substr(endID.substr(5).search(/-/)+6));
-      if (!isNumeric(endIdNumber) && isNumeric(startIdNumber)) {
+      if (!pool.isNumeric(endIdNumber) && pool.isNumeric(startIdNumber)) {
         if (!retry) {
           selection.modify("extend", "backward", "character");
           return isQuotableSelection(postID, true);
@@ -2820,7 +2816,7 @@ var isQuotableSelection = function (postID, retry) {
       var startOffset = selection.getRangeAt(0).startOffset;
       var endOffset = selection.getRangeAt(0).endOffset;
 
-      if (!isNumeric(startIdNumber) || !isNumeric(endIdNumber)) {return false;}
+      if (!pool.isNumeric(startIdNumber) || !pool.isNumeric(endIdNumber)) {return false;}
       else {
         return {
           startElem:startIdNumber,

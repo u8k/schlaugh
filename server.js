@@ -250,10 +250,6 @@ var checkObjForProp = function (obj, prop, value) { //and add the prop if it doe
   }
 }
 
-var isNumeric = function (n) {
-  return !isNaN(parseFloat(n)) && isFinite(n);
-}
-
 var checkLastTwoMessages = function (t, tmrw, inbound) {
   //'inbound' = true to indicate we are seeking inbound messages, false = outbound
   if (t && t.length !== undefined) {
@@ -3950,7 +3946,7 @@ var getAllOfAnAuthorsPostsWithTag = function (req, res) {
 
 var getPostsPerPage = function (req) {
   var postsPerPage = 7;
-  if (req.body.postsPerPage && isNumeric(req.body.postsPerPage) && Number.isInteger(req.body.postsPerPage) && req.body.postsPerPage > 0) {
+  if (req.body.postsPerPage && pool.isNumeric(req.body.postsPerPage) && Number.isInteger(req.body.postsPerPage) && req.body.postsPerPage > 0) {
     postsPerPage = req.body.postsPerPage;
   }
   return postsPerPage;

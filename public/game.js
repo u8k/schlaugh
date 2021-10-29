@@ -221,7 +221,7 @@ var setUpGameBoards = function (json, num) {
   gameRef.totalDays = dayCount;
   gameRef.currentBoardDate = latestDate;
   //
-  if (isNumeric(num) && Number.isInteger(Number(num))) {
+  if (pool.isNumeric(num) && Number.isInteger(Number(num))) {
     var targetDate = calcDateByOffest(gameRef.startDate, Number(num));
   } else if (pool.isStringValidDate(num)) {
     var targetDate = num;
