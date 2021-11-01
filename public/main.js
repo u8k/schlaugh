@@ -862,17 +862,21 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
 
   var preTag = string.substr(0,tagStartPos);
   var postTag = string.substr(innerStartPos);
-  var insert = `<a href="javascript:void(0);" class="clicky special" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true, '`+id+`')">`+linkText
+  var insert = `<button class="special text-button" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true, '`+id+`')">`+linkText
     +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
-    +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></a>`
-    +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`
-    +`<clicky onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="clicky collapse-button-bottom filter-focus" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></clicky>`;
+    +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></button>`
+    +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`;
 
   string = preTag+insert+postTag;
 
-  // convert the trailing </note>
-  string = string.replace('</note>', '</innerNote>');
-
+  // find the trailing </note>, convert to innerNote and add the collapseButton
+  var noteEndPos = findClosingNoteTag(string, tagStartPos+insert.length);
+  //snip out the closing note tag
+  string = string.substr(0,noteEndPos) + string.substr(noteEndPos+7);
+  //
+  var innerNoteCollapseButtonAndClosingInnerNote = `<button onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="text-button collapse-button-bottom filter-focus" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></button></innerNote>`;
+  string = insertStringIntoStringAtPos(string, innerNoteCollapseButtonAndClosingInnerNote, noteEndPos);
+  //
   return string;
 }
 
@@ -987,8 +991,6 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
     }
   } else {
     pos += next
-    if (extracting) { //.... why is this here??? i mean it's doing nothing but wtf?
-    }
     // get text following <, up to a space or ">"
     var close = string.substr(pos).search(/[ >]/);
     var tag = string.substr(pos, close);
@@ -1093,8 +1095,8 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
           } else {
             string = convertNote(string, id, elemCount, type, pos-5);
             tagStack.push({tag:"innerNote", id:id+"-"+(elemCount+1)});
-            pos-=3;
-            tag = "a";
+            tag = "button";
+            pos+=2;
             elemCount+=2;
           }
         } else if (tag === "a" && !extracting) {          // if it's an "a", do link conversion stuff
