@@ -423,6 +423,12 @@ a, a.visited {
   .author-size-6 {font-size: .6em;}
 }
 
+.author-on-post {
+  display: block;
+  margin-top: -10px;
+  margin-bottom: -6px;
+}
+
 .author-pic {
   max-width: 50px;
   max-height: 100px;
@@ -464,7 +470,6 @@ a, a.visited {
 .post-header-feed {
   text-align: right;
   margin-top: 5px;
-  margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   flex-direction: row-reverse;
@@ -481,12 +486,14 @@ a, a.visited {
   font-style: italic;
 }
 
-.post-footer {
-  height: 20px;
+.post-footer-right {
+  float: right;
   margin-top: 10px;
 }
-.post-footer-right {float: right;}
-.post-footer-left {float: left;}
+.post-footer-left {
+  float: left;
+  margin-top: 10px;
+}
 .date-stamp {
   font-size: 1.2em;
   text-decoration: underline;
@@ -865,6 +872,10 @@ slogan {
   font-size: inherit;
   font-family: inherit;
   background-color: #ffffff00;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
 
 quote {

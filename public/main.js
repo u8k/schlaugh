@@ -2446,6 +2446,7 @@ var renderOnePost = function (postData, type, postID) {
     addToPostStash(postData);
   }
 
+  // we need "uniqueID" because there can be a preview edit version of the post w/ the same id
   if (type === "preview") {
     var uniqueID = "post-preview-"+pool.getCurDate(-1);
   } else if (postData.post_id && type !== 'preview-edit') {
@@ -2491,54 +2492,43 @@ var renderOnePost = function (postData, type, postID) {
   // post header
   var postHeader = document.createElement("div");
   post.appendChild(postHeader);
+
   // author stuff in header
   if (type !== 'author' && type !== 'preview-edit') {
     postHeader.setAttribute('class', 'post-header-feed');
-    var authorBox = document.createElement("div");
-    postHeader.appendChild(authorBox);
-    // authorPic
-    if (postData.authorPic && postData.authorPic !== "") {
-      var authorPicWrapper = document.createElement("a");
-      var authorPic = document.createElement("img");
-      authorPic.setAttribute('src', postData.authorPic);
-      (function (id) {
-        authorPicWrapper.onclick = function(event){
-          modKeyCheck(event, function(){fetchPosts(true, {postCode:'TFFF', author:id});});
-        }
-      })(postData._id);
-      authorPicWrapper.setAttribute('href', "/"+postData.author);
-      authorPicWrapper.setAttribute('class', 'author-pic clicky filter-focus');
-      authorPic.setAttribute('class', 'author-pic');
-      authorPicWrapper.appendChild(authorPic);
-      /*
-      if (glo.collapsed && glo.collapsed[postData.post_id]) {
-        authorPicWrapper.classList.add('removed');
-      }
-      */
-      authorBox.appendChild(authorPicWrapper);
-      //
-      authorBox.appendChild(document.createElement("br"));
-    }
-    // authorName
-    var author = document.createElement("a");
+
+    //
+    var postHeaderRight = document.createElement("a");
+    postHeaderRight.setAttribute('href', "/"+postData.author);
     (function (id) {
-      author.onclick = function(event) {
+      postHeaderRight.onclick = function(event){
         modKeyCheck(event, function(){fetchPosts(true, {postCode:'TFFF', author:id});});
       }
     })(postData._id);
-    author.setAttribute('class', 'author-on-post special');
+    postHeaderRight.setAttribute('class', 'clicky');
+    postHeader.appendChild(postHeaderRight);
+
+    // authorPic
+    if (postData.authorPic && postData.authorPic !== "") {
+      var authorPic = document.createElement("img");
+      authorPic.setAttribute('src', postData.authorPic);
+      authorPic.setAttribute('class', 'author-pic');
+      postHeaderRight.appendChild(authorPic);
+    }
+    // authorName
+    var authorName = document.createElement("a");
+    authorName.setAttribute('class', 'author-on-post special');
     // text sizing based on name length
-    if (postData.author.length < 6) {author.classList.add('author-size-0')}
-    else if (postData.author.length < 12) {author.classList.add('author-size-1')}
-    else if (postData.author.length < 20) {author.classList.add('author-size-2')}
-    else if (postData.author.length < 30) {author.classList.add('author-size-3')}
-    else if (postData.author.length < 40) {author.classList.add('author-size-4')}
-    else if (postData.author.length < 50) {author.classList.add('author-size-5')}
-    else {author.classList.add('author-size-6')}
+    if (postData.author.length < 6) {authorName.classList.add('author-size-0')}
+    else if (postData.author.length < 12) {authorName.classList.add('author-size-1')}
+    else if (postData.author.length < 20) {authorName.classList.add('author-size-2')}
+    else if (postData.author.length < 30) {authorName.classList.add('author-size-3')}
+    else if (postData.author.length < 40) {authorName.classList.add('author-size-4')}
+    else if (postData.author.length < 50) {authorName.classList.add('author-size-5')}
+    else {authorName.classList.add('author-size-6')}
     //
-    author.setAttribute('href', "/"+postData.author);
-    author.innerHTML = "<clicky>"+postData.author+"</clicky>";
-    authorBox.appendChild(author);
+    authorName.innerHTML = postData.author;
+    postHeaderRight.appendChild(authorName);
   } else {
     postHeader.setAttribute('class', 'post-header');
   }
@@ -2586,6 +2576,7 @@ var renderOnePost = function (postData, type, postID) {
   tagElem.setAttribute('class', 'tag-section reader-font');
   tagElem.innerHTML = tagString;
   post.appendChild(tagElem);
+
   // footer
   if (type !== 'preview' && type !== 'preview-edit') {
     createPostFooter(post, postData, type);
@@ -2624,7 +2615,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
   if (btnElem.title === 'expand') {                   // expand the post
     $(uniqueID).classList.remove('faded');
     $(uniqueID+'body').classList.remove('removed');
-    //$(uniqueID+"-authorPic").classList.remove('removed');
+    $(postID+"_post-footer-right").classList.remove('removed');
     btnElem.title = 'collapse';
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
     btnElem2.title = 'collapse';
@@ -2634,7 +2625,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     if (glo.collapsed) {glo.collapsed[postID] = false;}
   } else {                                          // collapse the post
     $(uniqueID).classList.add('faded');
-    //$(uniqueID+"-authorPic").classList.add('removed');
+    $(postID+"_post-footer-right").classList.add('removed');
     btnElem.title = 'expand';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
     btnElem2.classList.add('hidden');
@@ -2643,7 +2634,9 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
       var initScroll = window.scrollY;
       var initHeight = $(uniqueID).offsetHeight;
     }
+    // this order is important, collapse the post here
     $(uniqueID+'body').classList.add('removed');
+    // then find the offset from collapsing
     if (isBtmBtn) {
       if (initScroll === window.scrollY) {  //after the post has been removed, if the scrollPos hasn't changed, then change it
         window.scrollBy(0, $(uniqueID).offsetHeight - initHeight);
@@ -2653,6 +2646,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     var collapse = true;
     if (glo.collapsed) {glo.collapsed[postID] = true;}
   }
+  // save the collapsed status
   if (glo.collapsed && postID) {
     ajaxCall('/collapse', 'POST', {id:postID, collapse:collapse}, function(json) {
       //
@@ -2694,6 +2688,11 @@ var createPostFooter = function (postElem, postData, type) {
   if (type !== "preview") {
     var footerButtons = document.createElement("div");
     footerButtons.setAttribute('class', 'post-footer-right');
+    footerButtons.setAttribute('id', postData.post_id+'_post-footer-right');
+    // hide the footer if post is collapsed
+    if (glo.collapsed && glo.collapsed[postData.post_id]) {
+      footerButtons.classList.add('removed');
+    }
     footer.appendChild(footerButtons);
     if (glo.username) {
       if (postData.post_id && postData.post_id.length !== 8) {  // IDs are length 7, 8 indicates it's a dumby that isn't actualy linkable
