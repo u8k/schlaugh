@@ -188,11 +188,18 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       }
     }}
 
-    // Entropy/victory check
+    // Entropy/victory/defeat check
     var activePlayerList = [];
+    // mark all players dead
+    for (var player in match.players) {
+      if (match.players.hasOwnProperty(player)) {
+        match.players[player].active = false;
+      }
+    }
+    // loop through all spots on map and perform entropy
     for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
       if (newMap[spot].score) {
-        newMap[spot].score--;
+        newMap[spot].score--;                 // the entropy line
       }
       if (newMap[spot].score === 0) {
         delete newMap[spot];
@@ -200,6 +207,8 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
         if (activePlayerList[0] !== newMap[spot].ownerID) {
           activePlayerList.push(newMap[spot].ownerID);
         }
+        // mark player as alive
+        match.players[newMap[spot].ownerID].active = true;
       }
     }}
     if (activePlayerList.length === 0) {  // nobody wins(but match is over)

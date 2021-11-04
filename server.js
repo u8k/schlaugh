@@ -2094,6 +2094,8 @@ var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) 
       if (matchList[i].victor && !matchList[i].dates[pool.getCurDate()]) {  // if there IS a map for today, then the game ended today, and we want to leave it in active until tomorrow
         user.games.schlaunquer.finished[matchList[i]._id] = true;
         delete user.games.schlaunquer.active[matchList[i]._id];
+      } else if (matchList[i].players[user._id].active === false) {
+        user.games.schlaunquer.active[matchList[i]._id] = 'dead';
       }
     }
     return callback(user);

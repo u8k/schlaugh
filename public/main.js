@@ -2626,7 +2626,9 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
   if (btnElem.title === 'expand') {                   // expand the post
     $(uniqueID).classList.remove('faded');
     $(uniqueID+'body').classList.remove('removed');
-    $(postID+"_post-footer-right").classList.remove('removed');
+    if ($(postID+"_post-footer-right")) {
+      $(postID+"_post-footer-right").classList.remove('removed');
+    }
     btnElem.title = 'collapse';
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
     btnElem2.title = 'collapse';
@@ -2637,7 +2639,9 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     //
   } else {                                          // collapse the post
     $(uniqueID).classList.add('faded');
-    $(postID+"_post-footer-right").classList.add('removed');
+    if ($(postID+"_post-footer-right")) {
+      $(postID+"_post-footer-right").classList.add('removed');
+    }
     btnElem.title = 'expand';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
     btnElem2.classList.add('hidden');
@@ -5104,7 +5108,9 @@ var setSchlaunquerNotificationOnFeed = function () {
   if (glo.games && glo.games.schlaunquer && glo.games.schlaunquer.active) {
     var count = 0;
     for (var match in glo.games.schlaunquer.active) {if (glo.games.schlaunquer.active.hasOwnProperty(match)) {
-      count++;
+      if (glo.games.schlaunquer.active[match] === true) {
+        count++;
+      }
     }}
     if (count > 0) {
       if (count === 1) {

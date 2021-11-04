@@ -9,10 +9,12 @@ var openSchlaunquerPanel = function (game_id, num) {
   $("panel-buttons-wrapper").classList.add("removed");
   $('schlaunquer-exposition').innerHTML = prepTextForRender(exposition, "schlaunquer-exposition");
   switchPanel("schlaunquer-panel");
-  simulatePageLoad('~schlaunquer', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png', true);
   // load menu page
   if (game_id) {loadGame(game_id, num);}
-  else {refreshMenu();}
+  else {
+    simulatePageLoad('~schlaunquer', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
+    refreshMenu();
+  }
 }
 
 var refreshMenu = function (game_id) {
@@ -115,13 +117,12 @@ var loadGame = function (game_id, num) {
     loading(true);
     showGameCreationMenu(true);
     gameRef.game_id = game_id;
-    var urlAppend = game_id;
     if (!json.gameState || json.gameState !== 'pending') {
-      if (num !== undefined) {
-        urlAppend += "/"+num;
-      }
+      simulatePageLoad('~schlaunquer/'+game_id+'/', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png', true);
       setUpGameBoards(json, num);
     } else {
+      $('game-status').innerHTML = "PENDING";
+      simulatePageLoad('~schlaunquer/'+game_id+'/', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
       $('schlaunquer-board-wrapper').classList.add('removed');
     }
     setUpGameInfo(json);
@@ -139,6 +140,7 @@ var setUpGameInfo = function (data) {
   } else {
     $('schlaunquer-match-opaqueEnemyUnits').innerHTML = "false";
   }
+  $('game-status').innerHTML = (data.gameState).toUpperCase();
   //
   destroyAllChildrenOfElement($('schlaunquer-game-player-list'));
   var playerCount = 0;
@@ -227,7 +229,7 @@ var setUpGameBoards = function (json, num) {
     var targetDate = num;
   }
   if (!gameRef.dates[targetDate]) {
-    if (gameRef.gameState === 'active') {
+    if (gameRef.gameState === 'active' || (gameRef.gameState === 'finished' && latestDate === pool.getCurDate())) {
       targetDate = latestDate;
     } else {
       targetDate = gameRef.startDate;
@@ -742,7 +744,7 @@ var changeBoardRound = function (offset, date) {
     }
   }
 
-
+  //
   simulatePageLoad('~schlaunquer/'+gameRef.game_id+'/'+gameRef.currentBoardDay, 'schlaunquer', 'https://i.imgur.com/i4Py62f.png', true);
 
   if (gameRef.currentBoardDate !== newDate) { // do we actually need to switch anything?
