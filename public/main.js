@@ -47,6 +47,12 @@ var submitPic = function (remove, pending) {
     loading(true);
   });
 }
+var removeCurrentUserPic = function () {
+  verify(`this will remove your user image IMMEDIATELY, meaning that your posts/profile will have no image alongside them until the next schlaupdate at the earliest<br><br>if you want to seamlessly switch your image at the next schlaupdate, you can schedule that now by putting in new image url and clicking "update image"<br><br>do you want to remove your current user image NOW?`, 'YES!', '...no', function (resp) {
+    if (!resp) {return}
+    submitPic(true);
+  });
+}
 
 var updateUserPic = function () {
   $("pending-image-url").value = glo.pendingUpdates.iconURI;
@@ -1380,8 +1386,7 @@ var preCleanText = function (string) {  //prep editor text for backEnd, prior to
 }
 
 var collapseNote = function (buttonId, innerId, expanding, postID, viaBottom) {
-  // last arg, postID, is only included when called by the bottom collapse button,
-  // and causes the necseary adjustments to the scroll pos to be made on collapse
+  //  arg 'buttonId' always refers to the "top" button, even if it's a bottom button that was clicked
   if (expanding) {
     $(innerId).classList.remove('removed');
     $(innerId+'-note-top-plus').classList.add('removed');
@@ -1392,7 +1397,7 @@ var collapseNote = function (buttonId, innerId, expanding, postID, viaBottom) {
       $(innerId+"-br").classList.add('removed');
     }
 
-  } else {  // collapse
+  } else {        // collapse
     if (viaBottom) {     // get the height of the post and position on page before collapsing
       var initScroll = window.scrollY;
       var initHeight = $(postID).offsetHeight;
@@ -1400,10 +1405,12 @@ var collapseNote = function (buttonId, innerId, expanding, postID, viaBottom) {
     $(innerId).classList.add('removed');    // collapse the note
     $(innerId+'-note-top-plus').classList.remove('removed');
     $(innerId+'-note-top-minus').classList.add('removed');
-    if (viaBottom) {          // if via the bottom button, then adjust the scroll position
+    if (viaBottom) {                // if via the bottom button, then adjust the scroll position
       if (initScroll === window.scrollY) {
         window.scrollBy(0, $(postID).offsetHeight - initHeight);
       }
+      // move focus to the top button
+      $(buttonId).focus();
     }
     $(buttonId).onclick = function () {collapseNote(buttonId, innerId, true, postID);}
 
@@ -2612,6 +2619,7 @@ var clearAuthorTagButton = function () {
 var collapsePost = function (uniqueID, postID, isBtmBtn) {
   var btnElem = $(uniqueID+'-collapse-button-top');
   var btnElem2 = $(uniqueID+'-collapse-button-bottom');
+  //
   if (btnElem.title === 'expand') {                   // expand the post
     $(uniqueID).classList.remove('faded');
     $(uniqueID+'body').classList.remove('removed');
@@ -2623,13 +2631,14 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     btnElem2.classList.remove("hidden");
     var collapse = false;
     if (glo.collapsed) {glo.collapsed[postID] = false;}
+    //
   } else {                                          // collapse the post
     $(uniqueID).classList.add('faded');
     $(postID+"_post-footer-right").classList.add('removed');
     btnElem.title = 'expand';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
     btnElem2.classList.add('hidden');
-
+    //
     if (isBtmBtn) {
       var initScroll = window.scrollY;
       var initHeight = $(uniqueID).offsetHeight;
@@ -3067,7 +3076,7 @@ var editPost = function (post) {
   $('author-header-edit').classList.add("removed");
   //
   $("old-post-editor-title").innerHTML = "<l>editing your post for "+post.date+'</l>';
-  $('edit-post-button').onclick = function () {
+  $('write-old-post-button').onclick = function () {
     showWriter('old-post');
   }
   //
@@ -3078,7 +3087,7 @@ var editPost = function (post) {
     $("old-post-status").innerHTML = "pending edit for your post on "+post.date;
     updatePendingEdit(savedPost);
     hideWriter('old-post');
-    $('edit-post-button').innerHTML = "edit edit";
+    $('write-old-post-button').innerHTML = "edit edit";
     switchPanel("edit-panel");
   } else {                                            // there is not a pending edit
     if (glo.postStash && glo.postStash[post.post_id]) {     // is it already stashed?
@@ -3092,7 +3101,7 @@ var editPost = function (post) {
       $('old-post-editor').value = prepTextForEditor(glo.postStash[post.post_id].body);
       $('delete-pending-old-post').classList.add("removed");
       $('pending-post-edit').classList.add("removed");
-      $('edit-post-button').innerHTML = "new edit";
+      $('write-old-post-button').innerHTML = "new edit";
       switchPanel("edit-panel");
       showWriter('old-post');
     } else {
@@ -3184,7 +3193,7 @@ var editPost = function (post) {
         if (json.linkProblems) {uiAlert(json.linkProblems);}
         glo.pendingUpdates[post.date] = null;
         updatePendingEdit(json);
-        $('edit-post-button').onclick = function () {
+        $('write-old-post-button').onclick = function () {
           editPost(post);
           showWriter('old-post');
         }
@@ -3199,14 +3208,14 @@ var updatePendingEdit = function (post, bio) {
     $('delete-pending-old-post').classList.add("removed");
     if (bio) {$('author-header-edit').classList.add("removed");}
     else {$('pending-post-edit').classList.add("removed");}
-    $('edit-post-button').innerHTML = "new edit";
+    $('write-old-post-button').innerHTML = "new edit";
   } else {
     var str = $('old-post-status').innerHTML;
     if (str.substr(0,3) === "no ") {$('old-post-status').innerHTML = str.substr(3);}
     $('delete-pending-old-post').classList.remove("removed");
     if (bio) {$('author-header-edit').classList.remove("removed");}
     else {$('pending-post-edit').classList.remove("removed");}
-    $('edit-post-button').innerHTML = "edit edit";
+    $('write-old-post-button').innerHTML = "edit edit";
   }
   if (post.onlyTheUrlHasBeenChanged) {
     uiAlert(`successfull url edit<br>post is accessible now at:<br><a class='special' target='_blank' href='/`+glo.username+"/"+post.url+"'>schlaugh.com/"+glo.username+"/"+post.url+"</a>")
@@ -3246,7 +3255,7 @@ var editBio = function () {
   $('author-header-edit').classList.remove("removed");
   //
   $("old-post-editor-title").innerHTML = "<l>editing bio</l>";
-  $('edit-post-button').onclick = function () {
+  $('write-old-post-button').onclick = function () {
     showWriter('old-post');
   }
   $("old-post-editor-meta").classList.add("removed");
@@ -3256,14 +3265,14 @@ var editBio = function () {
     $("old-post-status").innerHTML = "pending bio edit:";
     updatePendingEdit({body: glo.pendingUpdates['bio']}, true);
     hideWriter('old-post');
-    $('edit-post-button').innerHTML = "edit edit";
+    $('write-old-post-button').innerHTML = "edit edit";
     switchPanel("edit-panel");
   } else {
     $("old-post-status").innerHTML = "no pending bio edit";
     $('old-post-editor').value = prepTextForEditor(glo.bio);
     $('delete-pending-old-post').classList.add("removed");
     $('author-header-edit').classList.add("removed");
-    $('edit-post-button').innerHTML = "new edit";
+    $('write-old-post-button').innerHTML = "new edit";
     hideWriter('old-post');
     switchPanel("edit-panel");
   }
@@ -3305,7 +3314,7 @@ var editBio = function () {
       ajaxCall("/editOldPost", 'POST', data, function(json) {
         glo.pendingUpdates['bio'] = null;
         updatePendingEdit(json, true);
-        $('edit-post-button').onclick = function () {
+        $('write-old-post-button').onclick = function () {
           editBio();
           showWriter('old-post');
         }
@@ -3340,6 +3349,7 @@ var submitPost = function (remove) { //also handles editing and deleting
   var tags = $('tag-input').value;
   var title = $('title-input').value;
   var url = $('url-input').value;
+  //
   if (text === "" && tags === "" && title === "" && !glo.pending) {
     if (!glo.debugMode) {
       ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
@@ -3876,6 +3886,7 @@ var showPostWriter = function (callback) {
 var hideWriter = function (kind) {
   $(kind+'-writer').classList.add('removed');
   $(kind+'-preview').classList.remove('removed');
+  $('write-'+kind+'-button').focus();
   if (!glo.openEditors) {glo.openEditors = {}}
   glo.openEditors[kind] = false;
   if (!isAnEditorOpen()) {
@@ -4321,11 +4332,10 @@ var hideCurrentThread = function (i) {
   glo.activeThreadIndex = undefined;
   $("back-arrow").classList.add('removed');
   $(i+"-thread").classList.add('removed');
-  if ($(i+"-thread-pic")) {$(i+"-thread-pic").classList.add('removed');}
   $("message-writer").classList.add('removed');
   $("message-preview").classList.add('removed');
-  $("thread-title").classList.add('removed');
-  $("thread-title").removeAttribute('href');
+  $("thread-pic").classList.add('removed');
+  $("thread-user-wrapper").removeAttribute('href');
   $("mark-unread").classList.add('removed');
   $('block-button').classList.add('removed');
   $("thread-title-area").classList.add('removed');
@@ -4374,19 +4384,28 @@ var openThread = function (i) {
       $('block-button').classList.remove('removed');
       $("thread-list").classList.add('removed');
       $(i+"-thread").classList.remove('removed');
-      if ($(i+"-thread-pic")) {$(i+"-thread-pic").classList.remove('removed');}
       $("back-arrow").classList.remove('removed');
       $("thread-title").innerHTML = glo.threads[i].name;
-      $("thread-title").setAttribute('href', "/"+glo.threads[i].name);
+      // pic
+      if (glo.threads[i].image && glo.threads[i].image !== "") {
+        $("thread-pic").setAttribute('src', glo.threads[i].image);
+        $("thread-pic").setAttribute('alt', "the profile picture of "+glo.threads[i].name);
+        $("thread-pic").classList.remove('removed');
+      } else {
+        $("thread-pic").classList.add('removed');
+      }
+      //
+      $("thread-user-wrapper").setAttribute('href', "/"+glo.threads[i].name);
       (function (id) {
-        $("thread-title").onclick = function(event){
+        $("thread-user-wrapper").onclick = function(event){
           modKeyCheck(event, function(){
             fetchPosts(true, {postCode:'TFFF', author:id});
           });
         }
       })(glo.threads[i]._id);
-      $("thread-title").classList.remove('removed');
+      $("thread-user-wrapper").classList.remove('removed');
       $("thread-title-area").classList.remove('removed');
+      $("write-message-button").focus();
     }
     //
     if (glo.threads[i].locked) {
@@ -4586,26 +4605,6 @@ var createThread = function (i, top) {
   thread.setAttribute('class', 'thread removed');
   thread.setAttribute('id', i+'-thread');
   $('thread-box').appendChild(thread);
-  // pic
-  if (glo.threads[i].image && glo.threads[i].image !== "") {
-    var authorPic = document.createElement("img");
-    authorPic.setAttribute('src', glo.threads[i].image);
-    authorPic.setAttribute('class', 'user-pic clicky');
-    var authorPicWrapper = document.createElement("a");
-    authorPicWrapper.setAttribute('id', i+'-thread-pic');
-    authorPicWrapper.setAttribute('class', 'removed');
-    (function (id) {
-      authorPicWrapper.onclick = function(event){
-        modKeyCheck(event, function(){
-          fetchPosts(true, {postCode:'TFFF', author:id});
-        });
-      }
-    })(glo.threads[i]._id);
-    authorPicWrapper.setAttribute('href', "/"+glo.threads[i].name);
-    authorPicWrapper.appendChild(authorPic);
-
-    $('thread-pic-box').appendChild(authorPicWrapper);
-  }
   //
   populateThread(i);
 }
@@ -4621,7 +4620,6 @@ var populateThread = function (i) {
 
 var populateThreadlist = function () {
   destroyAllChildrenOfElement($("thread-list"));
-  destroyAllChildrenOfElement($('thread-pic-box'));
   var noThreads = true;
   for (var i = 0; i < glo.threads.length; i++) {
     if (glo.threads[i].thread.length !== 0) {

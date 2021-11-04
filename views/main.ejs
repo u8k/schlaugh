@@ -137,10 +137,15 @@
 <div id="inbox-panel" class="removed">
   <h2>meshages</h2>
   <div id="thread-title-area" class="removed">
-    <icon id="back-arrow" class="removed clicky fas fa-caret-left" onclick="closeThread()"></icon>
-    <div id="thread-pic-box"></div>
-    <a id="thread-title"></a>
-    <br>
+    <button id="back-arrow" class="removed filter-focus" onclick="closeThread()">
+      <icon class="fas fa-caret-left"></icon>
+    </button>
+
+      <a id="thread-user-wrapper">
+        <img id="thread-pic" src="" alt="">
+        <text id="thread-title"></text>
+      </a>
+
     <text id='thread-status' class='removed'></text>
   </div>
   <button id="mark-unread" class="removed" onclick="markUnread()">mark unread</button>
@@ -178,7 +183,7 @@
           <label for="current-image-url">image url<a href="javascript:void(0);" onclick="imageUploadingExplain()" class="special clicky">(?)</a></label><br>
           <input class="user-image-input" id="current-image-url" type="text" name="current-image-url" value=""><br>
           <button id="submit-current-image" type="submit" onclick="submitPic()">update image</button>
-          <button id="remove-current-image" class="removed" onclick="submitPic(true)">remove</button>
+          <button id="remove-current-image" class="removed" onclick="removeCurrentUserPic()">remove</button>
         </form>
       </wrapper>
       <wrapper id="pending-user-image-box" class="removed">
@@ -368,7 +373,7 @@
 
     <%- include("authorHeader", {kind: "edit"}) %>
 
-    <button type="button" id='edit-post-button' onclick="showWriter('old-post')">new edit</button>
+    <button type="button" id='write-old-post-button' onclick="showWriter('old-post')">new edit</button>
     <button id='delete-pending-old-post'>delete edit</button>
   </div>
 
