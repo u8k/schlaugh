@@ -23,7 +23,7 @@ var refreshMenu = function (game_id) {
     $('sign-in-to-schlaunquer').classList.add('removed');
     $("start-new-schlaunquer-game").classList.remove('removed');
     //
-    var matchTypes = ['active','pending','finished'];
+    var matchTypes = ['active','pending','finished','bookmarked'];
     for (var i = 0; i < matchTypes.length; i++) {
       destroyAllChildrenOfElement($(matchTypes[i]+'-game-list'));
       var matches = _npa(['glo','games','schlaunquer', matchTypes[i]]);
@@ -131,6 +131,7 @@ var loadGame = function (game_id, num) {
 }
 
 var setUpGameInfo = function (data) {
+  if (data.notFound) { return;}
   //
   $('schlaunquer-match-link').value = `schlaugh.com/~schlaunquer/`+data._id;
   $('schlaunquer-match-unitCap').innerHTML = data.unitCap;
@@ -140,7 +141,23 @@ var setUpGameInfo = function (data) {
   } else {
     $('schlaunquer-match-opaqueEnemyUnits').innerHTML = "false";
   }
-  $('game-status').innerHTML = (data.gameState).toUpperCase();
+  if (data.gameState) {
+    $('game-status').innerHTML = (data.gameState).toUpperCase();
+  }
+
+  // is it bookmarked?
+  if (glo.username) {
+    if (_npa(['glo','games','schlaunquer','bookmarked',data._id])) {
+      $('schlaunquer-bookmark').classList.add('removed');
+      $('schlaunquer-unbookmark').classList.remove('removed');
+    } else {
+      $('schlaunquer-bookmark').classList.remove('removed');
+      $('schlaunquer-unbookmark').classList.add('removed');
+    }
+  } else {
+    $('schlaunquer-bookmark').classList.add('removed');
+    $('schlaunquer-unbookmark').classList.add('removed');
+  }
   //
   destroyAllChildrenOfElement($('schlaunquer-game-player-list'));
   var playerCount = 0;
@@ -808,6 +825,22 @@ var showVictory = function () {
 var closeVictory = function () {
   $("schlaunquer-victor").classList.add("hidden");
   blackBacking(true);
+}
+
+var bookmarkMatch = function (remove) {
+  ajaxCall('/~setSchlaunquerBookmark', 'POST', {game_id:gameRef.game_id, remove:remove}, function(json) {
+    // update the button
+    if (remove) {
+      $('schlaunquer-bookmark').classList.remove('removed');
+      $('schlaunquer-unbookmark').classList.add('removed');
+    } else {
+      $('schlaunquer-bookmark').classList.add('removed');
+      $('schlaunquer-unbookmark').classList.remove('removed');
+    }
+    // update the list
+    _npa(['glo','games','schlaunquer','bookmarked'], json);
+    refreshMenu(gameRef.game_id);
+  });
 }
 
 var tilePopulationCapExplain = function () {

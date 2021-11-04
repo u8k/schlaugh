@@ -2962,7 +2962,7 @@ var createBookmarkButton = function (parent, post) {
     var insert = x[1];
   }
   var elem = document.createElement("button");
-  elem.setAttribute('class', 'footer-button filter-focus');
+  elem.setAttribute('class', 'bookmark-button footer-button filter-focus ');
   var alreadyMarked = false;
   if (!glo.bookmarks) {glo.bookmarks = {}}
   if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {

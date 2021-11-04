@@ -499,6 +499,8 @@
     </form>
   </div>
   <div id="schlaunquer-game-info" class="content-box removed">
+    <button id="schlaunquer-bookmark" onclick="bookmarkMatch()" class="schlaunquer-bookmark removed" title="bookmark"><icon class="far fa-bookmark"></icon></button>
+    <button id="schlaunquer-unbookmark" onclick="bookmarkMatch(true)" class="schlaunquer-bookmark removed" title="un-bookmark"><icon class="fas fa-bookmark"></icon></button>
     <text class="game-listing">match is: </text><text id="game-status" class="game-listing"></text><br>
     <text class="game-listing">match link: </text><input id="schlaunquer-match-link"></input><br>
     <wrapper class="schlaunquer-game-info">
@@ -531,6 +533,8 @@
     <div id="games-list" class="removed">
       <u class="game-listing">ACTIVE:</u>
       <ul id="active-game-list"></ul>
+      <u class="game-listing">BOOKMARKED:</u>
+      <ul id="bookmarked-game-list"></ul>
       <u class="game-listing">PENDING:</u>
       <ul id="pending-game-list"></ul>
       <u class="game-listing">FINISHED:</u>

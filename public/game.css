@@ -110,6 +110,14 @@ polygon {
   font-size: 1.3em;
 }
 
+.schlaunquer-bookmark {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  border: none;
+  font-size: 1.4em;
+}
+
 #schlaunquer-reminder {
   margin: auto;
   margin-top: 9px;

@@ -2121,6 +2121,28 @@ app.post('/~setSchlaunquerReminder', function(req, res) {
     });
   });
 });
+app.post('/~setSchlaunquerBookmark', function(req, res) {
+  var errMsg = "schlaunquer bookmark not successfully updated<br><br>";
+  if (!req.body || !req.body.game_id) {return sendError(req, res, errMsg+"malformed request");}
+  lookUpCurrentUser(req, res, errMsg, {games:1}, function (user) {
+
+    //
+    if (!user.games) {user.games = {}};
+    if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
+    if (!user.games.schlaunquer.bookmarked) {user.games.schlaunquer.bookmarked = {};}
+    //
+    if (req.body.remove) {
+      delete user.games.schlaunquer.bookmarked[req.body.game_id];
+    } else {
+      user.games.schlaunquer.bookmarked[req.body.game_id] = true;
+    }
+    //
+    writeToDB(user._id, user, function (resp) {
+      if (resp.error) {sendError(req, res, resp.error);}
+      else {res.send(user.games.schlaunquer.bookmarked);}
+    });
+  });
+});
 
 
 //admin
