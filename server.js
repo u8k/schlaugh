@@ -4108,6 +4108,53 @@ app.post('/getPosts', function (req, res) {
 
 
 
+// RSS feed for schlaugh, general ping
+app.get('/~rss', function (req, res) {
+  var errMsg = "rss error<br><br>";
+
+  var feed = new RSS({
+    title: 'schlaugh',
+    description: "schlaugh is a quiet place for reading and writing",
+    site_url: "https://www.schlaugh.com/",
+    feed_url: "https://www.schlaugh.com/~rss",
+    image_url: "https://i.imgur.com/22V1kHY.png",
+  });
+
+  // get the minutes until schlaupdate, no need to check the feed again until then (:
+  var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+  var hoursRemaining = 23 - time.getUTCHours();
+  var minutesRemaining = 60 - time.getUTCMinutes();
+  feed.ttl = (hoursRemaining*60) + minutesRemaining;
+
+  for (var i = 0; i < 11; i++) {
+    var date = pool.getCurDate(i);
+    var description = "it is schlaupdate'o'clock on "+date+" and schlaugh still exists!";
+    var title = date + " schlaupdate ping";
+
+    feed.item({
+      title: title,
+      description: description,
+      url: "https://www.schlaugh.com/~posts/" + date,
+      date: date+"T09:00:00",
+    });
+  }
+
+  var fileName = "feed.xml";
+  var xml = feed.xml({ indent: true });
+        // save the xml file, just so we have a path from which to send it
+  fs.writeFile(fileName, xml, function (err) {
+    if (err) {return sendError(req, res, errMsg+err);}
+    fileName = path.resolve(fileName);      // get the full path
+    //
+    res.sendFile(fileName, function (err) {
+      if (err) {return sendError(req, res, errMsg+err);}
+      // delete the file
+      fs.unlink(fileName, (err) => {
+        if (err) throw err;
+      });
+    });
+  });
+});
 
 // RSS feed route for an author
 app.get('/:author/~rss', function (req, res) {
@@ -4151,7 +4198,7 @@ app.get('/:author/~rss', function (req, res) {
               var minutesRemaining = 60 - time.getUTCMinutes();
               feed.ttl = (hoursRemaining*60) + minutesRemaining;
 
-              for (var i = 0; i < author.postList.length && i < 10; i++) {
+              for (var i = 0; i < author.postList.length && i < 11; i++) {
                 var post = author.postList[author.postList.length-1-i];
                 var description = "schlaugh post by "+author.username+" for "+post.date;
                 if (post) {

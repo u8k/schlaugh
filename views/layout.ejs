@@ -21,6 +21,10 @@
     %>
         <link id="rssLink" rel="alternate" type="application/rss+xml" title=<%= initProps.authorName %> href=<%= '/'+initProps.authorName+'/~rss' %>>
     <%
+      } else {
+    %>
+        <link id="rssLink" rel="alternate" type="application/rss+xml" title="schlaugh" href="/~rss">
+    <%
       }
     %>
 

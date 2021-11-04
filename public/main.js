@@ -495,6 +495,9 @@ var openClickerGame = function () {
     $("panel-buttons-wrapper").classList.add("removed");
     switchPanel("clicker-panel");
     simulatePageLoad('~click', '*click*');
+    if (json.signedIn && json.eligible) {
+      $("click-button").focus();
+    }
   });
 }
 var clickClicker = function () {
@@ -4737,6 +4740,9 @@ var verifyPass = function (callback) {      // for decryption
     callback: function(data) {
       if (data === null) {return;}
       loading();
+      if (!data.password) {
+        return uiAlert('empty string is not a valid password, sorry');
+      }
       ajaxCall('/login', 'POST', data, function(json) {
         if (json.switcheroo) {
           return uiAlert("huh!? that's a different account...", "switcheroo!", function () {location.reload();});
@@ -4904,6 +4910,9 @@ var notifyWithReminderOption = function (txt, setting) {
 }
 
 var signIn = function (url, data, callback) {
+  if (!data.password) {
+    return uiAlert('empty string is not a valid password, sorry');
+  }
   loading();
   ajaxCall(url, 'POST', data, function(json) {
     // clear out any fetched author data so that we can reFetch it for messaging permissions
