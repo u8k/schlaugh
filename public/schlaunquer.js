@@ -11,7 +11,16 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       a:[1, -1],
       q:[1, 0],
     },
-    spawnValue:7,
+    entropy: {
+      0:0,
+      1:1,
+      2:1,
+      3:2,
+      4:3,
+      5:5,
+      6:8,
+    },
+    spawnValue:10,
     unitCap:17,
     init: {
       players: {
@@ -126,6 +135,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     while (!match.dates[pool.getCurDate(daysAgo)]) {
       daysAgo++;
     }
+    //
     var oldMap = match.dates[pool.getCurDate(daysAgo)];
     var warMap = {};
     var newMap = {};
@@ -188,37 +198,6 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       }
     }}
 
-    // Entropy/victory/defeat check
-    var activePlayerList = [];
-    // mark all players dead
-    for (var player in match.players) {
-      if (match.players.hasOwnProperty(player)) {
-        match.players[player].active = false;
-      }
-    }
-    // loop through all spots on map and perform entropy
-    for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
-      if (newMap[spot].score) {
-        newMap[spot].score--;                 // the entropy line
-      }
-      if (newMap[spot].score === 0) {
-        delete newMap[spot];
-      } else {              // take census
-        if (activePlayerList[0] !== newMap[spot].ownerID) {
-          activePlayerList.push(newMap[spot].ownerID);
-        }
-        // mark player as alive
-        match.players[newMap[spot].ownerID].active = true;
-      }
-    }}
-    if (activePlayerList.length === 0) {  // nobody wins(but match is over)
-      match.victor = true;
-      match.gameState = 'finished';
-    } else if (activePlayerList.length === 1) {
-      match.victor = activePlayerList[0];
-      match.gameState = 'finished';
-    }
-
     // Creation
     var spawnMap = {};
     var tileList = exp.getRange([0,0], match.radius);
@@ -237,7 +216,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
         for (var user in ref) {if (ref.hasOwnProperty(user)) {
           if (ref[user] === 4) {                    // huzzah! spawn conditions met!
             spawnMap[tileList[i]] = user;   // mark on intermediary spawn map,
-                       // otherwise, newly spawned tiles can change the counts for other spawn candidates
+            // otherwise, newly spawned tiles can change the counts for other spawn candidates
           }
         }}
       }
@@ -250,11 +229,58 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
         if (match.spawnValue > 0) {         // 0 is a valid spawnValue, to indicate no spawning
           newMap[spot].score = match.spawnValue;
         }
-      }
-      else {newMap[spot].score = exp.gameRef.spawnValue;}
+      } else {newMap[spot].score = exp.gameRef.spawnValue;}
     }}
 
-    // save it!
+
+    // Entropy/victory/defeat check
+    var activePlayerList = [];
+    // mark all players dead
+    for (var player in match.players) {
+      if (match.players.hasOwnProperty(player)) {
+        match.players[player].active = false;
+      }
+    }
+    // entropy
+    // for each occupied spot on the map,
+    for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
+      spot = spot.split(",");
+      var adj = exp.getRange([Number(spot[0]), Number(spot[1])], 2);
+      var neigborCount = -1;  // the getRange above includes the spot itself, which it then counts as a neigbor, so start -1 to correct this
+      for (var j = 0; j < adj.length; j++) {    // for each tile adjacent to said tile
+        // is the adj spot occupied by the same owner?
+        if (newMap[adj[j]] && newMap[adj[j]].ownerID && newMap[adj[j]].ownerID === newMap[spot].ownerID) {
+          neigborCount++;
+        }
+      }
+      if (newMap[spot].score) {   // do the entropy
+        newMap[spot].score = newMap[spot].score - exp.gameRef.entropy[neigborCount];
+      }
+    }}
+    // THEN delete spots, after they've counted for the above
+    for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
+      spot = spot.split(",");
+      if (newMap[spot].score < 1) { // is it dead?
+        delete newMap[spot];
+      } else {              // take census
+        if (activePlayerList[0] !== newMap[spot].ownerID) {
+          activePlayerList.push(newMap[spot].ownerID);
+        }
+        // mark player as alive
+        match.players[newMap[spot].ownerID].active = true;
+      }
+    }}
+
+    if (activePlayerList.length === 0) {  // nobody wins(but match is over)
+      match.victor = true;
+      match.gameState = 'finished';
+    } else if (activePlayerList.length === 1) {
+      match.victor = activePlayerList[0];
+      match.gameState = 'finished';
+    }
+
+
+    // all done! save it!
     match.dates[pool.getCurDate(daysAgo-1)] = newMap;
 
     if (match.victor || daysAgo === 1) {

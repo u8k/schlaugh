@@ -210,13 +210,14 @@ pageAndDateNav, .page-title-404 {
   text-align: center;
 }
 
-clicky, .clicky, spoil {
+clicky, .clicky {
   cursor: pointer;
 }
 
 .spoil {
   border-right-style: solid;
   border-left-style: solid;
+  border-radius: 2px;
 }
 
 .no-select {

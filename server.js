@@ -1889,7 +1889,6 @@ app.post('/~moveSchlaunquer', function(req, res) {
   });
 });
 app.post('/~initSchlaunquerMatch', function(req, res) {
-  return res.send({error:'pretty sneaky sis!'});
   var errMsg = "failed schlaunquer match creations<br><br>";
   if (!req.body.players || !Number.isInteger(req.body.players)) {return sendError(req, res, errMsg+"malformed request 9048");}
   if (!(req.body.players === 6 || req.body.players === 3 || req.body.players === 4 || req.body.players === 2)) {return sendError(req, res, errMsg+"malformed request 9046");}
@@ -1952,7 +1951,6 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
   });
 });
 app.post('/~joinSchlaunquerMatch', function(req, res) { // also handles de-joining
-  return res.send({error:'pretty sneaky sis!'});
   var errMsg = "failed schlaunquer join<br><br>";
   if (!req.body.game_id) {return sendError(req, res, errMsg+"malformed request 7048");}
   lookUpCurrentUser(req, res, errMsg, {username:1, iconURI:1, games:1}, function (user) {

@@ -890,7 +890,9 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
 }
 
 var convertSpoils = function (string) {
-  return string.replace(/<spoil>/g, `<spoil onclick="toggleSpoil(this)" class='spoil'>`);
+  var modString = string.replace(/<\/spoil>/g, `</button>`);
+  modString = modString.replace(/<spoil>/g, `<button onclick="toggleSpoil(this)" class='spoil text-button'>`);
+  return modString;
 }
 
 var toggleSpoil = function (elem) {

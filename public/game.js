@@ -81,11 +81,9 @@ var gameCreationCall = function () {
   loading();
   var params = {
   players: Number($('schlaunquer-game-creation-players').value),
-  unitCap: Number($('schlaunquer-game-creation-unitCap').value),
-  spawnValue: Number($('schlaunquer-game-creation-spawnValue').value),
-  }
-  if ($('schlaunquer-game-creation-opaqueEnemyUnits').value === "true") {
-    params.opaqueEnemyUnits = true;
+  unitCap: 17,
+  spawnValue: 10,
+  opaqueEnemyUnits: false,
   }
   ajaxCall('/~initSchlaunquerMatch', 'POST', params, function(json) {
     loading(true);
@@ -189,14 +187,14 @@ var setUpGameInfo = function (data) {
         if (!data.players[glo.userID]) {
           $('schlaunquer-application-pending').classList.remove('removed');
         }
-        //$('join-schlaunquer-game').classList.add('removed');
+        $('join-schlaunquer-game').classList.add('removed');
         $('leave-schlaunquer-game').classList.remove('removed');
       } else {
-        //$('join-schlaunquer-game').classList.remove('removed');
+        $('join-schlaunquer-game').classList.remove('removed');
         $('leave-schlaunquer-game').classList.add('removed');
       }
     } else {
-      //$('join-schlaunquer-game').classList.add('removed');
+      $('join-schlaunquer-game').classList.add('removed');
       $('leave-schlaunquer-game').classList.add('removed');
       $('sign-in-to-join').classList.remove('removed');
     }
@@ -311,7 +309,8 @@ var createBoard = function (dayCount, i, date, initBoard) {
 }
 
 var renderTiles = function (delay, date) {
-  if (date === pool.getCurDate(-1)) {
+  if (date === pool.getCurDate(-1)) { // if for tomorrow, then generate a preview by performing a full audit
+    //
     if (glo.userID && gameRef.players[glo.userID]) {      // preview map creation
       //
       var todayMap = gameRef.dates[pool.getCurDate()];
@@ -373,15 +372,6 @@ var renderTiles = function (delay, date) {
           }
         }
       }}
-      // Entropy
-      for (var spot in tomorrowMap) {if (tomorrowMap.hasOwnProperty(spot)) {
-        if (tomorrowMap[spot].score) {
-          tomorrowMap[spot].score--;
-        }
-        if (tomorrowMap[spot].score === 0) {
-          delete tomorrowMap[spot];
-        }
-      }}
       // Creation
       var spawnMap = {};
       var tileList = getRange([0,0], gameRef.radius);
@@ -412,6 +402,29 @@ var renderTiles = function (delay, date) {
         tomorrowMap[spot].score = gameRef.spawnValue;
         tomorrowMap[spot].newSpawn = true;
       }}
+      // entropy
+      // for each occupied spot on the map,
+      for (var spot in tomorrowMap) {if (tomorrowMap.hasOwnProperty(spot)) {
+        spot = spot.split(",");
+        var adj = getRange([Number(spot[0]), Number(spot[1])], 2);
+        var neigborCount = -1;  // the getRange above includes the spot itself, which it then counts as a neigbor, so start -1 to correct this
+        for (var j = 0; j < adj.length; j++) {    // for each tile adjacent to said tile
+          // is the adj spot occupied by the same owner?
+          if (tomorrowMap[adj[j]] && tomorrowMap[adj[j]].ownerID && tomorrowMap[adj[j]].ownerID === tomorrowMap[spot].ownerID) {
+            neigborCount++;
+          }
+        }
+        if (tomorrowMap[spot].score) {   // do the entropy
+          tomorrowMap[spot].score = tomorrowMap[spot].score - schlaunquer.gameRef.entropy[neigborCount];
+        }
+      }}
+      for (var spot in tomorrowMap) {if (tomorrowMap.hasOwnProperty(spot)) {
+        spot = spot.split(",");
+        if (tomorrowMap[spot].score < 1) { // is it dead?
+          delete tomorrowMap[spot];
+        }
+      }}
+
 
       // color it in
       for (var spot in tomorrowMap) {
