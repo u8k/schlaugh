@@ -961,14 +961,14 @@ var deWeaveAndRemoveUnmatchedTags = function (string, pos, tagStack) {
   }
 }
 
-var prepTextForRender = function (string, id, type, extracting, pos, elemCount, tagStack) {
+var prepTextForRender = function (string, id, type, extracting, pos, elemCount, tagStack, noteList) {
   // NOTE: this function is also called as a key part of selectiveQuote,
   // thus 'prepTextForRender' is not a great name for everything this boy does
 
   // init
   if (!pos) {
     string = deWeaveAndRemoveUnmatchedTags(string);
-    pos = 0; elemCount = 0; tagStack = [];
+    pos = 0; elemCount = 0; tagStack = []; noteList = [];
     if (string[0] && string[0] !== "<") {
       var x = checkOrInsertElem(string, pos, id, elemCount, extracting, tagStack);
       if (x.error) {return x;}
@@ -998,7 +998,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         string = string + "</"+tagStack[i].tag+">";
       }
       string = convertSpoils(string);
-      return string;
+      return {string:string, noteList:noteList};
     }
   } else {
     pos += next
@@ -1105,6 +1105,9 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
 
           } else {
             string = convertNote(string, id, elemCount, type, pos-5);
+            if (!extracting) {
+              noteList.push({buttonId:id+"-"+elemCount, innerId:id+"-"+(elemCount+1), postID:id});
+            }
             tagStack.push({tag:"innerNote", id:id+"-"+(elemCount+1)});
             tag = "button";
             pos+=2;
@@ -1166,7 +1169,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         }
       }
     }
-    return prepTextForRender(string, id, type, extracting, pos, elemCount, tagStack);
+    return prepTextForRender(string, id, type, extracting, pos, elemCount, tagStack, noteList);
   }
 }
 
@@ -1448,7 +1451,7 @@ var openFAQ = function () {
       var faqBody = document.createElement("div");
       faqBody.setAttribute('id', 'faq-body');
       faqBody.setAttribute('class', 'post reader-font');
-      faqBody.innerHTML = prepTextForRender(json.text, "~faq~");
+      faqBody.innerHTML = prepTextForRender(json.text, "~faq~").string;
       $("faq-bucket").appendChild(faqBody);
       switchPanel('~faq-panel');
       simulatePageLoad('~faq', false);
@@ -2162,7 +2165,7 @@ var setAuthorHeader = function (loc, aInfo) {
 
   // header-right
   if (aInfo.bio && aInfo.bio !== "") {
-    $("author-header-right-"+loc).innerHTML = prepTextForRender(aInfo.bio, aInfo.author+"-bio-"+loc);
+    $("author-header-right-"+loc).innerHTML = prepTextForRender(aInfo.bio, aInfo.author+"-bio-"+loc).string;
     $("author-header-right-"+loc).classList.remove('removed');
   } else {
     $("author-header-right-"+loc).classList.add('removed');
@@ -2499,7 +2502,7 @@ var renderOnePost = function (postData, type, postID) {
     collapseBtn.innerHTML = '<i class="far fa-minus-square"></i>';
     collapseBtn.title = 'collapse';
   }
-  collapseBtn.onclick = function () {collapsePost(uniqueID, postData.post_id, false);}
+
   post.appendChild(collapseBtn);
   // post header
   var postHeader = document.createElement("div");
@@ -2556,7 +2559,11 @@ var renderOnePost = function (postData, type, postID) {
   var body = document.createElement("div");
   body.setAttribute('class', 'reader-font');
   body.setAttribute('id', uniqueID+'body');
-  body.innerHTML = prepTextForRender(postData.body, uniqueID, type);
+  var preppedText = prepTextForRender(postData.body, uniqueID, type);
+  //
+  collapseBtn.onclick = function (event) {collapsePost(uniqueID, postData.post_id, false, event.shiftKey, event.ctrlKey, preppedText.noteList);}
+  //
+  body.innerHTML = preppedText.string;
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'authorAll') {
     post.classList.add('faded');
     body.classList.add('removed');
@@ -2598,7 +2605,7 @@ var renderOnePost = function (postData, type, postID) {
   var collapseBtn2 = collapseBtn.cloneNode(true);
   collapseBtn2.setAttribute('class', 'collapse-button-bottom clicky filter-focus');
   collapseBtn2.setAttribute('id', uniqueID+'-collapse-button-bottom');
-  collapseBtn2.onclick = function () {collapsePost(uniqueID, postData.post_id, true);}
+  collapseBtn2.onclick = function (event) {collapsePost(uniqueID, postData.post_id, true, event.shiftKey, event.ctrlKey, preppedText.noteList);}
   if (collapseBtn.title === 'expand') {
     collapseBtn2.classList.add("hidden")
   }
@@ -2621,7 +2628,17 @@ var clearAuthorTagButton = function () {
   fetchPosts(true, {postCode:'TFFF', author:glo.postPanelStatus.author});
 }
 
-var collapsePost = function (uniqueID, postID, isBtmBtn) {
+var collapsePost = function (uniqueID, postID, isBtmBtn, shiftDown, ctrlDown, noteList) {
+  if (shiftDown || ctrlDown) {
+    for (var i = 0; i < noteList.length; i++) {
+      if (ctrlDown) {
+        collapseNote(noteList[i].buttonId, noteList[i].innerId, true, noteList[i].postID);
+      } else {
+        collapseNote(noteList[i].buttonId, noteList[i].innerId, false, noteList[i].postID);
+      }
+    }
+    return;
+  }
   var btnElem = $(uniqueID+'-collapse-button-top');
   var btnElem2 = $(uniqueID+'-collapse-button-bottom');
   //
@@ -4445,7 +4462,7 @@ var updatePendingMessage = function (index) {
     $('pending-message').classList.remove('removed');
     $('write-message-button').innerHTML = "edit message";
     $('pending-message-status').innerHTML = "pending message:";
-    $('pending-message').innerHTML = prepTextForRender(pending, 'pending-message');
+    $('pending-message').innerHTML = prepTextForRender(pending, 'pending-message').string;
   } else {
     $('delete-message').classList.add('removed');
     $('pending-message').classList.add('removed');
@@ -4582,7 +4599,7 @@ var createMessage = function (i, j) {
     message.appendChild(dateStamp);
     var body = document.createElement("div");
     body.setAttribute('class', 'reader-font');
-    body.innerHTML = prepTextForRender(x.body, uniqueID);
+    body.innerHTML = prepTextForRender(x.body, uniqueID).string;
     message.appendChild(body);
   }
 }
