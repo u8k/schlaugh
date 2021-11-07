@@ -1106,7 +1106,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
           } else {
             string = convertNote(string, id, elemCount, type, pos-5);
             if (!extracting) {
-              noteList.push({buttonId:id+"-"+elemCount, innerId:id+"-"+(elemCount+1), postID:id});
+              noteList.push({postID:id, elemNum:elemCount,});
             }
             tagStack.push({tag:"innerNote", id:id+"-"+(elemCount+1)});
             tag = "button";
@@ -2631,10 +2631,11 @@ var clearAuthorTagButton = function () {
 var collapsePost = function (uniqueID, postID, isBtmBtn, shiftDown, ctrlDown, noteList) {
   if (shiftDown || ctrlDown) {
     for (var i = 0; i < noteList.length; i++) {
+      var ellen = noteList[i]
       if (ctrlDown) {
-        collapseNote(noteList[i].buttonId, noteList[i].innerId, true, noteList[i].postID);
+        collapseNote(ellen.postID+"-"+ellen.elemNum, ellen.postID+"-"+(ellen.elemNum+1), true, ellen.postID);
       } else {
-        collapseNote(noteList[i].buttonId, noteList[i].innerId, false, noteList[i].postID);
+        collapseNote(ellen.postID+"-"+ellen.elemNum, ellen.postID+"-"+(ellen.elemNum+1), false, ellen.postID);
       }
     }
     return;
@@ -2806,6 +2807,11 @@ var createPostFooter = function (postElem, postData, type) {
       }
       footerButtons.appendChild(deleteBtn);
     }
+    // lil notification thingy
+    var footerNotification = document.createElement("div");
+    footerNotification.setAttribute('id', postData.post_id+'_post-footer-notification');
+    footerNotification.setAttribute('class', 'post-footer-notification hidden');
+    footerButtons.appendChild(footerNotification);
   }
 }
 
@@ -3009,50 +3015,31 @@ var createBookmarkButton = function (parent, post) {
       } else {
         markArray = [post.post_id];
       }
-      if (glo.postPanelStatus.postCode === "MARK") {
-        // marking a post from the bookmarks page seems... impossible? does this need to be here? ¯\_(ツ)_/¯
-        fetchPosts(true);
-      }
     }
     // update bookmark button
-    createBookmarkButton(parent, post);
-    //
+    var newButt = createBookmarkButton(parent, post);
+    newButt.disabled = true;
+    setTimeout(function () {
+      newButt.disabled = false;
+    }, 4000);
+
+    // tell the db
     ajaxCall('/bookmarks', 'POST', {author_id:author_id, date:post.date, remove:alreadyMarked}, function(json) {
       // are we looking at the page of bookmarked posts right NOW??
-      if (alreadyMarked && glo.postPanelStatus.postCode === "MARK") {
-        var postElem = parent.parentNode.parentNode;
-        postElem.classList.add('post-wipe');
-        postElem.style.height = window.getComputedStyle(postElem).height;
-        postElem.style.boxShadow = window.getComputedStyle(postElem).boxShadow;
-        postElem.style.padding = window.getComputedStyle(postElem).padding;
-        postElem.style.marginBottom = window.getComputedStyle(postElem).marginBottom;
-        postElem.style.top = window.getComputedStyle(postElem).top;
-        postElem.style.left = window.getComputedStyle(postElem).left;
-        postElem.style.opacity = window.getComputedStyle(postElem).opacity;
-        var initScroll = window.scrollY;
-        var initHeight = postElem.offsetHeight;
-        //
-        // apparently there's some latency to setting the prop explicitly, so animation doesn't work right away, but does work after 1ms?
-        setTimeout(function () {
-          postElem.style.height = "0px";
-          postElem.style.boxShadow = "none";
-          postElem.style.marginTop = "0px";
-          postElem.style.marginBottom = "0px";
-          postElem.style.paddingTop = "0px";
-          postElem.style.paddingBottom = "0px";
-          postElem.style.top = "-100px";
-          postElem.style.left = "300px";
-          postElem.style.opacity = "0";
-          setTimeout(function () {
-            if (initScroll === window.scrollY) {  //after the post has been removed, if the scrollPos hasn't changed, then change it
-              window.scrollBy(0, -initHeight);
-            }
-          }, 100);
-        }, 1);
-
-        setTimeout(function () {
-          //postElem.classList.add('removed')
-        }, 1000);
+      if (glo.postPanelStatus.postCode === "MARK") {
+        if (alreadyMarked) {
+          var postElem = parent.parentNode.parentNode;
+          showPostFooterNotification(`unbookmarked!<br><button onclick="$('`+postElem.id+`').classList.add('removed')" class="special text-button">remove from view NOW</button>`, post.post_id);
+        } else {
+          showPostFooterNotification('re-bookmarked!', post.post_id);
+        }
+      } else {
+        var butt = `<button onclick="displayBookmarks()" class="special text-button">bookmarks</button>`
+        if (alreadyMarked) {
+          showPostFooterNotification('removed from '+butt, post.post_id);
+        } else {
+          showPostFooterNotification('added to '+butt, post.post_id);
+        }
       }
     });
   }
@@ -3063,6 +3050,21 @@ var createBookmarkButton = function (parent, post) {
   } else {
     parent.appendChild(elem);
   }
+  return elem;
+}
+
+var showPostFooterNotification = function (text, postID) {
+  $(postID+'_post-footer-notification').innerHTML = text;
+  $(postID+'_post-footer-notification').classList.add('post-footer-notification-fade');
+  $(postID+'_post-footer-notification').style.opacity="0";
+  $(postID+'_post-footer-notification').classList.remove('hidden');
+  setTimeout(function () {
+    if ($(postID+'_post-footer-notification')) {
+      $(postID+'_post-footer-notification').classList.remove('post-footer-notification-fade');
+      $(postID+'_post-footer-notification').classList.add('hidden');
+      $(postID+'_post-footer-notification').style.opacity="1";
+    }
+  }, 4000);
 }
 
 var deletePost = function (post) {
@@ -5003,6 +5005,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
   for (var i = 0; i < data.following.length; i++) {
     glo.followingRef[data.following[i]] = true;
   }
+  //
   glo.bookmarks = {};
   for (var i = 0; i < data.bookmarks.length; i++) {
     if (!glo.bookmarks[data.bookmarks[i].author_id]) {

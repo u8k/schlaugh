@@ -374,10 +374,6 @@ clicky, .clicky {
   margin-top: 24px;
 }
 
-.post-wipe {
-  transition: height .2s ease-in, padding .2s ease-in, margin .2s ease-in, box-shadow .2s ease-in, top .2s ease-in, left .2s ease-in, opacity .2s ease-in;
-}
-
 .tag-feed-option-button {
   font-size: .9em;
 }
@@ -526,6 +522,21 @@ a, a.visited {
 .date-stamp {
   font-size: 1.2em;
   text-decoration: underline;
+}
+
+.post-footer-notification {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: #000000cc;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: .95em;
+  opacity: 1;
+}
+.post-footer-notification-fade {
+  transition: opacity 2.5s ease-out;
+  transition-delay: 1.5s
 }
 
 .selective-quote-button {
