@@ -219,7 +219,7 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     sheet.insertRule("input:-webkit-autofill, .fake-input-text-color {-webkit-text-fill-color: "+colorCode+";}", sheet.cssRules.length);
     */
   } else if (type === "background") {
-    var selector = "body, h1, input, select";
+    var selector = "body, h1, input, select, .main-background";
     var attribute = "background-color";
     // this is fine in chrome but is crashing firefox????
     /*
@@ -2810,7 +2810,7 @@ var createPostFooter = function (postElem, postData, type) {
     // lil notification thingy
     var footerNotification = document.createElement("div");
     footerNotification.setAttribute('id', postData.post_id+'_post-footer-notification');
-    footerNotification.setAttribute('class', 'post-footer-notification hidden');
+    footerNotification.setAttribute('class', 'post-footer-notification main-background hidden');
     footerButtons.appendChild(footerNotification);
   }
 }
