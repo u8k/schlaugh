@@ -498,6 +498,7 @@ a, a.visited {
   display: flex;
   justify-content: space-between;
   flex-direction: row-reverse;
+  margin-bottom: 5px;
 }
 
 .post-title {

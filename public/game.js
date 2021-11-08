@@ -7,7 +7,7 @@ var gameRef = {
 
 var openSchlaunquerPanel = function (game_id, num) {
   $("panel-buttons-wrapper").classList.add("removed");
-  $('schlaunquer-exposition').innerHTML = prepTextForRender(exposition, "schlaunquer-exposition");
+  $('schlaunquer-exposition').innerHTML = prepTextForRender(exposition, "schlaunquer-exposition").string;
   switchPanel("schlaunquer-panel");
   // load menu page
   if (game_id) {loadGame(game_id, num);}
