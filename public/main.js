@@ -2502,8 +2502,30 @@ var renderOnePost = function (postData, type, postID) {
     collapseBtn.innerHTML = '<i class="far fa-minus-square"></i>';
     collapseBtn.title = 'collapse';
   }
-
   post.appendChild(collapseBtn);
+
+  var preppedText = prepTextForRender(postData.body, uniqueID, type);
+  // hexephre button
+  if (glo.username && (glo.username === "Hexephre" || glo.username === "staff")) {
+    var collapseAllBtn = document.createElement("button");
+    collapseAllBtn.setAttribute('class', '');
+    collapseAllBtn.setAttribute('id', uniqueID+'-collapse-all-button-top');
+    collapseAllBtn.innerHTML = "Hexephre's button to expand all notes in this post";
+    collapseAllBtn.title = 'expand all notes';
+    collapseAllBtn.onclick = function () {
+      if (collapseAllBtn.title === 'expand all notes') {
+        collapseAllBtn.innerHTML = "Hexephre's button to collapse all notes in this post";
+        collapseAllBtn.title = 'collapse all notes';
+        collapseAllNotesInList(preppedText.noteList, true);
+      } else {
+        collapseAllBtn.innerHTML = "Hexephre's button to expand all notes in this post";
+        collapseAllBtn.title = 'expand all notes';
+        collapseAllNotesInList(preppedText.noteList, false);
+      }
+    }
+    post.appendChild(collapseAllBtn);
+  }
+
   // post header
   var postHeader = document.createElement("div");
   post.appendChild(postHeader);
@@ -2559,11 +2581,11 @@ var renderOnePost = function (postData, type, postID) {
   var body = document.createElement("div");
   body.setAttribute('class', 'reader-font');
   body.setAttribute('id', uniqueID+'body');
-  var preppedText = prepTextForRender(postData.body, uniqueID, type);
   //
   collapseBtn.onclick = function (event) {collapsePost(uniqueID, postData.post_id, false, event.shiftKey, event.ctrlKey, preppedText.noteList);}
   //
   body.innerHTML = preppedText.string;
+  //
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'authorAll') {
     post.classList.add('faded');
     body.classList.add('removed');
@@ -2628,7 +2650,19 @@ var clearAuthorTagButton = function () {
   fetchPosts(true, {postCode:'TFFF', author:glo.postPanelStatus.author});
 }
 
+var collapseAllNotesInList = function (noteList, expand) {
+  for (var i = 0; i < noteList.length; i++) {
+    var ellen = noteList[i];
+    if (expand) {
+      collapseNote(ellen.postID+"-"+ellen.elemNum, ellen.postID+"-"+(ellen.elemNum+1), true, ellen.postID);
+    } else {
+      collapseNote(ellen.postID+"-"+ellen.elemNum, ellen.postID+"-"+(ellen.elemNum+1), false, ellen.postID);
+    }
+  }
+}
+
 var collapsePost = function (uniqueID, postID, isBtmBtn, shiftDown, ctrlDown, noteList) {
+  /*
   if (shiftDown || ctrlDown) {
     for (var i = 0; i < noteList.length; i++) {
       var ellen = noteList[i]
@@ -2640,6 +2674,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn, shiftDown, ctrlDown, no
     }
     return;
   }
+  */
   var btnElem = $(uniqueID+'-collapse-button-top');
   var btnElem2 = $(uniqueID+'-collapse-button-bottom');
   //
