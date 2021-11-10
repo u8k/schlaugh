@@ -2516,6 +2516,9 @@ var renderOnePost = function (postData, type, postID) {
     collapseAllBtn.onclick = function () {
       collapseAllNotesButton(uniqueID, preppedText.noteList);
     }
+    if (glo.collapsed && glo.collapsed[postData.post_id]) {
+      collapseAllBtn.classList.add('removed');
+    }
     post.appendChild(collapseAllBtn);
   }
 
@@ -2635,6 +2638,9 @@ var renderOnePost = function (postData, type, postID) {
     collapseAllBtn2.setAttribute('id', uniqueID+'-collapse-all-button-bot');
     collapseAllBtn2.onclick = function () {
       collapseAllNotesButton(uniqueID, preppedText.noteList);
+    }
+    if (glo.collapsed && glo.collapsed[postData.post_id]) {
+      collapseAllBtn2.classList.add('removed');
     }
     post.appendChild(collapseAllBtn2);
   }
