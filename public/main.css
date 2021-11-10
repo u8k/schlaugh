@@ -475,7 +475,7 @@ a, a.visited {
   opacity: .7;
   border: none;
   padding: 0;
-  height: 16px;
+  height: 14px;
   background-color: #ffffff00;
 }
 .collapse-button-bottom {
@@ -485,6 +485,32 @@ a, a.visited {
 .expand-button {
   margin: 2px 3px 0px;
   font-size: .94em;
+}
+
+.expand-all-bot-button, .expand-all-top-button {
+  font-size: 16px;
+  opacity: .7;
+  position: absolute;
+  border: none;
+  margin: 0;
+  padding: 0;
+  top: -2px;
+  left: 19px;
+  height: 14px;
+  background-color: #ffffff00;
+}
+.expand-all-bot-button {
+  top: unset;
+  bottom: 6px;
+}
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  .expand-all-bot-button, .expand-all-top-button {
+    font-size: 20px;
+    left: 24px;
+  }
+  .expand-all-bot-button {
+    bottom: 12px;
+  }
 }
 
 .post-header {

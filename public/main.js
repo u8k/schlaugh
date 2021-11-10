@@ -2083,7 +2083,7 @@ if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
   if (callback) {callback();}
 }
 
-var expandAllNotes = function (tog) {
+var expandAllNotes = function (tog) { // this is for all notes and cuts on an author poge, for the ~all view
   if (tog) {
     $('expand-all-notes-button').classList.add("removed");
     $('collapse-all-notes-button').classList.remove("removed");
@@ -2497,31 +2497,24 @@ var renderOnePost = function (postData, type, postID) {
   collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit' && type !== 'authorAll') {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
-    collapseBtn.title = 'expand';
+    collapseBtn.title = 'expand post';
   } else {
     collapseBtn.innerHTML = '<i class="far fa-minus-square"></i>';
-    collapseBtn.title = 'collapse';
+    collapseBtn.title = 'collapse post';
   }
   post.appendChild(collapseBtn);
 
   var preppedText = prepTextForRender(postData.body, uniqueID, type);
+
   // hexephre button
-  if (glo.username && (glo.username === "Hexephre" || glo.username === "staff")) {
+  if (preppedText.noteList && preppedText.noteList.length && preppedText.noteList.length > 0) {
     var collapseAllBtn = document.createElement("button");
-    collapseAllBtn.setAttribute('class', '');
+    collapseAllBtn.setAttribute('class', 'expand-all-top-button filter-focus');
     collapseAllBtn.setAttribute('id', uniqueID+'-collapse-all-button-top');
-    collapseAllBtn.innerHTML = "Hexephre's button to expand all notes in this post";
-    collapseAllBtn.title = 'expand all notes';
+    collapseAllBtn.innerHTML = '<i class="far fa-plus-square"></i>';
+    collapseAllBtn.title = 'expand all notes in post';
     collapseAllBtn.onclick = function () {
-      if (collapseAllBtn.title === 'expand all notes') {
-        collapseAllBtn.innerHTML = "Hexephre's button to collapse all notes in this post";
-        collapseAllBtn.title = 'collapse all notes';
-        collapseAllNotesInList(preppedText.noteList, true);
-      } else {
-        collapseAllBtn.innerHTML = "Hexephre's button to expand all notes in this post";
-        collapseAllBtn.title = 'expand all notes';
-        collapseAllNotesInList(preppedText.noteList, false);
-      }
+      collapseAllNotesButton(uniqueID, preppedText.noteList);
     }
     post.appendChild(collapseAllBtn);
   }
@@ -2577,12 +2570,13 @@ var renderOnePost = function (postData, type, postID) {
     // click handler goes here if we want that
     postHeader.appendChild(title);
   }
+
   // actual post body
   var body = document.createElement("div");
   body.setAttribute('class', 'reader-font');
   body.setAttribute('id', uniqueID+'body');
   //
-  collapseBtn.onclick = function (event) {collapsePost(uniqueID, postData.post_id, false, event.shiftKey, event.ctrlKey, preppedText.noteList);}
+  collapseBtn.onclick = function (event) {collapsePost(uniqueID, postData.post_id, false);}
   //
   body.innerHTML = preppedText.string;
   //
@@ -2607,6 +2601,7 @@ var renderOnePost = function (postData, type, postID) {
     }
   }
   post.appendChild(body);
+
   // tags
   var authorOption = null;
   var datedOption = null;
@@ -2625,15 +2620,44 @@ var renderOnePost = function (postData, type, postID) {
 
   // bot post collapse button
   var collapseBtn2 = collapseBtn.cloneNode(true);
-  collapseBtn2.setAttribute('class', 'collapse-button-bottom clicky filter-focus');
+  collapseBtn2.setAttribute('class', 'collapse-button-bottom filter-focus');
   collapseBtn2.setAttribute('id', uniqueID+'-collapse-button-bottom');
-  collapseBtn2.onclick = function (event) {collapsePost(uniqueID, postData.post_id, true, event.shiftKey, event.ctrlKey, preppedText.noteList);}
+  collapseBtn2.onclick = function (event) {collapsePost(uniqueID, postData.post_id, true);}
   if (collapseBtn.title === 'expand') {
     collapseBtn2.classList.add("hidden")
   }
   post.appendChild(collapseBtn2);
+
+  // bot hexephre button
+  if (preppedText.noteList && preppedText.noteList.length && preppedText.noteList.length > 0) {
+    var collapseAllBtn2 = collapseAllBtn.cloneNode(true);
+    collapseAllBtn2.setAttribute('class', 'expand-all-bot-button filter-focus');
+    collapseAllBtn2.setAttribute('id', uniqueID+'-collapse-all-button-bot');
+    collapseAllBtn2.onclick = function () {
+      collapseAllNotesButton(uniqueID, preppedText.noteList);
+    }
+    post.appendChild(collapseAllBtn2);
+  }
   //
   return post;
+}
+
+var collapseAllNotesButton = function (uniqueID, noteList) {
+  var topBttn = $(uniqueID+'-collapse-all-button-top');
+  var botBttn = $(uniqueID+'-collapse-all-button-bot');
+  if (topBttn.title === 'expand all notes in post') {
+    collapseAllNotesInList(noteList, true);
+    topBttn.innerHTML = '<i class="far fa-minus-square"></i>';
+    topBttn.title = 'collapse all notes in post';
+    botBttn.innerHTML = '<i class="far fa-minus-square"></i>';
+    botBttn.title = 'collapse all notes in post';
+  } else {
+    collapseAllNotesInList(noteList, false);
+    topBttn.innerHTML = '<i class="far fa-plus-square"></i>';
+    topBttn.title = 'expand all notes in post';
+    botBttn.innerHTML = '<i class="far fa-plus-square"></i>';
+    botBttn.title = 'expand all notes in post';
+  }
 }
 
 var allDaysButton = function () {
@@ -2661,32 +2685,23 @@ var collapseAllNotesInList = function (noteList, expand) {
   }
 }
 
-var collapsePost = function (uniqueID, postID, isBtmBtn, shiftDown, ctrlDown, noteList) {
-  /*
-  if (shiftDown || ctrlDown) {
-    for (var i = 0; i < noteList.length; i++) {
-      var ellen = noteList[i]
-      if (ctrlDown) {
-        collapseNote(ellen.postID+"-"+ellen.elemNum, ellen.postID+"-"+(ellen.elemNum+1), true, ellen.postID);
-      } else {
-        collapseNote(ellen.postID+"-"+ellen.elemNum, ellen.postID+"-"+(ellen.elemNum+1), false, ellen.postID);
-      }
-    }
-    return;
-  }
-  */
+var collapsePost = function (uniqueID, postID, isBtmBtn) {
   var btnElem = $(uniqueID+'-collapse-button-top');
   var btnElem2 = $(uniqueID+'-collapse-button-bottom');
   //
-  if (btnElem.title === 'expand') {                   // expand the post
+  if (btnElem.title === 'expand post') {                   // expand the post
     $(uniqueID).classList.remove('faded');
     $(uniqueID+'body').classList.remove('removed');
     if ($(postID+"_post-footer-right")) {
       $(postID+"_post-footer-right").classList.remove('removed');
     }
-    btnElem.title = 'collapse';
+    //
+    $(uniqueID+'-collapse-all-button-top').classList.remove('removed');
+    $(uniqueID+'-collapse-all-button-bot').classList.remove('removed');
+    //
+    btnElem.title = 'collapse post';
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
-    btnElem2.title = 'collapse';
+    btnElem2.title = 'collapse post';
     btnElem2.innerHTML = '<i class="far fa-minus-square"></i>';
     btnElem2.classList.remove("hidden");
     var collapse = false;
@@ -2697,7 +2712,11 @@ var collapsePost = function (uniqueID, postID, isBtmBtn, shiftDown, ctrlDown, no
     if ($(postID+"_post-footer-right")) {
       $(postID+"_post-footer-right").classList.add('removed');
     }
-    btnElem.title = 'expand';
+    //
+    $(uniqueID+'-collapse-all-button-top').classList.add('removed');
+    $(uniqueID+'-collapse-all-button-bot').classList.add('removed');
+    //
+    btnElem.title = 'expand post';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
     btnElem2.classList.add('hidden');
     //
