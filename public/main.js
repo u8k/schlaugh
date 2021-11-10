@@ -2696,8 +2696,10 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
       $(postID+"_post-footer-right").classList.remove('removed');
     }
     //
-    $(uniqueID+'-collapse-all-button-top').classList.remove('removed');
-    $(uniqueID+'-collapse-all-button-bot').classList.remove('removed');
+    if ($(uniqueID+'-collapse-all-button-top')) {
+      $(uniqueID+'-collapse-all-button-top').classList.remove('removed');
+      $(uniqueID+'-collapse-all-button-bot').classList.remove('removed');
+    }
     //
     btnElem.title = 'collapse post';
     btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
@@ -2713,8 +2715,10 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
       $(postID+"_post-footer-right").classList.add('removed');
     }
     //
-    $(uniqueID+'-collapse-all-button-top').classList.add('removed');
-    $(uniqueID+'-collapse-all-button-bot').classList.add('removed');
+    if ($(uniqueID+'-collapse-all-button-top')) {
+      $(uniqueID+'-collapse-all-button-top').classList.add('removed');
+      $(uniqueID+'-collapse-all-button-bot').classList.add('removed');
+    }
     //
     btnElem.title = 'expand post';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
