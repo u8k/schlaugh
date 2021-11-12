@@ -2637,7 +2637,7 @@ var renderOnePost = function (postData, type, postID) {
     collapseAllBtn2.setAttribute('class', 'expand-all-bot-button filter-focus');
     collapseAllBtn2.setAttribute('id', uniqueID+'-collapse-all-button-bot');
     collapseAllBtn2.onclick = function () {
-      collapseAllNotesButton(uniqueID, preppedText.noteList);
+      collapseAllNotesButton(uniqueID, preppedText.noteList, true);
     }
     if (glo.collapsed && glo.collapsed[postData.post_id]) {
       collapseAllBtn2.classList.add('removed');
@@ -2648,17 +2648,17 @@ var renderOnePost = function (postData, type, postID) {
   return post;
 }
 
-var collapseAllNotesButton = function (uniqueID, noteList) {
+var collapseAllNotesButton = function (uniqueID, noteList, btmBtn) {
   var topBttn = $(uniqueID+'-collapse-all-button-top');
   var botBttn = $(uniqueID+'-collapse-all-button-bot');
   if (topBttn.title === 'expand all notes in post') {
-    collapseAllNotesInList(noteList, true);
+    collapseAllNotesInList(noteList, true, btmBtn);
     topBttn.innerHTML = '<i class="far fa-minus-square"></i>';
     topBttn.title = 'collapse all notes in post';
     botBttn.innerHTML = '<i class="far fa-minus-square"></i>';
     botBttn.title = 'collapse all notes in post';
   } else {
-    collapseAllNotesInList(noteList, false);
+    collapseAllNotesInList(noteList, false, btmBtn);
     topBttn.innerHTML = '<i class="far fa-plus-square"></i>';
     topBttn.title = 'expand all notes in post';
     botBttn.innerHTML = '<i class="far fa-plus-square"></i>';
@@ -2680,7 +2680,13 @@ var clearAuthorTagButton = function () {
   fetchPosts(true, {postCode:'TFFF', author:glo.postPanelStatus.author});
 }
 
-var collapseAllNotesInList = function (noteList, expand) {
+var collapseAllNotesInList = function (noteList, expand, btmBtn) {
+  // assumes that all notes in list are in one post
+  if (btmBtn) {
+    var initScroll = window.scrollY;
+    var initHeight = $(noteList[0].postID).offsetHeight;
+  }
+  //
   for (var i = 0; i < noteList.length; i++) {
     var ellen = noteList[i];
     if (expand) {
@@ -2688,6 +2694,9 @@ var collapseAllNotesInList = function (noteList, expand) {
     } else {
       collapseNote(ellen.postID+"-"+ellen.elemNum, ellen.postID+"-"+(ellen.elemNum+1), false, ellen.postID);
     }
+  }
+  if (btmBtn && initScroll === window.scrollY) {
+    window.scrollBy(0, $(noteList[0].postID).offsetHeight - initHeight);
   }
 }
 

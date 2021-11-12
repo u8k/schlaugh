@@ -469,7 +469,7 @@ a, a.visited {
 
 .collapse-button-top, .collapse-button-bottom {
   position: absolute;
-  left: 4px;
+  left: 3px;
   top: -2px;
   font-size: 16px;
   opacity: .7;
@@ -480,7 +480,7 @@ a, a.visited {
 }
 .collapse-button-bottom {
   top: auto;
-  bottom: 4px;
+  bottom: 5px;
 }
 .expand-button {
   margin: 2px 3px 0px;
@@ -495,18 +495,21 @@ a, a.visited {
   margin: 0;
   padding: 0;
   top: -2px;
-  left: 19px;
+  left: 18px;
   height: 14px;
   background-color: #ffffff00;
 }
 .expand-all-bot-button {
   top: unset;
-  bottom: 6px;
+  bottom: 7px;
 }
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
   .expand-all-bot-button, .expand-all-top-button {
     font-size: 20px;
-    left: 24px;
+    left: 23px;
+  }
+  .expand-all-top-button {
+    top: -4px;
   }
   .expand-all-bot-button {
     bottom: 12px;
@@ -675,6 +678,7 @@ button, .button {
   button, .button, input, color-button, select, .footer-button {font-size: 1.2em;}
   .author-button {width: 140px;}
   .collapse-button-top, .collapse-button-bottom {font-size: 20px;}
+  .collapse-button-top {top: -4px;}
   .collapse-button-bottom {bottom: 10px;}
   .color-button {width: 75px; height: 28px;}
   .footer-button {height: 29px;}
