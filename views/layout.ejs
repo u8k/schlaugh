@@ -52,9 +52,7 @@
       <text id="schlaupdate-timer"><%= hoursRemaining %></text> <a href="javascript:void(0);" onclick="schlaupdateExplain()" class="special clicky">(?)</a>
       <br>
       <div id="footer-footer">
-        <a href="/~" class="clicky special footer-text" onclick="modKeyCheck(event, function () {switchPanel('~about-panel'); simulatePageLoad('~', false);});">about</a>
-        •
-        <a href="/~faq" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openFAQ();});">faq</a>
+        <a href="/~" class="clicky special footer-text" onclick="modKeyCheck(event, function () {switchPanel('meta-panel'); simulatePageLoad('~', false);});">about</a>
         •
         <a href="/~click" class="clicky special footer-text" onclick="modKeyCheck(event, function () {openClickerGame();});">click</a>
         •
@@ -98,17 +96,15 @@
             initSchlaugh(input.user, function () {switchPanel("posts-panel")});
           } else {
             simulatePageLoad();
-            switchPanel("login-panel");
+            switchPanel("meta-panel");
           }
         }
       } else if (input.panel) {
-        if (!input.user && (input.panel !== "about" && input.panel !== "faq" && input.panel !== "clicker" && input.panel !== "schlaunquer")) {
+        if (!input.user && (input.panel !== "about" && input.panel !== "clicker" && input.panel !== "schlaunquer")) {
           simulatePageLoad();
-          switchPanel("login-panel");
-        } else if (input.panel === "about") {
-          initSchlaugh(input.user, function () {switchPanel("~about-panel")});
-        } else if (input.panel === "faq") {
-          initSchlaugh(input.user, function () {openFAQ();});
+          switchPanel("meta-panel");
+        } else if (input.panel === "meta") {
+          initSchlaugh(input.user, function () {switchPanel("meta-panel")});
         } else if (input.panel === "clicker") {
           initSchlaugh(input.user, function () {openClickerGame();});
         } else if (input.panel === "schlaunquer") {
@@ -127,7 +123,7 @@
           initSchlaugh(input.user, function () {switchPanel("posts-panel")});
         } else {
           simulatePageLoad();
-          switchPanel("login-panel");
+          switchPanel("meta-panel");
         }
       }
     })(<%- JSON.stringify(initProps) %>)

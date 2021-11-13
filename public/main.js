@@ -578,7 +578,7 @@ var passPrompt = function (options) {
 
 var orSchlaughUp = function (e) {
   e.preventDefault();
-  switchPanel("login-panel");
+  switchPanel("meta-panel");
   passPrompt(false);
   chooseInOrUp(true);
   simulatePageLoad();
@@ -1435,29 +1435,16 @@ var backToMain = function (event) {
       fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
       $("panel-buttons-wrapper").classList.remove("removed");
     } else {
-      switchPanel('login-panel');
+      switchPanel('meta-panel');
       simulatePageLoad();
     }
   });
 }
 
-var openFAQ = function () {
-  if ($('faq-body')) {
-    switchPanel('~faq-panel');
-    simulatePageLoad('~faq', false);
-  } else {
-    loading();
-    ajaxCall('/~faqText', 'GET', {}, function(json) {
-      var faqBody = document.createElement("div");
-      faqBody.setAttribute('id', 'faq-body');
-      faqBody.setAttribute('class', 'post reader-font');
-      faqBody.innerHTML = prepTextForRender(json.text, "~faq~").string;
-      $("faq-bucket").appendChild(faqBody);
-      switchPanel('~faq-panel');
-      simulatePageLoad('~faq', false);
-      loading(true);
-    });
-  }
+var renderFAQ = function () {
+  var faqText = `<quote>how do I pronounce schlaugh?<br></quote><br>please, do not pronounce schlaugh<br><br><br><quote>i'm new here, how do i find people?<br></quote><br>the best way is word of mouth<br><br>if you are here, it's because someone asked you to come. So start by following them. And maybe you see them interacting with people? And apparently they like this place enough to tell you about it, so try asking them who they recommend following<br><br><br><quote>but there's a tag system? does that help me find people? what is milkshake?!?!<br></quote><br>correct. You can tag a post, and then anyone on schlaugh can see it if they search for that tag. And you can search to see all previous posts with tag X<br><br>the <a href="https://www.schlaugh.com/~tagged/milkshake">milkshake</a> tag serves as a site-wide, schellingPoint tag<br><br>new users are, by default, tracking the tag for their <code>@[username]</code> and <code>milkshake</code>. But you can unfollow those tags if you'd prefer<br><br><br><quote>couldn't the site recommend me people? or just show me everyone? wouldn't that be easier?<br></quote><br>It could! It would! But considering that the rest of the internet is already firehosing you in the face with infinite content, I thought it might be neat if there was one place that didn't.<br><br>I'd rather err on the side of you seeing less content than you want, rather than more. It is intentionally a bit difficult to find people/content on here. It makes what you do find more valuable.<br><br>maximizing the time you spend on schlaugh is not the objective<br><br><br><quote>well then what is the objective?<br></quote><br>to incentivize you to write the writing that is most valuable for you to write and to read the writing that is most valuable for you to read<br><br><br><quote>how do i see who is following me?<br></quote><br>you cant!<br><br><br><quote>...why not?<br></quote><br>Suppose you could. Someone could click follow, but then never actually read your posts. Or someone could be not following you, but still check your page every day. Whether someone is following you or not is a bad proxy for who is paying attention to you. You can get a better sense of that from who you regularly interact with.<br><br>Schlaugh is not in the "inflate your self esteem with numbers" game, nor the "give you metrics to compare yourself to others" business. If you want to obsessively keep your own scorecard of all your interactions and generate statistics to make yourself feel bad, that's on you pal.<br><br><br><quote>how do you pronounce schlaugh?<br></quote><br>like you are saying the name of fearsome dark wizard<br><br><br><quote>how do I reply to people?<br></quote><br>there is no "reply" feature on schlaugh.<br><br>There is the "quote" format tag, but it's just a format tag. Quoting text you found on schlaugh is not privileged in any way above quoting text you found anywhere else. You can of course respond to anything you want to, but when you quote a schlaugh post, there is no notification sent to the author.<br><br>When you click the quote button on schlaugh post, the tag for that author is added to your post. But you're under no obligation to leave that tag on your post. And no one is under any obligation to check their own tag to see if people are responding to them.<br><br><br><quote>so if someone is talking about me on schlaugh, i might not know about it?<br></quote><br>exactly! you don't even need an account for this feature! people can talk about you on schlaugh even if you've never heard of schlaugh! what people you don't know are saying about you on the internet is none of your business.<br><br><br><quote>with such limited feedback, why would i even want to post anything here?<br></quote><br>For yourself. And your friends.<br><br>Putting your thoughts in writing is worthwhile even if no one else ever reads it. And friendship via reading each other's thoughts is lovely.<br><br>Performative writing for large amorphous groups of strangers can also be valuable. There are other places on the internet for you to do that.<br><br><br><quote>i have a question that isn't answered here<br></quote><br><i>please</i> contact the <a href="https://www.schlaugh.com/staff">official schlaugh staff account</a> either via private message or tagging a post with <code>schlaugh</code> or <code>staff</code>. Bug reports, feature requests, complaints, cool snake pictures, scathing personal criticisms, etc, are also all very much encouraged.<br><br><br><quote>k but the word schlaugh how do i say it<br></quote><br>remember when you were a small child and adults actively avoided using "big" words when speaking to you but you were reading well above your grade level so it was nearly always the case that your first encounter with new words was through reading and maybe you would stop to try to say it out loud or ask an adult but the thing about reading is that you do not at all need to know how the words sound, you can go straight from symbols on the page to meaning in your head, so there were many words that you knew well but had never heard until years later when you wanted to use it in conversation and only then realized you had no idea how to pronounce it?<br><br>schlaugh is a quiet place for reading and writing<br>there is no need to talk<br><br>`
+
+  $('faq').innerHTML = prepTextForRender(faqText, "faq").string;
 }
 
 var modKeyCheck = function (event, callback) {
@@ -1481,6 +1468,17 @@ var panelButtonClick = function (event, type) {
 }
 
 var switchPanel = function (panelName, noPanelButtonHighlight) {
+  if (panelName === "meta-panel") {
+    $("panel-buttons-wrapper").classList.add("removed");
+    $("sign-in").classList.add('removed');
+    if (!glo.isFaqRendered) {
+      renderFAQ();
+      glo.isFaqRendered = true;
+    }
+    if (glo.username) {
+      $('login-section').classList.add('removed')
+    }
+  }
   // de-highlight panel button
   if (glo.openPanel && $(glo.openPanel+"-button")) {
     $(glo.openPanel+"-button").classList.remove('panel-button-selected');
@@ -1508,7 +1506,7 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
     $(glo.openPanel).classList.add('removed');
   }
   // remove header/user stuff in special cases
-  if (panelName === "login-panel" || panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
+  if (panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
     $("footer-footer").classList.add("removed");
     $("sign-in").classList.add('removed');
     $("username-recovery").value = "";
@@ -4898,18 +4896,32 @@ var chooseInOrUp = function (up) {
   if (up === true) {
     $('up').classList.remove('removed');
     setCursorPosition($("name-input"), 0, $("name-input").value.length);
-  }
-  else {
+  } else {
     $('in').classList.remove('removed');
     setCursorPosition($("in-name-input"), 0, $("in-name-input").value.length);
   }
   $('inOrUp').classList.add('removed');
+  $('about-section').classList.add('removed');
+  $('faq-section').classList.add('removed');
 }
 
 var backToLogInMenu = function () {
   $('up').classList.add('removed');
   $('in').classList.add('removed');
+  $('about-section').classList.remove('removed');
+  $('faq-section').classList.remove('removed');
   $('inOrUp').classList.remove('removed');
+}
+
+var scrollToAboutSection = function () {
+  var stepSize = 2;
+  var steps = Math.floor((window.innerHeight*.85)/stepSize);
+  var timeTweenSteps = 2;
+  for (var i = 0; i < steps; i++) {
+    setTimeout(function () {
+      window.scrollBy(0, stepSize);
+    }, i*timeTweenSteps);
+  }
 }
 
 var makeKeys = function (pass, callback) {
@@ -5013,6 +5025,8 @@ var signIn = function (url, data, callback) {
   }
   loading();
   ajaxCall(url, 'POST', data, function(json) {
+    $('about-section').classList.remove('removed');
+    $('faq-section').classList.remove('removed');
     // clear out any fetched author data so that we can reFetch it for messaging permissions
     var fetchedAuthors = _npa(['glo','pRef','author']);
     if (fetchedAuthors) {

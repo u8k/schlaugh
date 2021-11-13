@@ -763,25 +763,6 @@ body, h1, input, select, .main-background {
   text-overflow: ellipsis;
 }
 
-slogan {
-  margin-top: 9vh;
-  display: block;
-  font-style: italic;
-  font-size: 2.8em;
-}
-
-#inOrUp {
-  margin-top: 8vh;
-}
-
-#in {
-  margin-top: 8vh;
-}
-
-#up {
-  margin-top: 5vh;
-}
-
 #lost-panel {
   text-align: center;
   max-width: 830px;
@@ -789,10 +770,35 @@ slogan {
 }
 #lost-pass {font-size: .9em}
 
-#about-text {
+slogan {
+  padding-top: 15vh;
+  padding-bottom: 10vh;
+  display: block;
+  font-style: italic;
+  font-size: 2.8em;
+}
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  slogan {
+    padding-top: 5vh;
+    padding-bottom: 5vh;
+  }
+}
+
+#login-section {
+  height: 84vh;
+}
+#about-section {
+  margin-top: 16vh;
+  margin-bottom: 25vh;
   text-align: center;
   font-size: 1.45em;
   font-family: "LORA", "GEORGIA", serif;
+}
+@media screen and (max-width: 500px) , screen and (max-height: 500px) {
+  #about-section {
+    font-size: 1.2em;
+    margin-bottom: 15vh;
+  }
 }
 
 .following-listing {
@@ -948,6 +954,12 @@ slogan {
   -moz-user-select: text;
   -ms-user-select: text;
   user-select: text;
+}
+
+.meta-panel-button {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 12px;
 }
 
 quote {

@@ -272,63 +272,61 @@
   </div>
 </div>
 
-<div id="login-panel" class="removed">
+<div id="meta-panel" class="removed">
+  <div id="login-section">
+    <slogan>have you schlaughed today?</slogan>
+    <div id="inOrUp">
+      <button onclick="chooseInOrUp(false)">schlaugh in</button>
+      <h4>or</h4>
+      <button onclick="chooseInOrUp(true)">schlaugh up</button>
+      <br><br><br>
+      <button class="text-button special meta-panel-button" onclick="scrollToAboutSection();">schlaugh what?</button>
+      </div>
 
-  <slogan>have you schlaughed today?</slogan>
+      <div id="up" class="removed">
+        <h2>account creation</h2>
+        <br>
+        <form action="javascript:void(0);" onSubmit="signUp();">
+          <input class="login-input" id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
+          <br>
+          <input class="login-input" id="email-input" type="text" name="email" autocomplete="email" placeholder="(optional) email address">
+          <br>
+          <input class="login-input" id="pass-input" type="password" name="password" autocomplete="new-password" placeholder="password">
+          <br>
+          <input class="login-input" id="pass-input-two" type="password" name="password" autocomplete="new-password" placeholder="password">
+          <br>
+          <icon><i onclick="optionalEmailExplain()" class="far fa-question-circle optional-email-splain clicky"></i></icon>
+          <icon id="eye2" class="far fa-eye clicky eye-on-main" onclick="showPassword(true, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
+          <icon id="eye2c" class="far fa-eye-slash clicky removed eye-on-main" onclick="showPassword(false, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
+          <br>
+          <button type="submit" class="change-pass-button-bump">schlaugh up</button>
+        </form>
+        <br>
+        <button class="text-button special meta-panel-button" onclick="backToLogInMenu();">back</button>
+      </div>
 
-  <div id="inOrUp">
-    <button onclick="chooseInOrUp(false)">schlaugh in</button>
-    <h4>or</h4>
-    <button onclick="chooseInOrUp(true)">schlaugh up</button>
-    <br><br><br>
-    <h2><a class="clicky special" href="javascript:void(0);" onclick="switchPanel('~about-panel');simulatePageLoad('~', false);">schlaugh what?<a></h2>
+      <div id="in" class="removed">
+        <h2>user login</h2>
+        <br>
+        <form action="javascript:void(0);" onSubmit="login();">
+          <input class="login-input" id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
+          <br>
+          <input class="login-input" id="in-pass-input" type="password" name="password" autocomplete=“current-password” placeholder="password">
+          <br>
+          <icon id="eye1" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye1', ['in-pass-input'])"></icon>
+          <icon id="eye1c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye1', ['in-pass-input'])"></icon>
+          <br>
+          <button type="submit" class="change-pass-button-bump">schlaugh in</button>
+          <br><br>
+          <clicky id="lost-pass" onclick="switchPanel('lost-panel')">lost password?</clicky>
+        </form>
+        <br>
+        <button class="text-button special meta-panel-button" onclick="backToLogInMenu();">back</button>
+      </div>
+
   </div>
 
-  <div id="up" class="removed">
-    <h2>account creation</h2>
-    <br>
-    <form action="javascript:void(0);" onSubmit="signUp();">
-      <input class="login-input" id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
-      <br>
-      <input class="login-input" id="email-input" type="text" name="email" autocomplete="email" placeholder="(optional) email address">
-      <br>
-      <input class="login-input" id="pass-input" type="password" name="password" autocomplete="new-password" placeholder="password">
-      <br>
-      <input class="login-input" id="pass-input-two" type="password" name="password" autocomplete="new-password" placeholder="password">
-      <br>
-      <icon><i onclick="optionalEmailExplain()" class="far fa-question-circle optional-email-splain clicky"></i></icon>
-      <icon id="eye2" class="far fa-eye clicky eye-on-main" onclick="showPassword(true, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
-      <icon id="eye2c" class="far fa-eye-slash clicky removed eye-on-main" onclick="showPassword(false, 'eye2', ['pass-input', 'pass-input-two'])"></icon>
-      <br>
-      <button type="submit" class="change-pass-button-bump">schlaugh up</button>
-    </form>
-    <br>
-    <h2 class="clicky special" onclick="backToLogInMenu();">back</h2>
-  </div>
-
-  <div id="in" class="removed">
-    <h2>user login</h2>
-    <br>
-    <form action="javascript:void(0);" onSubmit="login();">
-      <input class="login-input" id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
-      <br>
-      <input class="login-input" id="in-pass-input" type="password" name="password" autocomplete=“current-password” placeholder="password">
-      <br>
-      <icon id="eye1" class="far fa-eye clicky eye" onclick="showPassword(true, 'eye1', ['in-pass-input'])"></icon>
-      <icon id="eye1c" class="far fa-eye-slash clicky removed eye" onclick="showPassword(false, 'eye1', ['in-pass-input'])"></icon>
-      <br>
-      <button type="submit" class="change-pass-button-bump">schlaugh in</button>
-      <br><br>
-      <clicky id="lost-pass" onclick="switchPanel('lost-panel')">lost password?</clicky>
-    </form>
-    <br>
-    <h2 class="clicky special" onclick="backToLogInMenu();">back</h2>
-  </div>
-
-</div>
-
-<div id="~about-panel" class="removed">
-  <div id="about-text"><br><br>
+  <div id="about-section">
     schlaugh&nbspis&nbspa&nbspquiet&nbspplace for reading&nbspand&nbspwriting
     <br><br>
     schlaugh&nbsponly&nbspupdates once&nbspa&nbspday<br>
@@ -341,23 +339,16 @@
     there&nbspis&nbspno&nbsprush<br><br>
     <3
   </div>
-  <br>
-  <h2>
-  <a href="/~faq" class="clicky special" onclick="modKeyCheck(event, function () {openFAQ();});">faq</a>
-  </h2>
-  <br>
-  <h2>
-  <a href="/" class="clicky special" onclick="backToMain(event);">back</a>
-  </h2>
+
+  <div id="faq-section">
+    <div class="post"><text class="post-title">FAQ</text>
+      <div id="faq" class="reader-font"></div>
+    </div>
+
+    <h2><a href="/" class="special clicky" onclick="backToMain(event);">back</a></h2>
+  </div>
 </div>
 
-<div id="~faq-panel" class="removed">
-  <h2>faq</h2>
-  <div id="faq-bucket"></div>
-  <h2>
-  <a href="/" class="clicky" onclick="backToMain(event);">back</a>
-  </h2>
-</div>
 
 <div id="o-panel" class="removed">
 </div>
@@ -431,7 +422,7 @@
     <button id="submit-password-reset" type="submit" onclick="submitRecoveryName()">submit</button>
   </form>
   <div id="pass-reset-success" class="removed">
-    <text>your password has been successfully reset<br><br><clicky onclick="switchPanel('login-panel');simulatePageLoad();" class="special">please log in here</clicky></text>
+    <text>your password has been successfully reset<br><br><clicky onclick="switchPanel('meta-panel');simulatePageLoad();" class="special">please log in here</clicky></text>
     <br><br>
   </div>
   <br><br>
@@ -453,7 +444,7 @@
 
   <text class="clicker removed" id="post-click">you have clicked<br>you may click again tomorrow</text>
   <text class="clicker" id="cant-click">you have already clicked today, you may click again tomorrow</text>
-  <text class="clicker" id="must-sign-in">you must be <a onclick="passPromptSubmit()" class="clicky">signed in</a> to click</text>
+  <text class="clicker" id="must-sign-in">you must be <button onclick="passPromptSubmit()" class="special text-button">signed in</button> to click</text>
 </div>
 
 <div id="schlaunquer-panel" class="removed">
