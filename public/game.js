@@ -223,6 +223,7 @@ var setUpGameBoards = function (json, num) {
   //
   gameRef.players = json.players;
   gameRef.dates = json.dates;
+  gameRef.scores = {};
   var dayCount = 0;
   destroyAllChildrenOfElement($('board-bucket'));
   var latestDate = "0";
@@ -306,6 +307,27 @@ var createBoard = function (dayCount, i, date, initBoard) {
     changeBoardRound(false, date);
   }
   renderTiles(animationDelay, date);
+
+  // tally score for each day
+  var map = gameRef.dates[date];
+  var ref = {};
+  for (var spot in map) {if (map.hasOwnProperty(spot)) {
+    if (ref[map[spot].color]) {
+      ref[map[spot].color].units += map[spot].score;
+      ref[map[spot].color].tiles++;
+    } else {
+      ref[map[spot].color] = {
+        player: gameRef.players[map[spot].ownerID].username,
+        units: map[spot].score,
+        tiles: 1,
+      }
+    }
+  }}
+
+  gameRef.scores[date] = [];
+  for (var player in ref) { if (ref.hasOwnProperty(player)) {
+    gameRef.scores[date].push(ref[player])
+  }}
 }
 
 var renderTiles = function (delay, date) {
@@ -438,6 +460,9 @@ var renderTiles = function (delay, date) {
       return; // do nothing, the preview board is not applicable to the viewer
     }
   }
+
+  //
+
   if (!delay) {delay = 0;}
   var oldTiles = getRange([0,0], gameRef.radius);
   var tiles = [];
@@ -738,6 +763,44 @@ var highlightTile = function (coord, date) {
   tile.parentElement.appendChild(tile);
 }
 
+var updateScoreBoard = function (date) {
+  destroyAllChildrenOfElement($('schlaunquer-score-board'));
+
+  if (!gameRef.scores[date] || !gameRef.scores[date].length) { return; }
+
+  gameRef.scores[date].sort(function(a, b) {
+    return b.units - a.units;
+  });
+
+  var headRow = document.createElement('tr');
+  var arr = ['name', 'total units', 'tiles occupied'];
+  for (var i = 0; i < arr.length; i++) {
+    var header = document.createElement('th');
+    header.innerHTML = arr[i];
+    headRow.appendChild(header);
+  }
+  $('schlaunquer-score-board').appendChild(headRow);
+
+  for (var i = 0; i < gameRef.scores[date].length; i++) {
+    var row = document.createElement("tr");
+
+    var cell1 = document.createElement('td');
+    cell1.innerHTML = gameRef.scores[date][i].player;
+    row.appendChild(cell1);
+
+    var cell2 = document.createElement('td');
+    cell2.innerHTML = gameRef.scores[date][i].units;
+    row.appendChild(cell2);
+
+    var cell3 = document.createElement('td');
+    cell3.innerHTML = gameRef.scores[date][i].tiles;
+    row.appendChild(cell3);
+
+
+    $('schlaunquer-score-board').appendChild(row);
+  }
+}
+
 var changeBoardRound = function (offset, date) {
   if (offset !== false) {
     var newDate = calcDateByOffest(gameRef.currentBoardDate, offset);
@@ -793,6 +856,8 @@ var changeBoardRound = function (offset, date) {
     gameRef.currentBoardDate = newDate;
     $(gameRef.currentBoardDate+"-board").classList.remove('removed');
   }
+
+  updateScoreBoard(newDate);
 
   // forfeiture notification
   if (gameRef.forfeitures && gameRef.forfeitures[newDate]) {

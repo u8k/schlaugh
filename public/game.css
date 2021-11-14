@@ -118,6 +118,19 @@ polygon {
   font-size: 1.4em;
 }
 
+table {
+  border-collapse: collapse;
+  width: 300px;
+  margin: auto;
+  margin-bottom: 10px;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
 #schlaunquer-reminder {
   margin: auto;
   margin-top: 9px;
