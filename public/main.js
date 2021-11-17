@@ -3433,7 +3433,9 @@ var getTagString = function (tagObj) {
 }
 
 var removeElement = function (elem) {
-  elem.parentNode.removeChild(elem);
+  if (elem && elem.parentNode) {
+    elem.parentNode.removeChild(elem);
+  }
 }
 
 var destroyAllChildrenOfElement = function (elem) {

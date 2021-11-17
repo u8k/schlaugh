@@ -339,8 +339,6 @@ var getPayload = function (req, res, callback) {
         var tmrw = pool.getCurDate(-1);
         // check if user needs keys
         if (!user.keys) {return res.send({needKeys:true});}
-        var bio = user.bio;
-        if (typeof bio !== 'string') {bio = "";}
         if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
         if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = [];}
         if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
@@ -348,10 +346,8 @@ var getPayload = function (req, res, callback) {
           keys: user.keys,
           username: user.username,
           userID: req.session.user._id,
-          userPic: getUserPic(user),
           settings: user.settings,
           following: user.following,
-          bio: bio,
           bookmarks: user.bookmarks,
           collapsed: user.collapsed,
           savedTags: user.savedTags,
@@ -374,6 +370,11 @@ var getPayload = function (req, res, callback) {
           } else {
             payload.pendingUpdates = {};
           }
+          // bio/userPic need to be filled in AFTER we check for updates
+          payload.userPic = getUserPic(user);
+          payload.bio = user.bio;
+          if (typeof payload.bio !== 'string') {payload.bio = "";}
+
           //inbox
           if (user.inbox) {
             var threads = [];

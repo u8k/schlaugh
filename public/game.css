@@ -12,14 +12,26 @@
   color: #404040;
 }
 
-#game-rotate-button, #game-round-back, #game-round-forward {
+#schlaunquer-board-button-wrapper {
   position: absolute;
-  bottom: 7.5px;
-  right: 10px;
-  font-size: 2em;
+  bottom: 10px;
+  left: 10px;
 }
-#game-round-back {left: 8px; right: unset;}
-#game-round-forward {left: 34px; right: unset;}
+
+.schlaunquer-board-button {
+  position: absolute;
+  bottom: 0;
+  color: #404040;
+  background: none;
+  padding: 0;
+  margin: 2px;
+  border: none;
+  font-size: 1.5em;
+}
+#schlaunquer-previous-day {transform: rotate(180deg); left: -3px;}
+#schlaunquer-previous-step {left: 22px;}
+#schlaunquer-next-step {left: 45px;}
+#schlaunquer-next-day {left: 70px;}
 
 #forfeit-button {
   position: absolute;
@@ -59,9 +71,15 @@ polygon {
   font-size: 4.4em;
 }
 .preview-label {
-  font-size: 2.6em;
+  font-size: 3.6em;
+}
+.sub-label{
+  font-size: 1.8em;
 }
 .move-label {
+  font-size: 3.1em;
+}
+.entropy-label {
   font-size: 3.1em;
 }
 
@@ -166,16 +184,14 @@ td, th {
 }
 
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  #game-rotate-button, #game-round-back, #game-round-forward {
-    bottom: 6.5px;
-    right: 8px;
-    font-size: 1.6em;
+  .schlaunquer-board-button {
+    bottom: -3px;
+    font-size: 1.2em;
   }
-  #game-round-back {left: 6px; right: unset;}
-  #game-round-forward {left: 28px; right: unset;}
-  .game-move-input {
-    width: 2.2em;
-  }
+  #schlaunquer-previous-day {left: -5px;}
+  #schlaunquer-previous-step {left: 17px;}
+  #schlaunquer-next-step {left: 36px;}
+  #schlaunquer-next-day {left: 58px;}
   .game-move-input-wide {
     width: 3.1em;
   }

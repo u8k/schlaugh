@@ -238,6 +238,7 @@ var setUpGameBoards = function (json, num) {
   }}
   gameRef.totalDays = dayCount;
   gameRef.currentBoardDate = latestDate;
+  gameRef.currentBoardStep = 0;
   //
   if (pool.isNumeric(num) && Number.isInteger(Number(num))) {
     var targetDate = calcDateByOffest(gameRef.startDate, Number(num));
@@ -256,6 +257,10 @@ var setUpGameBoards = function (json, num) {
     var date = calcDateByOffest(latestDate, -i);
     if (gameRef.dates[date]) {
       createBoard(dayCount, i, date, targetDate);
+      if (date !== latestDate) {
+        createBoard(dayCount, i, date, targetDate, 1);
+        createBoard(dayCount, i, date, targetDate, 2);
+      }
     } else {
       dayCount++;
     }
@@ -264,16 +269,20 @@ var setUpGameBoards = function (json, num) {
   setTimeout(function () {window.scroll(0, 50);}, 50);
 }
 
-var createBoard = function (dayCount, i, date, initBoard) {
+var createBoard = function (dayCount, index, date, initBoard, step) {
   var board = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   board.setAttribute("viewBox", "-7 -7 "+(gameRef.boardWidth+14)+" "+(gameRef.boardHeight+14));   // 14 is margarine
-  board.setAttribute("id", date+"-board");
+  if (step) {
+    board.setAttribute("id", date+"."+step+"-board");
+  } else {
+    board.setAttribute("id", date+"-board");
+  }
   board.setAttribute("preserveAspectRatio", "none");
   $('board-bucket').appendChild(board);
   board.classList.add("gameBoard");
   var animationDelay = 0;
-  if (date === initBoard) {
-    gameRef.currentBoardDay = (dayCount-i)-1;
+  if (date === initBoard && !step) {
+    gameRef.currentBoardDay = (dayCount-index)-1;
     if (gameRef.radius === 5) {
       animationDelay = 30;
     } else {
@@ -284,16 +293,39 @@ var createBoard = function (dayCount, i, date, initBoard) {
   }
   // put the round label on the board
   var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  if (i === -1) {
-    label.innerHTML = "day "+((dayCount-i)-1)+" (preview)";
+  if (index === -1 || (index === 0 && step)) {
+    if (step) {
+      label.innerHTML = "day "+((dayCount-index)-1)+"."+step+" (preview)";
+      var label2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      if (step === 1) {label2.innerHTML = "(after Migration and War)";}
+      else if (step === 2) {label2.innerHTML = "(after Creation)";}
+      label2.classList.add('sub-label');
+      label2.classList.add('no-select');
+      label2.setAttribute('y', '100px');
+      label2.setAttribute('x', '10px');
+      board.appendChild(label2);
+    } else {
+      label.innerHTML = "day "+((dayCount-index)-1)+" (preview)";
+    }
     label.classList.add('preview-label');
     label.classList.add('no-select');
-    label.setAttribute('y', '42px');
+    label.setAttribute('y', '54px');
   } else {
-    label.innerHTML = "day "+((dayCount-i)-1);
+    label.innerHTML = "day "+((dayCount-index)-1);
     label.classList.add('score-label');
     label.classList.add('no-select');
     label.setAttribute('y', '64px');
+    if (step) {
+      label.innerHTML = "day "+((dayCount-index)-1)+"."+step;
+      var label2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      if (step === 1) {label2.innerHTML = "(after Migration and War)";}
+      else if (step === 2) {label2.innerHTML = "(after Creation)";}
+      label2.classList.add('sub-label');
+      label2.classList.add('no-select');
+      label2.setAttribute('y', '100px');
+      label2.setAttribute('x', '10px');
+      board.appendChild(label2);
+    }
   }
   var toolTip = document.createElementNS("http://www.w3.org/2000/svg", "title");
   toolTip.innerHTML = date;
@@ -306,12 +338,12 @@ var createBoard = function (dayCount, i, date, initBoard) {
     // but will have to do it again when we have everything loaded that determines arrow visibility
     changeBoardRound(false, date);
   }
-  renderTiles(animationDelay, date);
+  renderTiles(animationDelay, date, step);
 
   // tally score for each day
   var map = gameRef.dates[date];
   var ref = {};
-  for (var spot in map) {if (map.hasOwnProperty(spot)) {
+  for (var spot in map) {if (map.hasOwnProperty(spot) && map[spot].color) {
     if (ref[map[spot].color]) {
       ref[map[spot].color].units += map[spot].score;
       ref[map[spot].color].tiles++;
@@ -330,11 +362,18 @@ var createBoard = function (dayCount, i, date, initBoard) {
   }}
 }
 
-var renderTiles = function (delay, date) {
-  if (date === pool.getCurDate(-1)) { // if for tomorrow, then generate a preview by performing a full audit
-    //
-    if (glo.userID && gameRef.players[glo.userID]) {      // preview map creation
-      //
+var renderTiles = function (delay, date, step) {
+  // do we need to perform an audit?
+  if (date === pool.getCurDate(-1) || (date === pool.getCurDate() && step)) {
+    var preview = true;
+    // but are the previews already made? (only need to check any 1, to know all 3 are made)
+    if (gameRef.dates[pool.getCurDate(-1)]) {
+      preview = false;
+    }
+  }
+  if (preview || (step && !gameRef.dates[date+".1"])) { // if for tomorrow, then generate a preview by performing a full audit
+    //                                                                       // OR if for an intermediary step view
+    if (preview) {
       var todayMap = gameRef.dates[pool.getCurDate()];
       var filteredMap = {};                  // create a filter of today's map with only the player's units
       for (var spot in todayMap) {if (todayMap.hasOwnProperty(spot)) {
@@ -350,114 +389,148 @@ var renderTiles = function (delay, date) {
         }
       }}
       var oldMap = filteredMap;
-      var warMap = {};
-      var tomorrowMap = {};             // run migration, entropy, and spawning on the filtered map
+    } else {
+      var oldMap = gameRef.dates[date];
+    }
+    var warMap = {};
+    var tomorrowMap = {};             // run migration, entropy, and spawning on the filtered map
 
-      // Migration
-      for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
-        spot = spot.split(",");
-        var stayers = oldMap[spot].score;
-        for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
-          stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
-          var x = Number(spot[0]) + moveRef[move][0];   // determine immigration spot
-          var y = Number(spot[1]) + moveRef[move][1];
-          if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
-          if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
-          warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
-        }}
-        // add back the Stayers, to the init Spot
-        if (!warMap[spot]) {warMap[spot] = {};}
-        if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
-        warMap[spot][oldMap[spot].ownerID] += stayers;
+    // Migration
+    for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
+      spot = spot.split(",");
+      var stayers = oldMap[spot].score;
+      for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
+        stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
+        var x = Number(spot[0]) + moveRef[move][0];   // determine immigration spot
+        var y = Number(spot[1]) + moveRef[move][1];
+        if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
+        if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
+        warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
       }}
-      // War
-      for (var spot in warMap) {if (warMap.hasOwnProperty(spot)) {
-        var first = [0, null];
-        var second = 0;
-        for (var player in warMap[spot]) { // determine the 1st and 2nd place scores in each spot
-          if (warMap[spot].hasOwnProperty(player)) {
-            warMap[spot][player] = Math.min(gameRef.unitCap, warMap[spot][player]);  // enforce popCap
+      // add back the Stayers, to the init Spot
+      if (!warMap[spot]) {warMap[spot] = {};}
+      if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
+      warMap[spot][oldMap[spot].ownerID] += stayers;
+    }}
+    // War
+    for (var spot in warMap) {if (warMap.hasOwnProperty(spot)) {
+      var first = [0, null];
+      var second = 0;
+      for (var player in warMap[spot]) { // determine the 1st and 2nd place scores in each spot
+        if (warMap[spot].hasOwnProperty(player)) {
+          warMap[spot][player] = Math.min(gameRef.unitCap, warMap[spot][player]);  // enforce popCap
 
-            if (warMap[spot][player] > first[0]) {
-              second = first[0];
-              first[0] = warMap[spot][player];
-              first[1] = player;
-            } else if (warMap[spot][player] > second) {
-              second = warMap[spot][player];
-            }
+          if (warMap[spot][player] > first[0]) {
+            second = first[0];
+            first[0] = warMap[spot][player];
+            first[1] = player;
+          } else if (warMap[spot][player] > second) {
+            second = warMap[spot][player];
           }
-        }
-        if (first[0] !== second) {  // if tie, leave spot empty
-          tomorrowMap[spot] = {
-            ownerID: first[1],
-            score: first[0] - second,
-          }
-        }
-      }}
-      // Creation
-      var spawnMap = {};
-      var tileList = getRange([0,0], gameRef.radius);
-      for (var i = 0; i < tileList.length; i++) { // for every tile on the map
-        if (!tomorrowMap[tileList[i]]) {               // is it unnoccupied?
-          var adj = getRange(tileList[i], 2);
-          var ref = {};
-          for (var j = 0; j < adj.length; j++) {    // for each tile adjacent to said tile
-            if (tomorrowMap[adj[j]] && tomorrowMap[adj[j]].ownerID) { // is THAT occupied
-              if (!ref[tomorrowMap[adj[j]].ownerID]) {
-                ref[tomorrowMap[adj[j]].ownerID] = 0;
-              }
-              ref[tomorrowMap[adj[j]].ownerID]++;
-            }
-          }
-          for (var user in ref) {if (ref.hasOwnProperty(user)) {
-            if (ref[user] === 4) {                    // huzzah! spawn conditions met!
-              spawnMap[tileList[i]] = user;   // mark on intermediary spawn map,
-                         // otherwise, newly spawned tiles can change the counts for other spawn candidates
-            }
-          }}
         }
       }
-      for (var spot in spawnMap) {if (spawnMap.hasOwnProperty(spot)) {
+      if (first[0] !== second) {  // if tie, leave spot empty
         tomorrowMap[spot] = {
-          ownerID: spawnMap[spot],
+          ownerID: first[1],
+          score: first[0] - second,
+          color: gameRef.players[first[1]].color,
         }
-        tomorrowMap[spot].score = gameRef.spawnValue;
-        tomorrowMap[spot].newSpawn = true;
-      }}
-      // entropy
-      // for each occupied spot on the map,
-      for (var spot in tomorrowMap) {if (tomorrowMap.hasOwnProperty(spot)) {
-        spot = spot.split(",");
-        var adj = getRange([Number(spot[0]), Number(spot[1])], 2);
-        var neigborCount = -1;  // the getRange above includes the spot itself, which it then counts as a neigbor, so start -1 to correct this
+      }
+    }}
+
+    // save the x.1 step, after migration/war
+    if (date === pool.getCurDate(-1)) {
+      var tDate = pool.getCurDate();
+    } else {
+      var tDate = date;
+    }
+    gameRef.dates[tDate+".1"] = {};
+    for (var spot in tomorrowMap) { if (tomorrowMap.hasOwnProperty(spot)) {
+      gameRef.dates[tDate+".1"][spot] = {
+        ownerID: tomorrowMap[spot].ownerID,
+        score: Number(tomorrowMap[spot].score),
+        color: tomorrowMap[spot].color,
+      };
+    }}
+
+
+    // Creation
+    var spawnMap = {};
+    var tileList = getRange([0,0], gameRef.radius);
+    for (var i = 0; i < tileList.length; i++) { // for every tile on the map
+      if (!tomorrowMap[tileList[i]]) {               // is it unnoccupied?
+        var adj = getRange(tileList[i], 2);
+        var ref = {};
         for (var j = 0; j < adj.length; j++) {    // for each tile adjacent to said tile
-          // is the adj spot occupied by the same owner?
-          if (tomorrowMap[adj[j]] && tomorrowMap[adj[j]].ownerID && tomorrowMap[adj[j]].ownerID === tomorrowMap[spot].ownerID) {
-            neigborCount++;
+          if (tomorrowMap[adj[j]] && tomorrowMap[adj[j]].ownerID) { // is THAT occupied
+            if (!ref[tomorrowMap[adj[j]].ownerID]) {
+              ref[tomorrowMap[adj[j]].ownerID] = 0;
+            }
+            ref[tomorrowMap[adj[j]].ownerID]++;
           }
         }
-        if (tomorrowMap[spot].score) {   // do the entropy
-          tomorrowMap[spot].score = tomorrowMap[spot].score - schlaunquer.gameRef.entropy[neigborCount];
+        for (var user in ref) {if (ref.hasOwnProperty(user)) {
+          if (ref[user] === 4) {                    // huzzah! spawn conditions met!
+            spawnMap[tileList[i]] = user;   // mark on intermediary spawn map,
+            // otherwise, newly spawned tiles can change the counts for other spawn candidates
+          }
+        }}
+      }
+    }
+    for (var spot in spawnMap) {if (spawnMap.hasOwnProperty(spot)) {
+      tomorrowMap[spot] = {
+        ownerID: spawnMap[spot],
+      }
+      tomorrowMap[spot].score = gameRef.spawnValue;
+      tomorrowMap[spot].newSpawn = true;
+      tomorrowMap[spot].color = gameRef.players[spawnMap[spot]].color;
+    }}
+
+
+    // entropy
+    // for each occupied spot on the map,
+    for (var spot in tomorrowMap) {if (tomorrowMap.hasOwnProperty(spot)) {
+      spot = spot.split(",");
+      var adj = getRange([Number(spot[0]), Number(spot[1])], 2);
+      var neigborCount = -1;  // the getRange above includes the spot itself, which it then counts as a neigbor, so start -1 to correct this
+      for (var j = 0; j < adj.length; j++) {    // for each tile adjacent to said tile
+        // is the adj spot occupied by the same owner?
+        if (tomorrowMap[adj[j]] && tomorrowMap[adj[j]].ownerID && tomorrowMap[adj[j]].ownerID === tomorrowMap[spot].ownerID) {
+          neigborCount++;
         }
-      }}
+      }
+      if (tomorrowMap[spot].score) {   // save the entropy value
+        tomorrowMap[spot].entropy = schlaunquer.gameRef.entropy[neigborCount];
+
+      }
+    }}
+
+    // save the x.2 step, after creation(with entropy values)
+    gameRef.dates[tDate+".2"] = {};
+    for (var spot in tomorrowMap) { if (tomorrowMap.hasOwnProperty(spot)) {
+      gameRef.dates[tDate+".2"][spot] = {
+        ownerID: tomorrowMap[spot].ownerID,
+        score: Number(tomorrowMap[spot].score),
+        newSpawn: tomorrowMap[spot].newSpawn,
+        entropy: tomorrowMap[spot].entropy,
+        color: tomorrowMap[spot].color,
+      };
+    }}
+
+    if (preview) {
       for (var spot in tomorrowMap) {if (tomorrowMap.hasOwnProperty(spot)) {
         spot = spot.split(",");
+        tomorrowMap[spot].score = tomorrowMap[spot].score - tomorrowMap[spot].entropy;  // do the entropy
+        delete tomorrowMap[spot].entropy;
         if (tomorrowMap[spot].score < 1) { // is it dead?
           delete tomorrowMap[spot];
+        } else {
+          tomorrowMap[spot].color = gameRef.players[glo.userID].color;
+          tomorrowMap[spot].newSpawn = false;
         }
       }}
-
-
-      // color it in
-      for (var spot in tomorrowMap) {
-        if (tomorrowMap.hasOwnProperty(spot)) {
-          tomorrowMap[spot].color = gameRef.players[glo.userID].color;
-        }
-      }
       //
-      gameRef.dates[date] = tomorrowMap;
-    } else {
-      return; // do nothing, the preview board is not applicable to the viewer
+      gameRef.dates[pool.getCurDate(-1)] = tomorrowMap;
     }
   }
 
@@ -475,7 +548,7 @@ var renderTiles = function (delay, date) {
   for (var i = 0; i < tiles.length; i++) {
     (function (i) {
       setTimeout(function () {
-        createTile(tiles[i], date);
+        createTile(tiles[i], date, step);
       }, delay*i);
     })(i);
   }
@@ -483,12 +556,10 @@ var renderTiles = function (delay, date) {
   if (glo.userID && gameRef.players[glo.userID]) {
     setTimeout(function () {
       for (var spot in gameRef.dates[date]) {if (gameRef.dates[date].hasOwnProperty(spot)) {
-        if (gameRef.dates[date][spot].ownerID === glo.userID) {
+        if (gameRef.dates[date][spot].ownerID === glo.userID && date === pool.getCurDate()) {
           highlightTile(spot, date);
           // flag player as "active" if they have spots on the board today
-          if (date === pool.getCurDate()) {
-            gameRef.active = true;
-          }
+          gameRef.active = true;
         }
       }}
       if (delay) {            // delay is only non zero once
@@ -519,39 +590,65 @@ var getRange = function (spot, radius) {
   return arr;
 }
 
-var createTile = function (coord, date, newSpawn) {
+var createTile = function (coord, date, step) {
   var wrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
   var tile = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   tile.setAttribute('points', "200,87 150,0 50,0 0,87 50,174 150,174");
   //
-  var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  if (gameRef.dates[date][coord]) {
-    wrapper.onclick = function() {tileClick(coord, date);}
-    wrapper.classList.add('clicky');
-    gameRef.dates[date][coord].elem = wrapper;
-    if (gameRef.dates[date][coord].score) {label.innerHTML = formatScore(gameRef.dates[date][coord].score);}
-    if (gameRef.dates[date][coord].color) {tile.classList.add(gameRef.dates[date][coord].color);}
+  if (step) {
+    var dateVar = date+"."+step;
   } else {
-    gameRef.dates[date][coord] = {ownerID:null}
+    var dateVar = date;
   }
-  label.setAttribute('x', .5*gameRef.tileWidth+'px');
-  label.setAttribute('y', .5*gameRef.tileHeight+'px');
-  label.setAttribute('dominant-baseline', "middle");
-  label.setAttribute('text-anchor', "middle");
-  if (gameRef.dates[date][coord].newSpawn) {
-    label.setAttribute('fill', "#ffffff");
-  }
-  label.classList.add('score-label');
-  label.classList.add('no-select');
-  //
+  // position the tile
   var xPix = -(coord[0]*.75*gameRef.tileWidth) + gameRef.originX;
   var yPix = -(coord[1]*gameRef.tileHeight + coord[0]*.5*gameRef.tileHeight) + gameRef.originY;
   wrapper.setAttribute('transform', "translate("+xPix+","+yPix+")");
-  //
   wrapper.appendChild(tile);
-  wrapper.appendChild(label);
-  $(date+"-board").appendChild(wrapper);
-  setMoveLabels(coord, date);
+
+  // if a player is occupying the spot
+  if (gameRef.dates[dateVar][coord]) {
+    wrapper.onclick = function() {tileClick(coord, date, step);}
+    wrapper.classList.add('clicky');
+    gameRef.dates[dateVar][coord].elem = wrapper;
+    var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    if (gameRef.dates[dateVar][coord].score) {label.innerHTML = formatScore(gameRef.dates[dateVar][coord].score);}
+    if (gameRef.dates[dateVar][coord].color) {tile.classList.add(gameRef.dates[dateVar][coord].color);}
+    label.setAttribute('x', .5*gameRef.tileWidth+'px');
+    label.setAttribute('y', .5*gameRef.tileHeight+'px');
+    label.setAttribute('dominant-baseline', "middle");
+    label.setAttribute('text-anchor', "middle");
+    if (gameRef.dates[dateVar][coord].newSpawn) {label.setAttribute('fill', "#ffffff"); label.setAttribute('stroke', "black");}
+    label.classList.add('score-label');
+    label.classList.add('no-select');
+    wrapper.appendChild(label);
+    //
+    if (gameRef.dates[dateVar][coord].entropy) {
+      var entropyLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      entropyLabel.innerHTML = "-"+gameRef.dates[dateVar][coord].entropy;
+      entropyLabel.setAttribute('x', .65*gameRef.tileWidth+'px');
+      entropyLabel.setAttribute('y', .7*gameRef.tileHeight+'px');
+      entropyLabel.setAttribute('dominant-baseline', "middle");
+      entropyLabel.setAttribute('text-anchor', "middle");
+      entropyLabel.setAttribute('fill', "#ff0000");
+      entropyLabel.setAttribute('stroke', "black");
+      entropyLabel.classList.add('entropy-label');
+      entropyLabel.classList.add('no-select');
+      wrapper.appendChild(entropyLabel);
+    }
+  } else {
+    gameRef.dates[dateVar][coord] = {ownerID:null}
+  }
+
+  //
+  if (step) {
+    $(date+"."+step+"-board").appendChild(wrapper);
+  } else {
+    $(date+"-board").appendChild(wrapper);
+  }
+  if (!step) {
+    setMoveLabels(coord, date);
+  }
 }
 
 var formatScore = function (score) {
@@ -578,11 +675,15 @@ var formatScore = function (score) {
   }
 }
 
-var tileClick = function (coord, date) {
+var tileClick = function (coord, date, step) {
   blackBacking();
   $("pop-up-backing").onclick = function(){closeTilePopUp();}
-  var spot = gameRef.dates[date][coord];
-  if (spot.ownerID === glo.userID && date === pool.getCurDate() && !gameRef.victor) {  // the user owns this spot
+  if (step) {
+    var spot = gameRef.dates[date+"."+step][coord];
+  } else {
+    var spot = gameRef.dates[date][coord];
+  }
+  if (spot.ownerID === glo.userID && date === pool.getCurDate() && !step && !gameRef.victor) {  // the user owns this spot, and is eligible to assign moves
     gameRef.activeTile = {score: spot.score};
     $('tile-options-submit').onclick = function () {sendMove(coord, date);}
     var score = spot.score;               // subtract out the already allocated points
@@ -686,6 +787,16 @@ var getMoveVals = function () {
 var sendMove = function (coord, date) {
   closeTilePopUp();
   var moves = getMoveVals();
+  // refresh preview
+  var today = pool.getCurDate();
+  var tomar = pool.getCurDate(-1);
+  removeElement($(tomar+"-board"));
+  removeElement($(today+".1-board"));
+  removeElement($(today+".2-board"));
+  delete gameRef.dates[tomar];
+  delete gameRef.dates[today+".1"];
+  delete gameRef.dates[today+".2"];
+  //
   ajaxCall('/~moveSchlaunquer', 'POST', {coord:coord, moves:moves, game_id:gameRef.game_id}, function(json) {
     gameRef.dates[date][coord].pendingMoves = moves;
     setMoveLabels(coord, date);
@@ -723,27 +834,29 @@ var setForfeitButton = function () {
 }
 
 var setMoveLabels = function (coord, date) {
-  var map = gameRef.dates[date][coord];
-  if (map.moveLabels && map.moveLabels.length) {
-    for (var i = 0; i < map.moveLabels.length; i++) {
-      removeElement(map.moveLabels[i]);
+  var spot = gameRef.dates[date][coord];
+  if (spot) {
+    if (spot.moveLabels && spot.moveLabels.length) {
+      for (var i = 0; i < spot.moveLabels.length; i++) {
+        removeElement(spot.moveLabels[i]);
+      }
     }
-  }
-  map.moveLabels = [];
+    spot.moveLabels = [];
 
-  var moves = map.pendingMoves;
-  for (var move in moves) {
-    if (moves.hasOwnProperty(move) && Number(moves[move]) !== 0) {
-      var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      label.innerHTML = formatScore(moves[move]);
-      label.setAttribute('x', mLabPos[move].x*gameRef.tileWidth+'px');
-      label.setAttribute('y', mLabPos[move].y*gameRef.tileHeight+'px');
-      label.setAttribute('dominant-baseline', "middle");
-      label.setAttribute('text-anchor', "middle");
-      label.classList.add('move-label');
-      label.classList.add('no-select');
-      map.elem.appendChild(label);
-      map.moveLabels.push(label)
+    var moves = spot.pendingMoves;
+    for (var move in moves) {
+      if (moves.hasOwnProperty(move) && Number(moves[move]) !== 0) {
+        var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.innerHTML = formatScore(moves[move]);
+        label.setAttribute('x', mLabPos[move].x*gameRef.tileWidth+'px');
+        label.setAttribute('y', mLabPos[move].y*gameRef.tileHeight+'px');
+        label.setAttribute('dominant-baseline', "middle");
+        label.setAttribute('text-anchor', "middle");
+        label.classList.add('move-label');
+        label.classList.add('no-select');
+        spot.elem.appendChild(label);
+        spot.moveLabels.push(label)
+      }
     }
   }
 }
@@ -759,8 +872,10 @@ var mLabPos = {
 
 var highlightTile = function (coord, date) {
   var tile = gameRef.dates[date][coord].elem;
-  tile.childNodes[0].classList.add('tile-highlight');
-  tile.parentElement.appendChild(tile);
+  if (tile) {
+    tile.childNodes[0].classList.add('tile-highlight');
+    tile.parentElement.appendChild(tile);
+  }
 }
 
 var updateScoreBoard = function (date) {
@@ -801,60 +916,96 @@ var updateScoreBoard = function (date) {
   }
 }
 
-var changeBoardRound = function (offset, date) {
+var changeBoardRound = function (offset, date, step) {
   if (offset !== false) {
+    if (step) {
+      var newStep = gameRef.currentBoardStep + step;
+      if (newStep === 3) {
+        offset = 1;
+      } else if (newStep === -1) {
+        offset = -1;
+      }
+      newStep = (newStep+3)%3;
+    } else {
+      var newStep = 0;
+      if (offset === -1 && gameRef.currentBoardStep) {
+        offset = 0;
+      }
+    }
     var newDate = calcDateByOffest(gameRef.currentBoardDate, offset);
     gameRef.currentBoardDay += offset;
   } else {
     var newDate = date;
+    var newStep = 0;
   }
 
-  // disable/enabel left/right buttons
-  var prevDate = calcDateByOffest(newDate, -1);
-  var nextDate = calcDateByOffest(newDate, 1);
-  if ($(prevDate+"-board")) {
-    $('game-round-back').classList.remove('removed');
-  } else {
-    $('game-round-back').classList.add('removed');
-  }
-  if ($(nextDate+"-board") || nextDate === pool.getCurDate(-1)) {
-    if (nextDate === pool.getCurDate(-1)) {
-      if (gameRef.active && !gameRef.victor) {
-        $('game-round-forward').classList.remove('removed');
-      } else {
-        $('game-round-forward').classList.add('removed');
-        if (gameRef.victor) {
-          showVictory();
-        }
-      }
+  // disable/enable left/right buttons
+  if (!date) {
+    var prevDate = calcDateByOffest(newDate, -1);
+    var nextDate = calcDateByOffest(newDate, 1);
+    if ($(prevDate+"-board")) {
+      $('schlaunquer-previous-day').classList.remove('removed');
+      $('schlaunquer-previous-step').classList.remove('removed');
     } else {
-      $('game-round-forward').classList.remove('removed');
+      $('schlaunquer-previous-day').classList.add('removed');
+      if (newStep === 0) {
+        $('schlaunquer-previous-step').classList.add('removed');
+      } else {
+        $('schlaunquer-previous-step').classList.remove('removed');
+      }
     }
-  } else {                      // on the latest day
-    $('game-round-forward').classList.add('removed');
-    if (gameRef.victor) {
-      showVictory();
+    if ($(nextDate+"-board") || nextDate === pool.getCurDate(-1)) {
+      if (nextDate === pool.getCurDate(-1)) {           // is the nextDay tomorrow?
+        if (gameRef.active && !gameRef.victor) {        // is the viewer an active player?
+          $('schlaunquer-next-day').classList.remove('removed');    // then allow for preview
+          $('schlaunquer-next-step').classList.remove('removed');
+        } else {
+          $('schlaunquer-next-day').classList.add('removed');
+          $('schlaunquer-next-step').classList.add('removed');
+          if (gameRef.victor) {
+            showVictory();
+          }
+        }
+      } else {
+        $('schlaunquer-next-day').classList.remove('removed');
+        $('schlaunquer-next-step').classList.remove('removed');
+      }
+    } else {                      // on the latest day
+      $('schlaunquer-next-day').classList.add('removed');
+      $('schlaunquer-next-step').classList.add('removed');
+      if (gameRef.victor) {
+        showVictory();
+      }
     }
   }
 
   //
   simulatePageLoad('~schlaunquer/'+gameRef.game_id+'/'+gameRef.currentBoardDay, 'schlaunquer', 'https://i.imgur.com/i4Py62f.png', true);
 
-  if (gameRef.currentBoardDate !== newDate) { // do we actually need to switch anything?
-
-    // refresh if preview board
-    if (newDate === pool.getCurDate(-1)) {
-      if ($(newDate+"-board")) {
-        removeElement($(newDate+"-board"));
-      }
-      delete gameRef.dates[newDate];
-      createBoard(gameRef.totalDays, -1, newDate);
-    }
+  if (gameRef.currentBoardDate !== newDate || newStep !== undefined) { // do we actually need to switch anything?
 
     // show/hide the actual boards
-    $(gameRef.currentBoardDate+"-board").classList.add('removed');
+    if (gameRef.currentBoardStep) {
+      $(gameRef.currentBoardDate+"."+gameRef.currentBoardStep+"-board").classList.add('removed');
+    } else {
+      $(gameRef.currentBoardDate+"-board").classList.add('removed');
+    }
+    gameRef.currentBoardStep = newStep;
     gameRef.currentBoardDate = newDate;
-    $(gameRef.currentBoardDate+"-board").classList.remove('removed');
+    if (gameRef.currentBoardStep) {
+      var boardID = gameRef.currentBoardDate+"."+gameRef.currentBoardStep+"-board";
+    } else {
+      var boardID = gameRef.currentBoardDate+"-board";
+    }
+    if (!$(boardID)) {    // if the board doesn't exist then create it
+      if (newDate === pool.getCurDate(-1)) {
+        var index = -1;
+      } else {
+        var index = 0;  // this assumes we are only ever creating preview boards here, on the fly. Needs to be changed if we want justInTime rendering of old boards
+      }
+      createBoard(gameRef.totalDays, index, gameRef.currentBoardDate, false, gameRef.currentBoardStep)
+    }
+    $(boardID).classList.remove('removed');
   }
 
   updateScoreBoard(newDate);
