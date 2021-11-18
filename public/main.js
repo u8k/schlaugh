@@ -3762,6 +3762,17 @@ var toggleAutoSaveTagsOnUse = function () {
   }
 }
 
+var toggleAutoEditorResize = function () {
+  ajaxCall('/toggleSetting', 'POST', {setting: "doNotResizeEditor"}, function(json) {});
+  if (glo.settings.doNotResizeEditor) {
+    $('resize-editor-setting').value = 'false';
+    glo.settings.doNotResizeEditor = false;
+  } else {
+    $('resize-editor-setting').value = 'true';
+    glo.settings.doNotResizeEditor = true;
+  }
+}
+
 var setPaginationDirection = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "newPostsToTheLeft"}, function(json) {});
   if (glo.settings.newPostsToTheLeft) {
@@ -4004,6 +4015,10 @@ var debugMode = function () {
 }
 
 var resizeEditor = function (kind) {
+  if (glo.settings.doNotResizeEditor) {
+    return;
+  }
+
   var field = $(kind+"-editor");
 
   var initWindowScroll = window.scrollY;
@@ -4024,9 +4039,11 @@ var resizeEditor = function (kind) {
 
   //
   if (maxHeight > newHeight && newHeight > initHeight) {
+    if (glo.username === "Akkete") { console.log('case1','maxHeight:',maxHeight, 'newHeight:',newHeight, 'initHeight:',initHeight)}
     field.style.height = newHeight + 'px';
     window.scrollTo(0, initWindowScroll);
   } else if (newHeight > maxHeight && maxHeight > initHeight) {
+    if (glo.username === "Akkete") { console.log('case2','maxHeight:',maxHeight, 'newHeight:',newHeight, 'initHeight:',initHeight)}
     field.style.height = maxHeight + 'px';
     window.scrollTo(0, $("editor-options-"+kind).getBoundingClientRect().top -5);
   } else {
@@ -5161,6 +5178,12 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
       $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
     } else {
       $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+    }
+    //
+    if (glo.settings.doNotResizeEditor) {
+      $('resize-editor-setting').value = 'true';
+    } else {
+      $('resize-editor-setting').value = 'false';
     }
     //
     if (glo.settings.sortOldestPostsAtTop) {
