@@ -122,6 +122,7 @@ var loadGame = function (game_id, num) {
       $('game-status').innerHTML = "PENDING";
       simulatePageLoad('~schlaunquer/'+game_id+'/', 'schlaunquer', 'https://i.imgur.com/i4Py62f.png');
       $('schlaunquer-board-wrapper').classList.add('removed');
+      updateScoreBoard();
     }
     setUpGameInfo(json);
     refreshMenu(game_id);
@@ -352,6 +353,7 @@ var createBoard = function (dayCount, index, date, initBoard, step) {
         player: gameRef.players[map[spot].ownerID].username,
         units: map[spot].score,
         tiles: 1,
+        color: gameRef.players[map[spot].ownerID].color,
       }
     }
   }}
@@ -878,17 +880,17 @@ var highlightTile = function (coord, date) {
   }
 }
 
-var updateScoreBoard = function (date) {
+var updateScoreBoard = function (date) { // if no date, then removes the score board
   destroyAllChildrenOfElement($('schlaunquer-score-board'));
 
-  if (!gameRef.scores[date] || !gameRef.scores[date].length) { return; }
+  if (!date || !gameRef.scores[date] || !gameRef.scores[date].length) { return; }
 
   gameRef.scores[date].sort(function(a, b) {
     return b.units - a.units;
   });
 
   var headRow = document.createElement('tr');
-  var arr = ['name', 'total units', 'tiles occupied'];
+  var arr = ['', 'total units', 'tiles occupied'];
   for (var i = 0; i < arr.length; i++) {
     var header = document.createElement('th');
     header.innerHTML = arr[i];
@@ -901,6 +903,8 @@ var updateScoreBoard = function (date) {
 
     var cell1 = document.createElement('td');
     cell1.innerHTML = gameRef.scores[date][i].player;
+    cell1.classList.add('table-name');
+    cell1.classList.add(gameRef.scores[date][i].color);
     row.appendChild(cell1);
 
     var cell2 = document.createElement('td');

@@ -148,6 +148,10 @@ td, th {
   text-align: left;
   padding: 8px;
 }
+.table-name {
+  font-weight: bold;
+}
+
 
 #schlaunquer-reminder {
   margin: auto;
@@ -169,12 +173,12 @@ td, th {
   margin-top: 5px;
 }
 
-.red {fill: #FF555E}
-.orange {fill: #FF8650}
-.yellow {fill: #FFE981}
-.green {fill: #8BF18B}
-.blue {fill: #83B2FF}
-.purple {fill: #9B6EF3}
+.red {fill: #FF555E; background:#FF555Ead}
+.orange {fill: #FF8650; background:#FF8650ad}
+.yellow {fill: #FFE981; background:#FFE981ad}
+.green {fill: #8BF18B; background:#8BF18Bad}
+.blue {fill: #83B2FF; background:#83B2FFad}
+.purple {fill: #9B6EF3; background:#9B6EF3ad}
 
 @media screen and (max-width: 600px) and (min-height: 500px) {
   .gameBoard {
