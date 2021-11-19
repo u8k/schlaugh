@@ -82,6 +82,9 @@ polygon {
 .entropy-label {
   font-size: 3.1em;
 }
+.new-spawn {
+  filter: drop-shadow(0 0 5px #000000);
+}
 
 #tile-info-pic {
   margin: auto;

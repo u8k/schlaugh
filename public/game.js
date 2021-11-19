@@ -528,7 +528,6 @@ var renderTiles = function (delay, date, step) {
           delete tomorrowMap[spot];
         } else {
           tomorrowMap[spot].color = gameRef.players[glo.userID].color;
-          tomorrowMap[spot].newSpawn = false;
         }
       }}
       //
@@ -620,7 +619,10 @@ var createTile = function (coord, date, step) {
     label.setAttribute('y', .5*gameRef.tileHeight+'px');
     label.setAttribute('dominant-baseline', "middle");
     label.setAttribute('text-anchor', "middle");
-    if (gameRef.dates[dateVar][coord].newSpawn) {label.setAttribute('fill', "#ffffff"); label.setAttribute('stroke', "black");}
+    if (gameRef.dates[dateVar][coord].newSpawn) {
+      label.setAttribute('fill', "#ffffff");
+      label.classList.add('new-spawn');
+    }
     label.classList.add('score-label');
     label.classList.add('no-select');
     wrapper.appendChild(label);
