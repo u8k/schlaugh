@@ -3158,8 +3158,8 @@ app.post('/login', function(req, res) {
           bcrypt.compare(req.body.password, user.password, function(err, isMatch){
             if (err) {return sendError(req, res, errMsg+err);}
             else if (isMatch) {
-              if (req.session.user) { // is there already a logged in user? (via cookie)
-                // this is a password check to unlock an inbox
+              if (req.session.user && req.body.forDecryption) { // is there already a logged in user? (via cookie)
+                // then this (should be)is a password check to unlock an inbox
                 if (String(req.session.user._id) !== String(user._id)) {
                   // valid username and pass, but for a different user than currently logged in
                   req.session.user = { _id: ObjectId(user._id) };
@@ -3186,8 +3186,6 @@ app.post('/login', function(req, res) {
       });
     }
   });
-
-
 });
 
 // set keys

@@ -136,7 +136,20 @@ var revertAppearance = function () {
 }
 
 var changeColor = function (colorCode, type) {          // makes the new CSS rule
-  var sheet = document.styleSheets[document.styleSheets.length-1];
+  var sheet;
+  for (var i = 0; i < document.styleSheets.length; i++) {
+    if (document.styleSheets[i].href === window.location.origin+"/main.css") {
+      sheet = document.styleSheets[i];
+      break;
+    }
+  }
+  if (!sheet) {
+    for (var i = 0; i < document.styleSheets.length; i++) {
+      console.log(document.styleSheets[i].href);
+    }
+    return uiAlert("error, sorry!<br><br>styleSheet not found<br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!");
+  }
+
   if (type === "postBackground") {
     var selector = ".post, .message, .editor, .content-box, button, .footer-button, .pop-up, .post-background, panelButtons";
     var attribute = "background-color";
@@ -4858,6 +4871,7 @@ var verifyPass = function (callback) {      // for decryption
       if (!data.password) {
         return uiAlert('empty string is not a valid password, sorry');
       }
+      data.forDecryption = true;
       ajaxCall('/login', 'POST', data, function(json) {
         if (json.switcheroo) {
           return uiAlert("huh!? that's a different account...", "switcheroo!", function () {location.reload();});
@@ -5065,7 +5079,7 @@ var signIn = function (url, data, callback) {
           }).then(function(encryptedMessage) {
             keys.newUserMessage = encryptedMessage.data;
             ajaxCall('/keys', 'POST', keys, function(json) {
-              if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, A <br><br>please check the console for more information and show that to Staff"); console.log("A" ,json);};
+              if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, A <br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!"); console.log("A" ,json);};
               parseUserData(json.payload);
               unlockInbox(data.password);
               if (callback) {callback(json.payload);}
@@ -5073,7 +5087,7 @@ var signIn = function (url, data, callback) {
           });
         } else {
           ajaxCall('/keys', 'POST', keys, function(json) {
-            if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, B <br><br>please check the console for more information and show that to Staff"); console.log("B" ,json);};
+            if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, B <br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!"); console.log("B" ,json);};
             parseUserData(json.payload);
             unlockInbox(data.password);
             if (callback) {callback(json.payload);}
@@ -5081,7 +5095,7 @@ var signIn = function (url, data, callback) {
         }
       });
     } else {
-      if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, C <br><br>please check the console for more information and show that to Staff"); console.log("C" ,json);};
+      if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, C <br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!"); console.log("C" ,json);};
       parseUserData(json.payload);
       unlockInbox(data.password);
       if (callback) {callback(json.payload);}
@@ -5348,7 +5362,7 @@ var initSchlaugh = function (user, callback) {
       //  with a persistent login cookie, such that they will have to sign in and make keys
       if (json.needKeys) {return signOut();}
       else {
-        if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, D <br><br>please check the console for more information and show that to Staff"); console.log("D" ,json);};
+        if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, D <br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!"); console.log("D" ,json);};
         parseUserData(json.payload);
         if (callback) {callback();}
       }
