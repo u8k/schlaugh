@@ -776,6 +776,8 @@ var simulatePageLoad = function (newPath, newTitle, faviconSrc, noScroll) {
     if (!newTitle) {newTitle = newPath;}
   }
   //
+  document.body.onkeydown = function () {blockDefaultKeys(event);}
+  //
   if (faviconSrc) {changeFavicon(faviconSrc);}
   else {changeFavicon(null);}
 }
