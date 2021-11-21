@@ -138,7 +138,8 @@ var revertAppearance = function () {
 var changeColor = function (colorCode, type) {          // makes the new CSS rule
   var sheet;
   for (var i = 0; i < document.styleSheets.length; i++) {
-    if (document.styleSheets[i].href === window.location.origin+"/main.css") {
+    if (document.styleSheets[i].href === window.location.origin+"/game.css") {
+      // it's sort of weird to have it write to the "game" css, it's NOT game specific css being written, but it works fine, and avoids overwriting css in the main
       sheet = document.styleSheets[i];
       break;
     }
