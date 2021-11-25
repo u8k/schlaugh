@@ -2541,10 +2541,9 @@ var renderOnePost = function (postData, type, postID) {
   // private
   var privateIndicator = document.createElement('div');
   privateIndicator.innerHTML = "private post";
-  privateIndicator.classList.add('private-indicator');
-  privateIndicator.setAttribute('class', 'private-indicator removed');
+  privateIndicator.setAttribute('class', 'private-indicator main-background removed');
   if (postData.private) {
-    privateIndicator.setAttribute('class', 'private-indicator');
+    privateIndicator.classList.remove('removed');
   }
   privateIndicator.setAttribute('id', uniqueID+'-private-indicator');
   post.appendChild(privateIndicator);

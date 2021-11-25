@@ -534,12 +534,12 @@ a, a.visited {
   position: absolute;
   width: 50%;
   left: 50%;
-  top: 5px;
+  top: 10px;
   text-align: center;
   font-size: 1.5em;
-  background: #00000088;
   border-radius: 5px;
   transform: translate(-50%, 0%);
+  opacity: 75%;
 }
 
 .post-title {
