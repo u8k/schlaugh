@@ -2539,14 +2539,16 @@ var renderOnePost = function (postData, type, postID) {
   }
 
   // private
-  var privateIndicator = document.createElement('div');
-  privateIndicator.innerHTML = "private post";
-  privateIndicator.setAttribute('class', 'private-indicator main-background removed');
-  if (postData.private) {
-    privateIndicator.classList.remove('removed');
+  if ((type === 'author' || type === 'perma' || type === "authorAll") && glo.username && glo.username === postData.author) {
+    var privateIndicator = document.createElement('div');
+    privateIndicator.innerHTML = "private post";
+    privateIndicator.setAttribute('class', 'private-indicator main-background removed');
+    if (postData.private) {
+      privateIndicator.classList.remove('removed');
+    }
+    privateIndicator.setAttribute('id', uniqueID+'-private-indicator');
+    post.appendChild(privateIndicator);
   }
-  privateIndicator.setAttribute('id', uniqueID+'-private-indicator');
-  post.appendChild(privateIndicator);
 
 
   // post header
