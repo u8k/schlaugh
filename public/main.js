@@ -777,7 +777,7 @@ var simulatePageLoad = function (newPath, newTitle, faviconSrc, noScroll) {
     if (!newTitle) {newTitle = newPath;}
   }
   //
-  document.body.onkeydown = function () {blockDefaultKeys(event);}
+  document.body.onkeydown = null;
   //
   if (faviconSrc) {changeFavicon(faviconSrc);}
   else {changeFavicon(null);}
@@ -1798,6 +1798,7 @@ var fetchPosts = function (display, input, callback) {
         json.posts = [];
       } else if (!json.posts || json.four04) {
         loading(true);
+        if (json.existed) { input.existed = true; }
         return open404(display, input, callback);
       }
       var postList = [];
@@ -2443,6 +2444,7 @@ var addToPostStash = function (postData, authorData) {
       tags:postData.tags,
       title:postData.title,
       url:postData.url,
+      private:postData.private,
     };
     if (authorData) {
       ps[postData.post_id].authorPic = authorData.authorPic;
@@ -2535,6 +2537,18 @@ var renderOnePost = function (postData, type, postID) {
     }
     post.appendChild(collapseAllBtn);
   }
+
+  // private
+  var privateIndicator = document.createElement('div');
+  privateIndicator.innerHTML = "private post";
+  privateIndicator.classList.add('private-indicator');
+  privateIndicator.setAttribute('class', 'private-indicator removed');
+  if (postData.private) {
+    privateIndicator.setAttribute('class', 'private-indicator');
+  }
+  privateIndicator.setAttribute('id', uniqueID+'-private-indicator');
+  post.appendChild(privateIndicator);
+
 
   // post header
   var postHeader = document.createElement("div");
@@ -2875,6 +2889,8 @@ var createPostFooter = function (postElem, postData, type) {
     }
     //
     if ((type === 'author' || type === 'perma') && glo.username && glo.username === postData.author) {
+      //private button
+      createPrivateButton(footerButtons, postData);
       //edit button
       var editBtn = document.createElement("button");
       editBtn.setAttribute('class', 'footer-button filter-focus');
@@ -2900,6 +2916,56 @@ var createPostFooter = function (postElem, postData, type) {
     footerNotification.setAttribute('class', 'post-footer-notification main-background hidden');
     footerButtons.appendChild(footerNotification);
   }
+}
+
+var createPrivateButton = function (parentElem, postData, prevButtonElem) {
+
+  var privateBtn = document.createElement("button");
+  privateBtn.setAttribute('class', 'footer-button filter-focus');
+  var alreadyPrivate = false;
+  if (postData.private) {
+    alreadyPrivate = true;
+    privateBtn.innerHTML = '<i class="fas fa-unlock"></i>';
+    privateBtn.title = "un-private this post";
+  } else {
+    privateBtn.innerHTML = '<i class="fas fa-lock"></i>';
+    privateBtn.title = "make this post private";
+  }
+  //
+  privateBtn.onclick = function() {
+    if (alreadyPrivate) {
+      postData.private = false;
+      $("post-"+postData.post_id+"-private-indicator").classList.add('removed')
+    } else {
+      postData.private = true;
+      $("post-"+postData.post_id+"-private-indicator").classList.remove('removed')
+    }
+
+    var newButt = createPrivateButton(parentElem, postData, privateBtn);
+    newButt.disabled = true;
+    setTimeout(function () {
+      newButt.disabled = false;
+    }, 4000);
+
+    // tell the db
+    ajaxCall('/makePostPrivate', 'POST', {postData:postData,}, function(json) {
+      var text = `post is now private<button onclick="privatePostExplain()" class="special text-button">(?)</button>`
+      if (alreadyPrivate) {
+        text = `post is now public`
+      }
+      showPostFooterNotification(text, postData.post_id);
+    });
+  }
+
+  // append the elem
+  if (prevButtonElem) {
+    parentElem.insertBefore(privateBtn, prevButtonElem);
+    privateBtn.focus();
+    removeElement(prevButtonElem);
+  } else {
+    parentElem.appendChild(privateBtn);
+  }
+  return privateBtn;
 }
 
 var isStillQuotable = function (postID, postElemID) {
@@ -4435,13 +4501,13 @@ var editorKeyHandler = function (event, kind) {
     _npa(['glo','editorHotKeys','metaKey', event.key])(kind);
   }
 }
-var blockDefaultKeys = function (event) {
+/*var blockDefaultKeys = function (event) {
   if (event.ctrlKey && _npa(['event','key',]) !== "Control" && _npa(['glo','editorHotKeys','ctrlKey', event.key])) {
     event.preventDefault();
   } else if (event.metaKey && _npa(['event','key',]) !== "Meta" && _npa(['glo','editorHotKeys','metaKey', event.key])) {
     event.preventDefault();
   }
-}
+}*/
 
 // thread stuff
 var closeThread = function () { // returns true for threadClosed, false for NO
@@ -5486,6 +5552,10 @@ var customUrlExplain = function (old) {
 
 var postsPerPageExplain = function () {
   uiAlert(`this only has an effect on paginated post streams. Namely, when viewing posts by a single author, or all posts with a tag<br><br>please note that large amounts of posts per page may increase page loading times`)
+}
+
+var privatePostExplain = function () {
+  uiAlert(`a post that has been made private is visible/accessible to only the author and is effectively deleted/nonexistent to everyone else.<br>You can un-private a post at any time`)
 }
 
 var changeUsername = function () {

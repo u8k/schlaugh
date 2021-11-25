@@ -530,6 +530,18 @@ a, a.visited {
   margin-bottom: 5px;
 }
 
+.private-indicator {
+  position: absolute;
+  width: 50%;
+  left: 50%;
+  top: 5px;
+  text-align: center;
+  font-size: 1.5em;
+  background: #00000088;
+  border-radius: 5px;
+  transform: translate(-50%, 0%);
+}
+
 .post-title {
   font-size: 2em;
   font-weight: bold;

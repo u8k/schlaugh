@@ -933,6 +933,7 @@ var postsFromAuthorListAndDate = function (authorList, date, followingRef, postR
     ,{posts:1, username:1, iconURI:1, pendingUpdates:1, bio:1}).toArray(function(err, users) {
     if (err) {return callback({error:err});}
     else {
+      // this is to get pics for authors to populate the following list
       var followingList = [];
       if (followingRef) {
         for (var i = 0; i < users.length; i++) {
@@ -955,21 +956,25 @@ var postsFromAuthorListAndDate = function (authorList, date, followingRef, postR
             if (resp.error) {return callback({error:resp.error})}
             var post_id = null;
             if (resp.user.posts[date][0].post_id) {post_id = resp.user.posts[date][0].post_id}
-            if (postRef[post_id]) {
-              posts.push({post_id: post_id,});
-            } else {
-              var authorPic = getUserPic(resp.user);
-              posts.push({
-                body: resp.user.posts[date][0].body,
-                tags: resp.user.posts[date][0].tags,
-                post_id: post_id,
-                author: resp.user.username,
-                authorPic: authorPic,
-                _id: resp.user._id,
-                date: date,
-                title: resp.user.posts[date][0].title,
-                url: resp.user.posts[date][0].url,
-              });
+              // strip out private posts
+            if (!users[i].posts[date][0].private) {
+              // if the postRef indicates that FE already has it, we don't need it again
+              if (postRef[post_id]) {
+                posts.push({post_id: post_id,});
+              } else {
+                var authorPic = getUserPic(resp.user);
+                posts.push({
+                  body: resp.user.posts[date][0].body,
+                  tags: resp.user.posts[date][0].tags,
+                  post_id: post_id,
+                  author: resp.user.username,
+                  authorPic: authorPic,
+                  _id: resp.user._id,
+                  date: date,
+                  title: resp.user.posts[date][0].title,
+                  url: resp.user.posts[date][0].url,
+                });
+              }
             }
             count--;
             if (count === 0) {
@@ -1022,7 +1027,21 @@ var postsFromListOfAuthorsAndDates = function (postList, postRef, callback) {
             if (resp.user.posts[date] && date <= pool.getCurDate()) {
               var post_id = null;
               if (resp.user.posts[date][0].post_id) {post_id = resp.user.posts[date][0].post_id}
-              if (postRef[post_id]) {
+              // strip out private posts
+              if (resp.user.posts[date][0].private) {
+                // but leave this flag here to show that something was here before
+                posts[postBook[resp.user._id][j].pos] = {
+                  body: "<c><b>***post has been made private by author***</b></c>",
+                  tags: {},
+                  post_id: genRandString(8),
+                  author: "",
+                  authorPic: "",
+                  _id: "",
+                  date: date,
+                  private: true,
+                };
+              //
+              } else if (postRef[post_id]) {
                 posts[postBook[resp.user._id][j].pos] = {
                   post_id: post_id,
                 };
@@ -1041,12 +1060,12 @@ var postsFromListOfAuthorsAndDates = function (postList, postRef, callback) {
               }
             } else if (resp.user.posts[date]) {
               posts[postBook[resp.user._id][j].pos] = {
-                body: "<c><b><i>***n i c e  t r y  p a l***</i></b></c>",
+                body: `<a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"><c><b><i>***n i c e  t r y  p a l***</i></b></c></a>`,
                 tags: {},
                 post_id: genRandString(8),
-                author: resp.user.username,
-                authorPic: authorPic,
-                _id: resp.user._id,
+                author: "",
+                authorPic: "",
+                _id: "",
                 date: date,
               };
             } else {  // post not found
@@ -1054,9 +1073,9 @@ var postsFromListOfAuthorsAndDates = function (postList, postRef, callback) {
                 body: "<c><b>***post has been deleted by author***</b></c>",
                 tags: {},
                 post_id: genRandString(8),
-                author: resp.user.username,
-                authorPic: authorPic,
-                _id: resp.user._id,
+                author: "",
+                authorPic: "",
+                _id: "",
                 date: date,
               };
             }
@@ -2406,6 +2425,28 @@ app.post('/editOldPost', function (req, res) {
   });
 });
 
+//
+app.post('/makePostPrivate', function (req, res) {
+  var errMsg = "the post privacy was not successfully toggled<br><br>";
+  if (!req.body.postData.post_id || !req.body.postData.date) {return sendError(req, res, errMsg+"malformed request 1514");}
+  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1,}, function (user) {
+    checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
+
+    // before changing anything, verify the postID corresponds with the date (this makes sure a user is privating their own post)
+    if (user.posts[req.body.postData.date] && user.posts[req.body.postData.date][0].post_id === req.body.postData.post_id) {
+      user.posts[req.body.postData.date][0].private = req.body.postData.private;
+      writeToDB(user._id, user, function (resp) {
+        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+        else {
+          return res.send({error: false});}
+      });
+
+    } else {
+      return sendError(req, res, errMsg+"postID and date miscoresponce");
+    }
+  });
+});
+
 // delete an already posted(non pending) post, also bio
 app.post('/deleteOldPost', function (req, res) {
   var errMsg = "the post was not successfully deleted<br><br>";
@@ -3688,7 +3729,7 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
   if (req.body.page === undefined) {req.body.page = 0;}
   req.body.page = parseInt(req.body.page);
   if (!Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(req, res, errMsg+"malformed request 301");}
-  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 300");}
+  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 3020");}
   var authorID = req.body.author;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
   else {return sendError(req, res, errMsg+"invalid author id");}
@@ -3710,6 +3751,18 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
           var postsPerPage = getPostsPerPage(req);
 
           var pL = author.postList;
+          //
+          if (!req.session.user || !ObjectId.isValid(req.session.user._id) || String(req.session.user._id) !== String(authorID)) {
+            // strip out private posts
+            for (var i = 0; i < pL.length; i++) {
+              pL[i]
+              if (author.posts[pL[i].date][pL[i].num].private) {
+                pL.splice(i, 1);
+                i--;
+              }
+            }
+          }
+
           var pages = Math.ceil(pL.length /postsPerPage);
           if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
             var page = pages;
@@ -3719,6 +3772,7 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
           var start = (page * postsPerPage) - 1;
           for (var i = start; i > start - postsPerPage; i--) {
             if (pL[i]) {
+              // strip out posts we already have on FE in the postRef
               if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
                 posts.push({
                   body: author.posts[pL[i].date][pL[i].num].body,
@@ -3727,6 +3781,7 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
                   url: author.posts[pL[i].date][pL[i].num].url,
                   post_id: author.posts[pL[i].date][pL[i].num].post_id,
                   date: pL[i].date,
+                  private: author.posts[pL[i].date][pL[i].num].private,
                 });
               } else {
                 posts.push({post_id: author.posts[pL[i].date][pL[i].num].post_id,})
@@ -3753,9 +3808,9 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
   });
 }
 
-var getAllAnAuthorsPosts = function(req, res) {
+var getAllOfAnAuthorsPosts = function(req, res) {
   var errMsg = "author lookup error<br><br>";
-  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 300");}
+  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 3010");}
   var authorID = req.body.author;
   if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
   else {return sendError(req, res, errMsg+"invalid author id");}
@@ -3778,17 +3833,22 @@ var getAllAnAuthorsPosts = function(req, res) {
 
           for (var i = pL.length-1; i > -1; i--) {
             if (pL[i]) {
-              if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
-                posts.push({
-                  body: author.posts[pL[i].date][pL[i].num].body,
-                  tags: author.posts[pL[i].date][pL[i].num].tags,
-                  title: author.posts[pL[i].date][pL[i].num].title,
-                  url: author.posts[pL[i].date][pL[i].num].url,
-                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                  date: pL[i].date,
-                });
-              } else {
-                posts.push({post_id: author.posts[pL[i].date][pL[i].num].post_id,})
+              // strip out private posts
+              if (!author.posts[pL[i].date][pL[i].num].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
+                //
+                if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
+                  posts.push({
+                    body: author.posts[pL[i].date][pL[i].num].body,
+                    tags: author.posts[pL[i].date][pL[i].num].tags,
+                    title: author.posts[pL[i].date][pL[i].num].title,
+                    url: author.posts[pL[i].date][pL[i].num].url,
+                    post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                    private: author.posts[pL[i].date][pL[i].num].private,
+                    date: pL[i].date,
+                  });
+                } else {
+                  posts.push({post_id: author.posts[pL[i].date][pL[i].num].post_id,})
+                }
               }
             }
           }
@@ -3850,15 +3910,22 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
         data.authorInfo = getAuthorInfo(author, req);
       }
       if (author.posts && author.posts[req.body.date] && req.body.date <= pool.getCurDate()) {
-        var authorPic = getUserPic(author);
-        checkUpdates(author, function (resp) {
-          if (resp.err) {return sendError(req, res, errMsg+resp.err);}
-          resp.user.posts[req.body.date][0].authorPic = authorPic;
-          resp.user.posts[req.body.date][0].author = author.username;
-          resp.user.posts[req.body.date][0]._id = author._id;
-          resp.user.posts[req.body.date][0].date = req.body.date;
-          data.posts = [resp.user.posts[req.body.date][0],];
-        });
+        // strip out private posts
+        if (!author.posts[req.body.date][0].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
+          var authorPic = getUserPic(author);
+          checkUpdates(author, function (resp) {
+            if (resp.err) {return sendError(req, res, errMsg+resp.err);}
+            resp.user.posts[req.body.date][0].authorPic = authorPic;
+            resp.user.posts[req.body.date][0].author = author.username;
+            resp.user.posts[req.body.date][0]._id = author._id;
+            resp.user.posts[req.body.date][0].date = req.body.date;
+            data.posts = [resp.user.posts[req.body.date][0],];
+          });
+        } else {
+          data.authorInfo = null;
+          data.four04 = true;
+          data.existed = true;
+        }
       } else {
         data.four04 = true;
       }
@@ -3889,20 +3956,29 @@ var getAllOfAnAuthorsPostsWithTag = function (req, res) {
           var posts = [];
           var pL = author.postList;
           for (var i = pL.length-1; i > -1; i--) {
-            if (author.posts[pL[i].date] && author.posts[pL[i].date][pL[i].num] && author.posts[pL[i].date][pL[i].num].tags && author.posts[pL[i].date][pL[i].num].tags[req.body.tag]) {
-              if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
-                posts.push({
-                  body: author.posts[pL[i].date][pL[i].num].body,
-                  tags: author.posts[pL[i].date][pL[i].num].tags,
-                  title: author.posts[pL[i].date][pL[i].num].title,
-                  url: author.posts[pL[i].date][pL[i].num].url,
-                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                  date: pL[i].date,
-                });
-              } else {
-                posts.push({
-                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                });
+            // if the post object exists where it should in the first place
+            if (author.posts[pL[i].date] && author.posts[pL[i].date][pL[i].num]) {
+              // strip out private posts
+              if (!author.posts[pL[i].date][pL[i].num].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
+                // does it have the tags we want?
+                if (author.posts[pL[i].date][pL[i].num].tags && author.posts[pL[i].date][pL[i].num].tags[req.body.tag]) {
+                  //
+                  if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
+                    posts.push({
+                      body: author.posts[pL[i].date][pL[i].num].body,
+                      tags: author.posts[pL[i].date][pL[i].num].tags,
+                      title: author.posts[pL[i].date][pL[i].num].title,
+                      url: author.posts[pL[i].date][pL[i].num].url,
+                      post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                      private: author.posts[pL[i].date][pL[i].num].private,
+                      date: pL[i].date,
+                    });
+                  } else {
+                    posts.push({
+                      post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                    });
+                  }
+                }
               }
             }
           }
@@ -4081,7 +4157,7 @@ app.post('/getPosts', function (req, res) {
   else if (postCode === "TFTF") {return getSinglePostFromAuthorAndDate(req, res);}
   else if (postCode === "TFFT" || postCode === "TFFF") {return getOnePageOfAnAuthorsPosts(req, res);}
   else if (postCode === "MARK") {return getBookMarkedPosts(req, res);}
-  else if (postCode === "ALL") {return getAllAnAuthorsPosts(req, res);}
+  else if (postCode === "ALL") {return getAllOfAnAuthorsPosts(req, res);}
   else {return sendError(req, res, errMsg+"malformed request 433");}
 });
 
