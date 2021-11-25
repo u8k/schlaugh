@@ -135,7 +135,7 @@ var revertAppearance = function () {
   $('sign-to-save3').classList.add('removed');
 }
 
-var changeColor = function (colorCode, type) {          // makes the new CSS rule
+var getStyleSheet = function () {
   var sheet;
   for (var i = 0; i < document.styleSheets.length; i++) {
     if (document.styleSheets[i].href === window.location.origin+"/game.css") {
@@ -148,8 +148,14 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     for (var i = 0; i < document.styleSheets.length; i++) {
       console.log(document.styleSheets[i].href);
     }
-    return uiAlert("error, sorry!<br><br>styleSheet not found<br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!");
+    uiAlert("error, sorry!<br><br>styleSheet not found<br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!");
   }
+  return sheet;
+}
+
+var changeColor = function (colorCode, type) {          // makes the new CSS rule
+  var sheet = getStyleSheet();
+  if (!sheet) {return;}
 
   if (type === "postBackground") {
     var selector = ".post, .message, .editor, .content-box, button, .footer-button, .pop-up, .post-background, panelButtons";
@@ -257,10 +263,13 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
 }
 
 var changeFont = function (value, attribute) {          // makes the new CSS rule
+  var sheet = getStyleSheet();
+  if (!sheet) {return;}
+  //
   if (attribute === "font-family" && fontBank[value]) {
     value = value +", "+ fontBank[value];
   }
-  var sheet = document.styleSheets[document.styleSheets.length-1];
+  //
   sheet.insertRule(".reader-font"+" {"+attribute+": "+value+";}", sheet.cssRules.length);
 }
 
