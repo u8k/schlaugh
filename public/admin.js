@@ -367,3 +367,9 @@ var tripDelayTest = function () {
     console.log(json);
   });
 }
+
+var fixEditBug = function () {
+  ajaxCall('/admin/fixEditBug', 'POST', {id: $("bug-fix-user-id").value}, function(json) {
+    console.log(json);
+  });
+}

@@ -90,7 +90,7 @@ var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, BI
       var count = 0;
       for (var date in ref) { if (ref.hasOwnProperty(date)) {
         count++;
-        if (date === "bio" || "iconURI") {
+        if (date === "bio" || date === "iconURI") {
           user[date] = ref[date];
           delete ref[date];
           count--;
@@ -1623,6 +1623,47 @@ app.post('/admin/getSessions', function (req, res) {
       }
     }
     return res.send(obj);
+  });
+});
+
+app.post('/admin/fixEditBug', function(req, res) {
+  adminGate(req, res, function (res, user) {
+    if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id"});}
+    db.collection('users').findOne({_id: ObjectId(req.body.id)}, {}, function (err, user) {
+      if (err) {return sendError(req, res, err);}
+      else if (!user) {return res.send({error:"userID not found"});}
+      else {
+        for (var prop in user) { if (user.hasOwnProperty(prop)) {
+          if (pool.isStringValidDate(prop)) {
+            user.posts[prop] = user[prop];
+          }
+        }}
+        writeToDB(ObjectId(req.body.id), user, function (resp) {
+          if (resp.error) {return res.send({error:resp.error});}
+          else {
+            if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id2"});}
+            db.collection('users').findOne({_id: ObjectId(req.body.id)}, {}, function (err, user) {
+              if (err) {return sendError(req, res, err);}
+              else if (!user) {return res.send({error:"userID not found2"});}
+              else {
+                for (var prop in user) { if (user.hasOwnProperty(prop)) {
+                  if (pool.isStringValidDate(prop)) {
+                    delete user[prop];
+                  }
+                }}
+                writeToDB(ObjectId(req.body.id), user, function (resp) {
+                  if (resp.error) {return res.send({error:resp.error});}
+                  else {
+                    return res.send(user);
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+
   });
 });
 
