@@ -2568,14 +2568,6 @@ var renderOnePost = function (postData, type, postID) {
   if (type !== 'author' && type !== 'preview-edit') {
     postHeader.setAttribute('class', 'post-header-feed');
 
-    // post title
-    if (postData.title) {
-      var title = document.createElement("text");
-      title.innerHTML = postData.title;
-      title.setAttribute('class', 'post-title');
-      // click handler goes here if we want that
-      postHeader.appendChild(title);
-    }
     //
     var postHeaderRight = document.createElement("a");
     postHeaderRight.setAttribute('href', "/"+postData.author);
@@ -2610,6 +2602,16 @@ var renderOnePost = function (postData, type, postID) {
     postHeaderRight.appendChild(authorName);
   } else {
     postHeader.setAttribute('class', 'post-header');
+  }
+
+  // post title
+  // (must be appended after postHeaderRight ond then be displayed row-reversed to get the placement right)
+  if (postData.title) {
+    var title = document.createElement("text");
+    title.innerHTML = postData.title;
+    title.setAttribute('class', 'post-title');
+    // click handler goes here if we want that
+    postHeader.appendChild(title);
   }
 
   // actual post body

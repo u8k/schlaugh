@@ -527,7 +527,7 @@ a, a.visited {
   margin-top: 5px;
   display: flex;
   justify-content: space-between;
-  flex-direction: row;
+  flex-direction: row-reverse;
   margin-bottom: 5px;
 }
 
