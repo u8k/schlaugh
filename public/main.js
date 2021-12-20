@@ -2568,6 +2568,14 @@ var renderOnePost = function (postData, type, postID) {
   if (type !== 'author' && type !== 'preview-edit') {
     postHeader.setAttribute('class', 'post-header-feed');
 
+    // post title
+    if (postData.title) {
+      var title = document.createElement("text");
+      title.innerHTML = postData.title;
+      title.setAttribute('class', 'post-title');
+      // click handler goes here if we want that
+      postHeader.appendChild(title);
+    }
     //
     var postHeaderRight = document.createElement("a");
     postHeaderRight.setAttribute('href', "/"+postData.author);
@@ -2602,14 +2610,6 @@ var renderOnePost = function (postData, type, postID) {
     postHeaderRight.appendChild(authorName);
   } else {
     postHeader.setAttribute('class', 'post-header');
-  }
-  // post title
-  if (postData.title) {
-    var title = document.createElement("text");
-    title.innerHTML = postData.title;
-    title.setAttribute('class', 'post-title');
-    // click handler goes here if we want that
-    postHeader.appendChild(title);
   }
 
   // actual post body
@@ -5565,7 +5565,7 @@ var postsPerPageExplain = function () {
 }
 
 var privatePostExplain = function () {
-  uiAlert(`a post that has been made private is visible/accessible to only the author and is effectively deleted/nonexistent to everyone else.<br>You can un-private a post at any time`)
+  uiAlert(`a post that has been made private is visible/accessible to only the author and is effectively deleted/nonexistent to everyone else<br><br>you can switch a post between private and public at any time, with no delay`)
 }
 
 var changeUsername = function () {

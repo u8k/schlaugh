@@ -368,6 +368,7 @@ clicky, .clicky {
   white-space: pre-wrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  overflow-wrap: break-word;
 }
 
 #post-bucket {
@@ -526,7 +527,7 @@ a, a.visited {
   margin-top: 5px;
   display: flex;
   justify-content: space-between;
-  flex-direction: row-reverse;
+  flex-direction: row;
   margin-bottom: 5px;
 }
 
@@ -547,6 +548,7 @@ a, a.visited {
   font-weight: bold;
   text-align: left;
   padding-right: 10px;
+  overflow-wrap: anywhere;
 }
 
 .tag-section {
