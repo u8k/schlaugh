@@ -968,6 +968,7 @@ slogan {
   -moz-user-select: text;
   -ms-user-select: text;
   user-select: text;
+  max-width: 100%;
 }
 
 .meta-panel-button {
