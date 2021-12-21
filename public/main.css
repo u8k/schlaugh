@@ -969,6 +969,7 @@ slogan {
   -ms-user-select: text;
   user-select: text;
   max-width: 100%;
+  text-align: inherit;
 }
 
 .meta-panel-button {
