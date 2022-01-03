@@ -957,7 +957,7 @@ var postsFromAuthorListAndDate = function (authorList, date, followingRef, postR
             var post_id = null;
             if (resp.user.posts[date][0].post_id) {post_id = resp.user.posts[date][0].post_id}
               // strip out private posts
-            if (!users[i].posts[date][0].private) {
+            if (!resp.user.posts[date][0].private) {
               // if the postRef indicates that FE already has it, we don't need it again
               if (postRef[post_id]) {
                 posts.push({post_id: post_id,});
