@@ -159,13 +159,14 @@ var getUsers = function () {
   });
 }
 
-var getPosts = function () {
-  ajaxCall('/admin/posts', 'POST', {}, function(json) {
+var userNameDiscrep = function () {
+  ajaxCall('/admin/userNameDiscrep', 'POST', {text:$('data-field').value}, function(json) {
     console.log(json);
   });
 }
 
 var getTags = function () {
+  return console.log('no');;
   ajaxCall('/admin/tags', 'POST', {date: $('date-of-tags').value}, function(json) {
     console.log(json);
   });
@@ -173,12 +174,6 @@ var getTags = function () {
 
 var getPost = function () {
   ajaxCall('/admin/getPost', 'POST', {_id: $("id-of-post-to-get").value}, function(json) {
-    console.log(json);
-  });
-}
-
-var editPost = function () {
-  ajaxCall('/admin/editPost', 'POST', {_id: $("id-of-post-to-edit").value, input:$("editor-input").value}, function(json) {
     console.log(json);
   });
 }
@@ -193,13 +188,6 @@ var resetTest = function () {
 var makePostIDs = function () {
   if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
   ajaxCall('/admin/makePostIDs', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
-var allFollowStaff = function () {
-  if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
-  ajaxCall('/admin/followStaff', 'POST', {}, function(json) {
     console.log(json);
   });
 }
@@ -288,24 +276,6 @@ var createPostID = function () {
   });
 }
 
-var publishFAQ = function () {
-  ajaxCall('/admin/faq', 'POST', {text: preCleanText($("faq-input").value)}, function(json) {
-    console.log(json);
-  });
-}
-
-var fetchFAQ = function () {
-  ajaxCall('/~faqText', 'GET', {}, function(json) {
-    $("faq-input").value = prepTextForEditor(json.text);
-  });
-}
-
-var getUserUrls = function () {
-  ajaxCall('/admin/getUserUrls', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
 var getTagIndex = function () {
   ajaxCall('/admin/getTagIndex', 'POST', {}, function(json) {
     console.log(json);
@@ -315,19 +285,6 @@ var getTagIndex = function () {
 var getSessions = function () {
   ajaxCall('/admin/getSessions', 'POST', {}, function(json) {
     console.log(json);
-  });
-}
-
-var deCaseSensitizeTags = function (daysAgo) {
-  if (daysAgo === undefined) {daysAgo = 900;}
-  var date = pool.getCurDate(daysAgo);
-  ajaxCall('/admin/deCaseSensitizeTags', 'POST', {date:date}, function(json) {
-    console.log(date);
-    if (daysAgo > -2) {
-      deCaseSensitizeTags(daysAgo-1);
-    } else {
-      console.log('done!');
-    }
   });
 }
 

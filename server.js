@@ -63,10 +63,11 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 
 //*******//HELPER FUNCTIONS//*******//
-var checkFreshness = function (user) {  // pushes New pending posts to postlist
+var pushNewToPostlist = function (user) {  // pushes New pending posts to postlist
+  // needs user.postListPending, postList, and postListUpdatedOn, does not perform it's own save
   var today = pool.getCurDate();
-  if (user['postListUpdatedOn'] !== today) {
-    user['postListUpdatedOn'] = today;
+  if (user.postListUpdatedOn !== today) {
+    user.postListUpdatedOn = today;
     var plp = user.postListPending;
     while (plp[0] && plp[0].date <= today) {
       user.postList.push({
@@ -75,59 +76,108 @@ var checkFreshness = function (user) {  // pushes New pending posts to postlist
       });
       plp.splice(0,1);
     }
-    return user;
+    return true;
   } else {
-    return "fresh!";
+    return false;
   }
 }
 
-var checkUpdates = function (user, callback) {  // pushes edits on OLD posts, BIO, and userPic
-  var today = pool.getCurDate();        // "user"obj MUST have pendingUpdates, posts, bio, iconURI, and _id props
-  if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.lastUpdatedOn) {
-    if (!safeMode && user.pendingUpdates.lastUpdatedOn !== today) {
-      user.pendingUpdates.lastUpdatedOn = today;
+var checkForUserUpdates = function (req, res, errMsg, userID, callback) {  // pushes edits on OLD posts, BIO, and userPic
+  // first cursory DB fetch to see if updates are needed
+  var props = ['postListUpdatedOn','pendingUpdates'];
+  readUser(req, res, errMsg, userID, {list:props}, function (user) {
+    if (!user) {return callback();}
+    var updatesNeedsUpdate = false;
+    var postListNeedsUpdate = false;
+    var today = pool.getCurDate();
+    // is postListUpdatedOn fresh?
+    if (user.postListUpdatedOn !== today) {
+      props.push('postListPending', 'postList');
+      postListNeedsUpdate = true;
+    }
+    // check for 'pendingUpdates'
+    if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.lastUpdatedOn && user.pendingUpdates.lastUpdatedOn !== today) {
+      updatesNeedsUpdate = true;
+      var updateList = [];
+      // so we do need to update something, what exactly? (or maybe we just bump the 'lastUpdatedOn')
       var ref = user.pendingUpdates.updates;
-      var count = 0;
-      for (var date in ref) { if (ref.hasOwnProperty(date)) {
-        count++;
+      var alreadyGotPosts = false;
+      for (var date in ref) {if (ref.hasOwnProperty(date)) {
+        updateList.push(date);
         if (date === "bio" || date === "iconURI") {
-          user[date] = ref[date];
-          delete ref[date];
-          count--;
-        } else if (user.posts[date]) {      // it's an edit to an old post
-          // check existing tags
-          var badTagArr = [];
-          for (var tag in user.posts[date][0].tags) {
-            if (user.posts[date][0].tags.hasOwnProperty(tag)) {
-              if (!ref[date][0].tags[tag]) {       // if the old tag is NOT a new tag too
-                badTagArr.push(tag.toLowerCase());
+          props.push(date);
+        } else {
+          // if we have even one post, then we need the whole darn posts object
+          if (!alreadyGotPosts) {
+            props.push('posts');
+            alreadyGotPosts = true;
+          }
+        }
+      }}
+    }
+    if (postListNeedsUpdate || updatesNeedsUpdate) {
+      // fetch the props we need for this user
+      readUser(req, res, errMsg, userID, {list:props}, function (user) {
+        if (postListNeedsUpdate) {pushNewToPostlist(user);}
+        if (updatesNeedsUpdate) {
+          user.pendingUpdates.lastUpdatedOn = today;
+          var ref = user.pendingUpdates.updates;
+          //
+          var loop = function (i, callback) {
+            if (!updateList[i]) {return callback(user);}
+            //
+            else if (updateList[i] === "bio" || updateList[i] === "iconURI") {
+              user[updateList[i]] = ref[updateList[i]];
+              delete ref[updateList[i]];
+              return loop(i+1, callback);
+              //
+            } else if (user.posts[updateList[i]]) {      // it's an edit to an old post
+              // check existing tags
+              var badTagArr = [];
+              for (var tag in user.posts[updateList[i]][0].tags) {
+                if (user.posts[updateList[i]][0].tags.hasOwnProperty(tag)) {
+                  if (!ref[updateList[i]][0].tags[tag]) {       // if the old tag is NOT a new tag too
+                    badTagArr.push(tag.toLowerCase());
+                  }
+                }
               }
+              deleteTagRefs(req, res, errMsg, badTagArr, updateList[i], user._id, function (resp) {
+                user.posts[resp.date] = ref[resp.date];         // the line where the update actually happens!
+                delete ref[resp.date];
+                return loop(i+1, callback);
+              });
+            } else {  // can't find the thing we're supposed to be editing?
+              delete ref[updateList[i]];
+              return loop(i+1, callback);
             }
           }
-          deleteTagRefs(badTagArr, date, user._id, function (resp) {
-            if (resp.error) {return callback({error:resp.error});}
-            else {
-              count--;
-              user.posts[resp.date] = ref[resp.date];         // the line where the update actually happens!
-              delete ref[resp.date];
-              setTimeout(function () {
-                if (count === 0) {
-                  count--;
-                  return callback({change:true, user:user});
-                }
-              }, 0);
-            }
+          loop(0, function (user) {
+            callback();
+            writeToUser(req, null, errMsg+'write failure in "checkForUserUpdates"<br>', user);
           });
-        } else {delete ref[date];}
-      }
+        } else {
+          callback();
+          writeToUser(req, null, errMsg+'write failure in "checkForUserUpdates"<br>', user);
+        }
+      });
+    } else {  // no update needed
+      return callback();
+    }
+  });
+}
 
-      }
-      if (count === 0) {
-        count--;
-        return callback({change:true, user:user});
-      }
-    } else {return callback({change:false, user:user});}
-  } else {return callback({change:false, user:user});}
+var checkMultiUsersForUpdates = function (req, res, errMsg, idList, callback) {
+  var loop = function (i, callback) {
+    if (!idList[i]) {return callback();}
+    else {
+      checkForUserUpdates(req, res, errMsg, idList[i], function () {
+        return loop(i+1, callback);
+      });
+    }
+  }
+  loop(0, function () {
+    callback();
+  });
 }
 
 var imageValidate = function (arr, callback, byteLimit) {
@@ -225,19 +275,11 @@ var linkValidate = function (arr, callback) {
   manageLinkValidate();
 }
 
-var writeToDB = function (userID, data, callback) { // to the USER collection
-  if (!ObjectId.isValid(userID)) {return callback({error:"invalid ID format"});}
-  db.collection('users').updateOne({_id: ObjectId(userID)},
-    {$set: data},
-    function(err, user) {
-      if (err) {callback({error:err});}
-      else {callback({error:false});}
-    }
-  );
-}
-
 var getUserPic = function (user) {
-  var userPic = user.iconURI;
+  var userPic;
+  if (user) {
+    userPic = user.iconURI;
+  }
   if (typeof userPic !== 'string') {userPic = "";}
   return userPic;
 }
@@ -328,99 +370,86 @@ var newSessionKey = function (userID) {
 }
 
 var getPayload = function (req, res, callback) {
-  if (!req.session.user) {return sendError(req, res, "no user session 0234");}
-  else {
-    db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {username:1, posts:1, iconURI:1, settings:1, inbox:1, keys:1, following:1, muted:1, pendingUpdates:1, bio:1, bookmarks:1, collapsed:1, savedTags:1, games:1}
-    , function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else if (!user) {return sendError(req, res, "user not found");}
-      else {
-        var tmrw = pool.getCurDate(-1);
-        // check if user needs keys
-        if (!user.keys) {return res.send({needKeys:true});}
-        if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
-        if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = [];}
-        if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
-        var payload = {
-          keys: user.keys,
-          username: user.username,
-          userID: req.session.user._id,
-          settings: user.settings,
-          following: user.following,
-          bookmarks: user.bookmarks,
-          collapsed: user.collapsed,
-          savedTags: user.savedTags,
-          muted: user.muted,
-          games: user.games,
-        }
-        // session key set
-        var sessionKey = newSessionKey(req.session.user._id);
-        payload.sessionKey = sessionKey;
+  var errMsg = 'unable to acquire payload<br><br>';
+  checkForUserUpdates(req, res, errMsg, req.session.user._id, function () {
+    var propList = ['posts','username', 'iconURI', 'settings', 'inbox', 'keys', 'following', 'muted', 'pendingUpdates', 'bio', 'bookmarks', 'collapsed', 'savedTags', 'games'];
+    readCurrentUser(req, res, errMsg, {list:propList}, function (user) {
+      // check if user needs keys
+      if (!user.keys) {return res.send({needKeys:true});}
+      if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
+      if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = [];}
+      if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
+      var payload = {
+        keys: user.keys,
+        username: user.username,
+        userID: req.session.user._id,
+        settings: user.settings,
+        following: user.following,
+        bookmarks: user.bookmarks,
+        collapsed: user.collapsed,
+        savedTags: user.savedTags,
+        muted: user.muted,
+        games: user.games,
+      }
+      // session key set
+      var sessionKey = newSessionKey(req.session.user._id);
+      payload.sessionKey = sessionKey;
 
-        //pending post
-        if (user.posts[tmrw]) {
-          payload.pending = user.posts[tmrw][0];
-        }
-        checkUpdates(user, function (check) {
-          if (check.error) {return sendError(req, res, check.error);}
-          user = check.user;
-          if (user.pendingUpdates && user.pendingUpdates.updates) {
-            payload.pendingUpdates = user.pendingUpdates.updates;
-          } else {
-            payload.pendingUpdates = {};
-          }
-          // bio/userPic need to be filled in AFTER we check for updates
-          payload.userPic = getUserPic(user);
-          payload.bio = user.bio;
-          if (typeof payload.bio !== 'string') {payload.bio = "";}
+      //pending post
+      var tmrw = pool.getCurDate(-1);
+      if (user.posts[tmrw]) {
+        payload.pending = user.posts[tmrw][0];
+      }
+      //
+      if (user.pendingUpdates && user.pendingUpdates.updates) {
+        payload.pendingUpdates = user.pendingUpdates.updates;
+      } else {
+        payload.pendingUpdates = {};
+      }
+      // bio/userPic need to be filled in AFTER we check for updates
+      payload.userPic = getUserPic(user);
+      payload.bio = user.bio;
+      if (typeof payload.bio !== 'string') {payload.bio = "";}
 
-          //inbox
-          if (user.inbox) {
-            var threads = [];
-            var bump = bumpThreadList(user.inbox);
-            if (bump || check.change) {
-              writeToDB(ObjectId(req.session.user._id), user, function () {});
-            }
-            var list = user.inbox.list;
-            //reverse thread order so as to send a list ordered newest to oldest
-            for (var i = list.length-1; i > -1; i--) {
-              if (user.inbox.threads[list[i]] && user.inbox.threads[list[i]].thread && user.inbox.threads[list[i]].thread.length !== undefined) {
-                //check the last two messages of each thread, see if they are allowed
-                var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, tmrw, true);
-                if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
-                // add in the authorID for the FE
-                user.inbox.threads[list[i]]._id = list[i];
-                // all threads are locked until unlocked on the FE
-                user.inbox.threads[list[i]].locked = true;
-                threads.push(user.inbox.threads[list[i]]);
-              }
-            }
-            payload.threads = threads;
-            return callback(payload);
-          } else {
-            payload.threads = [];
-            return callback(payload);
+      //inbox
+      if (user.inbox) {
+        var threads = [];
+        var bump = bumpThreadList(user.inbox);
+        if (bump) {
+          writeToUser(req, null, errMsg, user);
+        }
+        var list = user.inbox.list;
+        //reverse thread order so as to send a list ordered newest to oldest
+        for (var i = list.length-1; i > -1; i--) {
+          if (user.inbox.threads[list[i]] && user.inbox.threads[list[i]].thread && user.inbox.threads[list[i]].thread.length !== undefined) {
+            //check the last two messages of each thread, see if they are allowed
+            var x = checkLastTwoMessages(user.inbox.threads[list[i]].thread, tmrw, true);
+            if (x !== false) {user.inbox.threads[list[i]].thread.splice(x, 1);}
+            // add in the authorID for the FE
+            user.inbox.threads[list[i]]._id = list[i];
+            // all threads are locked until unlocked on the FE
+            user.inbox.threads[list[i]].locked = true;
+            threads.push(user.inbox.threads[list[i]]);
           }
-        });
+        }
+        payload.threads = threads;
+        return callback(payload);
+      } else {
+        payload.threads = [];
+        return callback(payload);
       }
     });
-  }
+  });
 }
 
 var getSettings = function (req, res, callback) {
   if (!req.session.user) {return callback({user:false, settings:null});}
-  db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-  , {_id:0, settings:1}
-  , function (err, user) {
-    if (err) {return sendError(req, res, err);}
-    else if (!user) {return sendError(req, res, "user not found");}
-    else {
-      var settings = {};
-      settings.colors = user.settings.colors;
-      settings.font = user.settings.font;
-      return callback({user:true, settings:settings});
-    }
+  var errMsg = "unable to access user settings<br><br>";
+  readCurrentUser(req, res, errMsg, {list:['settings']}, function (user) {
+    var settings = {};
+    settings.colors = user.settings.colors;
+    settings.font = user.settings.font;
+    return callback({user:true, settings:settings});
   });
 }
 
@@ -433,104 +462,60 @@ var genRandString = function (length) {
   return output;
 }
 
-var genID = function (clctn, length, callback) {
+var genID = function (req, res, errMsg, clctn, length, callback) {
   var output = genRandString(length);
-  db.collection(clctn).findOne({_id: output}, {_id:1}, function (err, record) {
-    if (err) {return callback({error:err})}
-    else if (record) {return genID(clctn, length, callback);} // collision! try again
-    else {return callback({_id:output})}
-  });
-}
-
-var createUserUrl = function (username, authorID, callback) {    //creates a listing in the userUrl collection
-  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
-  authorID = ObjectId(authorID);
-  db.collection('userUrls').insertOne({
-    _id: username.toLowerCase(),
-    authorID: authorID,
-  }, {}, function (err, result) {
-    if (err) {return callback({error:err});}
-    else {return callback({error:false});}
+  dbReadOneByID(req, res, errMsg, clctn, output, getProjection(['_id']), function (record) {
+    if (record) {return genID(req, res, errMsg, clctn, length, callback);} // collision! try again
+    else {return callback(output)}
   });
 }
 
 var createStat = function (date, callback) {
-  db.collection('stats').insertOne({
-    _id: date,
-  }, {}, function (err, result) {
-    if (err) {return callback({error:err});}
-    else {return callback({error:false, statID:result.insertedId});}
+  dbCreateOne(null, null, null, 'stats', {_id:date}, function (newID) {
+    return callback();
   });
 }
-
 var incrementStat = function (kind) {
   var date = pool.getCurDate();
   // does statBucket already exist for day?
-  db.collection('stats').findOne({_id: date},
-    function(err, stat) {
-      if (err) {return sendError(req, res, "error incrementing stat: "+err);}
-      if (!stat) {createStat(date, function () {
-        updateStat(date, kind, 1);
-      })} else {
-        var x = 1;
-        if (stat[kind]) {x = stat[kind] + 1;}
-        updateStat(date, kind, x);
-      }
-    }
-  );
-}
-
-var updateStat = function (date, kind, val) {
-  var obj = {};
-  obj[kind] = val;
-  db.collection('stats').updateOne({_id: date},
-    {$set: obj},
-    function(err, stat) {
-      if (err) {return sendError(req, res, "error updating stat: "+err);}
-      if (!stat) {return sendError(req, res, "statBucket not found???");}
-    }
-  );
-}
-
-var createPost = function (authorID, callback, date) {    //creates a postID and ref in the postDB
-  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
-  authorID = ObjectId(authorID);
-  if (!date) {date = pool.getCurDate(-1)}
-  genID('posts', 7, function (resp) {
-    if (resp.error) {return callback({error:resp.error});}
-    else {
-      db.collection('posts').insertOne({
-        _id: resp._id,
-        date: date,
-        authorID: authorID,
-        num:0,
-      }, {}, function (err, result) {
-        if (err) {return callback({error:err});}
-        else {return callback({error:false, post_id:result.insertedId});}
-      });
+  dbReadOneByID(null, null, 'error incrementing stat<br><br>', 'stats', date, null, function (stat) {
+    if (!stat) {createStat(date, function () {
+      updateStat(date, kind, 1);
+    })} else {
+      var x = 1;
+      if (stat[kind]) {x = stat[kind] + 1;}
+      updateStat(date, kind, x);
     }
   });
 }
-
-var deletePostFromPosts = function (postID, callback) {
-  db.collection('posts').deleteOne({_id: postID},
-    function(err, post) {
-      if (err) {return callback({error:err});}
-      else {return callback({error:false});}
-    }
-  );
+var updateStat = function (date, kind, val) {
+  var obj = {};
+  obj[kind] = val;
+  dbWriteByID(null, null, "error updating stat: ", 'stats', date, obj, null);
 }
 
-var nullPostFromPosts = function (postID, callback) {
-  var emptyPost = {date: null, authorID: null,};
-  db.collection('posts').updateOne({_id: postID},
-    {$set: emptyPost},
-    function(err, post) {
-      if (err) {return callback({error:err});}
-      if (!post) {return callback({error:"post not found in posts"});}
-      else {return callback({error:false});}
+var createPost = function (req, res, errMsg, authorID, callback, date) {    //creates a postID and ref in the postDB
+  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+  authorID = ObjectId(authorID);
+  if (!date) {date = pool.getCurDate(-1)}
+  genID(req, res, errMsg, 'posts', 7, function (newID) {
+    var newPostObject = {
+      _id: newID,
+      date: date,
+      authorID: authorID,
+      num:0,
     }
-  );
+    dbCreateOne(req, res, errMsg, 'posts', newPostObject, function (newID) {
+      return callback({error:false, post_id:newID});
+    });
+  });
+}
+
+var nullPostFromPosts = function (req, res, errMsg, postID, callback) {
+  var emptyPost = {date: null, authorID: null,};
+  dbWriteByID(req, res, errMsg, 'posts', postID, emptyPost, function () {
+    callback();
+  });
 }
 
 var lowercaseTagRef = function (ref) {
@@ -545,8 +530,7 @@ var lowercaseTagRef = function (ref) {
   return newRef;
 }
 
-var updateUserPost = function (text, newTags, title, url, userID, user, callback, daysAgo) {
-  if (safeMode) {return callback({error:safeMode});}
+var updateUserPost = function (req, res, errMsg, text, newTags, title, url, userID, user, callback, daysAgo) {
   var tmrw = pool.getCurDate(-1);
   if (devFlag && daysAgo) { // CHEATING, for local testing only
     var tmrw = pool.getCurDate(daysAgo);
@@ -566,111 +550,89 @@ var updateUserPost = function (text, newTags, title, url, userID, user, callback
         }
       }
     }
-    deleteTagRefs(badTagArr, tmrw, userID, function (resp) {
-      if (resp.error) {return callback({error: resp.error});}
-      else {
-        var newTagArr = [];
-        for (var tag in newTagsLowerCased) {
-          if (newTagsLowerCased.hasOwnProperty(tag)) {
-            if (!oldTagsLowerCased[tag]) { // if the new tag is NOT an old tag too
-              newTagArr.push(tag.toLowerCase());
-            }
+    deleteTagRefs(req, res, errMsg, badTagArr, tmrw, userID, function () {
+      var newTagArr = [];
+      for (var tag in newTagsLowerCased) {
+        if (newTagsLowerCased.hasOwnProperty(tag)) {
+          if (!oldTagsLowerCased[tag]) { // if the new tag is NOT an old tag too
+            newTagArr.push(tag.toLowerCase());
           }
         }
-        createTagRefs(newTagArr, tmrw, userID, function (resp) {
-          if (resp.error) {return callback({error: resp.error});}
-          else {
-            user.posts[tmrw][0].body = text;
-            user.posts[tmrw][0].tags = newTags;
-            user.posts[tmrw][0].title = title;
-            user.posts[tmrw][0].url = url;
-            return callback({error:false});
-          }
-        });
       }
+      createTagRefs(req, res, errMsg, newTagArr, tmrw, userID, function () {
+        user.posts[tmrw][0].body = text;
+        user.posts[tmrw][0].tags = newTags;
+        user.posts[tmrw][0].title = title;
+        user.posts[tmrw][0].url = url;
+        return callback();
+      });
     });
   } else {                                  //create new
-    createPost(userID, function (resp) {
-      if (resp.error) {return callback({error: resp.error});}
-      else {
-        user.posts[tmrw] = [{
-            body: text,
-            tags: newTags,
-            title: title,
-            url: url,
-            post_id: resp.post_id,
-          }];
-        user.postListPending.push({date:tmrw, num:0});
-        //
-        var tagArr = [];
-        for (var tag in newTagsLowerCased) {    // add a ref in the tag db for each tag
-          if (newTagsLowerCased.hasOwnProperty(tag)) {tagArr.push(tag.toLowerCase())}
-        }
-        createTagRefs(tagArr, tmrw, userID, function (resp) {
-          if (resp.error) {
-            return callback({error: resp.error});}
-          else {return callback({error:false});}
-        });
+    createPost(req, res, errMsg, userID, function (resp) {
+      user.posts[tmrw] = [{
+        body: text,
+        tags: newTags,
+        title: title,
+        url: url,
+        post_id: resp.post_id,
+      }];
+      user.postListPending.push({date:tmrw, num:0});
+      //
+      var tagArr = [];
+      for (var tag in newTagsLowerCased) {    // add a ref in the tag db for each tag
+        if (newTagsLowerCased.hasOwnProperty(tag)) {tagArr.push(tag.toLowerCase())}
       }
+      createTagRefs(req, res, errMsg, tagArr, tmrw, userID, function () {
+        return callback();
+      });
     });
   }
 }
 
-var deletePost = function (res, errMsg, userID, user, date, callback) {
-  if (safeMode) {return callback({error:safeMode});}
-  if (!user.posts[date]) {return sendError(req, res, errMsg+"post not found");}
+var deletePost = function (req, res, errMsg, user, date, callback) {
+  if (!user.posts[date]) {return sendError(req, res, errMsg+" post not found");}
   var deadTags = [];
   for (var tag in user.posts[date][0].tags) {
     if (user.posts[date][0].tags.hasOwnProperty(tag)) {
       deadTags.push(tag.toLowerCase());
     }
   }
-  deleteTagRefs(deadTags, date, userID, function (resp) {
-    if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-    else {
-      if (user.posts[date][0].url) {
-        delete user.customURLs[user.posts[date][0].url];
-      }
-      // is this a pending or an OLD post?
-      if (date === pool.getCurDate(-1)) {
-        user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
-        deletePostFromPosts(user.posts[date][0].post_id, function (resp) {
-          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          else {
-            delete user.posts[date];
-            return writeToDB(userID, user, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {callback({error: false});}
-            });
-          }
+  deleteTagRefs(req, res, errMsg, deadTags, date, user._id, function () {
+    if (user.posts[date][0].url) {
+      delete user.customURLs[user.posts[date][0].url];
+    }
+    // is this a pending or an OLD post?
+    if (date === pool.getCurDate(-1)) {
+      user.postListPending.pop();   //currently assumes that postListPending only ever contains 1 post
+      //
+      dbDeleteByID(req, res, errMsg, 'posts', user.posts[date][0].post_id, function () {
+        delete user.posts[date];
+        writeToUser(req, res, errMsg, user, function () {
+          return callback();
         });
-      } else {    // for OLD posts
-        for (var i = 0; i < user.postList.length; i++) {
-          if (user.postList[i].date === date) {
-            user.postList.splice(i, 1);
-            break;
-          }
+      });
+    } else {    // for OLD posts
+      for (var i = 0; i < user.postList.length; i++) {
+        if (user.postList[i].date === date) {
+          user.postList.splice(i, 1);
+          break;
         }
-        if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[date]) {
-          delete user.pendingUpdates.updates[date];
-        }
-        nullPostFromPosts(user.posts[date][0].post_id, function (resp) {
-          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          else {
-            delete user.posts[date];
-            return writeToDB(userID, user, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {callback({error: false});}
-            });
-          }
-        });
       }
+      if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[date]) {
+        delete user.pendingUpdates.updates[date];
+      }
+      nullPostFromPosts(req, res, errMsg, user.posts[date][0].post_id, function () {
+        delete user.posts[date];
+        writeToUser(req, res, errMsg, user, function () {
+          return callback();
+        });
+      });
     }
   });
 }
 
 // **** tagINDEX is where we store references to posts, indexed by tag, and in arrays sorted by date, oldest to newest
-var multitagIndexAddOrRemove = function (tagArr, date, authorID, creating, callback) {
+var multiTagIndexAddOrRemove = function (tagArr, date, authorID, creating, callback) {
   var count = tagArr.length;
   for (var i = 0; i < tagArr.length; i++) {
     tagIndexAddOrRemove(tagArr[i], date, authorID, creating, function (resp) {
@@ -680,7 +642,7 @@ var multitagIndexAddOrRemove = function (tagArr, date, authorID, creating, callb
       } else {
         count--;
         if (count === 0) {
-          callback({error:false,});
+          return callback({error:false,});
         }
       }
     })
@@ -727,18 +689,20 @@ var tagIndexAddOrRemove = function (tag, date, authorID, creating, callback) {
 var tagIndexOccupiedSign = {};
 var createTagIndexItem = function (tag, postItem, callback) {
   // check if tag listing is extant
+  // #tagDBredo
   db.collection('tagIndex').findOne({tag: tag}, {list:1},
     function (err, tagListing) {
       if (err) {return callback({error:err});}
       else if (!tagListing) {  // tag does not exist, make it
         var newTag = {tag: tag};
         newTag.list = [postItem];
-        db.collection('tagIndex').insertOne(newTag, {}, function (err, result) {
-          if (err) {return callback({error:err});}
-          else {return callback({error:false});}
+        // when we redo the tag db change this here for the tag itself to be the _id, #tagDBredo
+        dbCreateOne(req, res, errMsg, 'tagIndex', newTag, function (newID) {
+          return callback({error:false});
         });
       } else {  // tag exists, add to it
         tagListing.list.push(postItem);
+        // #tagDBredo
         db.collection('tagIndex').updateOne({_id: ObjectId(tagListing._id)},
         {$set: tagListing},
         function(err, newTagListing) {
@@ -751,6 +715,7 @@ var createTagIndexItem = function (tag, postItem, callback) {
 }
 var removeTagIndexItem = function (tag, postItem, callback) {
   // check if tag listing is extant
+  // #tagDBredo
   db.collection('tagIndex').findOne({tag: tag}, {list:1},
     function (err, tagListing) {
       if (err) {return callback({error:err});}
@@ -763,6 +728,7 @@ var removeTagIndexItem = function (tag, postItem, callback) {
             break;
           }
         }
+        // #tagDBredo
         db.collection('tagIndex').updateOne({_id: ObjectId(tagListing._id)},
         {$set: tagListing},
         function(err, newTagListing) {
@@ -775,26 +741,27 @@ var removeTagIndexItem = function (tag, postItem, callback) {
 }
 
 // **** the TAGS db is where we store references to posts, indexed by DATE, then by tag for each day, then unsorted arrays for each date[tag]
-var createTagRefs = function (tagArr, date, authorID, callback) {
-  if (safeMode) {return callback({error:safeMode});}
-  if (tagArr.length === 0) {return callback({error:false});}
-  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback) {
+  if (tagArr.length === 0) {return callback();}
+  if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+"invalid authorID format");}
   authorID = ObjectId(authorID);
-  multitagIndexAddOrRemove(tagArr, date, authorID, true, function (resp) {
-    if (resp.error) {return callback({error:resp.error});}
+  multiTagIndexAddOrRemove(tagArr, date, authorID, true, function (resp) {
+    if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+
     // check if dateBucket is extant
+    //#tagDBredo
     db.collection('tags').findOne({date: date}, {ref:1}
       , function (err, dateBucket) {
-        if (err) {return callback({error:err});}
+        if (err) {return sendError(req, res, errMsg+err);}
         else if (!dateBucket) {                // dateBucket does not exist, make it
           var newDateBucket = {date: date,};
           newDateBucket.ref = {};
           for (var i = 0; i < tagArr.length; i++) {
             newDateBucket.ref[tagArr[i]] = [authorID];
           }
-          db.collection('tags').insertOne(newDateBucket, {}, function (err, result) {
-            if (err) {return callback({error:err});}
-            else {return callback({error:false});}
+          //#tagDBredo, make the newDateBucket have the date as the _id field
+          dbCreateOne(req, res, errMsg, 'tags', newDateBucket, function (newID) {
+            return callback();
           });
         } else {                                     // dateBucket exists, add to it
           var tagObject = [authorID];
@@ -803,11 +770,12 @@ var createTagRefs = function (tagArr, date, authorID, callback) {
               dateBucket.ref[tagArr[i]].push(authorID);
             }
           }
+          //#tagDBredo
           db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
           {$set: dateBucket},
           function(err, tag) {
-            if (err) {return callback({error:err});}
-            else {return callback({error:false});}
+            if (err) {return sendError(req, res, errMsg+err);}
+            else {return callback();}
           }
         );
       }
@@ -815,17 +783,18 @@ var createTagRefs = function (tagArr, date, authorID, callback) {
   });
 }
 
-var deleteTagRefs = function (tagArr, date, authorID, callback) {
-  if (safeMode) {return callback({error:safeMode});}
-  if (tagArr.length === 0) {return callback({error:false, date:date});}
-  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+var deleteTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback) {
+  if (tagArr.length === 0) {return callback({date:date});}
+  if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+" invalid authorID format");}
   authorID = ObjectId(authorID);
-  multitagIndexAddOrRemove(tagArr, date, authorID, false, function (resp) {
-    if (resp.error) {return callback({error:resp.error});}
-    db.collection('tags').findOne({date: date}, {ref:1, top:1}
+  multiTagIndexAddOrRemove(tagArr, date, authorID, false, function (resp) {
+    if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+
+    // #tagDBredo
+    db.collection('tags').findOne({date: date}, {ref:1,}
       , function (err, dateBucket) {
-        if (err) {return callback({error:err});}
-        if (!dateBucket) {return callback({error:false, date:date});}
+        if (err) {return sendError(req, res, errMsg+err);}
+        if (!dateBucket) {return callback({date:date});}
         // for each tag to be deleted,
         for (var i = 0; i < tagArr.length; i++) {
           if (dateBucket.ref[tagArr[i]]) {
@@ -838,11 +807,12 @@ var deleteTagRefs = function (tagArr, date, authorID, callback) {
             }
           }
         }
+        // #tagDBredo
         db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
         {$set: dateBucket},
         function(err, resp) {
-          if (err) {return callback({error:err});}
-          else {return callback({error:false, date:date});}
+          if (err) {return sendError(req, res, errMsg+err);}
+          else {return callback({date:date});}
         });
       });
   });
@@ -908,31 +878,32 @@ var validatePostURL = function (user, date, string) {
   return {user:user, url:string};
 }
 
-var sendError = function (req, res, msg) {
+var sendError = function (req, res, errMsg) {
+  // req and res are optional. if no req, then no user is associated w/ the error. if no res, then no response to the client about it
   // log it
   var newErrorLog = {
-    error: msg,
+    error: errMsg,
     creationTime: new Date(),
   }
   if (req && req.session && req.session.user && req.session.user._id) {
     newErrorLog.user = req.session.user._id;
   }
 
-  db.collection('errorLogs').insertOne(newErrorLog, {}, function (err, result) {
+  dbCreateOne(req, res, errMsg, 'errorLogs', newErrorLog, function (newID) {
     // do nothing, don't report an error if reporting the error doesn't work, because loop
   });
 
   //
-  msg = "ERROR! SORRY! Please screenshot this and note all details of the situation and tell staff. SORRY<br><br>" + msg;
-  res.send({error: msg});
+  if (res) {  // so we can NOT notify the FE about an error, but still log it above
+    errMsg = "ERROR! SORRY! Please screenshot this and note all details of the situation and tell staff. SORRY<br><br>" + errMsg;
+    res.send({error: errMsg});
+  }
 }
 
-var postsFromAuthorListAndDate = function (authorList, date, followingRef, postRef, callback) {
+var postsFromAuthorListAndDate = function (req, res, errMsg, authorList, date, followingRef, postRef, callback) {
   // for getting posts by following for main feed, and all posts with tag on date,
-  db.collection('users').find({_id: {$in: authorList}}
-    ,{posts:1, username:1, iconURI:1, pendingUpdates:1, bio:1}).toArray(function(err, users) {
-    if (err) {return callback({error:err});}
-    else {
+  checkMultiUsersForUpdates(req, res, errMsg, authorList, function () {
+    readMultiUsers(req, res, errMsg, authorList, {list:['username', 'iconURI', 'pendingUpdates',], dates:[date]}, function (users) {
       // this is to get pics for authors to populate the following list
       var followingList = [];
       if (followingRef) {
@@ -949,54 +920,47 @@ var postsFromAuthorListAndDate = function (authorList, date, followingRef, postR
         }
       }
       var posts = [];
-      var count = users.length;
+
       for (var i = 0; i < users.length; i++) {
         if (users[i].posts && users[i].posts[date]) {
-          checkUpdates(users[i], function (resp) {
-            if (resp.error) {return callback({error:resp.error})}
-            var post_id = null;
-            if (resp.user.posts[date][0].post_id) {post_id = resp.user.posts[date][0].post_id}
-              // strip out private posts
-            if (!resp.user.posts[date][0].private) {
-              // if the postRef indicates that FE already has it, we don't need it again
-              if (postRef[post_id]) {
-                posts.push({post_id: post_id,});
-              } else {
-                var authorPic = getUserPic(resp.user);
-                posts.push({
-                  body: resp.user.posts[date][0].body,
-                  tags: resp.user.posts[date][0].tags,
-                  post_id: post_id,
-                  author: resp.user.username,
-                  authorPic: authorPic,
-                  _id: resp.user._id,
-                  date: date,
-                  title: resp.user.posts[date][0].title,
-                  url: resp.user.posts[date][0].url,
-                });
-              }
+          //
+          var post_id = null;
+          if (users[i].posts[date][0].post_id) {post_id = users[i].posts[date][0].post_id}
+          // strip out private posts
+          if (!users[i].posts[date][0].private) {
+            // if the postRef indicates that FE already has it, we don't need it again
+            if (postRef[post_id]) {
+              posts.push({post_id: post_id,});
+            } else {
+              var authorPic = getUserPic(users[i]);
+              posts.push({
+                body: users[i].posts[date][0].body,
+                tags: users[i].posts[date][0].tags,
+                post_id: post_id,
+                author: users[i].username,
+                authorPic: authorPic,
+                _id: users[i]._id,
+                date: date,
+                title: users[i].posts[date][0].title,
+                url: users[i].posts[date][0].url,
+              });
             }
-            count--;
-            if (count === 0) {
-              count--;
-              return callback({error:false, posts:posts, followingList:followingList});
-            }
-          });
-        } else {count--;}
+          }
+        }
       }
-      if (count === 0) {return callback({error:false, posts:posts, followingList:followingList});}
-    }
+      return callback({error:false, posts:posts, followingList:followingList});
+    });
   });
 }
 
-var postsFromListOfAuthorsAndDates = function (postList, postRef, callback) {
+var postsFromListOfAuthorsAndDates = function (req, res, errMsg, postList, postRef, callback) {
   // this is for bookmarkLists and sequences and tagPages
   if (postList.length === 0) {return callback({error:false, posts:[],});}
   // garbage to cover my inconsistent choice of author_id AND authorID
   var aID = "authorID";
   if (postList[0].author_id) {aID = "author_id"}
   // parse postList into authorList and postBook
-  var postBook = {}
+  var postBook = {};
   for (var i = 0; i < postList.length; i++) {
     var listing = {date:postList[i].date ,pos:i};
     if (postBook[postList[i][aID]]) {
@@ -1011,86 +975,85 @@ var postsFromListOfAuthorsAndDates = function (postList, postRef, callback) {
       authorList.push(ObjectId(author));
     }
   }
-  db.collection('users').find({_id: {$in: authorList}}
-    ,{posts:1, username:1, iconURI:1, pendingUpdates:1, bio:1}).toArray(function(err, users) {
-    if (err) {return callback({error:err});}
-    else {
-      var posts = [];
-      var count = users.length;
-      for (var i = 0; i < users.length; i++) {
-        checkUpdates(users[i], function (resp) {
-          if (resp.error) {return callback({error:resp.error})}
-          var authorPic = getUserPic(resp.user);
-          //
-          for (var j = 0; j < postBook[resp.user._id].length; j++) {
-            var date = postBook[resp.user._id][j].date;
-            if (resp.user.posts[date] && date <= pool.getCurDate()) {
-              var post_id = null;
-              if (resp.user.posts[date][0].post_id) {post_id = resp.user.posts[date][0].post_id}
-              // strip out private posts
-              if (resp.user.posts[date][0].private) {
-                // but leave this flag here to show that something was here before
-                posts[postBook[resp.user._id][j].pos] = {
-                  body: "<c><b>***post has been made private by author***</b></c>",
-                  tags: {},
-                  post_id: genRandString(8),
-                  author: "",
-                  authorPic: "",
-                  _id: "",
-                  date: date,
-                  private: true,
-                };
-              //
-              } else if (postRef[post_id]) {
-                posts[postBook[resp.user._id][j].pos] = {
-                  post_id: post_id,
-                };
-              } else {
-                posts[postBook[resp.user._id][j].pos] = {
-                  body: resp.user.posts[date][0].body,
-                  tags: resp.user.posts[date][0].tags,
-                  title: resp.user.posts[date][0].title,
-                  url: resp.user.posts[date][0].url,
-                  post_id: post_id,
-                  author: resp.user.username,
-                  authorPic: authorPic,
-                  _id: resp.user._id,
-                  date: date,
-                };
-              }
-            } else if (resp.user.posts[date]) {
-              posts[postBook[resp.user._id][j].pos] = {
-                body: `<a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"><c><b><i>***n i c e  t r y  p a l***</i></b></c></a>`,
+  //
+  checkMultiUsersForUpdates(req, res, errMsg, authorList, function () {
+    //
+    var posts = [];
+    var loop = function (i, callback) {
+      if (!authorList[i]) {return callback();}
+      //
+      var dates = [];
+      for (var j = 0; j < postBook[authorList[i]].length; j++) {
+        dates.push(postBook[authorList[i]][j].date);
+      }
+      readUser(req, res, errMsg, authorList[i], {list:['username', 'iconURI',], dates}, function(user) {
+        //
+        var authorPic = getUserPic(user);
+        //
+        for (var j = 0; j < postBook[user._id].length; j++) {
+          var date = postBook[user._id][j].date;
+          if (user && user.posts && user.posts[date] && date <= pool.getCurDate()) {
+            var post_id = null;
+            if (user.posts[date][0].post_id) {post_id = user.posts[date][0].post_id}
+            // strip out private posts
+            if (user.posts[date][0].private) {
+              // but leave this flag here to show that something was here before
+              posts[postBook[user._id][j].pos] = {
+                body: "<c><b>***post has been made private by author***</b></c>",
                 tags: {},
                 post_id: genRandString(8),
                 author: "",
                 authorPic: "",
                 _id: "",
                 date: date,
+                private: true,
               };
-            } else {  // post not found
-              posts[postBook[resp.user._id][j].pos] = {
-                body: "<c><b>***post has been deleted by author***</b></c>",
-                tags: {},
-                post_id: genRandString(8),
-                author: "",
-                authorPic: "",
-                _id: "",
+              //
+            } else if (postRef[post_id]) {    // they already have the post data
+              posts[postBook[user._id][j].pos] = {
+                post_id: post_id,
+              };
+            } else {                    // the normal case, send the data
+              posts[postBook[user._id][j].pos] = {
+                body: user.posts[date][0].body,
+                tags: user.posts[date][0].tags,
+                title: user.posts[date][0].title,
+                url: user.posts[date][0].url,
+                post_id: post_id,
+                author: user.username,
+                authorPic: authorPic,
+                _id: user._id,
                 date: date,
               };
             }
+          } else if (user && user.posts && user.posts[date]) {  // they bookmarked a future post lol
+            posts[postBook[user._id][j].pos] = {
+              body: `<a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"><c><b><i>***n i c e  t r y  p a l***</i></b></c></a>`,
+              tags: {},
+              post_id: genRandString(8),
+              author: "",
+              authorPic: "",
+              _id: "",
+              date: date,
+            };
+          } else {  // post not found, and/or the author is not found
+            posts[postBook[user._id][j].pos] = {
+              body: "<c><b>***post has been deleted by author***</b></c>",
+              tags: {},
+              post_id: genRandString(8),
+              author: "",
+              authorPic: "",
+              _id: "",
+              date: date,
+            };
           }
-          count--;
-          if (count === 0) {
-            count--;
-            return callback({error:false, posts:posts,});
-          }
-        });
-      }
-      if (count === 0) {
-        return callback({error:false, posts:posts,});
-      }
+        }
+        return loop(i+1, callback);
+      });
     }
+    return loop(0, function () {
+      return callback({error:false, posts:posts,});
+    });
   });
 }
 
@@ -1100,6 +1063,7 @@ var getAuthorListFromTagListAndDate = function (tagList, date, callback) {
   if (!tagList || !tagList.length || !date) {
     return callback({error: false, authorList: authorList});
   }
+  // #tagDBredo
   db.collection('tags').findOne({date: date}, {_id:0, ref:1}
   , function (err, dateBucket) {
     if (err) {return callback({error:err});}
@@ -1157,7 +1121,7 @@ var genInboxTemplate = function () {
 }
 
 var idScreen = function (req, res, errMsg, callback) {
-  if (!req.session.user) {return sendError(req, res, errMsg+"no user session 6481");}
+  if (!req.session || !req.session.user) {return sendError(req, res, errMsg+"no user session 6481");}
   if (!ObjectId.isValid(req.session.user._id)) {return sendError(req, res, errMsg+"invalid userID format");}
   return callback(ObjectId(req.session.user._id));
 }
@@ -1177,15 +1141,140 @@ var snakeBank = [
   "https://i.imgur.com/NQOT1Fc.jpg",
 ];
 
-var lookUpCurrentUser = function (req, res, errMsg, propRef, callback) {
+
+
+// **** datebase operation functions **** //
+var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, callback) {
+  // 'collection' is the name of the database table, 'projection' is output from 'getProjection'
+  db.collection(collection).findOne({_id: _id}, projection, function (err, doc) {
+    if (err) {return sendError(req, res, errMsg+err);}
+    else {
+      if (callback) {
+        callback(doc);
+      }
+    }
+  });
+}
+var dbReadMany = function (req, res, errMsg, collection, idList, projection, callback) {
+  // if no idList, then returns ALL docs in the collection
+  var searchCriteria = {};
+  if (idList) {
+    searchCriteria['_id'] = {$in: idList};
+  }
+  db.collection(collection).find(searchCriteria, projection).toArray( function(err, docs) {
+    if (err) {return sendError(req, res, errMsg+err);}
+    else {
+      if (callback) {
+        callback(docs);
+      }
+    }
+  });
+}
+var getProjection = function (props, dates) {
+  // both props and dates are arrays of strings
+  var obj = {};
+  if (props) {
+    for (var i = 0; i < props.length; i++) {
+      obj[props[i]] = 1;
+    }
+  }
+  if (dates) {
+    for (var i = 0; i < dates.length; i++) {
+      obj["posts."+dates[i]] = 1;
+    }
+  }
+  return {projection: obj};
+}
+
+var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
+  // if 'object' has an _id field, that will be the indexed unique id for the document, otherwise mongo assigns an ObjectId
+  db.collection(collection).insertOne(object, {}, function (err, result) {
+    if (err) {return sendError(req, res, errMsg+err);}
+    else {
+      if (callback) {
+        callback(result.insertedId);
+      }
+    }
+  });
+}
+
+var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback) {
+  db.collection(collection).updateOne({_id:_id}, {$set: object}, function(err, doc) {
+    if (err) {return sendError(req, res, errMsg+err);}
+    else if (!doc) {return sendError(req, res, errMsg+"db write error, could not find document");}
+    else {
+      if (callback) {
+        callback();
+      }
+    }
+  });
+}
+
+var dbDeleteByID = function (req, res, errMsg, collection, _id, callback) {
+  db.collection(collection).deleteOne({_id: _id}, function(err) {
+    if (err) {return sendError(req, res, errMsg+err);}
+    else {
+      if (callback) {
+        callback();
+      }
+    }
+  });
+}
+
+//
+var readUser = function (req, res, errMsg, userID, propRef, callback) {
+  if (!ObjectId.isValid(userID)) {return sendError(req, res, errMsg+"invalid userID format");}
+  dbReadOneByID(req, res, errMsg, 'users', ObjectId(userID), getProjection(propRef.list, propRef.dates), function (user) {
+    callback(user);
+  });
+}
+
+var readCurrentUser = function (req, res, errMsg, propRef, callback) {
   idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}, propRef, function (err, user) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      else if (!user) {return sendError(req, res, errMsg+"user not found");}
-      else {
+    readUser(req, res, errMsg, userID, propRef, function(user) {
+      if (!user) {
+        return sendError(req, res, errMsg+"user not found");
+      } else {
         callback(user);
       }
     });
+  });
+}
+
+var readMultiUsers = function (req, res, errMsg, authorIdList, propRef, callback) {
+  dbReadMany(req, res, errMsg, 'users', authorIdList, getProjection(propRef.list, propRef.dates), function (users) {
+    callback(users);
+  });
+}
+
+var writeToUser = function (req, res, errMsg, userObj, callback) {
+  if (!callback) {res = null;}  // so if the thread isn't waiting for the write, then we don't try using res after it already sent later in the thread
+  var userID = userObj._id;
+  if (!userID) {return sendError(req, res, errMsg+"missing _id on user object");}
+  if (!ObjectId.isValid(userID)) {return sendError(req, res, errMsg+"invalid user ID format");}
+  dbWriteByID(req, res, errMsg, 'users', ObjectId(userID), userObj, function () {
+    if (callback) {
+      callback();
+    }
+  });
+}
+
+var createUserUrl = function (req, res, errMsg, username, authorID, callback) {    //creates a listing in the userUrl collection
+  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+  authorID = ObjectId(authorID);
+  var urlObject = {_id: username.toLowerCase(), authorID: authorID}
+  dbCreateOne(req, res, errMsg, 'userUrls', urlObject, function (newID) {
+    return callback({error:false});
+  });
+}
+
+var getUserIdFromName = function (req, res, errMsg, username, callback) {
+  dbReadOneByID(req, res, errMsg, 'userUrls', username.toLowerCase(), null, function (user) {
+    if (!user) {
+      return callback(false);
+    } else {
+      return callback(user.authorID);
+    }
   });
 }
 
@@ -1201,11 +1290,10 @@ var adminGate = function (req, res, callback) {
   if (!req.session.user) {
     return return404author(req, res);
   } else {
-    db.collection('users').findOne({_id: ObjectId(req.session.user._id)}
-    , {_id:0, username:1, codes:1 }
-    , function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else if (user && user.username === "admin") {callback(res, user);} //no need to pass 'user' once we take out the code nonsense
+    readCurrentUser(req, res, 'adminGate error', {list:['username',]}, function (user) {
+      if (user && user.username === "admin") {
+        callback();
+      } //no need to pass 'user' once we take out the code nonsense
       else {
         return return404author(req, res);
       }
@@ -1214,7 +1302,7 @@ var adminGate = function (req, res, callback) {
 }
 
 app.get('/admin', function(req, res) {
-  adminGate(req, res, function (res, user) {
+  adminGate(req, res, function () {
     var results = pool.runTests(
       [ //array of arrays, each inner array contains two statements that are supposed to be equal
         [devFlag, false, "IN DEV MODE"],
@@ -1244,362 +1332,94 @@ app.get('/admin', function(req, res) {
         [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:8}]},3:{}}, list:[1,2,3]}, 2, true, 3), false],
         [removeListRefIfRemovingOnlyMessage({threads:{1:{},2:{thread:[{date:3}]},3:{}}, list:[8,6,1,2,3]}, 2, true, 3).length, 4],
         //
+        [getProjection(['username', 'iconURI', 'pendingUpdates', 'bio'], ['2020-03-01']).projection.fish, undefined],
+        [getProjection(['username', 'iconURI', 'pendingUpdates', 'bio'], ['2020-03-01']).projection.iconURI, 1],
+        [getProjection(['username', 'iconURI', 'pendingUpdates', 'bio'], ['2020-03-01']).projection['posts.2020-03-01'], 1],
       ]
     );
-    if (!devFlag) {return res.render('admin', { codes:user.codes, results:results });}
+    if (!devFlag) {return res.render('admin', { results:results });}
     else {res.render('admin', { results:results });}
   });
 });
 
-app.post('/admin/posts', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    //var fields = {_id:1, body:1, date:1, authorID:1, tags:1};
-    //fields[req.body.text] = 1;
-    db.collection('posts').find({},{}).toArray(function(err, posts) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        return res.send(posts);
-      }
-    });
-  });
-});
-
 app.post('/admin/resetCodes', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('resetCodes').find({},{code:1, username:1, attempts:1, creationTime:1}).toArray(function(err, codes) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        return res.send(codes);
-      }
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'resetCodes errMsg', 'resetCodes', null, null, function (codes) {
+      return res.send(codes);
     });
   });
 });
 
 app.post('/admin/errorLogs', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('errorLogs').find({},{}).toArray(function(err, logs) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        return res.send(logs);
-      }
-    });
-  });
-});
-
-app.post('/admin/tags', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('tags').findOne({date: req.body.date}, {_id:0,}
-    , function (err, dateBucket) {
-      if (err) {return res.send({error:err});}
-      else {
-        if (!dateBucket) {return res.send({error:"not found"});}
-        dateBucket.genndTop = getTags(dateBucket.ref);
-        return res.send(dateBucket);
-      }
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'errorLogs errMsg', 'errorLogs', null, null, function (logs) {
+      return res.send(logs);
     });
   });
 });
 
 app.post('/admin/users', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    var fields = {_id:1, username:1};
-    fields[req.body.text] = 1;
-    db.collection('users').find({}, fields).toArray(function(err, users) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        return res.send(users);
-      }
+  adminGate(req, res, function () {
+    var props = ['_id', 'username'];
+    if (req.body.text && typeof req.body.text === 'string') {
+      props.push(req.body.text);
+    }
+    readMultiUsers(req, res, '/admin/users errMsg', null, {list:props,}, function (users) {
+      return res.send(users);
     });
   });
 });
 
 app.post('/admin/stats', function(req, res) {
-  db.collection('stats').find({}, {}).toArray(function(err, stats) {
-    if (err) {return sendError(req, res, err);}
-    else {
-      return res.send(stats);
-    }
+  dbReadMany(req, res, 'stats errMsg', 'stats', null, null, function (stats) {
+    return res.send(stats);
   });
 });
 
 app.post('/admin/user', function(req, res) {
-  adminGate(req, res, function (res, user) {
+  var errMsg = "buggon /admin/user<br><br>"
+  adminGate(req, res, function () {
     if (req.body.name) {
-      db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
-      , function (err, user) {
-        if (err) {return sendError(req, res, err);}
-        else if (!user) {return res.send({error:"username not found"});}
-        else {
-          db.collection('users').findOne({_id: user.authorID}, {}, function (err, user) {
-            if (err) {return sendError(req, res, err);}
-            else if (!user) {return res.send({error:"username found, but user not found"});}
-            else {return res.send(user);}
+      getUserIdFromName(req, res, errMsg, req.body.name, function (userID) {
+        if (!userID) {
+          return res.send({error:"username not found"});
+        } else {
+          readUser(req, res, errMsg, userID, {}, function(user) {
+            return res.send(user);
           });
         }
       });
     } else {
-      if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id"});}
-      db.collection('users').findOne({_id: ObjectId(req.body.id)}, {}, function (err, user) {
-        if (err) {return sendError(req, res, err);}
-        else if (!user) {return res.send({error:"userID not found"});}
-        else {return res.send(user);}
+      readUser(req, res, errMsg, req.body.id, {}, function(user) {
+        return res.send(user);
       });
     }
-  });
-});
-
-app.post('/admin/getUserUrls', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('userUrls').find({},{_id:1, authorID:1}).toArray(function(err, users) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        return res.send(users);
-      }
-    });
-  });
-});
-/*
-app.post('/admin/deCaseSensitizeTags', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('tags').findOne({date: req.body.date}, {}
-    , function (err, dateBucket) {
-      if (err) {return res.send({error:err});}
-      else {
-        if (!dateBucket) {return res.send({error:false});}
-        var ref = tagCaseDeSensitize(dateBucket.ref);
-        dateBucket.ref = ref;
-        db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
-        {$set: dateBucket},
-        function(err, tag) {
-          if (err) {return res.send({error:err});}
-          else {return res.send({error:false});}
-        });
-      }
-    });
-  });
-});
-*/
-app.post('/admin/testCreateTagIndexItem', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    tagIndexAddOrRemove(req.body.tag, req.body.date, req.body.authorID, true, function (resp) {
-      return res.send({error:resp.error});
-    });
   });
 });
 
 app.post('/admin/getTagIndex', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('tagIndex').find({},{_id:0,}).toArray(function(err, tags) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        return res.send(tags);
-      }
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'tagIndex errMsg', 'tagIndex', null, null, function (tags) {
+      return res.send(tags);
     });
-  });
-});
-
-app.post('/admin/genPosts', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    var shitPost = {
-      text: 'smee<br><br><br><br>on<br><br><br><br>my<br><br><br><br>own<br><br><br><br>dick',
-      tags: "poop, milkshake",
-      title: "",
-    }
-    var userID = ObjectId("5e3a6bdc2e765f018dbb0953");  // smee
-    //var userID = ObjectId("5e3a70eae2bbd801dd24b57e");  // mrah
-    //var userID = ObjectId("5e3fb7caff004c0129f8c29e");  // nink
-    //var userID = ObjectId("5e3fb5bcce7ca600a9e2fe2e");  // droo
-    if (!ObjectId.isValid(userID)) {return callback({error:"invalid authorID format"});}
-    db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1, postList:1, postListPending:1}
-    , function (err, user) {
-      if (err) {return callback({error: err});}
-      else if (!user) {return callback({error:"user not found"});}
-      else {
-        checkFreshness(user);
-        var x = pool.cleanseInputText(shitPost.text);
-        if (x.error || x[1] === "") {                 //remove pending post, do not replace
-          return callback({error:"invalid 5726"});
-        } else {
-          var tags = parseInboundTags(shitPost.tags);
-          if (typeof tags === 'string') {return callback({error:"bad tags"});}
-          var title = validatePostTitle(shitPost.title);
-          if (title.error) {return callback({error:"bad title"});}
-          imageValidate(x[0], function (resp) {
-            if (resp.error) {return sendError(req, res, resp.error);}
-            return res.send({text:x[1], tags:tags, title:title, userID:userID, user:user});
-          });
-        }
-      }
-    });
-  });
-});
-
-app.post('/admin/genPostsBounce', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    req.body.progress++;
-    updateUserPost(req.body.text, req.body.tags, req.body.title, req.body.url, req.body.userID, req.body.user, function (resp) {
-      if (resp.error) {return sendError(req, res, resp.error);}
-      return writeToDB(req.body.userID, req.body.user, function (resp) {
-        if (resp.error) {return callback({error: resp.error});}
-        return res.send(req.body);
-      });
-    }, req.body.progress);
-  });
-});
-
-app.post('/admin/followStaff', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('users').find({},{_id:1, following:1}).toArray(function(err, users) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        var count = users.length;
-        for (var i = 0; i < users.length; i++) {
-          users[i].following = [ObjectId("5a0ea8429adb2100146f7568")];
-          writeToDB(users[i]._id, users[i], function () {
-            count--;
-            if (count === 0) {
-              res.send({error:false});
-            }
-          });
-        }
-      }
-    });
-  });
-});
-
-app.post('/admin/resetTest', function(req, res) {
-  adminGate(req, res, function (res, user) {
-
-    var today = pool.getCurDate();
-    var ystr = pool.getCurDate(1);
-    var ystr2 = pool.getCurDate(2);
-    //var tmrw = pool.getCurDate(-1);
-
-    var posts = {};
-    posts[today] = [{body: "<r><r><r>a"}];
-    posts[ystr] = [{body: "testPost2"}];
-    posts[ystr2] = [{body: "<b>Lorem ipsum dolor sit amet, cunsectetur adipiscing elit. In tristique congue aliquet. Phasellus rutrum sit amet nisi sed lacinia. </b>Maecenas porta pulvinar vestibulum. Integer quis elit quam. <c>Etiam quis urna id lacus pulvinar tincidunt.</c> Quisque semper risus eget elit ornare, eu finibus lectus vulputate. Ut tortor leo, rutrum et facilisis et, imperdiet ut metus. Maecenas accumsan &lt;i>fringilla lorem, vitae pretium ligula varius at.</i> Proin ex tellus, venenatis vehicula venenatis in, pulvinar eget ex."}];
-    var postList = [{date: ystr2, num: 0},{date: ystr, num: 0},{date: today, num: 0}];
-    var postListPending = [];
-
-    var mrah = {
-      posts: posts,
-      postList: postList,
-      postListPending: postListPending,
-    }
-    mrah._id = ObjectId('000000000000000000000003');
-    db.collection('users').updateOne({_id: mrah._id},
-      {$set: mrah},
-      {upsert: true},
-      function(err, user) {
-        if (err) {return sendError(req, res, err);}
-        else { res.send({error:false}); }
-      }
-    );
   });
 });
 
 app.post('/admin/removeUser', function(req, res) {
-  if (req.body.name) {
-    adminGate(req, res, function (res, user) {
-      db.collection('userUrls').findOne({_id: req.body.name.toLowerCase()}, {}
-      , function (err, user) {
-        if (err) {return sendError(req, res, err);}
-        else if (!user) {return res.send({error:"user not found"});}
-        else {
-          db.collection('userUrls').deleteOne({_id: req.body.name.toLowerCase()}, function(err) {
-            if (err) {return sendError(req, res, err);}
-            //
-            db.collection('users').deleteOne({_id: user.authorID}, function(err, user) {
-              if (err) {return sendError(req, res, err);}
-              else {res.send({error:false});}
-            });
-          });
-        }
-      });
-    });
-  } else {
-    if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id"});}
-    db.collection('users').deleteOne({_id: ObjectId(req.body.id)}, function(err, user) {
-      if (err) {return sendError(req, res, err);}
-      else {res.send({error:false});}
-    });
-  }
-});
-
-/*app.post('/admin/removePost', function(req, res) { //only from the post db...don't use this
-  adminGate(req, res, function (res, user) {
-    deletePostFromPosts(req.body._id, function (result) {
-      res.send(result);
-    });
-  });
-});*/
-
-app.post('/admin/makePostIDs', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('users').findOne({username: req.body.name}, {posts:1,}
-    , function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else if (!user) {return res.send({error:"user not found"});}
-      else {
-        if (req.body.date && user.posts[req.body.date] && user.posts[req.body.date][0]) {
-          createPost(user._id, function (resp) {
-            if (resp.error) {sendError(req, res, resp.error);}
-            else {
-              user.posts[req.body.date][0].post_id = resp.post_id;
-              writeToDB(user._id, user, function (resp) {
-                if (resp.error) {sendError(req, res, resp.error);}
-                else {res.send({error:false, newID: user.posts[req.body.date][0].post_id});}
-              });
-            }
-          }, req.body.date);
-        } else {
-          return res.send({error:"post not found"});
-        }
-      }
-    });
-  });
+  res.send({hi:"whoops this doesn't exist right now"});
 });
 
 app.post('/admin/getPost', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('posts').findOne({_id: req.body._id},
-      function(err, post) {
-        if (err) {return res.send({error:err});}
+  adminGate(req, res, function () {
+    dbReadOneByID(req, res, '/admin/getPost errMsg', 'posts', req.body._id, null, function (post) {
         if (!post) {return res.send({error:"post not found"});}
-        var userID = ObjectId(post.authorID);
-        db.collection('users').findOne({_id: userID}
-        , {_id:0, posts:1,}
-        , function (err, user) {
-          if (err) {return sendError(req, res, err);}
-          else if (!user) {return sendError(req, res, "user not found");}
-          else {return res.send({error:false, post:user.posts[post.date][0]});}
-        });
-      }
-    );
-  });
-});
-
-app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT POSTS(body)
-  adminGate(req, res, function (res, user) {
-    db.collection('posts').findOne({_id: req.body._id},
-      function(err, post) {
-        if (err) {return res.send({error:err});}
-        if (!post) {return res.send({error:"post not found"});}
-        var userID = ObjectId(post.authorID);
-        db.collection('users').findOne({_id: userID}
-          , {_id:0, posts:1,}
-          , function (err, user) {
-            if (err) {return sendError(req, res, err);}
-            else if (!user) {return sendError(req, res, "user not found");}
-            else {
-              user.posts[post.date][0].body = req.body.input;
-              writeToDB(userID, user, function (resp) {
-                if (resp.error) {return res.send({error:resp.error});}
-                else {return res.send({error:false, post:user.posts[post.date][0]});}
-              });
-            }
+        //
+        readUser(req, res, "errMsg", post.authorID, {dates:[post.date]}, function(user) {
+          if (!user) {
+            return sendError(req, res, errMsg+"user not found");
+          } else {
+            return res.send({error:false, post:user.posts[post.date][0]});
+          }
         });
       }
     );
@@ -1607,7 +1427,7 @@ app.post('/admin/editPost', function(req, res) {  // HARD CODED TO EDIT POSTS(bo
 });
 
 app.post('/admin/getSessions', function (req, res) {
-  adminGate(req, res, function (res, user) {
+  adminGate(req, res, function () {
     var obj = {};
     for (var id in sessions) {
       if (sessions.hasOwnProperty(id)) {
@@ -1626,244 +1446,99 @@ app.post('/admin/getSessions', function (req, res) {
   });
 });
 
-app.post('/admin/fixEditBug', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id"});}
-    db.collection('users').findOne({_id: ObjectId(req.body.id)}, {}, function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else if (!user) {return res.send({error:"userID not found"});}
-      else {
-        for (var prop in user) { if (user.hasOwnProperty(prop)) {
-          if (pool.isStringValidDate(prop)) {
-            user.posts[prop] = user[prop];
-          }
-        }}
-        writeToDB(ObjectId(req.body.id), user, function (resp) {
-          if (resp.error) {return res.send({error:resp.error});}
-          else {
-            if (!req.body.id || !ObjectId.isValid(req.body.id)) {return res.send({error:"invalid id2"});}
-            db.collection('users').findOne({_id: ObjectId(req.body.id)}, {}, function (err, user) {
-              if (err) {return sendError(req, res, err);}
-              else if (!user) {return res.send({error:"userID not found2"});}
-              else {
-                for (var prop in user) { if (user.hasOwnProperty(prop)) {
-                  if (pool.isStringValidDate(prop)) {
-                    delete user[prop];
-                  }
-                }}
-                writeToDB(ObjectId(req.body.id), user, function (resp) {
-                  if (resp.error) {return res.send({error:resp.error});}
-                  else {
-                    return res.send(user);
-                  }
-                });
-              }
-            });
-          }
-        });
-      }
-    });
-
-  });
-});
-
 app.post('/admin/schlaunquer', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('schlaunquerMatches').find({}).toArray(function(err, matches) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        return res.send(matches);
-      }
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'schlaunquerMatches errMsg', 'schlaunquerMatches', null, null, function (matches) {
+      return res.send(matches);
     });
   });
 });
 
-app.post('/admin/schlaunquerUserSwap', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    db.collection('schlaunquerMatches').findOne({ _id: req.body.gameID }, {}, function (err, match) {
-      if (err) {return sendError(req, res, err);}
-      else if (!match) {return sendError(req, res, 'match not found');}
-      else {
-        db.collection('userUrls').findOne({_id: req.body.oldOwnerName.toLowerCase()}, {}
-        , function (err, oldUser) {
-          if (err) {return sendError(req, res, err);}
-          else if (!oldUser) {return res.send({error:"old user not found"});}
-          else {
-            db.collection('userUrls').findOne({_id: req.body.newOwnerName.toLowerCase()}, {}
-            , function (err, newUser) {
-              if (err) {return sendError(req, res, err);}
-              else if (!newUser) {return res.send({error:"new user not found"});}
-              else {
-                db.collection('users').findOne({_id: newUser.authorID}, {}, function (err, user) {
-                  if (err) {return sendError(req, res, err);}
-                  else if (!user) {return res.send({error:"new user not found, 2"});}
-                  else {
-                    for (var date in match.dates) { if (match.dates.hasOwnProperty(date)) {
-                      for (var spot in match.dates[date]) { if (match.dates[date].hasOwnProperty(spot)) {
-                        if (String(match.dates[date][spot].ownerID) === String(oldUser.authorID)) {
-                          match.dates[date][spot].ownerID = newUser.authorID;
-                        }
-                      }}
-                    }}
-                    for (var player in match.players) { if (match.players.hasOwnProperty(player)) {
-                      if (String(player) === String(oldUser.authorID)) {
-                        match.players[newUser.authorID] = {
-                          color: match.players[player].color,
-                          iconURI: user.iconURI,
-                          username: user.username,
-                        }
-                        delete match.players[player];
-                      }
-                    }}
-                    // save it
-                    db.collection('schlaunquerMatches').updateOne({_id: req.body.gameID},
-                      {$set: match},
-                      function(err, match) {
-                        if (err) {return sendError(req, res, errMsg+err);}
-                        return res.send({error:false});
-                      }
-                    );
-                  }
-                });
-              }
-            });
+app.post('/admin/userNameDiscrep', function(req, res) {
+  var errMsg = 'userNameDiscrep errMsg';
+  adminGate(req, res, function () {
+    dbReadMany(req, res, errMsg, 'userUrls', null, null, function (userUrls) {
+      readMultiUsers(req, res, errMsg, null, {list:['username'],}, function (users) {
+        var ref = {};
+        for (var i = 0; i < users.length; i++) {
+          ref[users[i].username.toLowerCase()] = true;
+        }
+        var result = [];
+        for (var i = 0; i < userUrls.length; i++) {
+          if (!ref[userUrls[i]._id]) {
+            result.push(userUrls[i]);
           }
-        });
-      }
+        }
+        return res.send(result);
+      });
     });
   });
 });
 
-/*app.post('/admin/staffCheat', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    var userID = ObjectId("5a0ea8429adb2100146f7568");
-    db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1, postList:1, postListPending:1}
-    , function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else {
-        checkFreshness(user);
-        var today = pool.getCurDate();
-
-        var updatezUserPost = function (text) {
-          user.posts[today] = [{
-            body: text,
-            tags: {}
-          }];
-          var num = user.posts[today].length-1;
-          user.postList.push({
-            date: today,
-            num: num
-          });
-        }
-
-        var x = pool.cleanseInputText(req.body.text);
-        imageValidate(x[0], res, function (res) {
-          updatezUserPost(x[1]);
-          return writeToDB(userID, user, function () {res.send([true, x[1]]);});
-        });
-      }
-    });
-  });
-});*/
-
-/*app.post('/admin', function(req, res) {      // add new codes
-  if (req.session.user) {
-    var userID = ObjectId(req.session.user._id)
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, username:1, codes:1}
-      , function (err, admin) {
-        if (err) {return sendError(req, res, err);}
-        else if (!admin || admin.username !== "admin") {
-          res.render('layout', {pagename:'404', type:'user'});
-        } else {
-          if (!admin.codes) {admin.codes = {};}
-          admin.codes[req.body.code] = true;
-          db.collection('users').updateOne({_id: userID},
-            {$set: admin },
-            function(err, user) {
-              if (err) {return sendError(req, res, err);}
-              else {res.render('admin', { codes: admin.codes });}
-            }
-          );
-        }
-      }
-    );
-  } else {
-    res.render('layout', {pagename:'404', type:'user'});
-  }
-});*/
 
 
-// ********** clicker game stuff *********** //
+
+// ********** clicker game *********** //
 app.get('/~click', function(req, res) {
   renderLayout(req, res, {panel:"clicker"});
 });
 app.post('/~clicker', function(req, res) {
   var errMsg = "error fetching clicker game info<br><br>";
   idCheck(req, function (userID) {
-    db.collection('users').findOne({ username: "admin" }, {_id:1, clicker:1}, function (err, admin) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!admin) {return sendError(req, res, errMsg+"data not found");}
-        else {
-          // if game not init, then init
-          if (!admin.clicker) {admin.clicker = {totalScore:0, lastClickDate:pool.getCurDate(), clickerRef:{}}}
-          // perform night audit if needed
-          if (admin.clicker.lastClickDate !== pool.getCurDate()) {
-            admin.clicker.lastClickDate = pool.getCurDate();
-            for (var personWhoClicked in admin.clicker.clickerRef) {
-              if (admin.clicker.clickerRef.hasOwnProperty(personWhoClicked)) {
-                admin.clicker.totalScore++;
-              }
-            }
-            admin.clicker.clickerRef = {};
-          }
-          //
-          var signedIn = false;
-          var eligible = false;
-          if (userID) {
-            signedIn = true;
-            if (!admin.clicker.clickerRef[userID]) {
-              eligible = true;
+    getUserIdFromName(req, res, errMsg, "admin", function (adminUserID) {
+      readUser(req, res, errMsg, adminUserID, {list:['clicker',]}, function(admin) {
+        if (!admin) {return sendError(req, res, errMsg+"data not found");}
+        // if game not init, then init
+        if (!admin.clicker) {admin.clicker = {totalScore:0, lastClickDate:pool.getCurDate(), clickerRef:{}}}
+        // perform night audit if needed
+        if (admin.clicker.lastClickDate !== pool.getCurDate()) {
+          admin.clicker.lastClickDate = pool.getCurDate();
+          for (var personWhoClicked in admin.clicker.clickerRef) {
+            if (admin.clicker.clickerRef.hasOwnProperty(personWhoClicked)) {
+              admin.clicker.totalScore++;
             }
           }
-          writeToDB(admin._id, admin, function (resp) {
-            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-            else {
-              return res.send({totalScore:admin.clicker.totalScore, signedIn:signedIn, eligible:eligible});
-            }
-          });
+          admin.clicker.clickerRef = {};
         }
+        //
+        var signedIn = false;
+        var eligible = false;
+        if (userID) {
+          signedIn = true;
+          if (!admin.clicker.clickerRef[userID]) {
+            eligible = true;
+          }
+        }
+        writeToUser(req, res, errMsg, admin, function () {
+          return res.send({totalScore:admin.clicker.totalScore, signedIn:signedIn, eligible:eligible});
+        });
       })
+    })
   })
 });
 app.post('/~clickClicker', function(req, res) {
   var errMsg = "error executing click<br><br>";
   idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({ username: "admin" }, {_id:1, clicker:1}, function (err, admin) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!admin) {return sendError(req, res, errMsg+"data not found");}
-        else {
-          if (!admin.clicker || !admin.clicker.lastClickDate || admin.clicker.lastClickDate !== pool.getCurDate()) {
-            return sendError(req, res, errMsg+"malformed request 318");
-          } else if (admin.clicker.clickerRef[userID]) {
-            sendError(req, res, errMsg+"pretty sneaky sis!");
-          } else {
-            admin.clicker.clickerRef[userID] = true;
-            writeToDB(admin._id, admin, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {
-                return res.send({error:false});
-              }
-            });
-          }
+    getUserIdFromName(req, res, errMsg, "admin", function (adminUserID) {
+      readUser(req, res, errMsg, adminUserID, {list:['clicker',]}, function(admin) {
+        if (!admin) {return sendError(req, res, errMsg+"data not found");}
+        if (!admin.clicker || !admin.clicker.lastClickDate || admin.clicker.lastClickDate !== pool.getCurDate()) {
+          return sendError(req, res, errMsg+"malformed request 318");
+        } else if (admin.clicker.clickerRef[userID]) {
+          sendError(req, res, errMsg+"pretty sneaky sis!");
+        } else {
+          admin.clicker.clickerRef[userID] = true;
+          writeToUser(req, res, errMsg, admin, function () {
+            return res.send({error:false});
+          });
         }
       });
+    });
   });
 });
 
 
-// ********** schlaunquer game routes *********** //
+// ********** schlaunquer game *********** //
 app.get('/~schlaunquer', function(req, res) {
   renderLayout(req, res, {panel:"schlaunquer"});
 });
@@ -1877,23 +1552,16 @@ app.post('/~getSchlaunquer', function(req, res) {
   var errMsg = "error fetching schlaunquer game info<br><br>";
   if (!req.body.game_id) {return sendError(req, res, errMsg+"malformed request 6048");}
   idCheck(req, function (userID) {
-    db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
-      if (err) {return sendError(req, res, errMsg+err);}
+    dbReadOneByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, null, function (match) {
       if (!match) {return res.send({notFound:true});}
 
       var updateMatch = schlaunquer.nightAudit(match);
 
       if (updateMatch) {
         // now save audit to DB
-        db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
-          {$set: updateMatch},
-          function(err, resp) {
-            if (err) {return sendError(req, res, errMsg+err);}
-            else {
-              return schlaunquer.tidyUp(userID, updateMatch, res, errMsg, devFlag);
-            }
-          }
-          );
+        dbWriteByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, updateMatch, function () {
+          return schlaunquer.tidyUp(userID, updateMatch, res, errMsg, devFlag);
+        });
       } else {
         return schlaunquer.tidyUp(userID, match, res, errMsg, devFlag);
       }
@@ -1904,21 +1572,16 @@ app.post('/~moveSchlaunquer', function(req, res) {
   var errMsg = "error updating schlaunquer<br><br>";
   if (!req.body.game_id) {return sendError(req, res, errMsg+"malformed request 5048");}
   idScreen(req, res, errMsg, function (userID) {
-    db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      else if (!match) {return sendError(req, res, errMsg+'match not found? 8871, please refresh and try again');}
+    dbReadOneByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, null, function (match) {
+      if (!match) {return sendError(req, res, errMsg+'match not found? 8871, please refresh and try again');}
 
       var match = schlaunquer.validateMove(match, req, res, devFlag, userID);
       if (match.error) { return sendError(req, res, errMsg+match.error);}
 
       // all requirements have been met, save the move
-      db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
-        {$set: match},
-        function(err, resMatch) {
-          if (err) {return sendError(req, res, errMsg+err);}
-          return res.send({error:false});
-        }
-      );
+      dbWriteByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, match, function () {
+        return res.send({error:false});
+      });
     });
   });
 });
@@ -1926,7 +1589,7 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
   var errMsg = "failed schlaunquer match creations<br><br>";
   if (!req.body.players || !Number.isInteger(req.body.players)) {return sendError(req, res, errMsg+"malformed request 9048");}
   if (!(req.body.players === 6 || req.body.players === 3 || req.body.players === 4 || req.body.players === 2)) {return sendError(req, res, errMsg+"malformed request 9046");}
-  lookUpCurrentUser(req, res, errMsg, {username:1, iconURI:1, games:1}, function (user) {
+  readCurrentUser(req, res, errMsg, {list:['username', 'iconURI', 'games']}, function (user) {
     //
     if (user.games && user.games.schlaunquer && user.games.schlaunquer.pending) {
       var count = 0;
@@ -1937,48 +1600,39 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
     if (count > 20) {return sendError(req, res, errMsg+`woah there cowboy!<br>it seems you're already enrolled in an awful lot of schlaunquer matches. If you'd genuinely like to create additional matches, message @staff and I can bump the limit higher for you. I had to put the limit somewhere and I did not imagine anyone would legitimately want to be in this many matches at once`);}
 
     //
-    genID('schlaunquerMatches', 7, function (resp) {
-      if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-      db.collection('schlaunquerMatches').findOne({ _id: resp._id }, {}, function (err, match) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (match) {return sendError(req, res, errMsg+'collision!');}
+    genID(req, res, errMsg, 'schlaunquerMatches', 7, function (newID) {
+      //
+      var match = {}
+      match._id = newID;
+      match.totalPlayers = req.body.players;
+      match.lastUpdatedOn = pool.getCurDate();
+      match.gameState = "pending";
+      match.version = 2;
+      //
+      if (req.body.opaqueEnemyUnits) {
+        match.opaqueEnemyUnits = true;
+      }
+      //
+      match.spawnValue = schlaunquer.gameRef.spawnValue;
+      if (typeof req.body.spawnValue !== "undefined" && Number.isInteger(req.body.spawnValue) && req.body.spawnValue > -1) {match.spawnValue = req.body.spawnValue;}
+      //
+      match.unitCap = schlaunquer.gameRef.unitCap;
+      if (typeof req.body.unitCap !== "undefined" && Number.isInteger(req.body.unitCap) && req.body.unitCap > -1) {match.unitCap = req.body.unitCap;}
+      //
+      match.players = {};
+      match.players[user._id] = {
+        username: user.username,
+        iconURI: user.iconURI,
+      }
+      //
+      dbCreateOne(req, res, errMsg, 'schlaunquerMatches', match, function (newID) {
+        if (!user.games) {user.games = {}};
+        if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
+        if (!user.games.schlaunquer.pending) {user.games.schlaunquer.pending = {}};
+        user.games.schlaunquer.pending[match._id] = true;
         //
-        var match = {}
-        match._id = resp._id;
-        match.totalPlayers = req.body.players;
-        match.lastUpdatedOn = pool.getCurDate();
-        match.gameState = "pending";
-        match.version = 2;
-        //
-        if (req.body.opaqueEnemyUnits) {
-          match.opaqueEnemyUnits = true;
-        }
-        //
-        match.spawnValue = schlaunquer.gameRef.spawnValue;
-        if (typeof req.body.spawnValue !== "undefined" && Number.isInteger(req.body.spawnValue) && req.body.spawnValue > -1) {match.spawnValue = req.body.spawnValue;}
-        //
-        match.unitCap = schlaunquer.gameRef.unitCap;
-        if (typeof req.body.unitCap !== "undefined" && Number.isInteger(req.body.unitCap) && req.body.unitCap > -1) {match.unitCap = req.body.unitCap;}
-        //
-        match.players = {};
-        match.players[user._id] = {
-          username: user.username,
-          iconURI: user.iconURI,
-        }
-        //
-        db.collection('schlaunquerMatches').insertOne(match, {}, function (err, result) {
-          if (err) {return sendError(req, res, errMsg+err);}
-          else {
-            if (!user.games) {user.games = {}};
-            if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
-            if (!user.games.schlaunquer.pending) {user.games.schlaunquer.pending = {}};
-            user.games.schlaunquer.pending[match._id] = true;
-            //
-            writeToDB(user._id, user, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              return res.send({error:false, game_id:match._id});
-            });
-           }
+        writeToUser(req, res, errMsg, user, function () {
+          return res.send({error:false, game_id:match._id});
         });
       });
     });
@@ -1987,67 +1641,58 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
 app.post('/~joinSchlaunquerMatch', function(req, res) { // also handles de-joining
   var errMsg = "failed schlaunquer join<br><br>";
   if (!req.body.game_id) {return sendError(req, res, errMsg+"malformed request 7048");}
-  lookUpCurrentUser(req, res, errMsg, {username:1, iconURI:1, games:1}, function (user) {
-      db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        if (!match) {return sendError(req, res, errMsg+'match not found');}
-        if (!match.gameState || match.gameState !== "pending") {return sendError(req, res, errMsg+'this match is not accepting entrants');}
-        if (!match.lastUpdatedOn || match.lastUpdatedOn !== pool.getCurDate()) {return sendError(req, res, errMsg+'match is out of date');}
-        //
-        if (!match.pendingPlayers) {match.pendingPlayers = {};}
-        var empty = false;
-        if (req.body.remove) {
-          delete match.pendingPlayers[user._id];
-          delete match.players[user._id];
-          delete user.games.schlaunquer.pending[req.body.game_id];
-          // check if match is now empty, and should be deleted
-          empty = true;
-          for (var player in match.pendingPlayers) {if (match.pendingPlayers.hasOwnProperty(player)) {
-            empty = false;
-            break;
-          }}
-          for (var player in match.players) {if (match.players.hasOwnProperty(player)) {
-            empty = false;
-            break;
-          }}
-        } else {
-          if (match.players[user._id]) { // don't add a player that's already enrolled
-            return sendError(req, res, errMsg+'user is already registered for this match');
-          }
-          match.pendingPlayers[user._id] = {
-            username: user.username,
-            iconURI: user.iconURI,
-          };
-          if (!user.games) {user.games = {}};
-          if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
-          if (!user.games.schlaunquer.pending) {user.games.schlaunquer.pending = {}};
-          user.games.schlaunquer.pending[req.body.game_id] = true;
+  readCurrentUser(req, res, errMsg, {list:['username', 'iconURI', 'games']}, function (user) {
+    dbReadOneByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, null, function (match) {
+      if (!match) {return sendError(req, res, errMsg+'match not found');}
+      if (!match.gameState || match.gameState !== "pending") {return sendError(req, res, errMsg+'this match is not accepting entrants');}
+      if (!match.lastUpdatedOn || match.lastUpdatedOn !== pool.getCurDate()) {return sendError(req, res, errMsg+'match is out of date');}
+      //
+      if (!match.pendingPlayers) {match.pendingPlayers = {};}
+      var empty = false;
+      if (req.body.remove) {
+        delete match.pendingPlayers[user._id];
+        delete match.players[user._id];
+        delete user.games.schlaunquer.pending[req.body.game_id];
+        // check if match is now empty, and should be deleted
+        empty = true;
+        for (var player in match.pendingPlayers) {if (match.pendingPlayers.hasOwnProperty(player)) {
+          empty = false;
+          break;
+        }}
+        for (var player in match.players) {if (match.players.hasOwnProperty(player)) {
+          empty = false;
+          break;
+        }}
+      } else {
+        if (match.players[user._id]) { // don't add a player that's already enrolled
+          return sendError(req, res, errMsg+'user is already registered for this match');
         }
-        writeToDB(user._id, user, function (resp) {
-          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          if (empty) {
-            db.collection('schlaunquerMatches').deleteOne({_id: req.body.game_id},
-              function(err, resMatch) {
-                if (err) {return sendError(req, res, errMsg+err);}
-                return res.send({error:false});
-              }
-            );
-          } else {
-            db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
-              {$set: match},
-              function(err, resMatch) {
-                if (err) {return sendError(req, res, errMsg+err);}
-                return res.send({error:false});
-              }
-            );
-          }
-        });
+        match.pendingPlayers[user._id] = {
+          username: user.username,
+          iconURI: user.iconURI,
+        };
+        if (!user.games) {user.games = {}};
+        if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
+        if (!user.games.schlaunquer.pending) {user.games.schlaunquer.pending = {}};
+        user.games.schlaunquer.pending[req.body.game_id] = true;
+      }
+      writeToUser(req, res, errMsg, user, function () {
+        if (empty) {
+          dbDeleteByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, function () {
+            return res.send({error:false});
+          });
+        } else {
+          dbWriteByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, match, function () {
+            return res.send({error:false});
+          });
+        }
       });
+    });
   });
 });
 app.post('/~checkPendingSchlaunquerMatches', function(req, res) {
   var errMsg = "failed pending schlaunquer match check<br><br>";
-  lookUpCurrentUser(req, res, errMsg, {games:1}, function (user) {
+  readCurrentUser(req, res, errMsg, {list:['games']}, function (user) {
     if (!user.games || !user.games.schlaunquer || !user.games.schlaunquer.pending) {return res.send({noUpdate:true});}
     if (user.games.schlaunquer.matchListsLastUpdatedOn === pool.getCurDate()) {return res.send({noUpdate:true});}
 
@@ -2056,8 +1701,7 @@ app.post('/~checkPendingSchlaunquerMatches', function(req, res) {
 
     checkPendingSchlaunquerMatches(req, res, errMsg, user, function (user) {
       checkActiveSchlaunquerMatches(req, res, errMsg, user, function (user) {
-        writeToDB(user._id, user, function (resp) {
-          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+        writeToUser(req, res, errMsg, user, function () {
           return res.send(user.games.schlaunquer);
         });
       });
@@ -2076,8 +1720,7 @@ var checkPendingSchlaunquerMatches = function (req, res, errMsg, user, callback,
     }
   }
   //
-  db.collection('schlaunquerMatches').findOne({ _id: matchArr[i] }, {}, function (err, match) {
-    if (err) {return sendError(req, res, errMsg+err);}
+  dbReadOneByID(req, res, errMsg, 'schlaunquerMatches', matchArr[i], null, function (match) {
     if (!match) {return sendError(req, res, errMsg+"match "+matchArr[i]+" not found");}
 
     var updatedMatch = schlaunquer.nightAudit(match);
@@ -2095,8 +1738,7 @@ var checkPendingSchlaunquerMatches = function (req, res, errMsg, user, callback,
 
     // save the updated match
     if (updatedMatch) {
-      db.collection('schlaunquerMatches').updateOne({_id: matchArr[i]}, {$set: updatedMatch}, function(err, match0) {
-        if (err) {return sendError(req, res, errMsg+err);}
+      dbWriteByID(req, res, errMsg, 'schlaunquerMatches', matchArr[i], updatedMatch, function () {
         i++;
         if (matchArr.length === i) { return callback(user);}
         else {return checkPendingSchlaunquerMatches(req, res, errMsg, user, callback, matchArr, i);}
@@ -2119,9 +1761,7 @@ var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) 
   if (matchArr.length === 0) { return callback(user); }
   if (!user.games.schlaunquer.finished) {user.games.schlaunquer.finished = {}}
 
-  db.collection('schlaunquerMatches').find({_id: {$in: matchArr}}, {victor:1, dates:1}).toArray(function(err, matchList) {
-    if (err) {return sendError(req, res, errMsg+err);}
-
+  dbReadMany(req, res, errMsg, 'schlaunquerMatches', matchArr, getProjection(['victor','dates','players']), function (matchList) {
     for (var i = 0; i < matchList.length; i++) {
       if (matchList[i].victor && !matchList[i].dates[pool.getCurDate()]) {  // if there IS a map for today, then the game ended today, and we want to leave it in active until tomorrow
         user.games.schlaunquer.finished[matchList[i]._id] = true;
@@ -2136,27 +1776,19 @@ var checkActiveSchlaunquerMatches = function (req, res, errMsg, user, callback) 
 app.post('/~setSchlaunquerReminder', function(req, res) {
   var errMsg = "schlaunquer reminder status not successfully updated<br><br>";
   if (!req.body || !req.body.date || !pool.isStringValidDate(req.body.date)) {return sendError(req, res, errMsg+"malformed request 294");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}, {_id:0, games:1}, function (err, user) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      if (!user) {return sendError(req, res, errMsg+"user not found");}
-      //
-      if (!user.games) {user.games = {}};
-      if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
-      user.games.schlaunquer.remindNextOn = req.body.date;
-      //
-      writeToDB(userID, user, function (resp) {
-        if (resp.error) {sendError(req, res, resp.error);}
-        else {res.send({error: false});}
-      });
-
-    });
+  readCurrentUser(req, res, errMsg, {list:['games']}, function (user) {
+    //
+    if (!user.games) {user.games = {}};
+    if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
+    user.games.schlaunquer.remindNextOn = req.body.date;
+    //
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 app.post('/~setSchlaunquerBookmark', function(req, res) {
   var errMsg = "schlaunquer bookmark not successfully updated<br><br>";
   if (!req.body || !req.body.game_id) {return sendError(req, res, errMsg+"malformed request");}
-  lookUpCurrentUser(req, res, errMsg, {games:1}, function (user) {
+  readCurrentUser(req, res, errMsg, {list:['games']}, function (user) {
 
     //
     if (!user.games) {user.games = {}};
@@ -2169,45 +1801,14 @@ app.post('/~setSchlaunquerBookmark', function(req, res) {
       user.games.schlaunquer.bookmarked[req.body.game_id] = true;
     }
     //
-    writeToDB(user._id, user, function (resp) {
-      if (resp.error) {sendError(req, res, resp.error);}
-      else {res.send(user.games.schlaunquer.bookmarked);}
+    writeToUser(req, res, errMsg, user, function () {
+      res.send(user.games.schlaunquer.bookmarked);
     });
   });
 });
 
 
-//admin
-app.post('/admin/adminSchlaunquerTweak', function(req, res) {
-  adminGate(req, res, function (res, user) {
-    var errMsg = "failed schlaunquer fix<br><br>";
-    if (!req.body.game_id || !req.body.coord || !req.body.player_id) {return sendError(req, res, errMsg+"malformed request 4038");}
-    db.collection('schlaunquerMatches').findOne({ _id: req.body.game_id }, {}, function (err, match) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      if (!match) {return sendError(req, res, errMsg+'match not found?');}
 
-      var map = match.dates[pool.getCurDate()];
-      if (!map) {return sendError(req, res, errMsg+'no map for this date?');}
-      req.body.value = Number(req.body.value);
-      if (Number.isInteger(req.body.value) && req.body.value > 0) {
-        map[req.body.coord] = {
-          ownerID: req.body.player_id,
-          score: req.body.value,
-        }
-      } else {
-        if (map[req.body.coord]) { delete map[req.body.coord]; }
-      }
-
-      db.collection('schlaunquerMatches').updateOne({_id: req.body.game_id},
-        {$set: match},
-        function(err, resMatch) {
-          if (err) {return sendError(req, res, errMsg+err);}
-          return res.send({error:false});
-        }
-      );
-    });
-  });
-});
 // ********** ~~~~****~~~~****~~~~ *********** //
 
 
@@ -2335,20 +1936,19 @@ var pongOnPostSubmit = function (userID, activeKey, post) {
 }
 
 // new/edit/delete (current) post
-app.post('/', function(req, res) {
+app.post('/postPost', function(req, res) {
   var errMsg = "your post was not successfully saved<br><br>";
   if (!req.body || !req.body.key) {return sendError(req, res, errMsg+"malformed request 119");}
-  lookUpCurrentUser(req, res, errMsg, {username:1, posts:1, postList:1, postListPending:1, customURLs:1}, function (user) {
-    checkFreshness(user);
+  //
+  readCurrentUser(req, res, errMsg, {list:['posts','username', 'postList', 'postListPending','postListUpdatedOn', 'customURLs']}, function (user) {
+    pushNewToPostlist(user);
+
     var tmrw = pool.getCurDate(-1);
     var x = pool.cleanseInputText(req.body.body);
     if (req.body.remove || (x[1] === "" && !req.body.tags && !req.body.title)) {                 //remove pending post, do not replace
-      deletePost(res, errMsg, user._id, user, tmrw, function (resp) {
-        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-        else {
-          pongOnPostSubmit(user._id, req.body.key, false);
-          return res.send({error:false, body:"", tags:{}, title:""});
-        }
+      deletePost(req, res, errMsg, user, tmrw, function () {
+        pongOnPostSubmit(user._id, req.body.key, false);
+        return res.send({error:false, body:"", tags:{}, title:""});
       });
     } else {
       linkValidate(x[2], function (linkProblems) {
@@ -2366,14 +1966,10 @@ app.post('/', function(req, res) {
         //
         imageValidate(x[0], function (resp) {
           if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          updateUserPost(x[1], tags, title, url, user._id, user, function (resp) {
-            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-            return writeToDB(user._id, user, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {
-                pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title, url:url});
-                return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
-              }
+          updateUserPost(req, res, errMsg, x[1], tags, title, url, user._id, user, function () {
+            writeToUser(req, res, errMsg, user, function () {
+              pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title, url:url});
+              return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
             });
           });
         });
@@ -2387,81 +1983,79 @@ app.post('/editOldPost', function (req, res) {
   var errMsg = "the post was not successfully edited<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(req, res, errMsg+"malformed request 154");}
   if (req.body.post_id !== "bio" && req.body.date > pool.getCurDate()) {return sendError(req, res, errMsg+"you would seek to edit your future? fool!");}
-  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1, customURLs:1, username:1, iconURI:1}, function (user) {
-    checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
+  idScreen(req, res, errMsg, function (userID) {
     // pending updates MUST be fresh when we add to it, else all goes to shit
-    checkUpdates(user, function (resp) {
-      if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-      user = resp.user;
-      // before changing anything, verify the postID corresponds with the date
-      if ((req.body.date === "bio" && req.body.post_id === "bio") || (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id)) {
-        var x = pool.cleanseInputText(req.body.text);
-        if (x.error || x[1] === "") {                 // delete a pending draft
-          if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
-            delete user.pendingUpdates.updates[req.body.date];
-            return writeToDB(user._id, user, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {return res.send({error:false, body:"", tags:{}, title:"", url:"",});}
-            });
-          } else {return sendError(req, res, errMsg+"edit not found");}
-        } else {                                      // new/edit
-          var today = pool.getCurDate();
-          if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
-          if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
-          if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
-          //
-          if (req.body.post_id !== "bio") {
-            var tags = parseInboundTags(req.body.tags);
-            if (typeof tags === 'string') {return sendError(req, res, errMsg+tags);}
-            var title = validatePostTitle(req.body.title);
-            if (title.error) {return sendError(req, res, errMsg+title.error);}
-            //
-            var urlVal = validatePostURL(user, req.body.date, req.body.url);
-            if (urlVal.error) {return sendError(req, res, errMsg+urlVal.error);}
-            if (urlVal.deny) {return res.send(urlVal);}
-            var url = urlVal.url;
-            user = urlVal.user;
-            // on a new post, the following happens as part of updating the rest of the post,
-            // here, the post goes into pendingUpdates, so we need to do it separately right away
-            user.posts[req.body.date][0].url = url;
-            if (req.body.onlyTheUrlHasBeenChanged) {
-              return writeToDB(user._id, user, function (resp) {
-                if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-                else {return res.send({error:false, body:"", onlyTheUrlHasBeenChanged:true, url:url});}
+    checkForUserUpdates(req, res, errMsg, userID, function () {
+      readCurrentUser(req, res, errMsg, {list:['posts', 'pendingUpdates', 'bio', 'customURLs', 'username', 'iconURI']}, function (user) {
+        // before changing anything, verify the postID corresponds with the date
+        if ((req.body.date === "bio" && req.body.post_id === "bio") || (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id)) {
+          var x = pool.cleanseInputText(req.body.text);
+          if (x.error || x[1] === "") {                 // delete a pending draft
+            if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
+              delete user.pendingUpdates.updates[req.body.date];
+              writeToUser(req, res, errMsg, user, function () {
+                return res.send({error:false, body:"", tags:{}, title:"", url:"",});
               });
+            } else {return sendError(req, res, errMsg+"edit not found");}
+          } else {                                      // new/edit
+            var today = pool.getCurDate();
+            if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
+            if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
+            if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
+            //
+            if (req.body.post_id !== "bio") {
+              var tags = parseInboundTags(req.body.tags);
+              if (typeof tags === 'string') {return sendError(req, res, errMsg+tags);}
+              var title = validatePostTitle(req.body.title);
+              if (title.error) {return sendError(req, res, errMsg+title.error);}
+              //
+              var urlVal = validatePostURL(user, req.body.date, req.body.url);
+              if (urlVal.error) {return sendError(req, res, errMsg+urlVal.error);}
+              if (urlVal.deny) {return res.send(urlVal);}
+              var url = urlVal.url;
+              user = urlVal.user;
+              // on a new post, the following happens as part of updating the rest of the post,
+              // here, the post goes into pendingUpdates, so we need to do it separately right away
+              user.posts[req.body.date][0].url = url;
+              if (req.body.onlyTheUrlHasBeenChanged) {
+                writeToUser(req, res, errMsg, user, function () {
+                  return res.send({error:false, body:"", onlyTheUrlHasBeenChanged:true, url:url});
+                });
+              }
+              //
+            } else {
+              var tags = {};
+              var title = "";
+              var url = "";
             }
             //
-          } else {
-            var tags = {};
-            var title = "";
-            var url = "";
-          }
-          //
-          linkValidate(x[2], function (linkProblems) {
-            //
-            imageValidate(x[0], function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              if (req.body.post_id === "bio") {
-                var newPost = x[1];
-              } else {
-                var newPost = [{
-                  body: x[1],
-                  tags: tags,
-                  title: title,
-                  url: url,
-                  post_id: req.body.post_id,
-                  edited: true,
-                }];
-              }
-              user.pendingUpdates.updates[req.body.date] = newPost;
-              return writeToDB(user._id, user, function (resp) {
+            linkValidate(x[2], function (linkProblems) {
+              //
+              imageValidate(x[0], function (resp) {
                 if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-                else {return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});}
+                if (req.body.post_id === "bio") {
+                  var newPost = x[1];
+                } else {
+                  var newPost = [{
+                    body: x[1],
+                    tags: tags,
+                    title: title,
+                    url: url,
+                    post_id: req.body.post_id,
+                    edited: true,
+                  }];
+                }
+                user.pendingUpdates.updates[req.body.date] = newPost;
+                writeToUser(req, res, errMsg, user, function () {
+                  return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
+                });
               });
             });
-          });
+          }
+        } else {
+          return sendError(req, res, errMsg+"postID and date miscoresponce");
         }
-      } else {return sendError(req, res, errMsg+"postID and date miscoresponce");}
+      });
     });
   });
 });
@@ -2470,18 +2064,13 @@ app.post('/editOldPost', function (req, res) {
 app.post('/makePostPrivate', function (req, res) {
   var errMsg = "the post privacy was not successfully toggled<br><br>";
   if (!req.body.postData.post_id || !req.body.postData.date) {return sendError(req, res, errMsg+"malformed request 1514");}
-  lookUpCurrentUser(req, res, errMsg, {posts:1, postList:1, postListPending:1,}, function (user) {
-    checkFreshness(user); //in case they want to edit a post from today that is still in pendingList
+  readCurrentUser(req, res, errMsg, {list:['posts',],}, function (user) {
 
-    // before changing anything, verify the postID corresponds with the date (this makes sure a user is privating their own post)
+    // first verify the postID corresponds with the date (this makes sure a user is privating their own post)
     if (user.posts[req.body.postData.date] && user.posts[req.body.postData.date][0].post_id === req.body.postData.post_id) {
       user.posts[req.body.postData.date][0].private = req.body.postData.private;
-      writeToDB(user._id, user, function (resp) {
-        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-        else {
-          return res.send({error: false});}
-      });
-
+      //
+      writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
     } else {
       return sendError(req, res, errMsg+"postID and date miscoresponce");
     }
@@ -2492,69 +2081,46 @@ app.post('/makePostPrivate', function (req, res) {
 app.post('/deleteOldPost', function (req, res) {
   var errMsg = "the post was not successfully deleted<br><br>";
   if (!req.body.post_id || !req.body.date) {return sendError(req, res, errMsg+"malformed request 813");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-    , {_id:0, posts:1, postList:1, postListPending:1, pendingUpdates:1, bio:1, customURLs:1}
-    , function (err, user) {
-      if (err) {return sendError(req, res, err);}
-      else if (!user) {return sendError(req, res, errMsg+"user not found");}
-      else {
-        if (req.body.date === "bio" && req.body.post_id === "bio") {
-          user.bio = "";
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-            else {return res.send({error: false});}
-          });
-        } else {
-          checkFreshness(user); //in case they want to delete a post from today that is still in pendingList
-          // before changing anything, verify the postID corresponds with the date
-          if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
-            deletePost(res, errMsg, userID, user, req.body.date, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {return res.send({error:false});}
-            });
-          } else {return sendError(req, res, errMsg+"postID and date miscoresponce");}
-        }
-      }
-    });
+  readCurrentUser(req, res, errMsg, {list:['posts','postList', 'postListPending','postListUpdatedOn', 'pendingUpdates', 'bio', 'customURLs']}, function (user) {
+    if (req.body.date === "bio" && req.body.post_id === "bio") {
+      user.bio = "";
+      writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+    } else {
+      pushNewToPostlist(user); //in case they want to delete a post from today that is still in pendingList
+      // before changing anything, verify the postID corresponds with the date
+      if (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id) {
+        deletePost(req, res, errMsg, user, req.body.date, function () {
+          return res.send({error:false});
+        });
+      } else {return sendError(req, res, errMsg+"postID and date miscoresponce");}
+    }
   });
 });
 
 // add/remove to/from bookmarks
 app.post('/bookmarks', function(req, res) {
   var errMsg = "bookmark list not successfully updated<br><br>";
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, bookmarks:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          if (!req.body || !req.body.author_id || !req.body.date) {return sendError(req, res, errMsg+"malformed request 644");}
-          if (req.body.date > pool.getCurDate()) {return sendError(req, res, errMsg+"pretty sneaky sis");}
-          if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
-          var found = false;
-          for (var i = 0; i < user.bookmarks.length; i++) {
-            if (String(user.bookmarks[i].author_id) === String(req.body.author_id) && user.bookmarks[i].date === req.body.date) {
-              found = true;
-              if (req.body.remove) {
-                user.bookmarks.splice(i, 1);
-                i--;
-              }
-            }
-          }
-          if (!found && !req.body.remove) {
-            user.bookmarks.push({
-              author_id: ObjectId(req.body.author_id),
-              date: req.body.date
-            });
-          }
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, errMsg+resp.error);}
-            else {res.send({error: false});}
-          });
+  if (!req.body || !req.body.author_id || !req.body.date) {return sendError(req, res, errMsg+"malformed request 644");}
+  if (req.body.date > pool.getCurDate()) {return sendError(req, res, errMsg+"pretty sneaky sis");}
+  readCurrentUser(req, res, errMsg, {list:['bookmarks']}, function (user) {
+    if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
+    var found = false;
+    for (var i = 0; i < user.bookmarks.length; i++) {
+      if (String(user.bookmarks[i].author_id) === String(req.body.author_id) && user.bookmarks[i].date === req.body.date) {
+        found = true;
+        if (req.body.remove) {
+          user.bookmarks.splice(i, 1);
+          i--;
         }
+      }
+    }
+    if (!found && !req.body.remove) {
+      user.bookmarks.push({
+        author_id: ObjectId(req.body.author_id),
+        date: req.body.date
       });
+    }
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
@@ -2562,33 +2128,22 @@ app.post('/bookmarks', function(req, res) {
 app.post('/saveTag', function(req, res) {
   var errMsg = "tag not successfully saved<br><br>";
   if (!req.body || !req.body.tag || typeof(req.body.tag) !== "string") {return sendError(req, res, errMsg+"malformed request 552");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, savedTags:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
-          var found = false;
-          for (var i = 0; i < user.savedTags.length; i++) {
-            if (user.savedTags[i] === req.body.tag) {
-              found = true;
-              if (req.body.remove) {
-                user.savedTags.splice(i, 1);
-                i--;
-              }
-            }
-          }
-          if (!found && !req.body.remove) {
-            user.savedTags.push(req.body.tag);
-          }
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, errMsg+resp.error);}
-            else {res.send({error: false});}
-          });
+  readCurrentUser(req, res, errMsg, {list:['savedTags']}, function (user) {
+    if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
+    var found = false;
+    for (var i = 0; i < user.savedTags.length; i++) {
+      if (user.savedTags[i] === req.body.tag) {
+        found = true;
+        if (req.body.remove) {
+          user.savedTags.splice(i, 1);
+          i--;
         }
-      });
+      }
+    }
+    if (!found && !req.body.remove) {
+      user.savedTags.push(req.body.tag);
+    }
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
@@ -2596,218 +2151,176 @@ app.post('/saveTag', function(req, res) {
 app.post('/mute', function(req, res) {
   var errMsg = "mute status not successfully saved<br><br>";
   if (!req.body || !req.body.userID) {return sendError(req, res, errMsg+"malformed request 553");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, muted:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          if (!user.muted) {user.muted = {};}
-          if (req.body.muting) {
-            user.muted[req.body.userID] = true;
-          } else {                            //unmute
-            delete user.muted[req.body.userID];
-          }
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, errMsg+resp.error);}
-            else {res.send({error: false});}
-          });
-        }
-      });
+  readCurrentUser(req, res, errMsg, {list:['muted']}, function (user) {
+    if (!user.muted) {user.muted = {};}
+    if (req.body.muting) {
+      user.muted[req.body.userID] = true;
+    } else {                            //unmute
+      delete user.muted[req.body.userID];
+    }
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
 // follow/unfollow
 app.post('/follow', function(req, res) {
   var errMsg = "following list not successfully updated<br><br>";
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, following:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          if (!req.body || !req.body.id) {return sendError(req, res, errMsg+"malformed request 283");}
-          // make sure they even have a following array
-          if (!user.following || user.following.length === undefined) {user.following = [];}
-          if (req.body.remove) {
-            for (var i = 0; i < user.following.length; i++) {
-              if (String(user.following[i]) === String(req.body.id)) {
-                user.following.splice(i, 1);
-                i--;
-              }
-            }
-          } else {
-            user.following.push(ObjectId(req.body.id));
-          }
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, errMsg+resp.error);}
-            else {res.send({error: false});}
-          });
+  if (!req.body || !req.body.id) {return sendError(req, res, errMsg+"malformed request 283");}
+  readCurrentUser(req, res, errMsg, {list:['savedTags']}, function (user) {
+    // make sure they even have a following array
+    if (!user.following || user.following.length === undefined) {user.following = [];}
+    if (req.body.remove) {
+      for (var i = 0; i < user.following.length; i++) {
+        if (String(user.following[i]) === String(req.body.id)) {
+          user.following.splice(i, 1);
+          i--;
         }
-      });
+      }
+    } else {
+      user.following.push(ObjectId(req.body.id));
+    }
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
 // new/edit/delete message
 app.post('/inbox', function(req, res) {
-  var errMsg = "your message has not been successfully saved<br><br>";
-  if (!req.session.user) {return sendError(req, res, errMsg+"no user session 3653");}
+  var errMsg = "your message has not been successfully sent/saved<br><br>";
   // the incoming text is encrypted, so we can not cleanse it
-  if (typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(req, res, errMsg+"malformed request 188<br>");}
-  var recipientID = String(req.body.recipient);
-  var senderID = String(req.session.user._id);
-  if (recipientID === senderID) {return sendError(req, res, errMsg+"you want to message yourself??? freak.");}
+  if (!req.body.recipient || typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(req, res, errMsg+"malformed request");}
+  if (String(req.body.recipient) === String(req.session.user._id)) {return sendError(req, res, errMsg+"you want to message yourself??? freak.");}
   // make both sender and recipient DB calls first
-  db.collection('users').findOne({_id: ObjectId(senderID)}
-  , {_id:0, inbox:1, username:1, keys:1, iconURI:1,}
-  , function (err, sender) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else if (!sender) {return sendError(req, res, errMsg+"sender not found");}
-    else {
-      if (!sender.keys) {return sendError(req, res, errMsg+"missing sender key<br><br>"+sender.keys);}
-      db.collection('users').findOne({_id: ObjectId(recipientID)}
-      , {_id:0, inbox:1, username:1, keys:1, iconURI:1,}
-      , function (err, recipient) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!recipient) {return sendError(req, res, errMsg+"recipient not found");}
-        else {
-          //
-          if (!recipient.keys) {return sendError(req, res, errMsg+"missing recipient key<br><br>"+recipient.keys);}
-          var tmrw = pool.getCurDate(-1);
-          var overwrite = false;
-          var noReKey = true;
-          // update the sender's end first
-          var inboxTemplate = genInboxTemplate();
-          checkObjForProp(sender, 'inbox', inboxTemplate);
-          //
-          var recipientPic = recipient.iconURI;
-          if (typeof recipientPic !== 'string') {recipientPic = "";}
-          // if the sender does not already have a thread w/ the recipient, create one
-          if (checkObjForProp(sender.inbox.threads, recipientID, {name:recipient.username, unread:false, image:recipientPic, thread:[], key:recipient.keys.pubKey})) {
-            // and create the corresponding refference on the list
-            sender.inbox.list.push(recipientID);
-          } else {
-            // there is an extant thread, so
-            // is either person blocking the other?
-            if (sender.inbox.threads[recipientID].blocking || sender.inbox.threads[recipientID].blocked) {
-              return sendError(req, res, errMsg+"this message is not allowed");
-            }
-            // check/update the key
-            if (!sender.inbox.threads[recipientID].key || sender.inbox.threads[recipientID].key !== recipient.keys.pubKey) {
-              // key is OLD AND BAD, head back to FE w/ new Key to re-encrypt
-              noReKey = false;
-              sender.inbox.threads[recipientID].key = recipient.keys.pubKey;
-              writeToDB(senderID, sender, function (resp) {
-                if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-                else {return res.send({error:false, reKey:recipient.keys.pubKey});}
-              });
-            } else {
-              // check the last two items, overwrite if there is already a pending message
-              if (checkLastTwoForPending(sender.inbox.threads[recipientID].thread, req.body.remove, req.body.encSenderText, tmrw, false)) {
-                overwrite = true;
-                removeListRefIfRemovingOnlyMessage(sender.inbox, recipientID, req.body.remove, tmrw);
-              }
-              // check that there is a ref on the list, (an extant thread does not nec. imply this)
-              if (!req.body.remove) {
-                var foundMatch = false;
-                for (var i = 0; i < sender.inbox.list.length; i++) {
-                  if (String(sender.inbox.list[i]) === String(recipientID)) {
-                    foundMatch = true;
-                    break;
-                  }
-                }
-                if (!foundMatch) {sender.inbox.list.push(recipientID);}
-              }
-              // check/update the thread "name"
-              if (!sender.inbox.threads[recipientID].name || sender.inbox.threads[recipientID].name !== recipient.username) {
-                sender.inbox.threads[recipientID].name = recipient.username;
-              }
-              // check/update pic
-              if (!sender.inbox.threads[recipientID].image || sender.inbox.threads[recipientID].image !== recipientPic) {
-                sender.inbox.threads[recipientID].image = recipientPic;
-              }
-            }
+  readCurrentUser(req, res, errMsg, {list:['inbox', 'username', 'keys', 'iconURI']}, function (sender) {
+    if (!sender.keys) {return sendError(req, res, errMsg+"missing sender key<br><br>"+sender.keys);}
+    readUser(req, res, errMsg, String(req.body.recipient), {list:['inbox', 'username', 'keys', 'iconURI',]}, function(recipient) {
+      if (!recipient) {return sendError(req, res, errMsg+"recipient not found");}
+      //
+      if (!recipient.keys) {return sendError(req, res, errMsg+"missing recipient key<br><br>"+recipient.keys);}
+      var tmrw = pool.getCurDate(-1);
+      var overwrite = false;
+      var noReKey = true;
+      // update the sender's end first
+      var inboxTemplate = genInboxTemplate();
+      checkObjForProp(sender, 'inbox', inboxTemplate);
+      //
+      var recipientPic = recipient.iconURI;
+      if (typeof recipientPic !== 'string') {recipientPic = "";}
+      // if the sender does not already have a thread w/ the recipient, create one
+      if (checkObjForProp(sender.inbox.threads, recipient._id, {name:recipient.username, unread:false, image:recipientPic, thread:[], key:recipient.keys.pubKey})) {
+        // and create the corresponding refference on the list
+        sender.inbox.list.push(recipient._id);
+      } else {
+        // there is an extant thread, so
+        // is either person blocking the other?
+        if (sender.inbox.threads[recipient._id].blocking || sender.inbox.threads[recipient._id].blocked) {
+          return sendError(req, res, errMsg+"this message is not allowed");
+        }
+        // check/update the key
+        if (!sender.inbox.threads[recipient._id].key || sender.inbox.threads[recipient._id].key !== recipient.keys.pubKey) {
+          // key is OLD AND BAD, head back to FE w/ new Key to re-encrypt
+          noReKey = false;
+          sender.inbox.threads[recipient._id].key = recipient.keys.pubKey;
+          writeToUser(req, res, errMsg, sender, function () {
+            return res.send({error:false, reKey:recipient.keys.pubKey});
+          });
+        } else {
+          // check the last two items, overwrite if there is already a pending message
+          if (checkLastTwoForPending(sender.inbox.threads[recipient._id].thread, req.body.remove, req.body.encSenderText, tmrw, false)) {
+            overwrite = true;
+            removeListRefIfRemovingOnlyMessage(sender.inbox, recipient._id, req.body.remove, tmrw);
           }
-          if (!overwrite) { //no message to overwrite, so push new message
-            sender.inbox.threads[recipientID].thread.push({
-              inbound: false,
-              date: tmrw,
-              body: req.body.encSenderText,
-            });
+          // check that there is a ref on the list, (an extant thread does not nec. imply this)
+          if (!req.body.remove) {
+            var foundMatch = false;
+            for (var i = 0; i < sender.inbox.list.length; i++) {
+              if (String(sender.inbox.list[i]) === String(recipient._id)) {
+                foundMatch = true;
+                break;
+              }
+            }
+            if (!foundMatch) {sender.inbox.list.push(recipient._id);}
           }
-
-          if (noReKey) {
-            // AND AGAIN: now update the symetric data on the recipient's side
-            if (!checkObjForProp(recipient, 'inbox', inboxTemplate)) {
-              bumpThreadList(recipient.inbox);
-            }
-            var senderPic = sender.iconURI;
-            if (typeof senderPic !== 'string') {senderPic = "";}
-            // if the recipient does not already have a thread w/ the sender, create one
-            if (!checkObjForProp(recipient.inbox.threads, senderID, {name:sender.username, unread:false, image:senderPic, thread:[], key:sender.keys.pubKey})) {
-              // there is an extant thread, so
-              // is either person blocking the other?
-              if (recipient.inbox.threads[senderID].blocking || recipient.inbox.threads[senderID].blocked) {
-                return sendError(req, res, errMsg+"this message is not allowed");
-              }
-              // check the last two items, overwrite if there is already a pending message
-              if (checkLastTwoForPending(recipient.inbox.threads[senderID].thread, req.body.remove, req.body.encRecText, tmrw, true)) {
-                overwrite = true;
-                // if deleting a message, then remove the listing in 'pending'
-                if (req.body.remove) {
-                  delete recipient.inbox.pending[senderID];
-                }
-              }
-              // check/update the key
-              if (!recipient.inbox.threads[senderID].key || recipient.inbox.threads[senderID].key !== sender.keys.pubKey) {
-                recipient.inbox.threads[senderID].key = sender.keys.pubKey;
-              }
-              // check/update the thread "name"
-              if (!recipient.inbox.threads[senderID].name || recipient.inbox.threads[senderID].name !== sender.username) {
-                recipient.inbox.threads[senderID].name = sender.username;
-              }
-              // check/update pic
-              if (!recipient.inbox.threads[senderID].image || recipient.inbox.threads[senderID].image !== senderPic) {
-                recipient.inbox.threads[senderID].image = senderPic;
-              }
-            }
-            if (!overwrite) { //no message to overwrite, so push new message
-              recipient.inbox.threads[senderID].thread.push({
-                inbound: true,
-                date: tmrw,
-                body: req.body.encRecText,
-              });
-              // add to the 'pending' collection
-              recipient.inbox.pending[senderID] = true;
-            }
-
-            writeToDB(senderID, sender, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {
-                writeToDB(recipientID, recipient, function (resp) {
-                  if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-                  else {return res.send({error:false, reKey:false});}
-                });
-              }
-            });
+          // check/update the thread "name"
+          if (!sender.inbox.threads[recipient._id].name || sender.inbox.threads[recipient._id].name !== recipient.username) {
+            sender.inbox.threads[recipient._id].name = recipient.username;
+          }
+          // check/update pic
+          if (!sender.inbox.threads[recipient._id].image || sender.inbox.threads[recipient._id].image !== recipientPic) {
+            sender.inbox.threads[recipient._id].image = recipientPic;
           }
         }
-      });
-    }
+      }
+      if (!overwrite) { //no message to overwrite, so push new message
+        sender.inbox.threads[recipient._id].thread.push({
+          inbound: false,
+          date: tmrw,
+          body: req.body.encSenderText,
+        });
+      }
+
+      if (noReKey) {
+        // AND AGAIN: now update the symetric data on the recipient's side
+        if (!checkObjForProp(recipient, 'inbox', inboxTemplate)) {
+          bumpThreadList(recipient.inbox);
+        }
+        var senderPic = sender.iconURI;
+        if (typeof senderPic !== 'string') {senderPic = "";}
+        // if the recipient does not already have a thread w/ the sender, create one
+        if (!checkObjForProp(recipient.inbox.threads, sender._id, {name:sender.username, unread:false, image:senderPic, thread:[], key:sender.keys.pubKey})) {
+          // there is an extant thread, so
+          // is either person blocking the other?
+          if (recipient.inbox.threads[sender._id].blocking || recipient.inbox.threads[sender._id].blocked) {
+            return sendError(req, res, errMsg+"this message is not allowed");
+          }
+          // check the last two items, overwrite if there is already a pending message
+          if (checkLastTwoForPending(recipient.inbox.threads[sender._id].thread, req.body.remove, req.body.encRecText, tmrw, true)) {
+            overwrite = true;
+            // if deleting a message, then remove the listing in 'pending'
+            if (req.body.remove) {
+              delete recipient.inbox.pending[sender._id];
+            }
+          }
+          // check/update the key
+          if (!recipient.inbox.threads[sender._id].key || recipient.inbox.threads[sender._id].key !== sender.keys.pubKey) {
+            recipient.inbox.threads[sender._id].key = sender.keys.pubKey;
+          }
+          // check/update the thread "name"
+          if (!recipient.inbox.threads[sender._id].name || recipient.inbox.threads[sender._id].name !== sender.username) {
+            recipient.inbox.threads[sender._id].name = sender.username;
+          }
+          // check/update pic
+          if (!recipient.inbox.threads[sender._id].image || recipient.inbox.threads[sender._id].image !== senderPic) {
+            recipient.inbox.threads[sender._id].image = senderPic;
+          }
+        }
+        if (!overwrite) { //no message to overwrite, so push new message
+          recipient.inbox.threads[sender._id].thread.push({
+            inbound: true,
+            date: tmrw,
+            body: req.body.encRecText,
+          });
+          // add to the 'pending' collection
+          recipient.inbox.pending[sender._id] = true;
+        }
+        writeToUser(req, res, errMsg, sender, function () {
+          writeToUser(req, res, errMsg, recipient, function () {
+            return res.send({error:false, reKey:false});
+          });
+        });
+      }
+    });
   });
 });
 
 // get inbox
 app.post('/getInbox', function (req,res) {
   var errMsg = "unable to retrieve message data<br><br>";
-  lookUpCurrentUser(req, res, errMsg, {inbox:1}, function (user) {
+  readCurrentUser(req, res, errMsg, {list:['inbox']}, function (user) {
     var threads = [];
     if (user.inbox) {
       var bump = bumpThreadList(user.inbox);
       if (bump) {
-        writeToDB(ObjectId(req.session.user._id), user, function () {});
+        writeToUser(req, null, errMsg, user);
       }
       var list = user.inbox.list;
       //reverse thread order so as to send a list ordered newest to oldest
@@ -2833,56 +2346,38 @@ app.post('/getInbox', function (req,res) {
 // block/unblock a user from messaging you
 app.post('/block', function(req, res) {
   var errMsg = "block/unblock error<br><br>"
-  if (!req.session.user) {return sendError(req, res, errMsg+"no user session 8008");}
-  var blockerID = ObjectId(req.session.user._id);
-  if (!req.body || !req.body.blockeeID) {return sendError(req, res, errMsg+"malformed request 844");}
-  var blockeeID = ObjectId(req.body.blockeeID);
-  db.collection('users').findOne({_id: blockerID}
-  , {_id:0, inbox:1}
-  , function (err, blocker) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else if (!blocker) {return sendError(req, res, errMsg+"user not found, blocker");}
-    else {
-      db.collection('users').findOne({_id: blockeeID}
-      , {_id:0, inbox:1}
-      , function (err, blockee) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!blockee) {return sendError(req, res, errMsg+"user not found, blockee");}
-        else {
-          var inboxTemplate = {name:'', unread:false, image:'', thread:[], key:''}
-          if (!blocker.inbox) {blocker.inbox = genInboxTemplate();}
-          if (!blockee.inbox) {blockee.inbox = genInboxTemplate();}
-          if (!blocker.inbox.threads) {blocker.inbox.threads = {};}
-          if (!blockee.inbox.threads) {blockee.inbox.threads = {};}
-          if (!blocker.inbox.threads[blockeeID]) {blocker.inbox.threads[blockeeID] = inboxTemplate}
-          if (!blockee.inbox.threads[blockerID]) {blockee.inbox.threads[blockerID] = inboxTemplate}
-          if (req.body.blocking === true) {
-            blocker.inbox.threads[blockeeID].blocking = true;
-            blockee.inbox.threads[blockerID].blocked = true;
-            // delete pending message from recipient (if one exists)
-            var tmrw = pool.getCurDate(-1);
-            if (checkLastTwoForPending(blocker.inbox.threads[blockeeID].thread, true, "", tmrw, false)) {
-              removeListRefIfRemovingOnlyMessage(blocker.inbox, blockeeID, true, tmrw);
-            }
-            if (checkLastTwoForPending(blockee.inbox.threads[blockerID].thread, true, "", tmrw, true)) {
-              if (blockee.inbox.pending[blockerID]) {delete blockee.inbox.pending[blockerID];}
-            }
-          } else {          // unblocking
-            blocker.inbox.threads[blockeeID].blocking = false;
-            blockee.inbox.threads[blockerID].blocked = false;
-          }
-          writeToDB(blockerID, blocker, function (resp) {
-            if (resp.error) {sendError(req, res, errMsg+resp.error);}
-            else {
-              writeToDB(blockeeID, blockee, function (resp) {
-                if (resp.error) {sendError(req, res, errMsg+resp.error);}
-                else {res.send({error: false});}
-              });
-            }
-          });
+  if (!req.body || !req.body.blockeeID) {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['inbox']}, function (blocker) {
+    readUser(req, res, errMsg, req.body.blockeeID, {list:['inbox',]}, function(blockee) {
+      if (!blockee) {return sendError(req, res, errMsg+"user not found, blockee");}
+      var inboxTemplate = {name:'', unread:false, image:'', thread:[], key:''}
+      if (!blocker.inbox) {blocker.inbox = genInboxTemplate();}
+      if (!blockee.inbox) {blockee.inbox = genInboxTemplate();}
+      if (!blocker.inbox.threads) {blocker.inbox.threads = {};}
+      if (!blockee.inbox.threads) {blockee.inbox.threads = {};}
+      if (!blocker.inbox.threads[blockee._id]) {blocker.inbox.threads[blockee._id] = inboxTemplate}
+      if (!blockee.inbox.threads[blocker._id]) {blockee.inbox.threads[blocker._id] = inboxTemplate}
+      if (req.body.blocking === true) {
+        blocker.inbox.threads[blockee._id].blocking = true;
+        blockee.inbox.threads[blocker._id].blocked = true;
+        // delete pending message from recipient (if one exists)
+        var tmrw = pool.getCurDate(-1);
+        if (checkLastTwoForPending(blocker.inbox.threads[blockee._id].thread, true, "", tmrw, false)) {
+          removeListRefIfRemovingOnlyMessage(blocker.inbox, blockee._id, true, tmrw);
         }
+        if (checkLastTwoForPending(blockee.inbox.threads[blocker._id].thread, true, "", tmrw, true)) {
+          if (blockee.inbox.pending[blocker._id]) {delete blockee.inbox.pending[blocker._id];}
+        }
+      } else {          // unblocking
+        blocker.inbox.threads[blockee._id].blocking = false;
+        blockee.inbox.threads[blocker._id].blocked = false;
+      }
+      writeToUser(req, res, errMsg, blocker, function () {
+        writeToUser(req, res, errMsg, blockee, function () {
+          return res.send({error: false});
+        });
       });
-    }
+    });
   });
 });
 
@@ -2912,58 +2407,36 @@ app.post('/link', function(req, res) {
 app.post('/collapse', function(req, res) {
   var errMsg = "collapsed property error<br><br>";
   if (!req.body.id) {return sendError(req, res, errMsg+"malformed request 501");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, collapsed:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = []}
-          if (req.body.collapse) {
-            // limit to 50, delete olest, FIFO
-            if (user.collapsed.length > 50) {
-              user.collapsed.splice(0,1);
-            }
-            user.collapsed.push(req.body.id);
-          } else {
-            for (var i = 0; i < user.collapsed.length; i++) {
-              if (user.collapsed[i] === req.body.id) {
-                user.collapsed.splice(i,1);
-                i--;
-              }
-            }
-          }
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, errMsg+ resp.error);}
-            else {res.send({error: false});}
-          });
+  readCurrentUser(req, res, errMsg, {list:['collapsed']}, function (user) {
+    if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = []}
+    if (req.body.collapse) {
+      // limit to 50, delete olest, FIFO
+      if (user.collapsed.length > 50) {
+        user.collapsed.splice(0,1);
+      }
+      user.collapsed.push(req.body.id);
+    } else {
+      for (var i = 0; i < user.collapsed.length; i++) {
+        if (user.collapsed[i] === req.body.id) {
+          user.collapsed.splice(i,1);
+          i--;
         }
       }
-    )
-  })
+    }
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+  });
 });
 
 // toggle unread status of threads
 app.post('/unread', function(req, res) {
   var errMsg = "unread property error<br><br>";
-  if (!req.session.user) {return sendError(req, res, errMsg+ "no user session 4653");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, inbox:1}
-  , function (err, user) {
-    if (err) {return sendError(req, res, errMsg+ err);}
-    else if (!user) {return sendError(req, res, errMsg+ "user not found");}
-    else {
-      if (!user.inbox) {user.inbox = genInboxTemplate();}
-      if (!user.inbox.threads) {user.inbox.threads = {};}
-      if (!user.inbox.threads[req.body._id]) {return sendError(req, res, errMsg+ "thread not found");}
-      user.inbox.threads[req.body._id].unread = req.body.bool;
-      writeToDB(userID, user, function (resp) {
-        if (resp.error) {sendError(req, res, errMsg+ resp.error);}
-        else {res.send({error: false});}
-      });
-    }
+  if (!req.body._id || typeof req.body.bool === 'undefined') {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['inbox']}, function (user) {
+    if (!user.inbox) {user.inbox = genInboxTemplate();}
+    if (!user.inbox.threads) {user.inbox.threads = {};}
+    if (!user.inbox.threads[req.body._id]) {return sendError(req, res, errMsg+ "thread not found");}
+    user.inbox.threads[req.body._id].unread = req.body.bool;
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
@@ -2971,130 +2444,83 @@ app.post('/unread', function(req, res) {
 app.post('/changePic', function(req, res) {
   var errMsg = "error updating user image<br><br>";
   if (!req.body || req.body.url === undefined || typeof req.body.url !== "string") {return sendError(req, res, errMsg+"malformed request 7227");}
-  lookUpCurrentUser(req, res, errMsg, {iconURI:1, pendingUpdates:1, posts:1, bio:1}, function (user) {
-    //
-    if (req.body.url === "" && !req.body.pending) {   // we're removing the non-pending image, not replacing, do it now
-      user.iconURI = "";
-      writeToDB(user._id, user, function (resp) {
-        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-        else {return res.send({error: false});}
-      });
-      //
-    } else {
-      checkUpdates(user, function (resp) {
-        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-        user = resp.user;
+  idScreen(req, res, errMsg, function (userID) {
+    checkForUserUpdates(req, res, errMsg, userID, function () {
+      readCurrentUser(req, res, errMsg, {list:['iconURI', 'pendingUpdates']}, function (user) {
         //
-        var today = pool.getCurDate();
-        if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
-        if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
-        if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
-        //
-        if (req.body.url === "") {
-          delete user.pendingUpdates.updates.iconURI;
-          writeToDB(user._id, user, function (resp) {
-            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-            else {return res.send({error: false});}
-          });
+        if (req.body.url === "" && !req.body.pending) {   // we're removing the non-pending image, not replacing, do it now
+          user.iconURI = "";
+          writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
         } else {
+          var today = pool.getCurDate();
+          if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
+          if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
+          if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
           //
-          imageValidate([req.body.url], function (resp) {
-            if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+          if (req.body.url === "") {
+            delete user.pendingUpdates.updates.iconURI;
+            writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+          } else {
             //
-            user.pendingUpdates.updates.iconURI = req.body.url;
-            //
-            writeToDB(user._id, user, function (resp) {
+            imageValidate([req.body.url], function (resp) {
               if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {return res.send({error: false});}
-            });
-          }, 10485760);
+              //
+              user.pendingUpdates.updates.iconURI = req.body.url;
+              //
+              writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+            }, 10485760);
+          }
         }
       });
-    }
+    });
   });
 });
 
 // save custom display colors
 app.post('/saveAppearance', function(req, res) {
   var errMsg = "appearance settings not successfully updated<br><br>";
-  if (!req.body) {return sendError(req, res, errMsg+"malformed request 991");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, settings:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          if (!user.settings) {user.settings = {};}
-          if (!user.settings.colors) {user.settings.colors = {};}
-          if (req.body.colors && typeof req.body.colors === "object") {
-            for (var prop in req.body.colors) {
-              if (req.body.colors.hasOwnProperty(prop)) {
-                user.settings.colors[prop] = req.body.colors[prop];
-              }
-            }
-          }
-          var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
-          for (var i = 0; i < props.length; i++) {
-            if (req.body[props[i]] && typeof req.body[props[i]] === "string") {
-              user.settings[props[i]] = req.body[props[i]];
-            }
-          }
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, errMsg+resp.error);}
-            else {res.send({error: false});}
-          });
+  readCurrentUser(req, res, errMsg, {list:['settings']}, function (user) {
+    if (!user.settings) {user.settings = {};}
+    if (!user.settings.colors) {user.settings.colors = {};}
+    if (req.body.colors && typeof req.body.colors === "object") {
+      for (var prop in req.body.colors) {
+        if (req.body.colors.hasOwnProperty(prop)) {
+          user.settings.colors[prop] = req.body.colors[prop];
         }
-      });
+      }
+    }
+    var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
+    for (var i = 0; i < props.length; i++) {
+      if (req.body[props[i]] && typeof req.body[props[i]] === "string") {
+        user.settings[props[i]] = req.body[props[i]];
+      }
+    }
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
 // flip a boolean setting
 app.post('/toggleSetting', function(req, res) {
   var errMsg = "settings not successfully updated<br><br>";
-  if (!req.body || !req.body.setting) {return sendError(req, res, errMsg+"malformed request 992");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, settings:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          var setting = req.body.setting;
-          if (user.settings[setting]) {
-            user.settings[setting] = false;
-          } else {
-            user.settings[setting] = true;
-          }
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, resp.error);}
-            else {res.send({error: false});}
-          });
-        }
-      }
-    );
+  if (!req.body.setting) {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['settings']}, function (user) {
+    var setting = req.body.setting;
+    if (user.settings[setting]) {
+      user.settings[setting] = false;
+    } else {
+      user.settings[setting] = true;
+    }
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
 // set number of posts rendered on each page for paginated streams
 app.post('/setPostsPerPage', function(req, res) {
   var errMsg = "PostsPerPage setting not successfully updated<br><br>";
-  if (!req.body || !req.body.number || !Number.isInteger(req.body.number) || req.body.number < 1) {return sendError(req, res, errMsg+"malformed request 994");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, settings:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          user.settings.postsPerPage = Number(req.body.number);
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, resp.error);}
-            else {res.send({error: false});}
-          });
-        }
-      }
-    );
+  if (!req.body || !req.body.number || !Number.isInteger(req.body.number) || req.body.number < 1) {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['settings']}, function (user) {
+    user.settings.postsPerPage = Number(req.body.number);
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
@@ -3102,228 +2528,165 @@ app.post('/setPostsPerPage', function(req, res) {
 app.post('/setReminder', function(req, res) {
   var errMsg = "reminder not successfully set<br><br>";
   if (!req.body || !req.body.setting || req.body.days === undefined || !Number.isInteger(req.body.days) || req.body.days < 0) {return sendError(req, res, errMsg+"malformed request 993");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, settings:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          var date = pool.getCurDate(-(req.body.days))
-          user.settings[req.body.setting] = date;
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, resp.error);}
-            else {res.send({error: false});}
-          });
-        }
-      }
-    );
+  readCurrentUser(req, res, errMsg, {list:['settings']}, function (user) {
+    var date = pool.getCurDate(-(req.body.days));
+    user.settings[req.body.setting] = date;
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
 });
 
 // new user sign up
 app.post('/register', function(req, res) {
-    // !!!!!!!! SANITIZE THESE INPUTS!!!!!!!!!!!!!!!!!!!!!
-	var username = req.body.username;
-	var password = req.body.password;
-	var email = req.body.email;
-	//var secretCode = req.body.secretCode;
-                      // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  var errMsg = 'user registration failure<br><br>'
+  var username = req.body.username;
+  var password = req.body.password;
+  var email = req.body.email;
+  if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {return sendError(req, res, errMsg+err+"malformed request 7217");}
+  if (email && typeof email !== 'string') {return sendError(req, res, errMsg+err+"malformed request 7217");}
+
   // validate
   var x = pool.userNameValidate(username);
   if (x) {return res.send({error:x});}
   var y = pool.passwordValidate(password);
   if (y) {return res.send({error:y});}
-  /*
-  // look up current active/valid secret access codes
-  db.collection('users').findOne({ username: "admin" }
-  , { codes:1 }
-  , function (err, admin) {
-    if (err) {return sendError(req, res, err);}
-    // check if the provided code is a match
-    else if (!admin.codes[secretCode]) {return res.send({error:"invalid code"});}
-    else {
-      */
-      //check if there is already a user w/ that name
-      db.collection('userUrls').findOne({_id: username.toLowerCase()}, {}, function (err, user) {
-        if (err) {return sendError(req, res, err);}
-        else if (user) {return res.send({error:"name taken"});}
-        else {
-          var today = pool.getCurDate();
-          db.collection('users').insertOne({
-            username: username,
-            password: "",
-            email: "",
-            posts: {},
-            postList: [],
-            postListPending: [],
-            postListUpdatedOn: today,
-            inbox: {
-              threads: {},
-              list: [],
-              updatedOn: today,
-              pending: {},
-            },
-            following: [],
-            accountCreatedOn: pool.getCurDate(),
-            iconURI: snakeBank[Math.floor(Math.random() * (snakeBank.length))],
-            settings: {includeTaggedPosts:true},
-            savedTags: ["@"+username, "milkshake"],
-          }, {}, function (err, result) {
-            if (err) {return sendError(req, res, err);}
-            var newID = ObjectId(result.insertedId);
-            createUserUrl(username, newID, function (resp) {
-              if (resp.error) {return sendError(req, res, resp.error);}
-              else {
-                bcrypt.hash(password, 10, function(err, passHash){
-                  if (err) {return sendError(req, res, err);}
-                  else {
-                    bcrypt.hash(email, 10, function(err, emailHash){
-                      if (err) {return sendError(req, res, err);}
-                      else {
-                        var setValue = {
-                          password: passHash,
-                          email: emailHash,
-                          following: [
-                            ObjectId("5a0ea8429adb2100146f7568"), //staff
-                            newID, //self
-                          ],
-                        };
-                        db.collection('users').updateOne({_id: newID},
-                          {$set: setValue }, {},
-                          function(err, r) {
-                            if (err) {return sendError(req, res, err);}
-                            else {
-                              incrementStat("signUps");
-                              // "sign in" the user
-                              req.session.user = { _id: newID };
-                              return res.send({error:false, needKeys:true, newUser: true,
-                                message: `welcome to schlaugh!<br><br>i'll be your staff. can i get you started with something to drink?<br><br>please don't hesitate to ask any questions, that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. you can find the site FAQ <a href="https://www.schlaugh.com/~">here</a>.<br><br>may i ask what brought you here today? How did you hear about schlaugh?<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "schlaugh@protonmail.com"<br><br>&lt;3`,
-                              });
-                              /*
-                              // remove the code from the admin stash so it can't be used again
-                              delete admin.codes[secretCode];
-                              writeToDB(admin._id, admin, function () {res.send("success");});
-                              */
-                            }
-                          }
-                        );
-                      }
-                    });
-                  };
-                });
-              }
+  //check if there is already a user w/ that name
+  getUserIdFromName(req, res, errMsg, username, function (userID) {
+    if (userID) {return res.send({error:"we're sorry<br>that username is<br><br>unavailable"});}
+    //
+    bcrypt.hash(password, 10, function(err, passHash) {
+      if (err) {return sendError(req, res, errMsg+err);}
+      bcrypt.hash(email, 10, function(err, emailHash) {
+        if (err) {return sendError(req, res, errMsg+err);}
+        //
+        var newUserObject = createNewUserObject(username, passHash, emailHash);
+        dbCreateOne(req, res, errMsg, 'users', newUserObject, function (newID) {
+          // the id is only created when the new db listing is created, so things that need the id have to happen after that
+          newID = ObjectId(newID);
+          createUserUrl(req, res, errMsg, username, newID, function (resp) {
+            var setValue = {
+              following: [
+                ObjectId("5a0ea8429adb2100146f7568"),     //staff
+                newID,                                    //self
+              ],
+              _id: newID,
+            };
+            writeToUser(req, res, errMsg, setValue, function () {
+              incrementStat("signUps");
+              // "sign in" the user
+              req.session.user = { _id: newID };
+              return res.send({error:false, needKeys:true, newUser: true,
+                message: `welcome to schlaugh!<br><br>i'll be your staff. can i get you started with something to drink?<br><br>please don't hesitate to ask any questions, that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. you can find the site FAQ <a href="https://www.schlaugh.com/~">here</a>.<br><br>may i ask what brought you here today? How did you hear about schlaugh?<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "schlaugh@protonmail.com"<br><br>&lt;3`,
+              });
             });
           });
-    		}
+        });
       });
-  /*
-    }
+    });
   });
-  */
 });
+var createNewUserObject = function (username, passHash, emailHash) {
+  var today = pool.getCurDate();
+  var object = {
+    username: username,
+    password: passHash,
+    email: emailHash,
+    posts: {},
+    postList: [],
+    postListPending: [],
+    postListUpdatedOn: today,
+    inbox: {
+      threads: {},
+      list: [],
+      updatedOn: today,
+      pending: {},
+    },
+    following: [],
+    accountCreatedOn: today,
+    iconURI: snakeBank[Math.floor(Math.random() * (snakeBank.length))],
+    settings: {includeTaggedPosts:true},
+    savedTags: ["@"+username, "milkshake"],
+  }
+  return object;
+}
 
 // log in (aslo password verify)
 app.post('/login', function(req, res) {
   var errMsg = "login error<br><br>"
   if (!req.body.username || !req.body.password) {return sendError(req, res, errMsg+"malformed request 147")}
   var nope = "invalid username/password";
-  db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else if (!user) {return res.send({error:nope});}
-    else {
-      db.collection('users').findOne({_id: user.authorID}, {password:1}, function (err, user) {
+  getUserIdFromName(req, res, errMsg, req.body.username, function (userID) {
+    if (!userID) {return res.send({error:nope});}
+    readUser(req, res, errMsg, userID, {list:['password',]}, function(user) {
+      if (!user) {return res.send({error:nope});}
+      // Match Password
+      bcrypt.compare(req.body.password, user.password, function(err, isMatch) {
         if (err) {return sendError(req, res, errMsg+err);}
-        if (!user) {return res.send({error:nope});}
-        else {
-          // Match Password
-          bcrypt.compare(req.body.password, user.password, function(err, isMatch){
-            if (err) {return sendError(req, res, errMsg+err);}
-            else if (isMatch) {
-              if (req.session.user && req.body.forDecryption) { // is there already a logged in user? (via cookie)
-                // then this (should be)is a password check to unlock an inbox
-                if (String(req.session.user._id) !== String(user._id)) {
-                  // valid username and pass, but for a different user than currently logged in
-                  req.session.user = { _id: ObjectId(user._id) };
-                  // switcheroo
-                  return res.send({switcheroo:true});
-                } else {
-                  return res.send({error:false});
-                }
-              } else { // this is an actual login
-                req.session.user = { _id: ObjectId(user._id) };
-                if (!req.body.fromPopUp) {        // is this NOT a login from the popup prompt?
-                  incrementStat("logIns");
-                }
-                getPayload(req, res, function (payload) {
-                  if (!payload) {return sendError(req, res, errMsg+"failure to retrieve payload");}
-                  return res.send({error:false, payload:payload});
-                });
-              }
+        else if (isMatch) {
+          if (req.session.user && req.body.forDecryption) { // is there already a logged in user? (via cookie)
+            // then this (should be)is a password check to unlock an inbox
+            if (String(req.session.user._id) !== String(user._id)) {
+              // valid username and pass, but for a different user than currently logged in
+              req.session.user = { _id: ObjectId(user._id) };
+              // switcheroo
+              return res.send({switcheroo:true});
             } else {
-              return res.send({error:nope});
+              return res.send({error:false});
             }
-          });
+          } else { // this is an actual login
+            req.session.user = { _id: ObjectId(user._id) };
+            if (!req.body.fromPopUp) {        // is this NOT a login from the popup prompt?
+              incrementStat("logIns");
+            }
+            getPayload(req, res, function (payload) {
+              if (!payload) {return sendError(req, res, errMsg+"failure to retrieve payload");}
+              return res.send({error:false, payload:payload});
+            });
+          }
+        } else {
+          return res.send({error:nope});
         }
       });
-    }
+    });
   });
 });
 
 // set keys
 app.post('/keys', function(req, res) {
-  if (!req.session.user) {return sendError(req, res, "no user session");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, inbox:1, keys:1}
-  , function (err, user) {
-    if (err) {return sendError(req, res, err);}
-    else if (!user) {return sendError(req, res, "user not found");}
-    else {
-      if (req.body.privKey && req.body.pubKey) {
-        // do not overwrite existing keys! (when we need to change keys, we clear them elsewhere)
-        if (user.keys === undefined || user.keys === null) {
-          user.keys = req.body;
-        }
-        if (req.body.newUserMessage) {    // new user, send welcome message
-          var staffID = ObjectId("5a0ea8429adb2100146f7568");
-          db.collection('users').findOne({_id: staffID}
-          , {_id:0, iconURI:1, keys:1}
-          , function (err, staff) {
-            if (err) {return sendError(req, res, err);}
-            else if (!staff) {
-              var staff = {keys:{pubKey:adminB.dumbleKey}};  //this is wrong and will get replaced when a message is actually sent
-            }                                         // though is also a backup that *should* never be used in the first place
-            var staffPic = staff.iconURI;
-            if (typeof staffPic !== 'string') {staffPic = "";}
-            user.inbox.threads[staffID] = {name:"staff", unread:true, image:staffPic, thread:[], key:staff.keys.pubKey};
-            user.inbox.threads[staffID].thread.push({
-              inbound: true,
-              date: pool.getCurDate(),
-              body: req.body.newUserMessage,
-            });
-            user.inbox.list.push(staffID);
-            //
-            writeToDB(userID, user, function (resp) {
-              if (resp.error) {sendError(req, res, resp.error);}
-              else {
-                getPayload(req, res, function (payload) {
-                  return res.send({error:false, payload:payload});
-                });
-              }
-            });
+  var errMsg = "error setting encryption keys";
+  if (!req.body.privKey || !req.body.pubKey) {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['inbox', 'keys']}, function (user) {
+    // do not overwrite existing keys! (when we need to change keys, we clear them elsewhere)
+    if (user.keys === undefined || user.keys === null) {
+      user.keys = req.body;
+    }
+    if (req.body.newUserMessage) {    // new user, send welcome message
+      var staffID = ObjectId("5a0ea8429adb2100146f7568");
+      readUser(req, res, errMsg, staffID, {list:['keys', 'iconURI',]}, function(staff) {
+        if (!staff) {
+          var staff = {keys:{pubKey:adminB.dumbleKey}};  //this is wrong and will get replaced when a message is actually sent
+        }                                         // though is also a backup that *should* never be used in the first place
+        var staffPic = staff.iconURI;
+        if (typeof staffPic !== 'string') {staffPic = "";}
+        user.inbox.threads[staffID] = {name:"staff", unread:true, image:staffPic, thread:[], key:staff.keys.pubKey};
+        user.inbox.threads[staffID].thread.push({
+          inbound: true,
+          date: pool.getCurDate(),
+          body: req.body.newUserMessage,
+        });
+        user.inbox.list.push(staffID);
+        //
+        writeToUser(req, res, errMsg, user, function () {
+          getPayload(req, res, function (payload) {
+            return res.send({error:false, payload:payload});
           });
-        } else {
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, resp.error);}
-            else {
-              getPayload(req, res, function (payload) {
-                return res.send({error:false, payload:payload});
-              });
-            }
-          });
-        }
-      } else {return sendError(req, res, "malformed request 303");}
+        });
+      });
+    } else {
+      writeToUser(req, res, errMsg, user, function () {
+        getPayload(req, res, function (payload) {
+          return res.send({error:false, payload:payload});
+        });
+      });
     }
   });
 });
@@ -3337,160 +2700,114 @@ app.get('/~logout', function(req, res) {
 // change user name
 app.post('/changeUsername', function (req, res) {
   var errMsg = "username change error<br><br>";
-  if (!req.body.newName) {return sendError(req, res, errMsg+"malformed request 501");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}, {_id:0, settings:1, username:1}, function (err, user) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      else if (!user) {return sendError(req, res, errMsg+"user account not found");}
-      else {
-        var x = pool.userNameValidate(req.body.newName);
-        if (x) {return res.send({error:x});}
-        else {
-          if (user.settings && user.settings.dateOfPreviousNameChange === pool.getCurDate()) {
-            return res.send({error:"seems you've already changed your name today...i think once a day is enough, try again tomorrow"});
-          } else {
-            db.collection('userUrls').findOne({_id: req.body.newName.toLowerCase()}, {authorID:1}, function (err, extant) {
-              if (err) {return sendError(req, res, errMsg+err);}
-              else if (extant && String(extant.authorID) !== String(userID)) {return res.send({error: "username is already taken"});}
-              else {
-                var oldName = user.username.toLowerCase();
-                user.username = req.body.newName;
-                if (!user.settings) {user.settings = {}};
-                user.settings.dateOfPreviousNameChange = pool.getCurDate();
-                writeToDB(userID, user, function (resp) {
-                  if (resp.error) {sendError(req, res, errMsg+resp.error);}
-                  else {
-                    if (req.body.newName.toLowerCase() !== oldName) {
-                      createUserUrl(req.body.newName.toLowerCase(), userID, function (resp) {
-                        db.collection('userUrls').deleteOne({_id: oldName},
-                          function(err, url) {
-                            if (err) {return callback({error: errMsg+err});}
-                            else {res.send({error: false, name: req.body.newName});}
-                          }
-                        );
-                      });
-                    } else {res.send({error: false, name: req.body.newName});}
-                  }
-                });
-              }
-            });
-          }
-        }
-      }
-    });
-  });
-});
-
-// verify hashed email
-app.post('/verifyEmail', function (req, res) {
-  var errMsg = "email verification error<br><br>"
-  if (!req.session.user) {return sendError(req, res, errMsg+ "no user session");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, email:1}
-  , function (err, user) {
-    if (err) {return sendError(req, res, errMsg+ err);}
-    else if (!user) {return sendError(req, res, errMsg+ "user not found");}
+  if (!req.body.newName) {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['settings', 'username']}, function (user) {
+    var x = pool.userNameValidate(req.body.newName);
+    if (x) {return res.send({error:x});}
     else {
-      if (!user.email) {res.send({error: false, match:false});}
-      else {
-        bcrypt.compare(req.body.email, user.email, function(err, isMatch){
-          if (err) {return sendError(req, res, errMsg+err);}
-          else if (isMatch) {
-            res.send({error: false, match:true});
-          } else {
-            res.send({error: false, match:false});
-          }
+      if (user.settings && user.settings.dateOfPreviousNameChange === pool.getCurDate()) {
+        return res.send({error:"seems you've already changed your name today...i think once a day is enough, try again tomorrow"});
+      } else {
+        getUserIdFromName(req, res, errMsg, req.body.newName, function (otherUserID) {
+          if (otherUserID && String(otherUserID) !== String(user._id)) {return res.send({error: "we regret to inform you that this username is already taken"});}
+          //
+          var oldName = user.username.toLowerCase();
+          user.username = req.body.newName;
+          if (!user.settings) {user.settings = {}};
+          user.settings.dateOfPreviousNameChange = pool.getCurDate();
+          writeToUser(req, res, errMsg, user, function () {
+            if (req.body.newName.toLowerCase() !== oldName) { // this check is in case they were only changing capitalization
+              createUserUrl(req, res, errMsg, req.body.newName.toLowerCase(), user._id, function () {
+                dbDeleteByID(req, res, errMsg, 'userUrls', oldName, function () {
+                  res.send({error: false, name: req.body.newName});
+                });
+              });
+            } else {res.send({error: false, name: req.body.newName});}
+          });
         });
       }
     }
   });
 });
 
-// change user email
-app.post('/changeEmail', function (req, res) {
-  var errMsg = "email reset error<br><br>";
-  if (!req.session.user) {return sendError(req, res, errMsg+ "no user session");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, email:1}
-  , function (err, user) {
-    if (err) {return sendError(req, res, errMsg+ err);}
-    else if (!user) {return sendError(req, res, errMsg+ "user not found");}
+// verify hashed email
+app.post('/verifyEmail', function (req, res) {
+  var errMsg = "email verification error<br><br>";
+  if (!req.body.email) {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['email']}, function (user) {
+    if (!user.email) {res.send({error: false, match:false});}
     else {
-      bcrypt.hash(req.body.email, 10, function(err, emailHash) {
+      bcrypt.compare(req.body.email, user.email, function(err, isMatch){
         if (err) {return sendError(req, res, errMsg+err);}
-        else {
-          user.email = emailHash;
-          writeToDB(userID, user, function (resp) {
-            if (resp.error) {sendError(req, res, errMsg+resp.error);}
-            else {res.send({error: false, email: req.body.email});}
-          });
+        else if (isMatch) {
+          res.send({error: false, match:true});
+        } else {
+          res.send({error: false, match:false});
         }
       });
     }
   });
 });
 
-// change user password
-app.post('/changePasswordStart', function (req, res) {
-  if (!req.body.oldPass || !req.body.newPass) {return sendError(req, res, "malformed request 345")}
-  if (!req.session.user) {return sendError(req, res, "no user session");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, password:1, keys:1, inbox:1}
-  , function (err, user) {
-    if (err) {return sendError(req, res, err);}
-    else if (!user) {return sendError(req, res, "user not found");}
-    else {
-      if (!user.keys) {return sendError(req, res, "user has no keys???");}
+// change user email
+app.post('/changeEmail', function (req, res) {
+  var errMsg = "email change error<br><br>";
+  if (!req.body.email) {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['email']}, function (user) {
+    bcrypt.hash(req.body.email, 10, function(err, emailHash) {
+      if (err) {return sendError(req, res, errMsg+err);}
       else {
-        bcrypt.compare(req.body.oldPass, user.password, function(err, isMatch){
-          if (err) {return sendError(req, res, err);}
-          else if (!isMatch) {return res.send({error: false, noMatch:true});}
-          else {
-            var y = pool.passwordValidate(req.body.newPass);
-            if (y) {return res.send({error:y});}
-            else {
-              if (!user.inbox) {user.inbox = {}}
-              return res.send({error: false, threads:user.inbox.threads, key:user.keys.privKey});
-            }
-          }
+        user.email = emailHash;
+        writeToUser(req, res, errMsg, user, function () {
+          return res.send({error: false, email: req.body.email});
         });
       }
+    });
+  });
+});
+
+// change user password
+app.post('/changePasswordStart', function (req, res) {
+  var errMsg = "password change error1<br><br>";
+  if (!req.body.oldPass || !req.body.newPass) {return sendError(req, res, errMsg+"malformed request")}
+  readCurrentUser(req, res, errMsg, {list:['password','keys','inbox']}, function (user) {
+    if (!user.keys) {return sendError(req, res, "user has no keys???");}
+    else {
+      bcrypt.compare(req.body.oldPass, user.password, function(err, isMatch){
+        if (err) {return sendError(req, res, err);}
+        else if (!isMatch) {return res.send({error: false, noMatch:true});}
+        else {
+          var y = pool.passwordValidate(req.body.newPass);
+          if (y) {return res.send({error:y});}
+          else {
+            if (!user.inbox) {user.inbox = {}}
+            return res.send({error: false, threads:user.inbox.threads, key:user.keys.privKey});
+          }
+        }
+      });
     }
   });
 });
 
 // swap in re-encrypted inbox and new keys
 app.post('/changePasswordFin', function (req, res) {
-  if (!req.body.newKeys || !req.body.newPass || !req.body.newThreads) {return sendError(req, res, "malformed request 642")}
-  if (!req.session.user) {return sendError(req, res, "no user session");}
-  var userID = ObjectId(req.session.user._id);
-  db.collection('users').findOne({_id: userID}
-  , {_id:0, password:1, keys:1, inbox:1}
-  , function (err, user) {
-    if (err) {return sendError(req, res, err);}
-    else if (!user) {return sendError(req, res, "user not found");}
+  if (!req.body.newKeys || !req.body.newPass || !req.body.newThreads) {return sendError(req, res, errMsg+"malformed request")}
+  var errMsg = "password change error2<br><br>";
+  readCurrentUser(req, res, errMsg, {list:['password','keys','inbox']}, function (user) {
+    if (!user.keys) {return sendError(req, res, "user has no keys???");}
     else {
-      if (!user.keys) {return sendError(req, res, "user has no keys???");}
+      var y = pool.passwordValidate(req.body.newPass);
+      if (y) {return res.send({error:y});}
       else {
-        var y = pool.passwordValidate(req.body.newPass);
-        if (y) {return res.send({error:y});}
-        else {
-          bcrypt.hash(req.body.newPass, 10, function(err, passHash) {
-            if (err) {return sendError(req, res, err);}
-            else {
-              user.password = passHash;
-              user.inbox.threads = req.body.newThreads;
-              user.keys = req.body.newKeys;
-              writeToDB(userID, user, function (resp) {
-                if (resp.error) {sendError(req, res, resp.error);}
-                else {return res.send({error: false})}
-              });
-            }
-          });
-        }
+        bcrypt.hash(req.body.newPass, 10, function(err, passHash) {
+          if (err) {return sendError(req, res, err);}
+          else {
+            user.password = passHash;
+            user.inbox.threads = req.body.newThreads;
+            user.keys = req.body.newKeys;
+            writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+          }
+        });
       }
     }
   });
@@ -3500,102 +2817,82 @@ app.post('/changePasswordFin', function (req, res) {
 app.post('/passResetRequest', function (req, res) {
   var errMsg = "password reset request error<br><br>";
   if (!req.body.username || !req.body.email) {return sendError(req, res, errMsg+"malformed request 258")}
-  db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else if (!user) {return res.send({error: false});}
-    else {
-      db.collection('users').findOne({_id: user.authorID}, {email:1, settings:1}
-      , function (err, user) {
-        if (err) {return sendError(req, res, err);}
-        else if (!user) {return res.send({error: false});}
-        else {            // first check if user already has an active reset code
-          var today = pool.getCurDate();
-          if (user.settings && user.settings.recovery && user.settings.recovery[today]) {
-            var arr = user.settings.recovery[today];
-            if (arr.length && arr.length > 6) {        // if they've already made 7 requests today,
-              return res.send({error: false});
-            }
-            var now = new Date();
-            if ((now - arr[arr.length-1]) < 600000) {  // if it's been < 10min since last request,
-              return res.send({error: false});
-            }
-          } else {
-            if (!user.settings.recovery) {user.settings.recovery = {};}
-            user.settings.recovery[today] = [];
-          }
-          bcrypt.compare(req.body.email, user.email, function(err, isMatch){
-            if (err) {return sendError(req, res, err);}
-            else if (!isMatch) {res.send({error: false});}    // DO NOT send ANY indication of if there was a match
-            else {
-              // generate code, and send email
-              genID('resetCodes', 20, function (resp) {
-                if (resp.error) {return sendError(req, res, resp.err);}
-                else {
-                  bcrypt.hash(req.body.username.toLowerCase(), 10, function(err, usernameHash){
-                    if (err) {return sendError(req, res, err);}
-                    else {
-                      var msg = {
-                        to: req.body.email,
-                        from: 'noreply@schlaugh.com',
-                        subject: 'schlaugh account recovery',
-                        text: `visit the following link to reset your schlaugh password: https://www.schlaugh.com/~recovery/`+resp._id+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
-                        html: `<a href="https://www.schlaugh.com/~recovery/`+resp._id+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+resp._id+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret. But if you need additional assistance accessing your account please do contact schlaugh@protonmail.com`,
-                      };
-                      sgMail.send(msg, (error, result) => {
-                        if (error) {return sendError(req, res, "email server malapropriationologification");}
-                        else {
-                          var newCode = {
-                            code: resp._id,
-                            username: usernameHash,
-                            attempts: 0,
-                            creationTime: new Date(),
-                          }
-                          db.collection('resetCodes').insertOne(newCode, {}, function (err, result) {
-                            if (err) {return sendError(req, res, err);}
-                            else {
-                              user.settings.recovery[today].push(newCode.creationTime);
-                              writeToDB(user._id, user, function (dbResp) {
-                                if (dbResp.error) {sendError(req, res, dbResp.error);}
-                                else {res.send({error: false});}               // victory state
-                              });
-                            }
-                          });
-                        }
-                      });
+  getUserIdFromName(req, res, errMsg, req.body.username, function (userID) {
+    if (!userID) {return res.send({error: false});}  // if username is not registered, don't tell them that... i guess
+    readUser(req, res, errMsg, userID, {list:['email', 'settings',]}, function(user) {
+      if (!user) {return sendError(req, res, errMsg+"username is registered but user record not found");}
+      // first check if user already has an active reset code
+      var today = pool.getCurDate();
+      if (user.settings && user.settings.recovery && user.settings.recovery[today]) {
+        var arr = user.settings.recovery[today];
+        if (arr.length && arr.length > 6) {        // if they've already made 7 requests today,
+          return res.send({error: false});
+        }
+        var now = new Date();
+        if ((now - arr[arr.length-1]) < 600000) {  // if it's been < 10min since last request,
+          return res.send({error: false});
+        }
+      } else {
+        if (!user.settings.recovery) {user.settings.recovery = {};}
+        user.settings.recovery[today] = [];
+      }
+      bcrypt.compare(req.body.email, user.email, function(err, isMatch){
+        if (err) {return sendError(req, res, errMsg+err);}
+        else if (!isMatch) {res.send({error: false});}    // DO NOT send ANY indication of if there was a match
+        else {
+          // generate code, and send email
+          genID(req, res, errMsg, 'resetCodes', 20, function (codeID) {
+            bcrypt.hash(req.body.username.toLowerCase(), 10, function(err, usernameHash){
+              if (err) {return sendError(req, res, errMsg+err);}
+              else {
+                var msg = {
+                  to: req.body.email,
+                  from: 'noreply@schlaugh.com',
+                  subject: 'schlaugh account recovery',
+                  text: `visit the following link to reset your schlaugh password: https://www.schlaugh.com/~recovery/`+codeID+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
+                  html: `<a href="https://www.schlaugh.com/~recovery/`+codeID+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+codeID+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret. But if you need additional assistance accessing your account please do contact schlaugh@protonmail.com`,
+                };
+                sgMail.send(msg, (error, result) => {
+                  if (error) {return sendError(req, res, errMsg+"email server malapropriationologification");}
+                  else {
+                    var newCode = {
+                      code: codeID,
+                      username: usernameHash,
+                      attempts: 0,
+                      creationTime: new Date(),
                     }
-                  });
-                }
-              });
-            }
+                    dbCreateOne(req, res, errMsg, 'resetCodes', newCode, function (newID) {
+                      user.settings.recovery[today].push(newCode.creationTime);
+                      // victory state
+                      writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+                    });
+                  }
+                });
+              }
+            });
           });
         }
       });
-    }
+    });
   });
 });
 
 // use password recovery code/link, VIEW
 app.get('/~recovery/:code', function (req, res) {
+  var errMsg = "recovery pageload error";
   //if (!req.session.user) { 'you are accessing this recovery page, but you seem to aleady be signed in...erm what?'}
   req.session.user = null;
-  db.collection('resetCodes').findOne({code: req.params.code}, {_id:1, code:1, creationTime:1}
-  , function (err, code) {
-    if (err) {return sendError(req, res, err);}
-    else {
-      if (!code) {
-        return res.render('layout', {initProps:{user:false, recovery:true, code: false}});
+  dbReadOneByID(req, res, errMsg, 'resetCodes', req.params.code, null, function (code) {
+    if (!code) {
+      return res.render('layout', {initProps:{user:false, recovery:true, code: false}});
+    } else {
+      var now = new Date();
+      if ((now - code.creationTime) > 4000000) {  // code is too old, delete
+        dbDeleteByID(req, res, errMsg, 'resetCodes', code._id, function () {
+          return res.render('layout', {initProps:{user:false, recovery:true, code: false}});
+        });
       } else {
-        var now = new Date();
-        if ((now - code.creationTime) > 4000000) {  // code is too old, delete
-          db.collection('resetCodes').deleteOne({_id: code._id},
-            function(err, post) {
-              if (err) {return sendError(req, res, err);}
-              else {return res.render('layout', {initProps:{user:false, recovery:true, code: false}});}
-            }
-          );
-        } else {
-          return res.render('layout', {initProps:{user:false, recovery:true, code: code.code}});
-        }
+        return res.render('layout', {initProps:{user:false, recovery:true, code: code.code}});
       }
     }
   });
@@ -3604,84 +2901,55 @@ app.get('/~recovery/:code', function (req, res) {
 // recovery verify username/change pass
 app.post('/resetNameCheck', function (req, res) {
   var errMsg = "password reset request error<br><br>";
-  if (!req.body.username || !req.body.code) {return sendError(req, res, errMsg+"malformed request 258")}
-  db.collection('resetCodes').findOne({code: req.body.code}, {_id:1, code:1, creationTime:1, username:1, attempts:1}
-  , function (err, code) {
-    if (err) {return sendError(req, res, errMsg+err);}
+  if (!req.body.username || !req.body.code) {return sendError(req, res, errMsg+"malformed request")}
+  dbReadOneByID(req, res, errMsg, 'resetCodes', req.body.code, null, function (code) {
+    if (!code) {return sendError(req, res, errMsg+'code not found');}
     else {
-      if (!code) {return sendError(req, res, errMsg+'code not found');}
-      else {
-        var now = new Date();
-        if ((now - code.creationTime) > 5000000) {  // code is too old, delete
-          db.collection('resetCodes').deleteOne({_id: code._id},
-            function(err, post) {
-              if (err) {return sendError(req, res, errMsg+err);}
-              else {return sendError(req, res, errMsg+'code has expired');}
-            }
-          );
-        } else {
-          bcrypt.compare(req.body.username.toLowerCase(), code.username, function(err, isMatch) {
-            if (err) {return sendError(req, res, errMsg+err);}
-            else if (isMatch) {
-              if (req.body.password) {
-                var y = pool.passwordValidate(req.body.password);
-                if (y) {return res.send({error: errMsg+y});}
-                else {
-                  bcrypt.hash(req.body.password, 10, function(err, passHash){
-                    if (err) {return sendError(req, res, errMsg+err);}
-                    else {
-                      // keys are tied to pass, clear keys, new keys created on sign in
-                      var userObj = {password: passHash, keys:null}
+      var now = new Date();
+      if ((now - code.creationTime) > 5000000) {  // code is too old, delete
+        dbDeleteByID(req, res, errMsg, 'resetCodes', code._id, function () {
+          return sendError(req, res, errMsg+'code has expired');
+        });
+      } else {
+        bcrypt.compare(req.body.username.toLowerCase(), code.username, function(err, isMatch) {
+          if (err) {return sendError(req, res, errMsg+err);}
+          else if (isMatch) {
+            if (req.body.password) {
+              var y = pool.passwordValidate(req.body.password);
+              if (y) {return res.send({error: errMsg+y});}
+              else {
+                bcrypt.hash(req.body.password, 10, function(err, passHash){
+                  if (err) {return sendError(req, res, errMsg+err);}
 
-                      db.collection('userUrls').findOne({_id: req.body.username.toLowerCase()}, {authorID:1}, function (err, user) {
-                        if (err) {return sendError(req, res, errMsg+err);}
-                        else if (!user) {return res.send({error: errMsg+"user not found"});}
-                        else {
-                          db.collection('users').updateOne({_id: user.authorID},
-                            {$set: userObj},
-                            function(err, user) {
-                              if (err) {res.send({error: errMsg+err});}
-                              else {
-                                db.collection('resetCodes').deleteOne({_id: code._id},
-                                  function(err, post) {
-                                    if (err) {return sendError(req, res, errMsg+err);}
-                                    else {res.send({error: false, victory:true});}    //final victory state
-                                  }
-                                );
-                              }
-                            }
-                          );
-                        }
+                  getUserIdFromName(req, res, errMsg, req.body.username, function (userID) {
+                    if (!userID) {return sendError(req, res, errMsg+"user not found");}
+
+                    // keys are tied to pass, clear keys, new keys created on sign in
+                    var userObj = {password: passHash, keys:null, _id:userID}
+
+                    writeToUser(req, res, errMsg, userObj, function () {
+                      dbDeleteByID(req, res, errMsg, 'resetCodes', code._id, function () {
+                        return res.send({error: false, victory:true});
                       });
-
-
-                    }
+                    });
                   });
-                }
-              } else {res.send({error: false, verify:true});}  //victory state
-            } else {
-              code.attempts++;
-              if (code.attempts === 5) {
-                db.collection('resetCodes').deleteOne({_id: code._id},
-                  function(err, post) {
-                    if (err) {return sendError(req, res, errMsg+err);}
-                    else {res.send({error: false, attempt:5});}  // total fail state
-                  }
-                );
-              } else {
-                var attempt = code.attempts
-                db.collection('resetCodes').updateOne({_id: ObjectId(code._id)},
-                  {$set: code},
-                  function(err, code) {
-                    if (err) {res.send({error: errMsg+err});}
-                    else {
-                      res.send({error: false, attempt:attempt});}  //fail state
-                  }
-                );
+                });
               }
+            } else {res.send({error: false, verify:true});}  //victory state
+          } else {
+            code.attempts++;
+            if (code.attempts === 5) {
+              dbDeleteByID(req, res, errMsg, 'resetCodes', code._id, function () {
+                res.send({error: false, attempt:5});     // total fail state
+              });
+            } else {
+              var attempt = code.attempts;
+              dbWriteByID(req, res, errMsg, 'resetCodes', ObjectId(code._id), code, function (err) {
+                res.send({error: false, attempt:attempt});  //fail state
+              });
             }
-          });
-        }
+          }
+        });
       }
     }
   });
@@ -3721,44 +2989,33 @@ var return404author = function (req, res) {
 var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get FEED
   var errMsg = "error retrieving the posts of following<br><br>";
   if (!req.body.date) {return sendError(req, res, errMsg+"malformed request 412");}
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-    , {_id:0, following:1, savedTags:1, muted:1}
-    , function (err, user) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      else if (!user) {return sendError(req, res, errMsg+"user not found");}
+  readCurrentUser(req, res, errMsg, {list:['following', 'savedTags', 'muted']}, function (user) {
+    if (!user.following || !user.following.length) {user.following = [];}
+    if (!user.savedTags || !user.savedTags.length) {user.savedTags = [];}
+    //
+    var followingRef = null;
+    if (req.body.getFollowingList) {
+      followingRef = {};
+      for (var i = 0; i < user.following.length; i++) {
+        followingRef[user.following[i]] = true;
+      }
+    }
+    getAuthorListFromTagListAndDate(user.savedTags, req.body.date, function (resp) {
+      if (resp.error) {return sendError(req, res, errMsg+resp.error);}
       else {
-        if (!user.following || !user.following.length) {user.following = [];}
-        if (!user.savedTags || !user.savedTags.length) {user.savedTags = [];}
-        //
-        var followingRef = null;
-        if (req.body.getFollowingList) {
-          followingRef = {};
-          for (var i = 0; i < user.following.length; i++) {
-            followingRef[user.following[i]] = true;
+        // filter muted authors
+        // if a user is being followed and muted, they get filtered out then added back in, this is intended
+        if (user.muted) {
+          for (var i = 0; i < resp.authorList.length; i++) {
+            if (user.muted[resp.authorList[i]]) {
+              resp.authorList.splice(i, 1);
+              i--;
+            }
           }
         }
-        getAuthorListFromTagListAndDate(user.savedTags, req.body.date, function (resp) {
-          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          else {
-            // filter muted authors
-            // if a user is being followed and muted, they get filtered out then added back in, this is intended
-            if (user.muted) {
-              for (var i = 0; i < resp.authorList.length; i++) {
-                if (user.muted[resp.authorList[i]]) {
-                  resp.authorList.splice(i, 1);
-                  i--;
-                }
-              }
-            }
-            var authorList = resp.authorList.concat(user.following);
-            postsFromAuthorListAndDate(authorList, req.body.date, followingRef, req.body.postRef, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {
-                return res.send({error:false, posts:resp.posts, followingList:resp.followingList, tagList:user.savedTags});
-              }
-            });
-          }
+        var authorList = resp.authorList.concat(user.following);
+        postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, followingRef, req.body.postRef, function (resp) {
+          return res.send({error:false, posts:resp.posts, followingList:resp.followingList, tagList:user.savedTags});
         });
       }
     });
@@ -3772,48 +3029,96 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
   if (!Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(req, res, errMsg+"malformed request 301");}
   if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 3020");}
   var authorID = req.body.author;
-  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  else {return sendError(req, res, errMsg+"invalid author id");}
-  db.collection('users').findOne({_id: authorID}
-  , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
-  , function (err, author) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else {
+  //
+  checkForUserUpdates(req, res, errMsg, authorID, function () {
+    readUser(req, res, errMsg, authorID, {list:['username', 'posts', 'postList', 'iconURI', 'keys', 'inbox', 'bio']}, function(author) {
       if (!author) {
-          res.send({error: false, four04: true,});      //404
-        } else {
-        checkFreshness(author);
-        checkUpdates(author, function (resp) {
-          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          author = resp.user;
-          var authorPic = getUserPic(author);
-          var posts = [];
+        return res.send({error: false, four04: true,});      //404
+      } else {
 
-          var postsPerPage = getPostsPerPage(req);
+        var authorPic = getUserPic(author);
+        var posts = [];
 
-          var pL = author.postList;
-          //
-          if (!req.session.user || !ObjectId.isValid(req.session.user._id) || String(req.session.user._id) !== String(authorID)) {
-            // strip out private posts
-            for (var i = 0; i < pL.length; i++) {
-              pL[i]
+        var postsPerPage = getPostsPerPage(req);
+
+        var pL = author.postList;
+        // is the logged in user the very same author?
+        if (!req.session.user || !ObjectId.isValid(req.session.user._id) || String(req.session.user._id) !== String(authorID)) {
+          // no, so strip out private posts
+          for (var i = 0; i < pL.length; i++) {
+            if (pL[i] && author.posts[pL[i].date]) {
               if (author.posts[pL[i].date][pL[i].num].private) {
                 pL.splice(i, 1);
                 i--;
               }
             }
           }
+        }
 
-          var pages = Math.ceil(pL.length /postsPerPage);
-          if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
-            var page = pages;
-          } else {
-            var page = req.body.page;
+        var pages = Math.ceil(pL.length /postsPerPage);
+        if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
+          var page = pages;
+        } else {
+          var page = req.body.page;
+        }
+        var start = (page * postsPerPage) - 1;
+        for (var i = start; i > start - postsPerPage; i--) {
+          if (pL[i] && author.posts[pL[i].date]) {
+            // strip out posts we already have on FE in the postRef
+            if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
+              posts.push({
+                body: author.posts[pL[i].date][pL[i].num].body,
+                tags: author.posts[pL[i].date][pL[i].num].tags,
+                title: author.posts[pL[i].date][pL[i].num].title,
+                url: author.posts[pL[i].date][pL[i].num].url,
+                post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                date: pL[i].date,
+                private: author.posts[pL[i].date][pL[i].num].private,
+              });
+            } else {
+              posts.push({post_id: author.posts[pL[i].date][pL[i].num].post_id,})
+            }
           }
-          var start = (page * postsPerPage) - 1;
-          for (var i = start; i > start - postsPerPage; i--) {
-            if (pL[i]) {
-              // strip out posts we already have on FE in the postRef
+        }
+        var data = {
+          error: false,
+          posts: posts,
+          authorData: {
+            author: author.username,
+            _id: author._id,
+            authorPic: authorPic,
+          },
+          pages:pages,
+        }
+        if (req.body.needAuthorInfo) {
+          data.authorInfo = getAuthorInfo(author, req);
+        }
+        return res.send(data);
+      }
+    });
+  });
+}
+
+var getAllOfAnAuthorsPosts = function(req, res) { // this is the hack for "search"
+  var errMsg = "author lookup error<br><br>";
+  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 3010");}
+  var authorID = req.body.author;
+  //
+  checkForUserUpdates(req, res, errMsg, authorID, function () {
+    readUser(req, res, errMsg, authorID, {list:['username', 'posts', 'postList', 'iconURI', 'keys', 'inbox', 'bio']}, function(author) {
+      if (!author) {
+        return res.send({error: false, four04: true,});      //404
+      } else {
+        var authorPic = getUserPic(author);
+
+        var posts = [];
+        var pL = author.postList;
+
+        for (var i = pL.length-1; i > -1; i--) {
+          if (pL[i]) {
+            // strip out private posts
+            if (!author.posts[pL[i].date][pL[i].num].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
+              //
               if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
                 posts.push({
                   body: author.posts[pL[i].date][pL[i].num].body,
@@ -3821,94 +3126,30 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
                   title: author.posts[pL[i].date][pL[i].num].title,
                   url: author.posts[pL[i].date][pL[i].num].url,
                   post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                  date: pL[i].date,
                   private: author.posts[pL[i].date][pL[i].num].private,
+                  date: pL[i].date,
                 });
               } else {
                 posts.push({post_id: author.posts[pL[i].date][pL[i].num].post_id,})
               }
             }
           }
-          var data = {
-            error: false,
-            posts: posts,
-            authorData: {
-              author: author.username,
-              _id: author._id,
-              authorPic: authorPic,
-            },
-            pages:pages,
-          }
-          if (req.body.needAuthorInfo) {
-            data.authorInfo = getAuthorInfo(author, req);
-          }
-          return res.send(data);
-        });
+        }
+        var data = {
+          error: false,
+          posts: posts,
+          authorData: {
+            author: author.username,
+            _id: author._id,
+            authorPic: authorPic,
+          },
+        }
+        if (req.body.needAuthorInfo) {
+          data.authorInfo = getAuthorInfo(author, req);
+        }
+        return res.send(data);
       }
-    }
-  });
-}
-
-var getAllOfAnAuthorsPosts = function(req, res) {
-  var errMsg = "author lookup error<br><br>";
-  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 3010");}
-  var authorID = req.body.author;
-  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  else {return sendError(req, res, errMsg+"invalid author id");}
-  db.collection('users').findOne({_id: authorID}
-  , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
-  , function (err, author) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else {
-      if (!author) {
-          res.send({error: false, four04: true,});      //404
-        } else {
-        checkFreshness(author);
-        checkUpdates(author, function (resp) {
-          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          author = resp.user;
-          var authorPic = getUserPic(author);
-
-          var posts = [];
-          var pL = author.postList;
-
-          for (var i = pL.length-1; i > -1; i--) {
-            if (pL[i]) {
-              // strip out private posts
-              if (!author.posts[pL[i].date][pL[i].num].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
-                //
-                if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
-                  posts.push({
-                    body: author.posts[pL[i].date][pL[i].num].body,
-                    tags: author.posts[pL[i].date][pL[i].num].tags,
-                    title: author.posts[pL[i].date][pL[i].num].title,
-                    url: author.posts[pL[i].date][pL[i].num].url,
-                    post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                    private: author.posts[pL[i].date][pL[i].num].private,
-                    date: pL[i].date,
-                  });
-                } else {
-                  posts.push({post_id: author.posts[pL[i].date][pL[i].num].post_id,})
-                }
-              }
-            }
-          }
-          var data = {
-            error: false,
-            posts: posts,
-            authorData: {
-              author: author.username,
-              _id: author._id,
-              authorPic: authorPic,
-            },
-          }
-          if (req.body.needAuthorInfo) {
-            data.authorInfo = getAuthorInfo(author, req);
-          }
-          return res.send(data);
-        });
-      }
-    }
+    });
   });
 }
 
@@ -3936,16 +3177,12 @@ var getAuthorInfo = function (author, req) {
 
 var getSinglePostFromAuthorAndDate = function (req, res) {
   var errMsg = "post retrieval error<br><br>";
-  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 513");}
+  if (!req.body.author || !req.body.date || !pool.isStringValidDate(req.body.date)) {return sendError(req, res, errMsg+"malformed request 513");}
   var authorID = req.body.author;
-  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  else {return sendError(req, res, errMsg+"invalid author id");}
-  db.collection('users').findOne({_id: authorID}
-  , {username:1, posts:1, iconURI:1, keys:1, inbox:1, pendingUpdates:1, bio:1}
-  , function (err, author) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    if (!author) {return sendError(req, res, errMsg+ "author not found");}
-    else {
+  checkForUserUpdates(req, res, errMsg, authorID, function () {
+    readUser(req, res, errMsg, authorID, {list:['username', 'iconURI', 'keys', 'inbox', 'bio'], dates:[req.body.date]}, function(author) {
+      if (!author) {return sendError(req, res, errMsg+ "author not found");}
+      //
       var data = {error: false,}
       if (req.body.needAuthorInfo) {
         data.authorInfo = getAuthorInfo(author, req);
@@ -3954,14 +3191,11 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
         // strip out private posts
         if (!author.posts[req.body.date][0].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
           var authorPic = getUserPic(author);
-          checkUpdates(author, function (resp) {
-            if (resp.err) {return sendError(req, res, errMsg+resp.err);}
-            resp.user.posts[req.body.date][0].authorPic = authorPic;
-            resp.user.posts[req.body.date][0].author = author.username;
-            resp.user.posts[req.body.date][0]._id = author._id;
-            resp.user.posts[req.body.date][0].date = req.body.date;
-            data.posts = [resp.user.posts[req.body.date][0],];
-          });
+          author.posts[req.body.date][0].authorPic = authorPic;
+          author.posts[req.body.date][0].author = author.username;
+          author.posts[req.body.date][0]._id = author._id;
+          author.posts[req.body.date][0].date = req.body.date;
+          data.posts = [author.posts[req.body.date][0]];
         } else {
           data.authorInfo = null;
           data.four04 = true;
@@ -3970,8 +3204,8 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
       } else {
         data.four04 = true;
       }
-      res.send(data);
-    }
+      return res.send(data);
+    });
   });
 }
 
@@ -3979,66 +3213,54 @@ var getAllOfAnAuthorsPostsWithTag = function (req, res) {
   var errMsg = "author/tag lookup error<br><br>";
   if (!req.body || !req.body.author || req.body.tag === undefined) {return sendError(req, res, errMsg+"malformed request 400");}
   var authorID = req.body.author;
-  if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-  else {return sendError(req, res, errMsg+"invalid author id");}
-  db.collection('users').findOne({_id: authorID}
-  , {username:1, posts:1, postList:1, postListPending:1, iconURI:1, pendingUpdates:1, bio:1, keys:1, inbox:1}
-  , function (err, author) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else {
-      if (!author) {
-          res.send({error: false, four04: true,});      //404
-        } else {
-        checkFreshness(author);
-        checkUpdates(author, function (resp) {
-          if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          author = resp.user;
-          var authorPic = getUserPic(author);
-          var posts = [];
-          var pL = author.postList;
-          for (var i = pL.length-1; i > -1; i--) {
-            // if the post object exists where it should in the first place
-            if (author.posts[pL[i].date] && author.posts[pL[i].date][pL[i].num]) {
-              // strip out private posts
-              if (!author.posts[pL[i].date][pL[i].num].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
-                // does it have the tags we want?
-                if (author.posts[pL[i].date][pL[i].num].tags && author.posts[pL[i].date][pL[i].num].tags[req.body.tag]) {
-                  //
-                  if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
-                    posts.push({
-                      body: author.posts[pL[i].date][pL[i].num].body,
-                      tags: author.posts[pL[i].date][pL[i].num].tags,
-                      title: author.posts[pL[i].date][pL[i].num].title,
-                      url: author.posts[pL[i].date][pL[i].num].url,
-                      post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                      private: author.posts[pL[i].date][pL[i].num].private,
-                      date: pL[i].date,
-                    });
-                  } else {
-                    posts.push({
-                      post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                    });
-                  }
-                }
+  checkForUserUpdates(req, res, errMsg, authorID, function () {
+    readUser(req, res, errMsg, authorID, {list:['username','posts','postList', 'iconURI', 'keys', 'inbox', 'bio']}, function(author) {
+      if (!author) { return res.send({error: false, four04: true,}); }      //404
+      //
+      var authorPic = getUserPic(author);
+      var posts = [];
+      var pL = author.postList;
+      for (var i = pL.length-1; i > -1; i--) {
+        // if the post object exists where it should in the first place
+        if (author.posts[pL[i].date] && author.posts[pL[i].date][pL[i].num]) {
+          // strip out private posts
+          if (!author.posts[pL[i].date][pL[i].num].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
+            // does it have the tags we want?
+            if (author.posts[pL[i].date][pL[i].num].tags && author.posts[pL[i].date][pL[i].num].tags[req.body.tag]) {
+              //
+              if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
+                posts.push({
+                  body: author.posts[pL[i].date][pL[i].num].body,
+                  tags: author.posts[pL[i].date][pL[i].num].tags,
+                  title: author.posts[pL[i].date][pL[i].num].title,
+                  url: author.posts[pL[i].date][pL[i].num].url,
+                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                  private: author.posts[pL[i].date][pL[i].num].private,
+                  date: pL[i].date,
+                });
+              } else {
+                posts.push({
+                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                });
               }
             }
           }
-          var data = {
-            error: false,
-            posts: posts,
-            authorData: {
-              author: author.username,
-              _id: author._id,
-              authorPic: authorPic,
-            }
-          }
-          if (req.body.needAuthorInfo) {
-            data.authorInfo = getAuthorInfo(author, req);
-          }
-          return res.send(data);
-        });
+        }
       }
-    }
+      var data = {
+        error: false,
+        posts: posts,
+        authorData: {
+          author: author.username,
+          _id: author._id,
+          authorPic: authorPic,
+        }
+      }
+      if (req.body.needAuthorInfo) {
+        data.authorInfo = getAuthorInfo(author, req);
+      }
+      return res.send(data);
+    });
   });
 }
 
@@ -4050,11 +3272,12 @@ var getPostsPerPage = function (req) {
   return postsPerPage;
 }
 
-var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
+var getNthPageOfTaggedPostsByAnyAuthor = function (req, res) {
   var errMsg = "tag by page fetch error<br><br>"
   if (req.body.page === undefined) {req.body.page = 0;}
   req.body.page = parseInt(req.body.page);
   if (!req.body.tag || !Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(req, res, errMsg+"malformed request 710");}
+  // #tagDBredo
   db.collection('tagIndex').findOne({tag: req.body.tag.toLowerCase()}, {list:1}, function (err, tagListing) {
     if (err) {return callback({error:err});}
     else if (!tagListing || !tagListing.list || !tagListing.list.length) {  // tag does not exist/is empty
@@ -4075,7 +3298,7 @@ var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
 
       var postsPerPage = getPostsPerPage(req);
 
-      filterMutedAuthors(req, tagListing.list, function (filteredList) {
+      filterMutedAuthors(req, res, errMsg, tagListing.list, function (filteredList) {
         var lookUpList = [];
         var totalPageCount = Math.ceil(filteredList.length /postsPerPage);
         if (req.body.page === 0) {  // 0 indicates no page number given, open the last/most recent page
@@ -4089,7 +3312,7 @@ var getNthPagOfTaggedPostsByAnyAuthor = function (req, res) {
             lookUpList.push(filteredList[i]);
           }
         }
-        postsFromListOfAuthorsAndDates(lookUpList, req.body.postRef, function (resp) {
+        postsFromListOfAuthorsAndDates(req, res, errMsg, lookUpList, req.body.postRef, function (resp) {
           if (resp.error) {return sendError(req, res, errMsg+resp.error);}
           else {
             return res.send({
@@ -4114,10 +3337,9 @@ var getAllPostsWithTagOnDate = function (req, res) {
       if (resp.authorList.length === 0) {
         return res.send({error:false, posts:[],});
       } else {
-        filterMutedAuthors(req, resp.authorList, function (authorList) {
-          postsFromAuthorListAndDate(authorList, req.body.date, null, req.body.postRef, function (resp) {
-            if (resp.error) {return res.send({error:resp.error});}
-            else {return res.send({error:false, posts:resp.posts,});}
+        filterMutedAuthors(req, res, errMsg, resp.authorList, function (authorList) {
+          postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, null, req.body.postRef, function (resp) {
+            return res.send({error:false, posts:resp.posts,});
           });
         });
       }
@@ -4125,32 +3347,28 @@ var getAllPostsWithTagOnDate = function (req, res) {
   });
 }
 
-var filterMutedAuthors = function (req, authorList, callback) {
+var filterMutedAuthors = function (req, res, errMsg, authorList, callback) {
   idCheck(req, function (userID) {
     if (userID) {
-      db.collection('users').findOne({_id: userID}, {_id:0, muted:1}, function (err, user) {
-          if (err) {return sendError(req, res, errMsg+err);}
-          else if (!user) {return sendError(req, res, errMsg+"user not found");}
-          else {
-            if (user.muted) {
-              if (authorList && authorList[0] && authorList[0].authorID) {         // for a post list, really
-                for (var i = 0; i < authorList.length; i++) {
-                  if (user.muted[authorList[i].authorID]) {
-                    authorList.splice(i, 1);
-                    i--;
-                  }
-                }
-              } else {                              // for straight up list of authors
-                for (var i = 0; i < authorList.length; i++) {
-                  if (user.muted[authorList[i]]) {
-                    authorList.splice(i, 1);
-                    i--;
-                  }
-                }
+      readCurrentUser(req, res, errMsg, {list:['muted']}, function (user) {
+        if (user.muted) {
+          if (authorList && authorList[0] && authorList[0].authorID) {         // for a post list, really
+            for (var i = 0; i < authorList.length; i++) {
+              if (user.muted[authorList[i].authorID]) {
+                authorList.splice(i, 1);
+                i--;
               }
             }
-            callback(authorList);
+          } else {                              // for straight up list of authors
+            for (var i = 0; i < authorList.length; i++) {
+              if (user.muted[authorList[i]]) {
+                authorList.splice(i, 1);
+                i--;
+              }
+            }
           }
+        }
+        callback(authorList);
       });
     } else {
       callback(authorList);
@@ -4160,23 +3378,15 @@ var filterMutedAuthors = function (req, authorList, callback) {
 
 var getBookMarkedPosts = function (req, res) {
   var errMsg = "bookmark list not successfully retrieved<br><br>";
-  idScreen(req, res, errMsg, function (userID) {
-    db.collection('users').findOne({_id: userID}
-      , {_id:0, bookmarks:1,}
-      , function (err, user) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!user) {return sendError(req, res, errMsg+"user not found");}
-        else {
-          if (!user.bookmarks || user.bookmarks.length === undefined) {
-            return res.send({error:false, posts:[],});
-          } else {
-            postsFromListOfAuthorsAndDates(user.bookmarks, req.body.postRef, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              else {return res.send({error:false, posts:resp.posts,});}
-            });
-          }
-        }
+  readCurrentUser(req, res, errMsg, {list:['bookmarks']}, function (user) {
+    if (!user.bookmarks || user.bookmarks.length === undefined) {
+      return res.send({error:false, posts:[],});
+    } else {
+      postsFromListOfAuthorsAndDates(req, res, errMsg, user.bookmarks, req.body.postRef, function (resp) {
+        if (resp.error) {return sendError(req, res, errMsg+resp.error);}
+        else {return res.send({error:false, posts:resp.posts,});}
       });
+    }
   });
 }
 
@@ -4190,7 +3400,7 @@ app.post('/getPosts', function (req, res) {
   // repsonse must have 'posts', and ,if not included w/ posts: 'authorData'
   if (postCode === "FTTT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
   else if (postCode === "FTTF") {return getAllPostsWithTagOnDate(req, res);}
-  else if (postCode === "FTFT" || postCode === "FTFF") {return getNthPagOfTaggedPostsByAnyAuthor(req, res);}
+  else if (postCode === "FTFT" || postCode === "FTFF") {return getNthPageOfTaggedPostsByAnyAuthor(req, res);}
   else if (postCode === "FFTT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
   else if (postCode === "FFTF") {return getPostsOfFollowingWithTrackedTagsForADate(req, res);}
   else if (postCode === "TTFT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
@@ -4255,97 +3465,81 @@ app.get('/~rss', function (req, res) {
 // RSS feed route for an author
 app.get('/:author/~rss', function (req, res) {
   var errMsg = "rss error<br><br>";
-
-  var author = req.params.author.toLowerCase();
   if (!req.params.author) {return sendError(req, res, errMsg+"malformed request 3041");}
 
-  db.collection('userUrls').findOne({_id: author}, {authorID:1}, function (err, user) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    if (!user) {return res.send("author not found");}
+  getUserIdFromName(req, res, errMsg, req.params.author, function (authorID) {
+    if (!authorID) {return res.send("author not found");}
+    //
+    checkForUserUpdates(req, res, errMsg, authorID, function () {
+      readUser(req, res, errMsg, authorID, {list:['username','posts','postList','iconURI',]}, function(author) {
+        if (!author) { return sendError(req, res, errMsg+"name found but unable to look up author's data"); }      //404
+        //
+        var feed = new RSS({
+          title: author.username,
+          description: "posts on schlaugh.com by "+author.username,
+          site_url: "https://www.schlaugh.com/" +author.username,
+          feed_url: "https://www.schlaugh.com/" +author.username+"/~rss",
+        });
+        if (author.iconURI) {
+          feed.image_url = author.iconURI;
+        }
+        // get the minutes until schlaupdate, no need to check the feed again until then (:
+        var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+        var hoursRemaining = 23 - time.getUTCHours();
+        var minutesRemaining = 60 - time.getUTCMinutes();
+        feed.ttl = (hoursRemaining*60) + minutesRemaining;
 
-    var authorID = user.authorID;
-    if (ObjectId.isValid(authorID)) {authorID = ObjectId(authorID);}
-    else {return sendError(req, res, errMsg+"invalid author id");}
-    db.collection('users').findOne({_id: authorID},
-      {username:1, posts:1, postList:1, postListPending:1, iconURI:1, pendingUpdates:1, bio:1},
-      function (err, author) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else {
-          if (!author) {
-            res.send({error: false, four04: true,});      //404
-          } else {
-            checkFreshness(author);
-            checkUpdates(author, function (resp) {
-              if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-              author = resp.user;
-
-              var feed = new RSS({
-                title: author.username,
-                description: "posts on schlaugh.com by "+author.username,
-                site_url: "https://www.schlaugh.com/" +author.username,
-                feed_url: "https://www.schlaugh.com/" +author.username+"/~rss",
-              });
-              if (author.iconURI) {
-                feed.image_url = author.iconURI;
-              }
-              // get the minutes until schlaupdate, no need to check the feed again until then (:
-              var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
-              var hoursRemaining = 23 - time.getUTCHours();
-              var minutesRemaining = 60 - time.getUTCMinutes();
-              feed.ttl = (hoursRemaining*60) + minutesRemaining;
-
-              for (var i = 0; i < author.postList.length && i < 11; i++) {
-                var post = author.postList[author.postList.length-1-i];
-                var description = "schlaugh post by "+author.username+" for "+post.date;
-                if (post) {
-                  if (author.posts[post.date][post.num].title) {
-                    var title = author.posts[post.date][post.num].title;
-                  } else {
-                    var title = description;
-                  }
-                  var tagString = "";
-                  if (author.posts[post.date][post.num].tags) {
-                    for (var tag in author.posts[post.date][post.num].tags) {
-                      if (author.posts[post.date][post.num].tags.hasOwnProperty(tag)) {
-                        tagString += tag + ", "
-                      }
-                    }
-                  }
-                  if (tagString !== "") {
-                    tagString = tagString.substr(0, (tagString.length-2));
-                    description = description + ", tagged:" +tagString;
-                  }
-                  feed.item({
-                    title: title,
-                    description: description,
-                    url: "https://www.schlaugh.com/~/" + author.posts[post.date][post.num].post_id,
-                    // categories: // eh? i could put the tags there i guess?
-                    //tags: author.posts[post.date][post.num].tags,
-                    date: post.date+"T09:00:00",
-                  });
+        for (var i = 0; i < author.postList.length && i < 11; i++) {
+          var post = author.postList[author.postList.length-1-i];
+          var description = "schlaugh post by "+author.username+" for "+post.date;
+          if (post && author.posts[post.date]) {
+            if (author.posts[post.date][post.num].title) {
+              var title = author.posts[post.date][post.num].title;
+            } else {
+              var title = description;
+            }
+            var tagString = "";
+            if (author.posts[post.date][post.num].tags) {
+              for (var tag in author.posts[post.date][post.num].tags) {
+                if (author.posts[post.date][post.num].tags.hasOwnProperty(tag)) {
+                  tagString += tag + ", "
                 }
               }
-
-              var fileName = "feed.xml";
-              var xml = feed.xml({ indent: true });
-                    // save the xml file, just so we have a path from which to send it
-              fs.writeFile(fileName, xml, function (err) {
-                if (err) {return sendError(req, res, errMsg+err);}
-                fileName = path.resolve(fileName);      // get the full path
-                //
-                res.sendFile(fileName, function (err) {
-                  if (err) {return sendError(req, res, errMsg+err);}
-                  // delete the file
-                  fs.unlink(fileName, (err) => {
-                    if (err) throw err;
-                  });
-                });
-              });
+            }
+            if (tagString !== "") {
+              tagString = tagString.substr(0, (tagString.length-2));
+              description = description + ", tagged:" +tagString;
+            }
+            feed.item({
+              title: title,
+              description: description,
+              url: "https://www.schlaugh.com/~/" + author.posts[post.date][post.num].post_id,
+              // categories: // eh? i could put the tags there i guess?
+              //tags: author.posts[post.date][post.num].tags,
+              date: post.date+"T09:00:00",
             });
           }
         }
+
+        var fileName = "feed.xml";
+        var xml = feed.xml({ indent: true });
+        // save the xml file, just so we have a path from which to send it
+        fs.writeFile(fileName, xml, function (err) {
+          if (err) {return sendError(req, res, errMsg+err);}
+          fileName = path.resolve(fileName);      // get the full path
+          //
+          res.sendFile(fileName, function (err) {
+            if (err) {return sendError(req, res, errMsg+err);}
+            // delete the file
+            fs.unlink(fileName, (err) => {
+              if (err) throw err;
+            });
+          });
+        });
+
       });
     });
+  });
 });
 
 
@@ -4396,49 +3590,40 @@ app.get('/:author/~tagged/:tag/:page', function(req, res) {
   if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var page = parseInt(req.params.page);
   if (!Number.isInteger(page) || target < 0) {return return404author(req, res);}
-  db.collection('userUrls').findOne({_id: author}, {authorID:1},
-    function (err, user) {
-      if (err) {return sendError(req, res, "author lookup error<br><br>"+err);}
-      if (!user) {
-        return return404author(req, res);
-      } else {
-        renderLayout(req, res, {author:user.authorID, tag:req.params.tag, page:page, postCode:"TTFT",});
-      }
+  getUserIdFromName(req, res, errMsg, author, function (authorID) {
+    if (!authorID) {
+      return return404author(req, res);
+    } else {
+      renderLayout(req, res, {author:authorID, tag:req.params.tag, page:page, postCode:"TTFT",});
     }
-  );
+  });
 });
 //	TTFF
 app.get('/:author/~tagged/:tag', function(req, res) {
   var author = req.params.author.toLowerCase();
   if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
-  db.collection('userUrls').findOne({_id: author}, {authorID:1},
-    function (err, user) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      if (!user) {
-        return return404author(req, res);
-      } else {
-        renderLayout(req, res, {author:user.authorID, tag:req.params.tag, postCode:"TTFF",});
-      }
+  getUserIdFromName(req, res, errMsg, author, function (authorID) {
+    if (!authorID) {
+      return return404author(req, res);
+    } else {
+      renderLayout(req, res, {author:authorID, tag:req.params.tag, postCode:"TTFF",});
     }
-  );
+  });
 });
 //	TFTF
 app.get('/~/:post_id', function (req, res) {
+  var errMsg = "post lookup error";
   if (ObjectId.isValid(req.params.post_id)) {req.params.post_id = ObjectId(req.params.post_id);}
-  db.collection('posts').findOne({_id: req.params.post_id,}, {date:1, authorID:1}
-    , function (err, post) {
-      if (err) {return sendError(req, res, resp.error);}
-      else {
-        if (!post) {    //404
-          return renderLayout(req, res, {error: false, notFound: true, postCode:'TFTF', post_id: req.params.post_id});
-        } else if (!post.authorID) {
-          return renderLayout(req, res, {error: false, existed: true, notFound: true, postCode:'TFTF', post_id: req.params.post_id});
-        } else {
-          return renderLayout(req, res, {error: false, author:post.authorID, date:post.date, postCode:'TFTF', post_id: req.params.post_id});
-        }
-      }
-    });
+  dbReadOneByID(req, res, errMsg, 'posts', req.params.post_id, getProjection(['date','authorID']), function (post) {
+    if (!post) {    //404
+      return renderLayout(req, res, {error: false, notFound: true, postCode:'TFTF', post_id: req.params.post_id});
+    } else if (!post.authorID) {
+      return renderLayout(req, res, {error: false, existed: true, notFound: true, postCode:'TFTF', post_id: req.params.post_id});
+    } else {
+      return renderLayout(req, res, {error: false, author:post.authorID, date:post.date, postCode:'TFTF', post_id: req.params.post_id});
+    }
+  });
 });
 //	TFFT and TFTF
 app.get('/:author/~/:num', function(req, res) {
@@ -4460,55 +3645,44 @@ app.get('/:author/~/:num', function(req, res) {
       return return404author(req, res);
     }
   }
-  db.collection('userUrls').findOne({_id: author}, {authorID:1},
-    function (err, user) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      if (!user) {
-        return return404author(req, res);
-      } else {
-        renderLayout(req, res, {author:user.authorID, page:page, date:date, postCode:postCode,});
-      }
+  getUserIdFromName(req, res, errMsg, author, function (authorID) {
+    if (!authorID) {
+      return return404author(req, res);
+    } else {
+      renderLayout(req, res, {author:authorID, page:page, date:date, postCode:postCode,});
     }
-  );
+  });
 });
 //  ALL
 app.get('/:author/~all', function(req, res) {
   var author = req.params.author.toLowerCase();
   if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
-  db.collection('userUrls').findOne({_id: author}, {authorID:1},
-    function (err, user) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      if (!user) {
-        return return404author(req, res);
-      }
-      else {
-        return renderLayout(req, res, {author: user.authorID, postCode:"ALL",});
-      }
+  getUserIdFromName(req, res, errMsg, author, function (authorID) {
+    if (!authorID) {
+      return return404author(req, res);
     }
-  );
+    else {
+      return renderLayout(req, res, {author: authorID, postCode:"ALL",});
+    }
+  });
 });
 // author custom URL
 app.get('/:author/:path', function(req, res) {
   var author = req.params.author.toLowerCase();
   if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
-  db.collection('userUrls').findOne({_id: author}, {authorID:1},
-    function (err, author) {
-      if (err) {return sendError(req, res, errMsg+err);}
+  getUserIdFromName(req, res, errMsg, author, function (authorID) {
+    if (!authorID) {return return404author(req, res);}
+    readUser(req, res, errMsg, authorID, {list:['customURLs',]}, function(author) {
       if (!author) {return return404author(req, res);}
-      var authorID = author.authorID;
-      db.collection('users').findOne({_id: authorID}, {customURLs:1,}, function (err, author) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        if (!author) {return return404author(req, res);}
-        if (author.customURLs && author.customURLs[req.params.path]) {
-          return renderLayout(req, res, {author:authorID, date:author.customURLs[req.params.path].date, post_url:req.params.path, postCode:"TFTF",});
-        } else {
-          return renderLayout(req, res, {author: authorID, date:null, post_url:req.params.path, postCode:"TFTF",});
-        }
-      });
-    }
-  );
+      if (author.customURLs && author.customURLs[req.params.path]) {
+        return renderLayout(req, res, {author:authorID, date:author.customURLs[req.params.path].date, post_url:req.params.path, postCode:"TFTF",});
+      } else {
+        return renderLayout(req, res, {author: authorID, date:null, post_url:req.params.path, postCode:"TFTF",});
+      }
+    });
+  });
 });
 //	TFFF
 app.get('/:author', function(req, res) {
@@ -4516,17 +3690,14 @@ app.get('/:author', function(req, res) {
   var author = authorName.toLowerCase();
   if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
-  db.collection('userUrls').findOne({_id: author}, {authorID:1},
-    function (err, user) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      if (!user) {
-        return return404author(req, res);
-      }
-      else {
-        return renderLayout(req, res, {author: user.authorID, page:0, postCode:"TFFF", authorName:authorName});
-      }
+  getUserIdFromName(req, res, errMsg, author, function (authorID) {
+    if (!authorID) {
+      return return404author(req, res);
     }
-  );
+    else {
+      return renderLayout(req, res, {author: authorID, page:0, postCode:"TFFF", authorName:authorName});
+    }
+  });
 });
 
 

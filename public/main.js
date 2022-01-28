@@ -804,7 +804,7 @@ var changeFavicon = function (src) {
   link.rel = 'icon';
   link.type = "image/png";
   if (src) {link.href = src;}
-  else {link.href = "favicon.png";}
+  else {link.href = "/favicon.png";}
   if (oldLink) {document.head.removeChild(oldLink);}
   document.head.appendChild(link);
 }
@@ -3568,7 +3568,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     verify("you sure you want me should delete it?", null, null, function (result) {
       if (!result) {return;}
       loading();
-      ajaxCall("/", 'POST', {remove:true, key:glo.sessionKey}, function(json) {
+      ajaxCall("/postPost", 'POST', {remove:true, key:glo.sessionKey}, function(json) {
         if (json.deny) {loading(true); return uiAlert(json.deny);}
         updatePendingPost(null);
       });
@@ -3581,7 +3581,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     // fudgie fudgie
     //  text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
     text = preCleanText(text);
-    ajaxCall("/", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey}, function(json) {
+    ajaxCall("/postPost", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey}, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
       var popup = false;
       if (json.linkProblems) {uiAlert(json.linkProblems); popup = true;}
@@ -4902,7 +4902,7 @@ var block = function (threadIndex) {
 }
 
 // encryption stuff
-openpgp.initWorker({ path:'openpgp.worker.min.js' });
+openpgp.initWorker({ path:'/openpgp.worker.min.js' });
 
 var encrypt = function (text, senderPubKey, recipientPubKey, callback) {
   openpgp.encrypt({
