@@ -1852,7 +1852,7 @@ app.post('/~pingPong', function(req, res) {
       }
     } else {
       // freshen
-      sessions[userID][req.body.key].response = res;
+      sessions[userID][req.body.key].response = res;    // fudge, sometimes this line bugs, "Cannot set property 'response' of undefined" ????
       sessions[userID][req.body.key].lastPing = new Date();
       sessions[userID][req.body.key].timer = setTimeout(function () {
         if (!res.headersSent) {return res.send({key:req.body.key});}
