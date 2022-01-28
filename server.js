@@ -649,8 +649,6 @@ var multiTagIndexAddOrRemove = function (tagArr, date, authorID, creating, callb
   }
 }
 var tagIndexAddOrRemove = function (tag, date, authorID, creating, callback) {
-  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
-  authorID = ObjectId(authorID);
   tag = tag.toLowerCase();
   var postItem = {date:date, authorID:authorID, num:0};
 
@@ -697,7 +695,7 @@ var createTagIndexItem = function (tag, postItem, callback) {
         var newTag = {tag: tag};
         newTag.list = [postItem];
         // when we redo the tag db change this here for the tag itself to be the _id, #tagDBredo
-        dbCreateOne(req, res, errMsg, 'tagIndex', newTag, function (newID) {
+        dbCreateOne(null, null, null, 'tagIndex', newTag, function (newID) {
           return callback({error:false});
         });
       } else {  // tag exists, add to it
@@ -743,6 +741,8 @@ var removeTagIndexItem = function (tag, postItem, callback) {
 // **** the TAGS db is where we store references to posts, indexed by DATE, then by tag for each day, then unsorted arrays for each date[tag]
 var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback) {
   if (tagArr.length === 0) {return callback();}
+  if (safeMode) { return res.send({error:safeMode}); }
+  //
   if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+"invalid authorID format");}
   authorID = ObjectId(authorID);
   multiTagIndexAddOrRemove(tagArr, date, authorID, true, function (resp) {
@@ -782,9 +782,11 @@ var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback
     });
   });
 }
-
 var deleteTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback) {
   if (tagArr.length === 0) {return callback({date:date});}
+  if (safeMode) { return res.send({error:safeMode}); }
+  //
+
   if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+" invalid authorID format");}
   authorID = ObjectId(authorID);
   multiTagIndexAddOrRemove(tagArr, date, authorID, false, function (resp) {
@@ -817,6 +819,7 @@ var deleteTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback
       });
   });
 }
+//
 
 var parseInboundTags = function (tagString) {
   var tags = {};
@@ -1057,26 +1060,26 @@ var postsFromListOfAuthorsAndDates = function (req, res, errMsg, postList, postR
   });
 }
 
-var getAuthorListFromTagListAndDate = function (tagList, date, callback) {
+var getAuthorListFromTagListAndDate = function (req, res, errMsg, tagList, date, callback) {
   // takes list of tags and a single date, returns list of authors with posts using at least one of the tags, on the date
   var authorList = [];
   if (!tagList || !tagList.length || !date) {
-    return callback({error: false, authorList: authorList});
+    return callback({authorList: authorList});
   }
   // #tagDBredo
   db.collection('tags').findOne({date: date}, {_id:0, ref:1}
   , function (err, dateBucket) {
-    if (err) {return callback({error:err});}
+    if (err) {return sendError(req, res, errMsg+err);}
     else {
       if (!dateBucket) {
-        return callback({error: false, authorList: authorList});
+        return callback({authorList: authorList});
       } else {
         for (var i = 0; i < tagList.length; i++) {
           if (dateBucket.ref[tagList[i].toLowerCase()]) {
             authorList = authorList.concat(dateBucket.ref[tagList[i].toLowerCase()]);
           }
         }
-        return callback({error: false, authorList: authorList});
+        return callback({authorList: authorList});
       }
     }
   });
@@ -1189,11 +1192,11 @@ var getProjection = function (props, dates) {
 var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
   // if 'object' has an _id field, that will be the indexed unique id for the document, otherwise mongo assigns an ObjectId
   db.collection(collection).insertOne(object, {}, function (err, result) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else {
-      if (callback) {
-        callback(result.insertedId);
-      }
+    if (err) {
+      if (res) {return sendError(req, res, errMsg+err);}
+      else {return callback({error:err});}
+    } else if (callback) {
+      callback(result.insertedId);
     }
   });
 }
@@ -1284,7 +1287,8 @@ var getUserIdFromName = function (req, res, errMsg, username, callback) {
 var devFlag = false;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
 var safeMode = false;
-//var safeMode = "you've caught schlaugh performing a SECRET update! Some functionality, apparently including whatever you just tried to do, will be down briefly. Please try again a bit later";
+//var safeMode = "whoops! you've caught schlaugh performing a SECRET update! Some functionality, mostly concerning tags on posts, and apparently including whatever you just tried to do, will be down briefly. Please try again a bit later";
+
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
   if (!req.session.user) {
@@ -1453,39 +1457,6 @@ app.post('/admin/schlaunquer', function(req, res) {
     dbReadMany(req, res, 'schlaunquerMatches errMsg', 'schlaunquerMatches', null, null, function (matches) {
       return res.send(matches);
     });
-  });
-});
-
-app.post('/admin/userNameDiscrep', function(req, res) {
-  var errMsg = 'userNameDiscrep errMsg';
-  adminGate(req, res, function () {
-    dbReadMany(req, res, errMsg, 'userUrls', null, null, function (userUrls) {
-      readMultiUsers(req, res, errMsg, null, {list:['username'],}, function (users) {
-        var ref = {};
-        for (var i = 0; i < users.length; i++) {
-          ref[users[i].username.toLowerCase()] = true;
-        }
-        var result = [];
-        for (var i = 0; i < userUrls.length; i++) {
-          if (!ref[userUrls[i]._id]) {
-            result.push(userUrls[i]);
-          }
-        }
-        return res.send(result);
-      });
-    });
-  });
-});
-app.post('/admin/fixUserNameDiscrep', function(req, res) {
-  var errMsg = 'fixUserNameDiscrep errMsg';
-  adminGate(req, res, function () {
-    if (!req.body.name || typeof req.body.name !== "string") {return res.send({error:"bad input"});}
-    getUserIdFromName(req, res, errMsg, req.body.name, function (userID) {
-      if (!userID) {return res.send({error:"username not found"});}
-      dbDeleteByID(req, res, errMsg, 'userUrls', req.body.name, function () {
-        res.send({result:"the dark deed is done, sir"});
-      })
-    })
   });
 });
 
@@ -3014,24 +2985,21 @@ var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get F
         followingRef[user.following[i]] = true;
       }
     }
-    getAuthorListFromTagListAndDate(user.savedTags, req.body.date, function (resp) {
-      if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-      else {
-        // filter muted authors
-        // if a user is being followed and muted, they get filtered out then added back in, this is intended
-        if (user.muted) {
-          for (var i = 0; i < resp.authorList.length; i++) {
-            if (user.muted[resp.authorList[i]]) {
-              resp.authorList.splice(i, 1);
-              i--;
-            }
+    getAuthorListFromTagListAndDate(req, res, errMsg, user.savedTags, req.body.date, function (resp) {
+      // filter muted authors
+      // if a user is being followed and muted, they get filtered out then added back in, this is intended
+      if (user.muted) {
+        for (var i = 0; i < resp.authorList.length; i++) {
+          if (user.muted[resp.authorList[i]]) {
+            resp.authorList.splice(i, 1);
+            i--;
           }
         }
-        var authorList = resp.authorList.concat(user.following);
-        postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, followingRef, req.body.postRef, function (resp) {
-          return res.send({error:false, posts:resp.posts, followingList:resp.followingList, tagList:user.savedTags});
-        });
       }
+      var authorList = resp.authorList.concat(user.following);
+      postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, followingRef, req.body.postRef, function (resp) {
+        return res.send({error:false, posts:resp.posts, followingList:resp.followingList, tagList:user.savedTags});
+      });
     });
   });
 }
@@ -3345,18 +3313,15 @@ var getAllPostsWithTagOnDate = function (req, res) {
   var errMsg = "tag fetch error<br><br>"
   if (!req.body.date || !req.body.tag) {return sendError(req, res, errMsg+"malformed request 712");}
   if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'IT DOES NOT DO TO DWELL ON DREAMS AND FORGET TO LIVE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
-  getAuthorListFromTagListAndDate([req.body.tag], req.body.date, function (resp) {
-    if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-    else {
-      if (resp.authorList.length === 0) {
-        return res.send({error:false, posts:[],});
-      } else {
-        filterMutedAuthors(req, res, errMsg, resp.authorList, function (authorList) {
-          postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, null, req.body.postRef, function (resp) {
-            return res.send({error:false, posts:resp.posts,});
-          });
+  getAuthorListFromTagListAndDate(req, res, errMsg, [req.body.tag], req.body.date, function (resp) {
+    if (resp.authorList.length === 0) {
+      return res.send({error:false, posts:[],});
+    } else {
+      filterMutedAuthors(req, res, errMsg, resp.authorList, function (authorList) {
+        postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, null, req.body.postRef, function (resp) {
+          return res.send({error:false, posts:resp.posts,});
         });
-      }
+      });
     }
   });
 }
