@@ -1385,12 +1385,14 @@ app.post('/admin/user', function(req, res) {
           return res.send({error:"username not found"});
         } else {
           readUser(req, res, errMsg, userID, {}, function(user) {
+            if (!user) {user = {user:"username found, but user not found"}}
             return res.send(user);
           });
         }
       });
     } else {
       readUser(req, res, errMsg, req.body.id, {}, function(user) {
+        if (!user) {user = {user:"user not found"}}
         return res.send(user);
       });
     }
@@ -1472,6 +1474,18 @@ app.post('/admin/userNameDiscrep', function(req, res) {
         return res.send(result);
       });
     });
+  });
+});
+app.post('/admin/fixUserNameDiscrep', function(req, res) {
+  var errMsg = 'fixUserNameDiscrep errMsg';
+  adminGate(req, res, function () {
+    if (!req.body.name || typeof req.body.name !== "string") {return res.send({error:"bad input"});}
+    getUserIdFromName(req, res, errMsg, req.body.name, function (userID) {
+      if (!userID) {return res.send({error:"username not found"});}
+      dbDeleteByID(req, res, errMsg, 'userUrls', req.body.name, function () {
+        res.send({result:"the dark deed is done, sir"});
+      })
+    })
   });
 });
 
