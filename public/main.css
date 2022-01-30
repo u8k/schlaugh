@@ -1029,6 +1029,8 @@ c {text-align: center;}
 r {text-align: right;}
 l, c, r {display: block;}
 
+quote > i {font-style: normal;}
+
 r > ascii, r > img, r > a >img {margin-right: 0;}
 l > ascii, l > img, l > a >img {margin-left: 0;}
 

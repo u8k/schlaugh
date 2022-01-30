@@ -3867,6 +3867,7 @@ var toggleAutoEditorResize = function () {
   }
 }
 
+/*
 var toggleItalianQuotes = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "italicizeQuotes"}, function(json) {});
   if (glo.settings.italicizeQuotes) {
@@ -3878,7 +3879,6 @@ var toggleItalianQuotes = function () {
   }
   setItalianQuotesCSS();
 }
-
 var setItalianQuotesCSS = function () {          // makes the new CSS rule
   var sheet = getStyleSheet();
   if (!sheet) {return;}
@@ -3891,6 +3891,7 @@ var setItalianQuotesCSS = function () {          // makes the new CSS rule
   //
   sheet.insertRule("quote {font-style: "+value+";}", sheet.cssRules.length);
 }
+*/
 
 var setPaginationDirection = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "newPostsToTheLeft"}, function(json) {});
@@ -5306,6 +5307,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
       $('resize-editor-setting').value = 'false';
     }
     //
+    /*
     if (typeof glo.settings.italicizeQuotes === 'undefined') {
       glo.settings.italicizeQuotes = true;  // this is so it defaults to true if unset
     }
@@ -5315,6 +5317,7 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
       $('italicize-quotes-setting').value = 'false';
     }
     setItalianQuotesCSS();
+    */
     //
     if (glo.settings.sortOldestPostsAtTop) {
       $('post-stream-toggle').value = "oldest";
