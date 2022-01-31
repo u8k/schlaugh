@@ -2151,7 +2151,7 @@ app.post('/mute', function(req, res) {
 app.post('/follow', function(req, res) {
   var errMsg = "following list not successfully updated<br><br>";
   if (!req.body || !req.body.id) {return sendError(req, res, errMsg+"malformed request 283");}
-  readCurrentUser(req, res, errMsg, {list:['savedTags']}, function (user) {
+  readCurrentUser(req, res, errMsg, {list:['following']}, function (user) {
     // make sure they even have a following array
     if (!user.following || user.following.length === undefined) {user.following = [];}
     if (req.body.remove) {
