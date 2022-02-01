@@ -159,17 +159,6 @@ var getUsers = function () {
   });
 }
 
-var userNameDiscrep = function () {
-  ajaxCall('/admin/userNameDiscrep', 'POST', {text:$('data-field').value}, function(json) {
-    console.log(json);
-  });
-}
-var fixUserNameDiscrep = function () {
-  ajaxCall('/admin/fixUserNameDiscrep', 'POST', {name:$('data-field').value}, function(json) {
-    console.log(json);
-  });
-}
-
 var getTags = function () {
   return console.log('no');;
   ajaxCall('/admin/tags', 'POST', {date: $('date-of-tags').value}, function(json) {

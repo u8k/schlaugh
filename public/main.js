@@ -3779,7 +3779,7 @@ var tagSearch = function () {
   }
 }
 
-var saveTag = function (remove, tag) {
+var saveTag = function (remove, tag, callback) {
   if (tag === undefined) {tag = $("tag-picker").value;}
   if (!tag) {tag = glo.postPanelStatus.tag}
   if (!tag) {return uiAlert("ya can't save nothin!");}
@@ -3789,6 +3789,7 @@ var saveTag = function (remove, tag) {
     else {glo.savedTags[tag] = true;}
     flushPostListAndReloadCurrentDate();
     $("tag-picker").value = "";
+    if (callback) { callback() }
   });
 }
 
@@ -5613,12 +5614,22 @@ var changeUsername = function () {
     if (!resp) {return;}
     else {
       loading();
-      ajaxCall('/changeUsername', 'POST', {newName:$('change-username-input').value}, function(json) {
-        loading(true);
+      var newName = $('change-username-input').value;
+      ajaxCall('/changeUsername', 'POST', {newName:newName}, function(json) {
         if (!json.error) {
-          uiAlert('your username has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
-            location.reload();
-          });
+          if (glo.username.toLowerCase() !== newName.toLowerCase()) { // if the case-insensitive name has changed, follow the new tag
+            saveTag(false, "@"+newName, function () {
+              loading(true);
+              uiAlert('your username has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
+                location.reload();
+              });
+            });
+          } else {
+            loading(true);
+            uiAlert('your username has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
+              location.reload();
+            });
+          }
         }
       });
     }

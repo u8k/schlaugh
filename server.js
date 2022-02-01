@@ -2685,32 +2685,29 @@ app.get('/~logout', function(req, res) {
 // change user name
 app.post('/changeUsername', function (req, res) {
   var errMsg = "username change error<br><br>";
-  if (!req.body.newName) {return sendError(req, res, errMsg+"malformed request");}
+  var x = pool.userNameValidate(req.body.newName);
+  if (x) {return res.send({error:x});}
   readCurrentUser(req, res, errMsg, {list:['settings', 'username']}, function (user) {
-    var x = pool.userNameValidate(req.body.newName);
-    if (x) {return res.send({error:x});}
-    else {
-      if (user.settings && user.settings.dateOfPreviousNameChange === pool.getCurDate()) {
-        return res.send({error:"seems you've already changed your name today...i think once a day is enough, try again tomorrow"});
-      } else {
-        getUserIdFromName(req, res, errMsg, req.body.newName, function (otherUserID) {
-          if (otherUserID && String(otherUserID) !== String(user._id)) {return res.send({error: "we regret to inform you that this username is already taken"});}
-          //
-          var oldName = user.username.toLowerCase();
-          user.username = req.body.newName;
-          if (!user.settings) {user.settings = {}};
-          user.settings.dateOfPreviousNameChange = pool.getCurDate();
-          writeToUser(req, res, errMsg, user, function () {
-            if (req.body.newName.toLowerCase() !== oldName) { // this check is in case they were only changing capitalization
-              createUserUrl(req, res, errMsg, req.body.newName.toLowerCase(), user._id, function () {
-                dbDeleteByID(req, res, errMsg, 'userUrls', oldName, function () {
-                  res.send({error: false, name: req.body.newName});
-                });
+    if (user.settings && user.settings.dateOfPreviousNameChange === pool.getCurDate()) {
+      return res.send({error:"seems you've already changed your name today...i think once a day is enough, try again tomorrow"});
+    } else {
+      getUserIdFromName(req, res, errMsg, req.body.newName, function (otherUserID) {
+        if (otherUserID && String(otherUserID) !== String(user._id)) {return res.send({error: "we regret to inform you that this username is already taken"});}
+        //
+        var oldName = user.username.toLowerCase();
+        user.username = req.body.newName;
+        if (!user.settings) {user.settings = {}};
+        user.settings.dateOfPreviousNameChange = pool.getCurDate();
+        writeToUser(req, res, errMsg, user, function () {
+          if (req.body.newName.toLowerCase() !== oldName) { // this check is in case they were only changing capitalization
+            createUserUrl(req, res, errMsg, req.body.newName.toLowerCase(), user._id, function () {
+              dbDeleteByID(req, res, errMsg, 'userUrls', oldName, function () {
+                res.send({error: false, name: req.body.newName});
               });
-            } else {res.send({error: false, name: req.body.newName});}
-          });
+            });
+          } else {res.send({error: false, name: req.body.newName});}
         });
-      }
+      });
     }
   });
 });
