@@ -276,6 +276,12 @@ var getTagIndex = function () {
   });
 }
 
+var getDbStats = function () {
+  ajaxCall('/admin/getDbStats', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
 var getSessions = function () {
   ajaxCall('/admin/getSessions', 'POST', {}, function(json) {
     console.log(json);

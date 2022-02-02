@@ -14,6 +14,8 @@ var path = require('path');
 var pool = require('./public/pool.js');
 var schlaunquer = require('./public/schlaunquer.js');
 var adminB = require('./public/adminB.js');
+var bson = require("bson");
+var BSON = new bson.BSON();
 
 //connect and check mongoDB
 var db;
@@ -1155,6 +1157,15 @@ var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, cal
       if (callback) {
         callback(doc);
       }
+      //
+      if (doc) {
+        var size = BSON.calculateObjectSize(doc);
+        if (size) {
+          size = Math.ceil(size/4000);
+          incrementDbStat('read', size)
+        }
+      }
+      //
     }
   });
 }
@@ -1170,6 +1181,15 @@ var dbReadMany = function (req, res, errMsg, collection, idList, projection, cal
       if (callback) {
         callback(docs);
       }
+      //
+      if (docs) {
+        var size = BSON.calculateObjectSize(docs);
+        if (size) {
+          size = Math.ceil(size/4000);
+          incrementDbStat('read', size)
+        }
+      }
+      //
     }
   });
 }
@@ -1191,13 +1211,22 @@ var getProjection = function (props, dates) {
 
 var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
   // if 'object' has an _id field, that will be the indexed unique id for the document, otherwise mongo assigns an ObjectId
-  db.collection(collection).insertOne(object, {}, function (err, result) {
+  db.collection(collection).insertOne(object, null, function (err, result) {
     if (err) {
       if (res) {return sendError(req, res, errMsg+err);}
       else {return callback({error:err});}
     } else if (callback) {
       callback(result.insertedId);
     }
+    //
+    if (object) {
+      var size = BSON.calculateObjectSize(object);
+      if (size) {
+        size = Math.ceil(size/1000);
+        incrementDbStat('write', size)
+      }
+    }
+    //
   });
 }
 
@@ -1209,6 +1238,15 @@ var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback)
       if (callback) {
         callback();
       }
+      //
+      if (object) {
+        var size = BSON.calculateObjectSize(object);
+        if (size) {
+          size = Math.ceil(size/1000);
+          incrementDbStat('write', size)
+        }
+      }
+      //
     }
   });
 }
@@ -1220,9 +1258,39 @@ var dbDeleteByID = function (req, res, errMsg, collection, _id, callback) {
       if (callback) {
         callback();
       }
+      //
+      incrementDbStat('write', 1)
+      //
     }
   });
 }
+
+var incrementDbStat = function (kind, amount) {
+  var date = pool.getCurDate();
+  // does statBucket already exist for day?
+  db.collection('dbStats').findOne({_id: date}, null, function (err, stat) {
+    if (err) {return sendError(null, null, "error incrementing dbStat, on read<br><br>"+err);}
+    else if (!stat) {
+      var bucket = {_id: date,}
+      bucket[kind] = amount;
+      db.collection('dbStats').insertOne(bucket, null, function (err, result) {
+        if (err) {return sendError(null, null, "error incrementing dbStat, on create<br><br>"+err);}
+        return;
+      });
+    } else {
+      if (stat[kind]) {
+        stat[kind] += amount;
+      } else {
+        stat[kind] = amount;
+      }
+      db.collection('dbStats').updateOne({_id:date}, {$set: stat}, function(err, doc) {
+        if (err) {return sendError(null, null, "error incrementing dbStat, on update<br><br>"+err);}
+        return;
+      });
+    }
+  });
+}
+
 
 //
 var readUser = function (req, res, errMsg, userID, propRef, callback) {
@@ -1407,6 +1475,14 @@ app.post('/admin/getTagIndex', function(req, res) {
   adminGate(req, res, function () {
     dbReadMany(req, res, 'tagIndex errMsg', 'tagIndex', null, null, function (tags) {
       return res.send(tags);
+    });
+  });
+});
+
+app.post('/admin/getDbStats', function(req, res) {
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'dbStats errMsg', 'dbStats', null, null, function (stats) {
+      return res.send(stats);
     });
   });
 });
