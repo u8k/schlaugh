@@ -738,7 +738,6 @@ var removeTagIndexItem = function (tag, postItem, callback) {
 // **** the TAGS db is where we store references to posts, indexed by DATE, then by tag for each day, then unsorted arrays for each date[tag]
 var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback) {
   if (tagArr.length === 0) {return callback();}
-  if (safeMode) { return res.send({error:safeMode}); }
   //
   if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+"invalid authorID format");}
   authorID = ObjectId(authorID);
@@ -772,9 +771,7 @@ var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback
 }
 var deleteTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback) {
   if (tagArr.length === 0) {return callback({date:date});}
-  if (safeMode) { return res.send({error:safeMode}); }
   //
-
   if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+" invalid authorID format");}
   authorID = ObjectId(authorID);
   multiTagIndexAddOrRemove(tagArr, date, authorID, false, function (resp) {
@@ -1051,14 +1048,7 @@ var getAuthorListFromTagListAndDate = function (req, res, errMsg, tagList, date,
     return callback({authorList: authorList});
   }
 
-  // NEW
-  //dbReadOneByID(req, res, errMsg, 'tagsByDate', date, null, function (dateBucket) {
-
-  db.collection('tags').findOne({date: date}, {_id:0, ref:1}
-  , function (err, dateBucket) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    // snip here
-
+  dbReadOneByID(req, res, errMsg, 'tagsByDate', date, null, function (dateBucket) {
     if (!dateBucket) {
       return callback({authorList: authorList});
     } else {
@@ -1352,8 +1342,6 @@ var getUserIdFromName = function (req, res, errMsg, username, callback) {
 // admin
 var devFlag = false;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
-//var safeMode = false;
-var safeMode = "whoops! you've caught schlaugh performing a SECRET update! Some functionality, mostly concerning tags on posts, and apparently including whatever you just tried to do, will be down briefly(hopefully like <10 mins). Please try again a bit later";
 
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
@@ -1553,10 +1541,10 @@ app.post('/admin/getTag', function(req, res) {
 
 app.post('/admin/getAllTagDBs', function(req, res) {
   adminGate(req, res, function () {
-    dbReadMany(req, res, 'tagIndex errMsg', 'tagIndex', null, null, function (tagIndex) {
-      dbReadMany(req, res, 'tagIndex errMsg', 'tags', null, null, function (tags) {
-        dbReadMany(req, res, 'tagIndex errMsg', 'tagsByTag', null, null, function (tagsByTag) {
-          dbReadMany(req, res, 'tagIndex errMsg', 'tagsByDate', null, null, function (tagsByDate) {
+    dbReadMany(req, res, 'tag errMsg', 'tagIndex', null, null, function (tagIndex) {
+      dbReadMany(req, res, 'tag errMsg', 'tags', null, null, function (tags) {
+        dbReadMany(req, res, 'tag errMsg', 'tagsByTag', null, null, function (tagsByTag) {
+          dbReadMany(req, res, 'tag errMsg', 'tagsByDate', null, null, function (tagsByDate) {
             return res.send({old:{tagIndex:tagIndex, tags:tags}, new:{tagsByTag:tagsByTag,tagsByDate:tagsByDate}});
           });
         });
@@ -1568,7 +1556,7 @@ app.post('/admin/getAllTagDBs', function(req, res) {
 
 app.post('/admin/getTagIndexList', function(req, res) {
   adminGate(req, res, function () {
-    dbReadMany(req, res, 'tagIndex errMsg', 'tagIndex', null, {projection:{_id:0}}, function (tagList) {
+    dbReadMany(req, res, 'tag errMsg', 'tagIndex', null, {projection:{_id:0}}, function (tagList) {
       console.log('tags by tag GO');
       return res.send(tagList);
     });
@@ -3422,13 +3410,8 @@ var getNthPageOfTaggedPostsByAnyAuthor = function (req, res) {
   if (req.body.page === undefined) {req.body.page = 0;}
   req.body.page = parseInt(req.body.page);
   if (!req.body.tag || !Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(req, res, errMsg+"malformed request 710");}
-  // NEW
-  // dbReadOneByID(req, res, errMsg, 'tagsByTag', req.body.tag.toLowerCase(), null, function (tagListing) {
 
-  db.collection('tagIndex').findOne({tag: req.body.tag.toLowerCase()}, {list:1}, function (err, tagListing) {
-    if (err) {return callback({error:err});}
-    // snip here
-
+  dbReadOneByID(req, res, errMsg, 'tagsByTag', req.body.tag.toLowerCase(), null, function (tagListing) {
     if (!tagListing || !tagListing.list || !tagListing.list.length) {  // tag does not exist/is empty
       return res.send({
         error:false,
