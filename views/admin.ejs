@@ -83,8 +83,11 @@
     <button onclick="removeUser(true)">removeUser</button>
     <br><br><br>
     <input id="date-of-tags" type="text" placeholder="date">
-    <button onclick="getTags()">getTags</button>
+    <button onclick="getTagsOfDate()">getTags</button>
     <br>
+    <input id="name-of-tag" type="text" placeholder="tag">
+    <button onclick="getTag()">getTag</button>
+    <br><br>
     <input id="id-of-post-to-get" type="text" placeholder="post_id">
     <button onclick="getPost()">getPost</button>
     <br><br>
@@ -94,14 +97,9 @@
     <br><br>
     <input id="author-of-post" type="text" placeholder="username">
     <input id="date-of-post" type="text" placeholder="post date">
-    <button onclick="createPostID()">createPostID</button>
 
     <br><br>
-    FIX POST EDIT BUGS:
-    <input id="bug-fix-user-id" type="text" placeholder="bug-fix-user-id">
-    <button onclick="fixEditBug()">fixEditBug</button>
-    <br><br>
-    <button onclick="getTagIndex();">getTagIndex</button>
+
     <button onclick="getStats();">getStats</button>
     <button onclick="getDbStats();">getDbStats</button>
     <button onclick="getSchlaunquerMatches();">getSchlaunquerMatches</button>

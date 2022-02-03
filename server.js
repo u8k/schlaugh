@@ -689,55 +689,50 @@ var tagIndexAddOrRemove = function (tag, date, authorID, creating, callback) {
 var tagIndexOccupiedSign = {};
 var createTagIndexItem = function (tag, postItem, callback) {
   // check if tag listing is extant
-  // #tagDBredo
-  db.collection('tagIndex').findOne({tag: tag}, {list:1},
-    function (err, tagListing) {
-      if (err) {return callback({error:err});}
-      else if (!tagListing) {  // tag does not exist, make it
-        var newTag = {tag: tag};
-        newTag.list = [postItem];
-        // when we redo the tag db change this here for the tag itself to be the _id, #tagDBredo
-        dbCreateOne(null, null, null, 'tagIndex', newTag, function (newID) {
-          return callback({error:false});
-        });
-      } else {  // tag exists, add to it
-        tagListing.list.push(postItem);
-        // #tagDBredo
-        db.collection('tagIndex').updateOne({_id: ObjectId(tagListing._id)},
-        {$set: tagListing},
-        function(err, newTagListing) {
-          if (err) {return callback({error:err});}
-          else {return callback({error:false});}
-        });
-      }
+  dbReadOneByID(null, null, null, 'tagsByTag', tag, null, function (tagListing) {
+    if (tagListing && tagListing.error) {return callback({error:tagListing.error});}
+    if (!tagListing) {                             // tag does not exist, make it
+      var newTag = {_id: tag};
+      newTag.list = [postItem];
+      dbCreateOne(null, null, null, 'tagsByTag', newTag, function (newID) {
+        if (newID.error) {return callback({error:newID.error});}
+        else {return callback({error:false});}
+      });
+    } else {                                           // tag exists, add to it
+      tagListing.list.push(postItem);
+      dbWriteByID(null, null, null, 'tagsByTag', tag, tagListing, function (resp) {
+        if (resp && resp.error) {return callback({error:resp.error});}
+        else {return callback({error:false});}
+      });
     }
-  );
+  });
 }
 var removeTagIndexItem = function (tag, postItem, callback) {
   // check if tag listing is extant
-  // #tagDBredo
-  db.collection('tagIndex').findOne({tag: tag}, {list:1},
-    function (err, tagListing) {
-      if (err) {return callback({error:err});}
-      else if (!tagListing) {  // tag does not exist, so can't be deleted...but it doesn't exist, so we're good?
-        return callback({error:false});
-      } else {  // tag exists, find the item to be removed
-        for (var i = 0; i < tagListing.list.length; i++) {
-          if (tagListing.list[i].date === postItem.date && String(tagListing.list[i].authorID) === String(postItem.authorID)) {
-            tagListing.list.splice(i, 1);
-            break;
-          }
-        }
-        // #tagDBredo
-        db.collection('tagIndex').updateOne({_id: ObjectId(tagListing._id)},
-        {$set: tagListing},
-        function(err, newTagListing) {
-          if (err) {return callback({error:err});}
-          else {return callback({error:false});}
-        });
+  dbReadOneByID(null, null, null, 'tagsByTag', tag, null, function (tagListing) {
+    if (tagListing && tagListing.error) {return callback({error:tagListing.error});}
+    if (!tagListing) {return callback({error:false});} // tag does not exist, so can't be deleted...but it doesn't exist, so we're good?
+    // tag exists, find the item to be removed
+    for (var i = 0; i < tagListing.list.length; i++) {
+      // this is potentially very slow, cycling through every post ever w/ that tag
+      // since the posts are sorted, it could search faster, or at the very least just go from the end since most deletions will be recent, i think
+      if (tagListing.list[i].date === postItem.date && String(tagListing.list[i].authorID) === String(postItem.authorID)) {
+        tagListing.list.splice(i, 1);
+        break;
       }
     }
-  );
+    if (tagListing.list.length > 0) { // write the new array with the item taken out
+      dbWriteByID(null, null, null, 'tagsByTag', tag, tagListing, function (resp) {
+        if (resp && resp.error) {return callback({error:resp.error});}
+        else {return callback({error:false});}
+      });
+    } else {                      // hde array is empty, delete the whole thing
+      dbDeleteByID(null, null, null, 'tagsByTag', tag, function (resp) {
+        if (resp && resp.error) {return callback({error:resp.error});}
+        else {return callback({error:false});}
+      });
+    }
+  });
 }
 
 // **** the TAGS db is where we store references to posts, indexed by DATE, then by tag for each day, then unsorted arrays for each date[tag]
@@ -751,35 +746,26 @@ var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback
     if (resp.error) {return sendError(req, res, errMsg+resp.error);}
 
     // check if dateBucket is extant
-    //#tagDBredo
-    db.collection('tags').findOne({date: date}, {ref:1}
-      , function (err, dateBucket) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        else if (!dateBucket) {                // dateBucket does not exist, make it
-          var newDateBucket = {date: date,};
-          newDateBucket.ref = {};
-          for (var i = 0; i < tagArr.length; i++) {
-            newDateBucket.ref[tagArr[i]] = [authorID];
+    dbReadOneByID(req, res, errMsg, 'tagsByDate', date, null, function (dateBucket) {
+      if (!dateBucket) {                          // dateBucket does not exist, make it
+        var newDateBucket = {_id: date,};
+        newDateBucket.ref = {};
+        for (var i = 0; i < tagArr.length; i++) {
+          newDateBucket.ref[tagArr[i]] = [authorID];
+        }
+        dbCreateOne(req, res, errMsg, 'tagsByDate', newDateBucket, function (newID) {
+          return callback();
+        });
+      } else {                                     // dateBucket exists, add to it
+        var tagObject = [authorID];
+        for (var i = 0; i < tagArr.length; i++) {
+          if (!checkObjForProp(dateBucket.ref, tagArr[i], tagObject)) { // is tag extant?
+            dateBucket.ref[tagArr[i]].push(authorID);
           }
-          //#tagDBredo, make the newDateBucket have the date as the _id field
-          dbCreateOne(req, res, errMsg, 'tags', newDateBucket, function (newID) {
-            return callback();
-          });
-        } else {                                     // dateBucket exists, add to it
-          var tagObject = [authorID];
-          for (var i = 0; i < tagArr.length; i++) {
-            if (!checkObjForProp(dateBucket.ref, tagArr[i], tagObject)) { // is tag extant?
-              dateBucket.ref[tagArr[i]].push(authorID);
-            }
-          }
-          //#tagDBredo
-          db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
-          {$set: dateBucket},
-          function(err, tag) {
-            if (err) {return sendError(req, res, errMsg+err);}
-            else {return callback();}
-          }
-        );
+        }
+        dbWriteByID(req, res, errMsg, 'tagsByDate', date, dateBucket, function () {
+          return callback();
+        });
       }
     });
   });
@@ -794,31 +780,27 @@ var deleteTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback
   multiTagIndexAddOrRemove(tagArr, date, authorID, false, function (resp) {
     if (resp.error) {return sendError(req, res, errMsg+resp.error);}
 
-    // #tagDBredo
-    db.collection('tags').findOne({date: date}, {ref:1,}
-      , function (err, dateBucket) {
-        if (err) {return sendError(req, res, errMsg+err);}
-        if (!dateBucket) {return callback({date:date});}
-        // for each tag to be deleted,
-        for (var i = 0; i < tagArr.length; i++) {
-          if (dateBucket.ref[tagArr[i]]) {
-            var array = dateBucket.ref[tagArr[i]];
-            for (var j = 0; j < array.length; j++) {
-              if (String(array[j]) === String(authorID)) {
-                array.splice(j, 1);
-                break;
-              }
+    dbReadOneByID(req, res, errMsg, 'tagsByDate', date, null, function (dateBucket) {
+      if (!dateBucket) {return callback({date:date});}
+      // for each tag to be deleted,
+      for (var i = 0; i < tagArr.length; i++) {
+        if (dateBucket.ref[tagArr[i]]) {
+          var array = dateBucket.ref[tagArr[i]];
+          for (var j = 0; j < array.length; j++) {
+            if (String(array[j]) === String(authorID)) {
+              array.splice(j, 1);
+              break;
             }
           }
+          if (array.length === 0) {
+            delete dateBucket.ref[tagArr[i]];
+          }
         }
-        // #tagDBredo
-        db.collection('tags').updateOne({_id: ObjectId(dateBucket._id)},
-        {$set: dateBucket},
-        function(err, resp) {
-          if (err) {return sendError(req, res, errMsg+err);}
-          else {return callback({date:date});}
-        });
+      }
+      dbWriteByID(req, res, errMsg, 'tagsByDate', date, dateBucket, function () {
+        return callback({date:date});
       });
+    });
   });
 }
 //
@@ -1068,21 +1050,24 @@ var getAuthorListFromTagListAndDate = function (req, res, errMsg, tagList, date,
   if (!tagList || !tagList.length || !date) {
     return callback({authorList: authorList});
   }
-  // #tagDBredo
+
+  // NEW
+  //dbReadOneByID(req, res, errMsg, 'tagsByDate', date, null, function (dateBucket) {
+
   db.collection('tags').findOne({date: date}, {_id:0, ref:1}
   , function (err, dateBucket) {
     if (err) {return sendError(req, res, errMsg+err);}
-    else {
-      if (!dateBucket) {
-        return callback({authorList: authorList});
-      } else {
-        for (var i = 0; i < tagList.length; i++) {
-          if (dateBucket.ref[tagList[i].toLowerCase()]) {
-            authorList = authorList.concat(dateBucket.ref[tagList[i].toLowerCase()]);
-          }
+    // snip here
+
+    if (!dateBucket) {
+      return callback({authorList: authorList});
+    } else {
+      for (var i = 0; i < tagList.length; i++) {
+        if (dateBucket.ref[tagList[i].toLowerCase()]) {
+          authorList = authorList.concat(dateBucket.ref[tagList[i].toLowerCase()]);
         }
-        return callback({authorList: authorList});
       }
+      return callback({authorList: authorList});
     }
   });
 }
@@ -1152,8 +1137,13 @@ var snakeBank = [
 var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, callback) {
   // 'collection' is the name of the database table, 'projection' is output from 'getProjection'
   db.collection(collection).findOne({_id: _id}, projection, function (err, doc) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else {
+    if (err) {
+      if (res) {
+        return sendError(req, res, errMsg+err);
+      } else if (callback) {
+        return callback({error:err});
+      }
+    } else {
       if (callback) {
         callback(doc);
       }
@@ -1214,7 +1204,7 @@ var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
   db.collection(collection).insertOne(object, null, function (err, result) {
     if (err) {
       if (res) {return sendError(req, res, errMsg+err);}
-      else {return callback({error:err});}
+      else if (callback) {return callback({error:err});}
     } else if (callback) {
       callback(result.insertedId);
     }
@@ -1232,9 +1222,19 @@ var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
 
 var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback) {
   db.collection(collection).updateOne({_id:_id}, {$set: object}, function(err, doc) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else if (!doc) {return sendError(req, res, errMsg+"db write error, could not find document");}
-    else {
+    if (err) {
+      if (res) {
+        return sendError(req, res, errMsg+err);
+      } else if (callback) {
+        return callback({error:err});
+      }
+    } else if (!doc) {
+      if (res) {
+        return sendError(req, res, errMsg+"db write error, could not find document");
+      } else if (callback) {
+        return callback({error:"db write error, could not find document"});
+      }
+    } else {
       if (callback) {
         callback();
       }
@@ -1253,15 +1253,13 @@ var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback)
 
 var dbDeleteByID = function (req, res, errMsg, collection, _id, callback) {
   db.collection(collection).deleteOne({_id: _id}, function(err) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else {
-      if (callback) {
-        callback();
-      }
-      //
-      incrementDbStat('write', 1)
-      //
+    if (err) {
+      if (res) {return sendError(req, res, errMsg+err);}
+      else if (callback) {return callback({error:err});}
+    } else if (callback) {
+      callback();
     }
+    incrementDbStat('write', 1);
   });
 }
 
@@ -1354,8 +1352,8 @@ var getUserIdFromName = function (req, res, errMsg, username, callback) {
 // admin
 var devFlag = false;
   // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
-var safeMode = false;
-//var safeMode = "whoops! you've caught schlaugh performing a SECRET update! Some functionality, mostly concerning tags on posts, and apparently including whatever you just tried to do, will be down briefly. Please try again a bit later";
+//var safeMode = false;
+var safeMode = "whoops! you've caught schlaugh performing a SECRET update! Some functionality, mostly concerning tags on posts, and apparently including whatever you just tried to do, will be down briefly(hopefully like <10 mins). Please try again a bit later";
 
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
@@ -1471,14 +1469,6 @@ app.post('/admin/user', function(req, res) {
   });
 });
 
-app.post('/admin/getTagIndex', function(req, res) {
-  adminGate(req, res, function () {
-    dbReadMany(req, res, 'tagIndex errMsg', 'tagIndex', null, null, function (tags) {
-      return res.send(tags);
-    });
-  });
-});
-
 app.post('/admin/getDbStats', function(req, res) {
   adminGate(req, res, function () {
     dbReadMany(req, res, 'dbStats errMsg', 'dbStats', null, null, function (stats) {
@@ -1535,6 +1525,106 @@ app.post('/admin/schlaunquer', function(req, res) {
     });
   });
 });
+
+app.post('/admin/getTagsOfDate', function(req, res) {
+  adminGate(req, res, function () {
+    db.collection('tags').findOne({date: req.body.date}, null, function (err, oldDateBucket) {
+      if (err) {return res.send({error:err});}
+      dbReadOneByID(req, res, 'errMsg', 'tagsByDate', req.body.date, null, function (newDateBucket) {
+        return res.send({old:oldDateBucket, new:newDateBucket});
+      });
+    });
+  });
+});
+
+app.post('/admin/getTag', function(req, res) {
+  adminGate(req, res, function () {
+    db.collection('tagIndex').findOne({date: req.body.tag}, null, function (err, oldTagBucket) {
+      if (err) {return res.send({error:err});}
+      dbReadOneByID(req, res, 'errMsg', 'tagsByTag', req.body.tag, null, function (newTagBucket) {
+        return res.send({old:oldTagBucket, new:newTagBucket});
+      });
+    });
+  });
+});
+
+
+
+
+app.post('/admin/getAllTagDBs', function(req, res) {
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'tagIndex errMsg', 'tagIndex', null, null, function (tagIndex) {
+      dbReadMany(req, res, 'tagIndex errMsg', 'tags', null, null, function (tags) {
+        dbReadMany(req, res, 'tagIndex errMsg', 'tagsByTag', null, null, function (tagsByTag) {
+          dbReadMany(req, res, 'tagIndex errMsg', 'tagsByDate', null, null, function (tagsByDate) {
+            return res.send({old:{tagIndex:tagIndex, tags:tags}, new:{tagsByTag:tagsByTag,tagsByDate:tagsByDate}});
+          });
+        });
+      });
+    });
+  });
+});
+
+
+app.post('/admin/getTagIndexList', function(req, res) {
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'tagIndex errMsg', 'tagIndex', null, {projection:{_id:0}}, function (tagList) {
+      console.log('tags by tag GO');
+      return res.send(tagList);
+    });
+  });
+});
+app.post('/admin/copyTagIndexChunk', function(req, res) {
+  adminGate(req, res, function () {
+    console.log('   *******ping');
+    tagIndexRecurse(req, res, 'copyTagIndexChunk errMsg', req.body.arr, 0, function () {
+      return res.send({error:false});
+    })
+  });
+});
+var tagIndexRecurse = function (req, res, errMsg, arr, i, callback) {
+  if (!arr[i]) {
+    return callback();
+  }
+  var newTagObj = {_id: arr[i].tag};
+  newTagObj.list = arr[i].list;
+  if (arr[i].list.length === 0) {
+    return tagIndexRecurse(req, res, errMsg, arr, i+1, callback);
+  } else {
+    dbCreateOne(req, res, errMsg, 'tagsByTag', newTagObj, function (newID) {
+      return tagIndexRecurse(req, res, errMsg, arr, i+1, callback);
+    });
+  }
+}
+
+
+app.post('/admin/getTagList', function(req, res) {
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'tags errMsg', 'tags', null, {projection:{_id:0}}, function (tagList) {
+      console.log('tags by date GO');
+      return res.send(tagList);
+    });
+  });
+});
+app.post('/admin/copyTagChunk', function(req, res) {
+  adminGate(req, res, function () {
+    console.log('   *******ping');
+    tagRecurse(req, res, 'copyTagChunk errMsg', req.body.arr, 0, function () {
+      return res.send({error:false});
+    })
+  });
+});
+var tagRecurse = function (req, res, errMsg, arr, i, callback) {
+  if (!arr[i]) {
+    return callback();
+  }
+  var newTagObj = {_id: arr[i].date};
+  newTagObj.ref = arr[i].ref;
+  dbCreateOne(req, res, errMsg, 'tagsByDate', newTagObj, function (newID) {
+    return tagRecurse(req, res, errMsg, arr, i+1, callback);
+  });
+}
+
 
 
 
@@ -3332,10 +3422,14 @@ var getNthPageOfTaggedPostsByAnyAuthor = function (req, res) {
   if (req.body.page === undefined) {req.body.page = 0;}
   req.body.page = parseInt(req.body.page);
   if (!req.body.tag || !Number.isInteger(req.body.page) || req.body.page < 0) {return sendError(req, res, errMsg+"malformed request 710");}
-  // #tagDBredo
+  // NEW
+  // dbReadOneByID(req, res, errMsg, 'tagsByTag', req.body.tag.toLowerCase(), null, function (tagListing) {
+
   db.collection('tagIndex').findOne({tag: req.body.tag.toLowerCase()}, {list:1}, function (err, tagListing) {
     if (err) {return callback({error:err});}
-    else if (!tagListing || !tagListing.list || !tagListing.list.length) {  // tag does not exist/is empty
+    // snip here
+
+    if (!tagListing || !tagListing.list || !tagListing.list.length) {  // tag does not exist/is empty
       return res.send({
         error:false,
         posts: [],

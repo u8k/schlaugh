@@ -159,13 +159,6 @@ var getUsers = function () {
   });
 }
 
-var getTags = function () {
-  return console.log('no');;
-  ajaxCall('/admin/tags', 'POST', {date: $('date-of-tags').value}, function(json) {
-    console.log(json);
-  });
-}
-
 var getPost = function () {
   ajaxCall('/admin/getPost', 'POST', {_id: $("id-of-post-to-get").value}, function(json) {
     console.log(json);
@@ -179,19 +172,6 @@ var resetTest = function () {
   });
 }
 
-var makePostIDs = function () {
-  if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
-  ajaxCall('/admin/makePostIDs', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
-/*var letStaffCheat = function () {
-  if (!confirm("ARE YOU SURE!? Just the once, RIGHT?!?")) {return;}
-  ajaxCall('/admin/staffCheat', 'POST', {text:preCleanText($('staffCheatText').value)}, function(json) {
-    console.log(json);
-  });
-}*/
 
 var removeUser = function (id) {
   if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
@@ -249,32 +229,67 @@ var getSchlaunquerMatches = function () {
   });
 }
 
-var adminSchlaunquerTweak = function () {
-  var obj = {
-    game_id: $('schlaunquer-tweak-game_id').value,
-    coord: $('schlaunquer-tweak-coord').value,
-    value: $('schlaunquer-tweak-value').value,
-    player_id: $('schlaunquer-tweak-player_id').value,
-  }
-  ajaxCall('/admin/adminSchlaunquerTweak', 'POST', obj, function(json) {
+var getTagsOfDate = function () {
+  ajaxCall('/admin/getTagsOfDate', 'POST', {date: $('date-of-tags').value}, function(json) {
+    console.log(json);
+  });
+}
+var getTag = function () {
+  ajaxCall('/admin/getTag', 'POST', {tag: $('name-of-tag').value}, function(json) {
     console.log(json);
   });
 }
 
-var createPostID = function () {
-  ajaxCall('/admin/makePostIDs', 'POST', {
-    name: $("author-of-post").value,
-    date: $("date-of-post").value,
-  }, function(json) {
+
+
+var getAllTagDBs = function () {
+  ajaxCall('/admin/getAllTagDBs', 'POST', {}, function(json) {
     console.log(json);
   });
 }
 
-var getTagIndex = function () {
-  ajaxCall('/admin/getTagIndex', 'POST', {}, function(json) {
-    console.log(json);
+var batchSize = 50;
+var moveTagIndex = function () {
+  ajaxCall('/admin/getTagIndexList', 'POST', {}, function(json) {
+    glo.bigTagList = json;
+    console.log('got the big list, it is '+json.length+" long");
+    tagIndexRecurse(0)
   });
 }
+var tagIndexRecurse = function (i) {
+  console.log('sending '+i+'-'+(i+batchSize));
+  ajaxCall('/admin/copyTagIndexChunk', 'POST', {arr:glo.bigTagList.slice(i,i+batchSize)}, function(json) {
+    i+= batchSize;
+    if (i < glo.bigTagList.length) {
+      tagIndexRecurse(i);
+    } else {
+      console.log('all done!');
+    }
+  });
+}
+
+
+var moveTags = function () {
+  ajaxCall('/admin/getTagList', 'POST', {}, function(json) {
+    glo.bigTagList = json;
+    console.log('got the big list, it is '+json.length+" long");
+    tagRecurse(0)
+  });
+}
+var tagRecurse = function (i) {
+  console.log('sending '+i+'-'+(i+batchSize));
+  ajaxCall('/admin/copyTagChunk', 'POST', {arr:glo.bigTagList.slice(i,i+batchSize)}, function(json) {
+    i+= batchSize;
+    if (i < glo.bigTagList.length) {
+      tagRecurse(i);
+    } else {
+      console.log('all done!');
+    }
+  });
+}
+
+
+
 
 var getDbStats = function () {
   ajaxCall('/admin/getDbStats', 'POST', {}, function(json) {
@@ -321,12 +336,6 @@ var setDelayTest = function (obj) {
 
 var tripDelayTest = function () {
   ajaxCall('/admin/tripDelayTest', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
-var fixEditBug = function () {
-  ajaxCall('/admin/fixEditBug', 'POST', {id: $("bug-fix-user-id").value}, function(json) {
     console.log(json);
   });
 }
