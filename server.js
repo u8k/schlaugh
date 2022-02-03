@@ -1057,6 +1057,11 @@ var getAuthorListFromTagListAndDate = function (req, res, errMsg, tagList, date,
           authorList = authorList.concat(dateBucket.ref[tagList[i].toLowerCase()]);
         }
       }
+      for (var i = 0; i < authorList.length; i++) {
+        if (typeof authorList[i] === 'string' && ObjectId.isValid(authorList[i])) {
+          authorList[i] = ObjectId(authorList[i])
+        }
+      }
       return callback({authorList: authorList});
     }
   });
