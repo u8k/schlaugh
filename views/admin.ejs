@@ -18,26 +18,6 @@
     <script src="/admin.js"></script>
   </head>
   <body>
-    <!--
-    <br>
-    codes:
-    <br><br>
-
-    <% if (typeof codes !== "undefined") { %>
-      <% for (var x in codes) {
-        if (codes.hasOwnProperty(x)) { %>
-          <%= x %>
-          <br>
-        <% }
-      }
-    } %>
-    <br><br>
-    <form action="/admin" method="post">
-      <input type="text" name="code" placeholder="name">
-      <input type="submit" value="addCode">
-    </form>
-    <br><br><br>
-  -->
     <h3>frontEnd tests:</h3>
     <h4 id="test-title"></h4>
     <div id="test-results"></div>
@@ -57,16 +37,8 @@
       <% } %>
     <% } %>
       </ul>
-    <br><br>
-    <!--
-    <button onclick="makePostIDs()">makePostIDs</button>
-    <button onclick="resetTest()">reset test DB</button>
-    <button type="button" name="button" onclick="testEmail()">test email</button>
-    -->
-    <button type="button" name="button" onclick="getErrorLogs()">getErrorLogs</button>
-    <br>
-    <button type="button" name="button" onclick="getResetCodes()">getResetCodes</button>
-    <br><br>
+
+      <br>
     <input id="data-field" type="text" placeholder="data field">
     <button type="button" name="button" onclick="getUsers()">log users</button>
     <br>
@@ -75,13 +47,7 @@
     <br>
     <input id="get-user-by-id-input" type="text" placeholder="userID">
     <button type="button" name="button" onclick="getUser(true)">log user</button>
-    <br>
-    <input id="name-to-be-removed" type="text" placeholder="name">
-    <button onclick="removeUser()">removeUser</button>
-    <br>
-    <input id="user-id-to-be-removed" type="text" placeholder="userID">
-    <button onclick="removeUser(true)">removeUser</button>
-    <br><br><br>
+    <br><br>
     <input id="date-of-tags" type="text" placeholder="date">
     <button onclick="getTagsOfDate()">getTags</button>
     <br>
@@ -90,30 +56,16 @@
     <br><br>
     <input id="id-of-post-to-get" type="text" placeholder="post_id">
     <button onclick="getPost()">getPost</button>
-    <br><br>
-    <input id="post-to-be-removed" type="text" placeholder="post_id">
-    <button onclick="removePost()">removePost</button>
+
 
     <br><br>
-    <input id="author-of-post" type="text" placeholder="username">
-    <input id="date-of-post" type="text" placeholder="post date">
-
-    <br><br>
-
+    <button onclick="getResetCodes()">getResetCodes</button>
+    <button onclick="getErrorLogs()">getErrorLogs</button>
     <button onclick="getStats();">getStats</button>
     <button onclick="getDbStats();">getDbStats</button>
     <button onclick="getSchlaunquerMatches();">getSchlaunquerMatches</button>
+    <button onclick="getSessions();">getSessions</button>
     <br>
     <br>
-    <input id="schlaunquer-tweak-game_id" type="text" placeholder="game_id">
-    <input id="schlaunquer-tweak-coord" type="text" placeholder="coord">
-    <input id="schlaunquer-tweak-value" type="text" placeholder="value">
-    <input id="schlaunquer-tweak-player_id" type="text" placeholder="player_id">
-    <button onclick="adminSchlaunquerTweak()">adminSchlaunquerTweak</button>
 
-    <!--
-    <textarea id="staffCheatText" class="editor" autocomplete="off"></textarea>
-    <br>
-    <button onclick="letStaffCheat()">staff cheat post</button>
-    -->
   </body>

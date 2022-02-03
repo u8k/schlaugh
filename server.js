@@ -633,7 +633,7 @@ var deletePost = function (req, res, errMsg, user, date, callback) {
   });
 }
 
-// **** tagINDEX is where we store references to posts, indexed by tag, and in arrays sorted by date, oldest to newest
+// **** the "tagsByTag" db  is where we store references to posts, indexed by TAG, and in arrays sorted by date, oldest to newest
 var multiTagIndexAddOrRemove = function (tagArr, date, authorID, creating, callback) {
   var count = tagArr.length;
   for (var i = 0; i < tagArr.length; i++) {
@@ -735,7 +735,7 @@ var removeTagIndexItem = function (tag, postItem, callback) {
   });
 }
 
-// **** the TAGS db is where we store references to posts, indexed by DATE, then by tag for each day, then unsorted arrays for each date[tag]
+// **** the "tagsByDate" db is where we store references to posts, indexed by DATE, then by tag for each day, then unsorted arrays for each date[tag]
 var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback) {
   if (tagArr.length === 0) {return callback();}
   //
@@ -1129,29 +1129,48 @@ var snakeBank = [
 
 
 // **** datebase operation functions **** //
+var dbTimeOut = function (req, res, errMsg) {
+  return sendError(req, res, errMsg+"database request timeout!");
+}
+var setDbTimer = function (req, res, errMsg) {
+  var dbTimer = setTimeout(function () {
+    dbTimer = null;
+    return dbTimeOut(req, res, errMsg)
+  }, 25000);
+  return dbTimer;
+}
+var cancelDbTimer = function (timer, callback) {
+  if (timer === null) { return; }
+  clearTimeout(timer);
+  return callback();
+}
+//
 var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, callback) {
   // 'collection' is the name of the database table, 'projection' is output from 'getProjection'
+  //
+  var dbTimer = setDbTimer(req, res, errMsg);
   db.collection(collection).findOne({_id: _id}, projection, function (err, doc) {
-    if (err) {
-      if (res) {
-        return sendError(req, res, errMsg+err);
-      } else if (callback) {
-        return callback({error:err});
-      }
-    } else {
-      if (callback) {
-        callback(doc);
-      }
-      //
-      if (doc) {
-        var size = BSON.calculateObjectSize(doc);
-        if (size) {
-          size = Math.ceil(size/4000);
-          incrementDbStat('read', size)
+    cancelDbTimer(dbTimer, function () {
+      if (err) {
+        if (res) {
+          return sendError(req, res, errMsg+err);
+        } else if (callback) {
+          return callback({error:err});
+        }
+      } else {
+        if (callback) {
+          callback(doc);
+        }
+        //
+        if (doc) {
+          var size = BSON.calculateObjectSize(doc);
+          if (size) {
+            size = Math.ceil(size/4000);
+            incrementDbStat('read', size)
+          }
         }
       }
-      //
-    }
+    });
   });
 }
 var dbReadMany = function (req, res, errMsg, collection, idList, projection, callback) {
@@ -1160,22 +1179,25 @@ var dbReadMany = function (req, res, errMsg, collection, idList, projection, cal
   if (idList) {
     searchCriteria['_id'] = {$in: idList};
   }
+  var dbTimer = setDbTimer(req, res, errMsg);
   db.collection(collection).find(searchCriteria, projection).toArray( function(err, docs) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    else {
-      if (callback) {
-        callback(docs);
-      }
-      //
-      if (docs) {
-        var size = BSON.calculateObjectSize(docs);
-        if (size) {
-          size = Math.ceil(size/4000);
-          incrementDbStat('read', size)
+    cancelDbTimer(dbTimer, function () {
+      if (err) {return sendError(req, res, errMsg+err);}
+      else {
+        if (callback) {
+          callback(docs);
         }
+        //
+        if (docs) {
+          var size = BSON.calculateObjectSize(docs);
+          if (size) {
+            size = Math.ceil(size/4000);
+            incrementDbStat('read', size)
+          }
+        }
+        //
       }
-      //
-    }
+    });
   });
 }
 var getProjection = function (props, dates) {
@@ -1196,42 +1218,14 @@ var getProjection = function (props, dates) {
 
 var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
   // if 'object' has an _id field, that will be the indexed unique id for the document, otherwise mongo assigns an ObjectId
+  var dbTimer = setDbTimer(req, res, errMsg);
   db.collection(collection).insertOne(object, null, function (err, result) {
-    if (err) {
-      if (res) {return sendError(req, res, errMsg+err);}
-      else if (callback) {return callback({error:err});}
-    } else if (callback) {
-      callback(result.insertedId);
-    }
-    //
-    if (object) {
-      var size = BSON.calculateObjectSize(object);
-      if (size) {
-        size = Math.ceil(size/1000);
-        incrementDbStat('write', size)
-      }
-    }
-    //
-  });
-}
-
-var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback) {
-  db.collection(collection).updateOne({_id:_id}, {$set: object}, function(err, doc) {
-    if (err) {
-      if (res) {
-        return sendError(req, res, errMsg+err);
+    cancelDbTimer(dbTimer, function () {
+      if (err) {
+        if (res) {return sendError(req, res, errMsg+err);}
+        else if (callback) {return callback({error:err});}
       } else if (callback) {
-        return callback({error:err});
-      }
-    } else if (!doc) {
-      if (res) {
-        return sendError(req, res, errMsg+"db write error, could not find document");
-      } else if (callback) {
-        return callback({error:"db write error, could not find document"});
-      }
-    } else {
-      if (callback) {
-        callback();
+        callback(result.insertedId);
       }
       //
       if (object) {
@@ -1242,19 +1236,56 @@ var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback)
         }
       }
       //
-    }
+    });
+  });
+}
+
+var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback) {
+  var dbTimer = setDbTimer(req, res, errMsg);
+  db.collection(collection).updateOne({_id:_id}, {$set: object}, function(err, doc) {
+    cancelDbTimer(dbTimer, function () {
+      if (err) {
+        if (res) {
+          return sendError(req, res, errMsg+err);
+        } else if (callback) {
+          return callback({error:err});
+        }
+      } else if (!doc) {
+        if (res) {
+          return sendError(req, res, errMsg+"db write error, could not find document");
+        } else if (callback) {
+          return callback({error:"db write error, could not find document"});
+        }
+      } else {
+        if (callback) {
+          callback();
+        }
+        //
+        if (object) {
+          var size = BSON.calculateObjectSize(object);
+          if (size) {
+            size = Math.ceil(size/1000);
+            incrementDbStat('write', size)
+          }
+        }
+        //
+      }
+    });
   });
 }
 
 var dbDeleteByID = function (req, res, errMsg, collection, _id, callback) {
+  var dbTimer = setDbTimer(req, res, errMsg);
   db.collection(collection).deleteOne({_id: _id}, function(err) {
-    if (err) {
-      if (res) {return sendError(req, res, errMsg+err);}
-      else if (callback) {return callback({error:err});}
-    } else if (callback) {
-      callback();
-    }
-    incrementDbStat('write', 1);
+    cancelDbTimer(dbTimer, function () {
+      if (err) {
+        if (res) {return sendError(req, res, errMsg+err);}
+        else if (callback) {return callback({error:err});}
+      } else if (callback) {
+        callback();
+      }
+      incrementDbStat('write', 1);
+    });
   });
 }
 
@@ -1283,7 +1314,6 @@ var incrementDbStat = function (kind, amount) {
     }
   });
 }
-
 
 //
 var readUser = function (req, res, errMsg, userID, propRef, callback) {
@@ -1470,10 +1500,6 @@ app.post('/admin/getDbStats', function(req, res) {
   });
 });
 
-app.post('/admin/removeUser', function(req, res) {
-  res.send({hi:"whoops this doesn't exist right now"});
-});
-
 app.post('/admin/getPost', function(req, res) {
   adminGate(req, res, function () {
     dbReadOneByID(req, res, '/admin/getPost errMsg', 'posts', req.body._id, null, function (post) {
@@ -1521,104 +1547,19 @@ app.post('/admin/schlaunquer', function(req, res) {
 
 app.post('/admin/getTagsOfDate', function(req, res) {
   adminGate(req, res, function () {
-    db.collection('tags').findOne({date: req.body.date}, null, function (err, oldDateBucket) {
-      if (err) {return res.send({error:err});}
-      dbReadOneByID(req, res, 'errMsg', 'tagsByDate', req.body.date, null, function (newDateBucket) {
-        return res.send({old:oldDateBucket, new:newDateBucket});
-      });
+    dbReadOneByID(req, res, 'errMsg', 'tagsByDate', req.body.date, null, function (newDateBucket) {
+      return res.send({old:oldDateBucket, new:newDateBucket});
     });
   });
 });
 
 app.post('/admin/getTag', function(req, res) {
   adminGate(req, res, function () {
-    db.collection('tagIndex').findOne({date: req.body.tag}, null, function (err, oldTagBucket) {
-      if (err) {return res.send({error:err});}
-      dbReadOneByID(req, res, 'errMsg', 'tagsByTag', req.body.tag, null, function (newTagBucket) {
-        return res.send({old:oldTagBucket, new:newTagBucket});
-      });
+    dbReadOneByID(req, res, 'errMsg', 'tagsByTag', req.body.tag, null, function (tagBucket) {
+      return res.send(tagBucket);
     });
   });
 });
-
-
-
-
-app.post('/admin/getAllTagDBs', function(req, res) {
-  adminGate(req, res, function () {
-    dbReadMany(req, res, 'tag errMsg', 'tagIndex', null, null, function (tagIndex) {
-      dbReadMany(req, res, 'tag errMsg', 'tags', null, null, function (tags) {
-        dbReadMany(req, res, 'tag errMsg', 'tagsByTag', null, null, function (tagsByTag) {
-          dbReadMany(req, res, 'tag errMsg', 'tagsByDate', null, null, function (tagsByDate) {
-            return res.send({old:{tagIndex:tagIndex, tags:tags}, new:{tagsByTag:tagsByTag,tagsByDate:tagsByDate}});
-          });
-        });
-      });
-    });
-  });
-});
-
-
-app.post('/admin/getTagIndexList', function(req, res) {
-  adminGate(req, res, function () {
-    dbReadMany(req, res, 'tag errMsg', 'tagIndex', null, {projection:{_id:0}}, function (tagList) {
-      console.log('tags by tag GO');
-      return res.send(tagList);
-    });
-  });
-});
-app.post('/admin/copyTagIndexChunk', function(req, res) {
-  adminGate(req, res, function () {
-    console.log('   *******ping');
-    tagIndexRecurse(req, res, 'copyTagIndexChunk errMsg', req.body.arr, 0, function () {
-      return res.send({error:false});
-    })
-  });
-});
-var tagIndexRecurse = function (req, res, errMsg, arr, i, callback) {
-  if (!arr[i]) {
-    return callback();
-  }
-  var newTagObj = {_id: arr[i].tag};
-  newTagObj.list = arr[i].list;
-  if (arr[i].list.length === 0) {
-    return tagIndexRecurse(req, res, errMsg, arr, i+1, callback);
-  } else {
-    dbCreateOne(req, res, errMsg, 'tagsByTag', newTagObj, function (newID) {
-      return tagIndexRecurse(req, res, errMsg, arr, i+1, callback);
-    });
-  }
-}
-
-
-app.post('/admin/getTagList', function(req, res) {
-  adminGate(req, res, function () {
-    dbReadMany(req, res, 'tags errMsg', 'tags', null, {projection:{_id:0}}, function (tagList) {
-      console.log('tags by date GO');
-      return res.send(tagList);
-    });
-  });
-});
-app.post('/admin/copyTagChunk', function(req, res) {
-  adminGate(req, res, function () {
-    console.log('   *******ping');
-    tagRecurse(req, res, 'copyTagChunk errMsg', req.body.arr, 0, function () {
-      return res.send({error:false});
-    })
-  });
-});
-var tagRecurse = function (req, res, errMsg, arr, i, callback) {
-  if (!arr[i]) {
-    return callback();
-  }
-  var newTagObj = {_id: arr[i].date};
-  newTagObj.ref = arr[i].ref;
-  dbCreateOne(req, res, errMsg, 'tagsByDate', newTagObj, function (newID) {
-    return tagRecurse(req, res, errMsg, arr, i+1, callback);
-  });
-}
-
-
 
 
 

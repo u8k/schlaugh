@@ -165,40 +165,6 @@ var getPost = function () {
   });
 }
 
-var resetTest = function () {
-  if (!confirm("ARE YOU SURE!? You aren't doing this on production, ARE YOU?!?")) {return;}
-  ajaxCall('/admin/resetTest', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
-
-var removeUser = function (id) {
-  if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
-  if (id) {
-    ajaxCall('/admin/removeUser', 'POST', {id: $("user-id-to-be-removed").value}, function(json) {
-      console.log(json);
-    });
-  } else {
-    ajaxCall('/admin/removeUser', 'POST', {name: $("name-to-be-removed").value}, function(json) {
-      console.log(json);
-    });
-  }
-}
-
-var removePost = function () {
-  if (!confirm("ARE YOU SURE!? THIS CAN NON BE UNDONE. YOU PROBABLY DONT REALLY WANT TO DO THIS")) {return;}
-  ajaxCall('/admin/removePost', 'POST', {_id: $("post-to-be-removed").value}, function(json) {
-    console.log(json);
-  });
-}
-
-var testEmail = function () {
-  ajaxCall('/admin/testEmail', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
 var getResetCodes = function () {
   ajaxCall('/admin/resetCodes', 'POST', {}, function(json) {
     console.log(json);
@@ -207,6 +173,18 @@ var getResetCodes = function () {
 
 var getErrorLogs = function () {
   ajaxCall('/admin/errorLogs', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var getDbStats = function () {
+  ajaxCall('/admin/getDbStats', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
+var getSessions = function () {
+  ajaxCall('/admin/getSessions', 'POST', {}, function(json) {
     console.log(json);
   });
 }
@@ -236,106 +214,6 @@ var getTagsOfDate = function () {
 }
 var getTag = function () {
   ajaxCall('/admin/getTag', 'POST', {tag: $('name-of-tag').value}, function(json) {
-    console.log(json);
-  });
-}
-
-
-
-var getAllTagDBs = function () {
-  ajaxCall('/admin/getAllTagDBs', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
-var batchSize = 50;
-var moveTagIndex = function () {
-  ajaxCall('/admin/getTagIndexList', 'POST', {}, function(json) {
-    glo.bigTagList = json;
-    console.log('got the big list, it is '+json.length+" long");
-    tagIndexRecurse(0)
-  });
-}
-var tagIndexRecurse = function (i) {
-  console.log('sending '+i+'-'+(i+batchSize));
-  ajaxCall('/admin/copyTagIndexChunk', 'POST', {arr:glo.bigTagList.slice(i,i+batchSize)}, function(json) {
-    i+= batchSize;
-    if (i < glo.bigTagList.length) {
-      tagIndexRecurse(i);
-    } else {
-      console.log('all done!');
-    }
-  });
-}
-
-
-var moveTags = function () {
-  ajaxCall('/admin/getTagList', 'POST', {}, function(json) {
-    glo.bigTagList = json;
-    console.log('got the big list, it is '+json.length+" long");
-    tagRecurse(0)
-  });
-}
-var tagRecurse = function (i) {
-  console.log('sending '+i+'-'+(i+batchSize));
-  ajaxCall('/admin/copyTagChunk', 'POST', {arr:glo.bigTagList.slice(i,i+batchSize)}, function(json) {
-    i+= batchSize;
-    if (i < glo.bigTagList.length) {
-      tagRecurse(i);
-    } else {
-      console.log('all done!');
-    }
-  });
-}
-
-
-
-
-var getDbStats = function () {
-  ajaxCall('/admin/getDbStats', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
-var getSessions = function () {
-  ajaxCall('/admin/getSessions', 'POST', {}, function(json) {
-    console.log(json);
-  });
-}
-
-var genShitPosts = function (total) {
-  ajaxCall('/admin/genPosts', 'POST', {}, function(json) {
-    json.progress = 0;
-    json.total = total;
-    genShitPostsBounce(json);
-  });
-}
-
-var genShitPostsBounce = function (data) {
-  ajaxCall('/admin/genPostsBounce', 'POST', data, function(json) {
-    console.log(json.progress+" of "+json.total);
-    if (json.progress < json.total) {
-      genShitPostsBounce(json);
-    } else {
-      console.log('done!');
-    }
-  });
-}
-
-var testCreateTagIndexItem = function (obj) {
-  ajaxCall('/admin/testCreateTagIndexItem', 'POST', obj, function(json) {
-    console.log(json);
-  });
-}
-
-var setDelayTest = function (obj) {
-  ajaxCall('/admin/setDelayTest', 'POST', obj, function(json) {
-    console.log(json);
-  });
-}
-
-var tripDelayTest = function () {
-  ajaxCall('/admin/tripDelayTest', 'POST', {}, function(json) {
     console.log(json);
   });
 }
