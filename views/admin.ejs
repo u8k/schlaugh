@@ -18,27 +18,6 @@
     <script src="/admin.js"></script>
   </head>
   <body>
-    <h3>frontEnd tests:</h3>
-    <h4 id="test-title"></h4>
-    <div id="test-results"></div>
-    <script type="text/javascript">
-      displayTests(pool.runTests(tests));
-    </script>
-    <h3>backEnd tests:</h3>
-    <% if (typeof results === "string") { %>
-      <h4> <%= results %> </h4>
-    <% } else { %>
-      <h4>failing tests:</h4>
-      <ul>
-      <% for(var i = 0; i < results.length; i++) { %>
-          <li>
-            <%= results[i][0] + ".  " + results[i][2]+" === "+results[i][1] %>
-          </li>
-      <% } %>
-    <% } %>
-      </ul>
-
-      <br>
     <input id="data-field" type="text" placeholder="data field">
     <button type="button" name="button" onclick="getUsers()">log users</button>
     <br>
@@ -67,5 +46,24 @@
     <button onclick="getSessions();">getSessions</button>
     <br>
     <br>
+    <h3>frontEnd tests:</h3>
+    <h4 id="test-title"></h4>
+    <div id="test-results"></div>
+    <script type="text/javascript">
+      displayTests(pool.runTests(tests));
+    </script>
+    <h3>backEnd tests:</h3>
+    <% if (typeof results === "string") { %>
+      <h4> <%= results %> </h4>
+    <% } else { %>
+      <h4>failing tests:</h4>
+      <ul>
+      <% for(var i = 0; i < results.length; i++) { %>
+          <li>
+            <%= results[i][0] + ".  " + results[i][2]+" === "+results[i][1] %>
+          </li>
+      <% } %>
+    <% } %>
+      </ul>
 
   </body>

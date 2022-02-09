@@ -374,15 +374,15 @@ var newSessionKey = function (userID) {
 var getPayload = function (req, res, callback) {
   var errMsg = 'unable to acquire payload<br><br>';
   checkForUserUpdates(req, res, errMsg, req.session.user._id, function () {
-    var propList = ['posts','username', 'iconURI', 'settings', 'inbox', 'keys', 'following', 'muted', 'pendingUpdates', 'bio', 'bookmarks', 'collapsed', 'savedTags', 'games'];
+    var propList = ['posts','username', 'iconURI', 'settings', 'inbox', 'keyPrivate', 'keyPublic', 'following', 'muted', 'pendingUpdates', 'bio', 'bookmarks', 'collapsed', 'savedTags', 'games'];
     readCurrentUser(req, res, errMsg, {list:propList}, function (user) {
       // check if user needs keys
-      if (!user.keys) {return res.send({needKeys:true});}
+      if (!user.keyPrivate || !user.keyPublic) {return res.send({needKeys:true});}
       if (!user.bookmarks || user.bookmarks.length === undefined) {user.bookmarks = [];}
       if (!user.collapsed || user.collapsed.length === undefined) {user.collapsed = [];}
       if (!user.savedTags || user.savedTags.length === undefined) {user.savedTags = [];}
       var payload = {
-        keys: user.keys,
+        keys: {privKey:user.keyPrivate, pubKey:user.keyPublic },
         username: user.username,
         userID: req.session.user._id,
         settings: user.settings,
@@ -1344,6 +1344,7 @@ var readMultiUsers = function (req, res, errMsg, authorIdList, propRef, callback
 var writeToUser = function (req, res, errMsg, userObj, callback) {
   if (!callback) {res = null;}  // so if the thread isn't waiting for the write, then we don't try using res after it already sent later in the thread
   var userID = userObj._id;
+  delete userObj._id; // this removes the id from what we are trying to write, since we never want to write an _id...
   if (!userID) {return sendError(req, res, errMsg+"missing _id on user object");}
   if (!ObjectId.isValid(userID)) {return sendError(req, res, errMsg+"invalid user ID format");}
   dbWriteByID(req, res, errMsg, 'users', ObjectId(userID), userObj, function () {
@@ -1560,6 +1561,37 @@ app.post('/admin/getTag', function(req, res) {
     });
   });
 });
+
+
+app.post('/admin/startKeyConvert', function(req, res) {
+  adminGate(req, res, function () {
+    readMultiUsers(req, res, '/admin/startKeyConvert errMsg', null, {list:['keys'],}, function (users) {
+      return res.send(users);
+    });
+  });
+});
+app.post('/admin/keyConvert', function(req, res) {
+  adminGate(req, res, function () {
+    console.log('beepBoop');
+    convertKeys(req, res, 'keyConvert errMsg<br><br>', req.body.arr, 0, function () {
+      return res.send({});
+    });
+  });
+});
+var convertKeys = function (req, res, errMsg, arr, i, callback) {
+  if (!arr[i]) { return callback(); }
+  if (arr[i].keys && arr[i].keys.privKey && arr[i].keys.pubKey) {
+    arr[i].keyPublic = arr[i].keys.pubKey;
+    arr[i].keyPrivate = arr[i].keys.privKey;
+
+    writeToUser(req, res, errMsg, arr[i], function () {
+      return convertKeys(req, res, errMsg, arr, i+1, callback);
+    });
+  } else {
+    return convertKeys(req, res, errMsg, arr, i+1, callback);
+  }
+}
+
 
 
 
@@ -2274,13 +2306,15 @@ app.post('/inbox', function(req, res) {
   // the incoming text is encrypted, so we can not cleanse it
   if (!req.body.recipient || typeof req.body.encSenderText === 'undefined' || typeof req.body.encRecText === 'undefined') {return sendError(req, res, errMsg+"malformed request");}
   if (String(req.body.recipient) === String(req.session.user._id)) {return sendError(req, res, errMsg+"you want to message yourself??? freak.");}
+
   // make both sender and recipient DB calls first
-  readCurrentUser(req, res, errMsg, {list:['inbox', 'username', 'keys', 'iconURI']}, function (sender) {
-    if (!sender.keys) {return sendError(req, res, errMsg+"missing sender key<br><br>"+sender.keys);}
-    readUser(req, res, errMsg, String(req.body.recipient), {list:['inbox', 'username', 'keys', 'iconURI',]}, function(recipient) {
+  readCurrentUser(req, res, errMsg, {list:['inbox', 'username', 'keyPublic', 'iconURI']}, function (sender) {
+    if (!sender.keyPublic) {return sendError(req, res, errMsg+"missing sender key<br><br>"+sender.keyPublic);}
+
+    readUser(req, res, errMsg, String(req.body.recipient), {list:['inbox', 'username', 'keyPublic', 'iconURI',]}, function(recipient) {
       if (!recipient) {return sendError(req, res, errMsg+"recipient not found");}
       //
-      if (!recipient.keys) {return sendError(req, res, errMsg+"missing recipient key<br><br>"+recipient.keys);}
+      if (!recipient.keyPublic) {return sendError(req, res, errMsg+"missing recipient key<br><br>"+recipient.keyPublic);}
       var tmrw = pool.getCurDate(-1);
       var overwrite = false;
       var noReKey = true;
@@ -2291,7 +2325,8 @@ app.post('/inbox', function(req, res) {
       var recipientPic = recipient.iconURI;
       if (typeof recipientPic !== 'string') {recipientPic = "";}
       // if the sender does not already have a thread w/ the recipient, create one
-      if (checkObjForProp(sender.inbox.threads, recipient._id, {name:recipient.username, unread:false, image:recipientPic, thread:[], key:recipient.keys.pubKey})) {
+
+      if (checkObjForProp(sender.inbox.threads, recipient._id, {name:recipient.username, unread:false, image:recipientPic, thread:[], key:recipient.keyPublic})) {
         // and create the corresponding refference on the list
         sender.inbox.list.push(recipient._id);
       } else {
@@ -2301,12 +2336,12 @@ app.post('/inbox', function(req, res) {
           return sendError(req, res, errMsg+"this message is not allowed");
         }
         // check/update the key
-        if (!sender.inbox.threads[recipient._id].key || sender.inbox.threads[recipient._id].key !== recipient.keys.pubKey) {
+        if (!sender.inbox.threads[recipient._id].key || sender.inbox.threads[recipient._id].key !== recipient.keyPublic) {
           // key is OLD AND BAD, head back to FE w/ new Key to re-encrypt
           noReKey = false;
-          sender.inbox.threads[recipient._id].key = recipient.keys.pubKey;
+          sender.inbox.threads[recipient._id].key = recipient.keyPublic;
           writeToUser(req, res, errMsg, sender, function () {
-            return res.send({error:false, reKey:recipient.keys.pubKey});
+            return res.send({error:false, reKey:recipient.keyPublic});
           });
         } else {
           // check the last two items, overwrite if there is already a pending message
@@ -2351,7 +2386,7 @@ app.post('/inbox', function(req, res) {
         var senderPic = sender.iconURI;
         if (typeof senderPic !== 'string') {senderPic = "";}
         // if the recipient does not already have a thread w/ the sender, create one
-        if (!checkObjForProp(recipient.inbox.threads, sender._id, {name:sender.username, unread:false, image:senderPic, thread:[], key:sender.keys.pubKey})) {
+        if (!checkObjForProp(recipient.inbox.threads, sender._id, {name:sender.username, unread:false, image:senderPic, thread:[], key:sender.keyPublic})) {
           // there is an extant thread, so
           // is either person blocking the other?
           if (recipient.inbox.threads[sender._id].blocking || recipient.inbox.threads[sender._id].blocked) {
@@ -2366,8 +2401,8 @@ app.post('/inbox', function(req, res) {
             }
           }
           // check/update the key
-          if (!recipient.inbox.threads[sender._id].key || recipient.inbox.threads[sender._id].key !== sender.keys.pubKey) {
-            recipient.inbox.threads[sender._id].key = sender.keys.pubKey;
+          if (!recipient.inbox.threads[sender._id].key || recipient.inbox.threads[sender._id].key !== sender.keyPublic) {
+            recipient.inbox.threads[sender._id].key = sender.keyPublic;
           }
           // check/update the thread "name"
           if (!recipient.inbox.threads[sender._id].name || recipient.inbox.threads[sender._id].name !== sender.username) {
@@ -2737,32 +2772,35 @@ app.post('/login', function(req, res) {
 
 // set keys
 app.post('/keys', function(req, res) {
-  var errMsg = "error setting encryption keys";
+  var errMsg = "error setting encryption keys<br>";
   if (!req.body.privKey || !req.body.pubKey) {return sendError(req, res, errMsg+"malformed request");}
-  readCurrentUser(req, res, errMsg, {list:['inbox', 'keys']}, function (user) {
+
+  readCurrentUser(req, res, errMsg, {list:['inbox', 'keyPublic', 'keyPrivate']}, function (user) {
+
     // do not overwrite existing keys! (when we need to change keys, we clear them elsewhere)
-    if (user.keys === undefined || user.keys === null) {
-      user.keys = req.body;
+    if (!user.keyPublic && !user.keyPrivate) {
+      user.keyPublic = req.body.pubKey;
+      user.keyPrivate = req.body.privKey;
     }
     if (req.body.newUserMessage) {    // new user, send welcome message
-      var staffID = ObjectId("5a0ea8429adb2100146f7568");
-      readUser(req, res, errMsg, staffID, {list:['keys', 'iconURI',]}, function(staff) {
-        if (!staff) {
-          var staff = {keys:{pubKey:adminB.dumbleKey}};  //this is wrong and will get replaced when a message is actually sent
-        }                                         // though is also a backup that *should* never be used in the first place
-        var staffPic = staff.iconURI;
-        if (typeof staffPic !== 'string') {staffPic = "";}
-        user.inbox.threads[staffID] = {name:"staff", unread:true, image:staffPic, thread:[], key:staff.keys.pubKey};
-        user.inbox.threads[staffID].thread.push({
-          inbound: true,
-          date: pool.getCurDate(),
-          body: req.body.newUserMessage,
-        });
-        user.inbox.list.push(staffID);
-        //
-        writeToUser(req, res, errMsg, user, function () {
-          getPayload(req, res, function (payload) {
-            return res.send({error:false, payload:payload});
+      getUserIdFromName(req, res, errMsg, "staff", function (staffID) {
+        if (!staffID) { sendError(req, res, errMsg+"staff account not found") }
+
+        readUser(req, res, errMsg, staffID, {list:['keyPublic', 'iconURI',]}, function(staff) {
+          var staffPic = staff.iconURI;
+          if (typeof staffPic !== 'string') {staffPic = "";}
+          user.inbox.threads[staffID] = {name:"staff", unread:true, image:staffPic, thread:[], key:staff.keyPublic};
+          user.inbox.threads[staffID].thread.push({
+            inbound: true,
+            date: pool.getCurDate(),
+            body: req.body.newUserMessage,
+          });
+          user.inbox.list.push(staffID);
+          //
+          writeToUser(req, res, errMsg, user, function () {
+            getPayload(req, res, function (payload) {
+              return res.send({error:false, payload:payload});
+            });
           });
         });
       });
@@ -2852,8 +2890,9 @@ app.post('/changeEmail', function (req, res) {
 app.post('/changePasswordStart', function (req, res) {
   var errMsg = "password change error1<br><br>";
   if (!req.body.oldPass || !req.body.newPass) {return sendError(req, res, errMsg+"malformed request")}
-  readCurrentUser(req, res, errMsg, {list:['password','keys','inbox']}, function (user) {
-    if (!user.keys) {return sendError(req, res, "user has no keys???");}
+
+  readCurrentUser(req, res, errMsg, {list:['password','keyPublic','keyPrivate','inbox']}, function (user) {
+    if (!user.keyPrivate || !user.keyPublic) {return sendError(req, res, "user has no keys???");}
     else {
       bcrypt.compare(req.body.oldPass, user.password, function(err, isMatch){
         if (err) {return sendError(req, res, err);}
@@ -2863,7 +2902,7 @@ app.post('/changePasswordStart', function (req, res) {
           if (y) {return res.send({error:y});}
           else {
             if (!user.inbox) {user.inbox = {}}
-            return res.send({error: false, threads:user.inbox.threads, key:user.keys.privKey});
+            return res.send({error: false, threads:user.inbox.threads, key:user.keyPrivate});
           }
         }
       });
@@ -2875,22 +2914,21 @@ app.post('/changePasswordStart', function (req, res) {
 app.post('/changePasswordFin', function (req, res) {
   if (!req.body.newKeys || !req.body.newPass || !req.body.newThreads) {return sendError(req, res, errMsg+"malformed request")}
   var errMsg = "password change error2<br><br>";
-  readCurrentUser(req, res, errMsg, {list:['password','keys','inbox']}, function (user) {
-    if (!user.keys) {return sendError(req, res, "user has no keys???");}
+
+  readCurrentUser(req, res, errMsg, {list:['password','keyPublic','keyPrivate','inbox']}, function (user) {
+    var y = pool.passwordValidate(req.body.newPass);
+    if (y) {return res.send({error:y});}
     else {
-      var y = pool.passwordValidate(req.body.newPass);
-      if (y) {return res.send({error:y});}
-      else {
-        bcrypt.hash(req.body.newPass, 10, function(err, passHash) {
-          if (err) {return sendError(req, res, err);}
-          else {
-            user.password = passHash;
-            user.inbox.threads = req.body.newThreads;
-            user.keys = req.body.newKeys;
-            writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
-          }
-        });
-      }
+      bcrypt.hash(req.body.newPass, 10, function(err, passHash) {
+        if (err) {return sendError(req, res, err);}
+        else {
+          user.password = passHash;
+          user.inbox.threads = req.body.newThreads;
+          user.keyPublic = req.body.newKeys.pubKey;
+          user.keyPrivate = req.body.newKeys.privKey;
+          writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+        }
+      });
     }
   });
 });
@@ -2934,11 +2972,11 @@ app.post('/passResetRequest', function (req, res) {
                   text: `visit the following link to reset your schlaugh password: https://www.schlaugh.com/~recovery/`+codeID+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
                   html: `<a href="https://www.schlaugh.com/~recovery/`+codeID+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+codeID+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret. But if you need additional assistance accessing your account please do contact schlaugh@protonmail.com`,
                 };
-                sgMail.send(msg, (error, result) => {
-                  if (error) {return sendError(req, res, errMsg+"email server malapropriationologification");}
-                  else {
+                // sgMail.send(msg, (error, result) => {
+                //   if (error) {return sendError(req, res, errMsg+"email server malapropriationologification");}
+                //   else {
                     var newCode = {
-                      code: codeID,
+                      _id: codeID,
                       username: usernameHash,
                       attempts: 0,
                       creationTime: new Date(),
@@ -2948,8 +2986,8 @@ app.post('/passResetRequest', function (req, res) {
                       // victory state
                       writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
                     });
-                  }
-                });
+                //   }
+                // });
               }
             });
           });
@@ -2974,7 +3012,7 @@ app.get('/~recovery/:code', function (req, res) {
           return res.render('layout', {initProps:{user:false, recovery:true, code: false}});
         });
       } else {
-        return res.render('layout', {initProps:{user:false, recovery:true, code: code.code}});
+        return res.render('layout', {initProps:{user:false, recovery:true, code: code._id}});
       }
     }
   });
@@ -3007,7 +3045,8 @@ app.post('/resetNameCheck', function (req, res) {
                     if (!userID) {return sendError(req, res, errMsg+"user not found");}
 
                     // keys are tied to pass, clear keys, new keys created on sign in
-                    var userObj = {password: passHash, keys:null, _id:userID}
+
+                    var userObj = {password: passHash, keyPublic:null, keyPrivate:null, _id:userID}
 
                     writeToUser(req, res, errMsg, userObj, function () {
                       dbDeleteByID(req, res, errMsg, 'resetCodes', code._id, function () {
@@ -3110,7 +3149,8 @@ var getOnePageOfAnAuthorsPosts = function(req, res) {
   var authorID = req.body.author;
   //
   checkForUserUpdates(req, res, errMsg, authorID, function () {
-    readUser(req, res, errMsg, authorID, {list:['username', 'posts', 'postList', 'iconURI', 'keys', 'inbox', 'bio']}, function(author) {
+
+    readUser(req, res, errMsg, authorID, {list:['username', 'posts', 'postList', 'iconURI', 'keyPublic', 'inbox', 'bio']}, function(author) {
       if (!author) {
         return res.send({error: false, four04: true,});      //404
       } else {
@@ -3184,7 +3224,8 @@ var getAllOfAnAuthorsPosts = function(req, res) { // this is the hack for "searc
   var authorID = req.body.author;
   //
   checkForUserUpdates(req, res, errMsg, authorID, function () {
-    readUser(req, res, errMsg, authorID, {list:['username', 'posts', 'postList', 'iconURI', 'keys', 'inbox', 'bio']}, function(author) {
+
+    readUser(req, res, errMsg, authorID, {list:['username', 'posts', 'postList', 'iconURI', 'keyPublic', 'inbox', 'bio']}, function(author) {
       if (!author) {
         return res.send({error: false, four04: true,});      //404
       } else {
@@ -3240,7 +3281,7 @@ var getAuthorInfo = function (author, req) {
     var userID = ObjectId(req.session.user._id);
     if (author.inbox && author.inbox.threads) {
       if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
-        if (author.keys) {key = author.keys.pubKey}
+        if (author.keyPublic) {key = author.keyPublic}
       }
     }
   }
@@ -3259,7 +3300,8 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
   if (!req.body.author || !req.body.date || !pool.isStringValidDate(req.body.date)) {return sendError(req, res, errMsg+"malformed request 513");}
   var authorID = req.body.author;
   checkForUserUpdates(req, res, errMsg, authorID, function () {
-    readUser(req, res, errMsg, authorID, {list:['username', 'iconURI', 'keys', 'inbox', 'bio'], dates:[req.body.date]}, function(author) {
+
+    readUser(req, res, errMsg, authorID, {list:['username', 'iconURI', 'keyPublic', 'inbox', 'bio'], dates:[req.body.date]}, function(author) {
       if (!author) {return sendError(req, res, errMsg+ "author not found");}
       //
       var data = {error: false,}
@@ -3293,7 +3335,8 @@ var getAllOfAnAuthorsPostsWithTag = function (req, res) {
   if (!req.body || !req.body.author || req.body.tag === undefined) {return sendError(req, res, errMsg+"malformed request 400");}
   var authorID = req.body.author;
   checkForUserUpdates(req, res, errMsg, authorID, function () {
-    readUser(req, res, errMsg, authorID, {list:['username','posts','postList', 'iconURI', 'keys', 'inbox', 'bio']}, function(author) {
+
+    readUser(req, res, errMsg, authorID, {list:['username','posts','postList', 'iconURI', 'keyPublic', 'inbox', 'bio']}, function(author) {
       if (!author) { return res.send({error: false, four04: true,}); }      //404
       //
       var authorPic = getUserPic(author);
