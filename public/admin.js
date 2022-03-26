@@ -217,20 +217,3 @@ var getTag = function () {
     console.log(json);
   });
 }
-
-var startKeyConvert = function () {
-  ajaxCall('/admin/startKeyConvert', 'POST', {}, function(json) {
-    console.log('beggining conversion of '+json.length);
-    keyConvert(json, 0, 40);
-  });
-}
-var keyConvert = function (arr, i, batchSize) {
-  console.log("doing "+i+" to "+(i+batchSize-1));
-  ajaxCall('/admin/keyConvert', 'POST', {arr:arr.slice(i,i+batchSize)}, function(json) {
-    if (i+batchSize > arr.length) {
-      console.log('diggity done');
-    } else {
-      keyConvert(arr, i+batchSize, batchSize);
-    }
-  });
-}

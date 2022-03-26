@@ -1,5 +1,22 @@
 version: "2"
 services:
+  mongo:
+    container_name: mongo
+    image: mongo
+    command: mongod --quiet --logpath /dev/null
+    volumes:
+      - ./data:/data
+    ports:
+      - "27017:27017"
+  dynamodb-local:
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    image: "amazon/dynamodb-local:latest"
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./docker/dynamodb:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
   app:
     container_name: app
     restart: always
@@ -13,13 +30,7 @@ services:
       - ./server.js:/usr/app/server.js
     links:
       - mongo
+      - dynamodb-local
     depends_on:
       - mongo
-  mongo:
-    container_name: mongo
-    image: mongo
-    command: mongod --quiet --logpath /dev/null
-    volumes:
-      - ./data:/data
-    ports:
-      - "27017:27017"
+      - dynamodb-local

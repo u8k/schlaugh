@@ -970,6 +970,8 @@ slogan {
   user-select: text;
   max-width: 100%;
   text-align: inherit;
+  font-style: inherit;
+  font-weight: inherit;
 }
 
 .meta-panel-button {

@@ -19,6 +19,8 @@
     "express-sslify": "^1.2.0",
     "mongodb": "^3.1.13",
     "request": "^2.85.0",
-    "rss": "^1.2.2"
+    "rss": "^1.2.2",
+	"@aws-sdk/lib-dynamodb": "^3.53.0",
+	"@aws-sdk/client-dynamodb": "^3.53.0"
   }
 }

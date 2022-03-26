@@ -6,11 +6,10 @@ var bcrypt = require('bcryptjs');
 var mongodb = require('mongodb');
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
-var request = require('request');
+var requestModule = require('request');
 var enforce = require('express-sslify');
 var RSS = require('rss');
 var fs = require("fs");
-var path = require('path');
 var pool = require('./public/pool.js');
 var schlaunquer = require('./public/schlaunquer.js');
 var adminB = require('./public/adminB.js');
@@ -24,7 +23,7 @@ var dbURI = process.env.ATLAS_DB_KEY || 'mongodb://mongo:27017/schlaugh';
 MongoClient.connect(dbURI, { useUnifiedTopology: true }, function(err, database) {
   if (err) {throw err;}
   else {
-    console.log("MONGO IS ALIVE");
+    //console.log("MONGO IS ALIVE");
     db = database.db("heroku_kr76r150");
   }
 });
@@ -192,7 +191,7 @@ var imageValidate = function (arr, callback, byteLimit) {
     }
     for (var i = 0; i < arr.length; i++) {
       (function (index) {
-        request.head(arr[index], function (error, resp) {
+        requestModule.head(arr[index], function (error, resp) {
           if (count > 0) {
             count -=1;
             if (error || resp.statusCode !== 200) {
@@ -240,7 +239,7 @@ var linkValidate = function (arr, callback) {
       wrapUpLinkValidate(i, problems);
     }, 4000);
 
-    request.head(url, function (error, resp) {
+    requestModule.head(url, function (error, resp) {
       if (linkTimer !== null) { // otherwise, the timer already went off and this link has already been marked as bad, so do nothing
         clearTimeout(linkTimer);
         if (error || !resp || !resp.statusCode) {
@@ -1561,36 +1560,6 @@ app.post('/admin/getTag', function(req, res) {
     });
   });
 });
-
-
-app.post('/admin/startKeyConvert', function(req, res) {
-  adminGate(req, res, function () {
-    readMultiUsers(req, res, '/admin/startKeyConvert errMsg', null, {list:['keys'],}, function (users) {
-      return res.send(users);
-    });
-  });
-});
-app.post('/admin/keyConvert', function(req, res) {
-  adminGate(req, res, function () {
-    console.log('beepBoop');
-    convertKeys(req, res, 'keyConvert errMsg<br><br>', req.body.arr, 0, function () {
-      return res.send({});
-    });
-  });
-});
-var convertKeys = function (req, res, errMsg, arr, i, callback) {
-  if (!arr[i]) { return callback(); }
-  if (arr[i].keys && arr[i].keys.privKey && arr[i].keys.pubKey) {
-    arr[i].keyPublic = arr[i].keys.pubKey;
-    arr[i].keyPrivate = arr[i].keys.privKey;
-
-    writeToUser(req, res, errMsg, arr[i], function () {
-      return convertKeys(req, res, errMsg, arr, i+1, callback);
-    });
-  } else {
-    return convertKeys(req, res, errMsg, arr, i+1, callback);
-  }
-}
 
 
 
@@ -3302,29 +3271,32 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
   checkForUserUpdates(req, res, errMsg, authorID, function () {
 
     readUser(req, res, errMsg, authorID, {list:['username', 'iconURI', 'keyPublic', 'inbox', 'bio'], dates:[req.body.date]}, function(author) {
-      if (!author) {return sendError(req, res, errMsg+ "author not found");}
-      //
       var data = {error: false,}
-      if (req.body.needAuthorInfo) {
-        data.authorInfo = getAuthorInfo(author, req);
-      }
-      if (author.posts && author.posts[req.body.date] && req.body.date <= pool.getCurDate()) {
-        // strip out private posts
-        if (!author.posts[req.body.date][0].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
-          var authorPic = getUserPic(author);
-          author.posts[req.body.date][0].authorPic = authorPic;
-          author.posts[req.body.date][0].author = author.username;
-          author.posts[req.body.date][0]._id = author._id;
-          author.posts[req.body.date][0].date = req.body.date;
-          data.posts = [author.posts[req.body.date][0]];
-        } else {
-          data.authorInfo = null;
-          data.four04 = true;
-          data.existed = true;
+      //
+      if (!author) {data.four04 = true;}
+      else {
+        if (req.body.needAuthorInfo) {
+          data.authorInfo = getAuthorInfo(author, req);
         }
-      } else {
-        data.four04 = true;
+        if (author.posts && author.posts[req.body.date] && req.body.date <= pool.getCurDate()) {
+          // strip out private posts
+          if (!author.posts[req.body.date][0].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
+            var authorPic = getUserPic(author);
+            author.posts[req.body.date][0].authorPic = authorPic;
+            author.posts[req.body.date][0].author = author.username;
+            author.posts[req.body.date][0]._id = author._id;
+            author.posts[req.body.date][0].date = req.body.date;
+            data.posts = [author.posts[req.body.date][0]];
+          } else {
+            data.authorInfo = null;
+            data.four04 = true;
+            data.existed = true;
+          }
+        } else {
+          data.four04 = true;
+        }
       }
+      //
       return res.send(data);
     });
   });
@@ -3823,7 +3795,7 @@ app.get('/:author', function(req, res) {
 app.set('port', (process.env.PORT || 3000));
 // Start Server
 app.listen(app.get('port'), function(){
-  console.log('Servin it up fresh on port ' + app.get('port') + '!');
+  //console.log('Servin it up fresh on port ' + app.get('port') + '!');
 });
 
 // If the Node process ends, close the DB connection
