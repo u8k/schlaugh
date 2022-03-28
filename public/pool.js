@@ -104,6 +104,14 @@
       if (next === -1) {return buttonUp(b, i, a, u, s, cut, code, ascii, secret, spoil, li, ul, ol, l, r, c, quote, note, imgList, linkList);}
       else {
         pos += next;
+
+        var close = string.substr(pos).search(/[ >]/);
+        if (close > 0) {
+          var tag = string.substr(pos+1,close-1);
+          string = string.substr(0,pos+1) + tag.toLowerCase() + string.substr(pos+close);
+        }
+
+
         if (string.substr(pos+1,2) === "b>" && !b) {
           b = true;
           pos += 2;

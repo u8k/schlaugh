@@ -1464,14 +1464,18 @@ app.post('/admin/users', function(req, res) {
 });
 
 app.post('/admin/userUrls', function(req, res) {
-  dbReadMany(req, res, 'userUrls errMsg', 'userUrls', null, null, function (userUrls) {
-    return res.send(userUrls);
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'userUrls errMsg', 'userUrls', null, null, function (userUrls) {
+      return res.send(userUrls);
+    });
   });
 });
 
 app.post('/admin/stats', function(req, res) {
-  dbReadMany(req, res, 'stats errMsg', 'stats', null, null, function (stats) {
-    return res.send(stats);
+  adminGate(req, res, function () {
+    dbReadMany(req, res, 'stats errMsg', 'stats', null, null, function (stats) {
+      return res.send(stats);
+    });
   });
 });
 
