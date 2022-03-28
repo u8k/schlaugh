@@ -1354,11 +1354,11 @@ var writeToUser = function (req, res, errMsg, userObj, callback) {
 }
 
 var createUserUrl = function (req, res, errMsg, username, authorID, callback) {    //creates a listing in the userUrl collection
-  if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
+  if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+"invalid authorID format");}
   authorID = ObjectId(authorID);
   var urlObject = {_id: username.toLowerCase(), authorID: authorID}
   dbCreateOne(req, res, errMsg, 'userUrls', urlObject, function (newID) {
-    return callback({error:false});
+    return callback();
   });
 }
 
@@ -1460,6 +1460,12 @@ app.post('/admin/users', function(req, res) {
     readMultiUsers(req, res, '/admin/users errMsg', null, {list:props,}, function (users) {
       return res.send(users);
     });
+  });
+});
+
+app.post('/admin/userUrls', function(req, res) {
+  dbReadMany(req, res, 'userUrls errMsg', 'userUrls', null, null, function (userUrls) {
+    return res.send(userUrls);
   });
 });
 
@@ -2805,15 +2811,19 @@ app.post('/changeUsername', function (req, res) {
         user.username = req.body.newName;
         if (!user.settings) {user.settings = {}};
         user.settings.dateOfPreviousNameChange = pool.getCurDate();
-        writeToUser(req, res, errMsg, user, function () {
-          if (req.body.newName.toLowerCase() !== oldName) { // this check is in case they were only changing capitalization
-            createUserUrl(req, res, errMsg, req.body.newName.toLowerCase(), user._id, function () {
-              dbDeleteByID(req, res, errMsg, 'userUrls', oldName, function () {
+        if (req.body.newName.toLowerCase() !== oldName) { // this check is in case they were only changing capitalization
+          createUserUrl(req, res, errMsg, req.body.newName.toLowerCase(), user._id, function () {
+            dbDeleteByID(req, res, errMsg, 'userUrls', oldName, function () {
+              writeToUser(req, res, errMsg, user, function () {
                 res.send({error: false, name: req.body.newName});
               });
             });
-          } else {res.send({error: false, name: req.body.newName});}
-        });
+          });
+        } else {
+          writeToUser(req, res, errMsg, user, function () {
+            res.send({error: false, name: req.body.newName});
+          });
+        }
       });
     }
   });

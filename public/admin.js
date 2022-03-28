@@ -183,6 +183,12 @@ var getDbStats = function () {
   });
 }
 
+var getUserUrls = function () {
+  ajaxCall('/admin/userUrls', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
 var getSessions = function () {
   ajaxCall('/admin/getSessions', 'POST', {}, function(json) {
     console.log(json);
