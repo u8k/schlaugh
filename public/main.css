@@ -531,6 +531,10 @@ a, a.visited {
   margin-bottom: 5px;
 }
 
+.post-header-right {
+  display: inline-block;
+}
+
 .private-indicator {
   position: absolute;
   width: 50%;
@@ -972,6 +976,7 @@ slogan {
   text-align: inherit;
   font-style: inherit;
   font-weight: inherit;
+  text-decoration: inherit;
 }
 
 .meta-panel-button {
@@ -1030,6 +1035,11 @@ l {text-align: left;}
 c {text-align: center;}
 r {text-align: right;}
 l, c, r {display: block;}
+
+b {font-weight: bold;}
+i {font-style: italic;}
+u {text-decoration: underline;}
+s {text-decoration: line-through;}
 
 quote > i {font-style: normal;}
 

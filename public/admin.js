@@ -183,6 +183,14 @@ var getDbStats = function () {
   });
 }
 
+var getStats = function () {
+  ajaxCall('/admin/stats', 'POST', {}, function(json) {
+    console.log(json);
+    var latest = json[json.length-1];
+    console.log(latest._id +": "+ String(latest.signUps) +" of "+ String(latest.rawLoads-latest.logIns))
+  });
+}
+
 var getUserUrls = function () {
   ajaxCall('/admin/userUrls', 'POST', {}, function(json) {
     console.log(json);

@@ -845,7 +845,7 @@ var validatePostURL = function (user, date, string) {
     return {user:user, url:string};
   }
   if (string.length > 60) {
-    return {error: "this is not actually an 'error', this is just me preventing you from making a url >60 characters. Like, you really want it that long? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>Worth the Candle</i> as a title in an attempt to break the site.<br><br>remember to floss!"};
+    return {error: "this is not actually an 'error', this is just me preventing you from making a url >60 characters. Like, you really want it that long? <i>Short</i> urls are typically the thing people want? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>Worth the Candle</i> as a url in an attempt to break the site.<br><br>remember to floss!"};
   }
   string = string.replace(/[^a-zA-Z0-9-_]/g, '');
   if (!user.customURLs) {user.customURLs = {}}
@@ -3437,7 +3437,7 @@ var getNthPageOfTaggedPostsByAnyAuthor = function (req, res) {
 var getAllPostsWithTagOnDate = function (req, res) {
   var errMsg = "tag fetch error<br><br>"
   if (!req.body.date || !req.body.tag) {return sendError(req, res, errMsg+"malformed request 712");}
-  if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'IT DOES NOT DO TO DWELL ON DREAMS AND FORGET TO LIVE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
+  if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'IT DOES NOT DO TO DWELL ON DREAMS AND FORGET TO LIVE', author:"APWBD", authorPic:"https://i.imgur.com/D7HXWeX.png", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
   getAuthorListFromTagListAndDate(req, res, errMsg, [req.body.tag], req.body.date, function (resp) {
     if (resp.authorList.length === 0) {
       return res.send({error:false, posts:[],});
@@ -3499,7 +3499,7 @@ app.post('/getPosts', function (req, res) {
   if (!req.body.postCode) {return sendError(req, res, errMsg+"malformed request 284");}
   var postCode = req.body.postCode;
   if (!req.body.postRef) {req.body.postRef = {}};
-  if (req.body.date && req.body.date > pool.getCurDate() && postCode !== "TFTF") {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://t2.rbxcdn.com/f997f57130195b0c44b492b1e7f1e624", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}
+  if (req.body.date && req.body.date > pool.getCurDate() && postCode !== "TFTF") {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://i.imgur.com/D7HXWeX.png", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}
   //
   // repsonse must have 'posts', and ,if not included w/ posts: 'authorData'
   if (postCode === "FTTT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}

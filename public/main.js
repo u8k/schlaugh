@@ -144,12 +144,6 @@ var getStyleSheet = function () {
       break;
     }
   }
-  if (!sheet) {
-    for (var i = 0; i < document.styleSheets.length; i++) {
-      console.log(document.styleSheets[i].href);
-    }
-    uiAlert("error, sorry!<br><br>styleSheet not found<br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!");
-  }
   return sheet;
 }
 
@@ -485,14 +479,6 @@ var loadFontsFromBank = function () {
       }
     }
   }
-}
-
-var getStats = function () {
-  ajaxCall('/admin/stats', 'POST', {}, function(json) {
-    console.log(json);
-    var latest = json[json.length-1];
-    console.log(latest._id +": "+ String(latest.signUps) +" of "+ String(latest.rawLoads-latest.logIns))
-  });
 }
 
 var openClickerGame = function () {
@@ -891,6 +877,8 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
   var startLinkPos = tagStartPos+16;
   var closePos = string.substr(startLinkPos).search(/">/);
   if (closePos === -1) {return string += '">';}
+  string = removeExtraLineBreak(string, startLinkPos+closePos+1);
+  //
   var linkText = string.substr(startLinkPos, closePos);
   var innerStartPos = startLinkPos+closePos+2;
 
@@ -924,6 +912,78 @@ var toggleSpoil = function (elem) {
   elem.classList.toggle('spoil');
 }
 
+var convertCodes = function (string, pos) {
+  // check the text between code tags,
+  //    replacing "&" with "&amp;"
+  //    and THEN replace "<" with "&lt;"
+
+  // init
+  if (!pos) {
+    pos = 0;
+  }
+
+  var next = string.substr(pos).search(/<code>/);
+  if (next === -1) {return string;}
+  else {
+    pos += next+6;
+    var endPos = string.substr(pos).search("</code>");
+    if (endPos === -1) {         //unpaired code tag
+      var newString = string.substr(pos).replace(/&/g, '&amp;');
+      newString = newString.replace(/</g, '&lt;');
+      string = string.substr(0,pos)+newString+"</code>";
+    } else {
+      var newString = string.substr(pos, endPos).replace(/&/g, '&amp;');
+      newString = newString.replace(/</g, '&lt;');
+      string = string.substr(0,pos)+newString+string.substr(pos+endPos);
+      pos += endPos+1;
+    }
+    return convertCodes(string, pos+1);
+  }
+}
+
+var sanctionedTagRef = {
+  'b':true,
+  '/b':true,
+  'i':true,
+  '/i':true,
+  'u':true,
+  '/u':true,
+  's':true,
+  '/s':true,
+  'l':true,
+  '/l':true,
+  'c':true,
+  '/c':true,
+  'r':true,
+  '/r':true,
+  'cut':true,
+  '/cut':true,
+  'note':true,
+  '/note':true,
+  'code':true,
+  '/code':true,
+  'ascii':true,
+  '/ascii':true,
+  'secret':true,
+  '/secret':true,
+  'spoil':true,
+  '/spoil':true,
+  'quote':true,
+  '/quote':true,
+  'li':true,
+  '/li':true,
+  'ul':true,
+  '/ul':true,
+  'ol':true,
+  '/ol':true,
+  'a':true,
+  '/a':true,
+  "img":true,
+  "br":true,
+  "br/":true,
+  "hr/":true,
+  "hr":true,
+}
 var selfClosingTagRef = {
   "img":true,
   "br":true,
@@ -932,7 +992,35 @@ var selfClosingTagRef = {
   "hr":true,
 }
 
-var deWeaveAndRemoveUnmatchedTags = function (string, pos, tagStack) {
+var tagsThatForceNewLine = {
+  'l':true,
+  '/l':true,
+  'c':true,
+  '/c':true,
+  'r':true,
+  '/r':true,
+  'ascii':true,
+  '/ascii':true,
+  'quote':true,
+  '/quote':true,
+  'li':true,
+  '/li':true,
+  'ul':true,
+  '/ul':true,
+  'ol':true,
+  '/ol':true,
+  "hr/":true,
+  "hr":true,
+  "img":true,
+}
+var removeExtraLineBreak = function (string, pos) {
+  if (string.substr(pos+1,4) === "<br>") {
+    string = string.substr(0,pos) + string.substr(pos+4);
+  }
+  return string;
+}
+
+var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack) {
     // init
     if (!pos) {
       pos = 0; tagStack = [];
@@ -949,40 +1037,57 @@ var deWeaveAndRemoveUnmatchedTags = function (string, pos, tagStack) {
     // get text following <, up to a space or ">"
     var close = string.substr(pos).search(/[ >]/);
     var tag = string.substr(pos, close);
-    //
-    if (selfClosingTagRef[tag]) {
-      // do nothing
-    } else {
+
+    // is this an allowed tag at all?
+    if (!sanctionedTagRef[tag.toLowerCase()] && !extracting) {
+      // no, kill it
+      string = string.substr(0,pos-1) + '&lt;' + string.substr(pos);
+
+    } else {  // tag is allowed
+      // force it to lowercase
+      string = string.substr(0,pos) + tag.toLowerCase() + string.substr(pos+close);
+      //
+      if (tag === "img") { close = string.substr(pos).search(/[>]/);}
+      //
       pos += close;
-      if (tag.substr(0,1) === "/") {  //if closing, then first make sure it's in the tag stack at all, if not: remove it
-        tag = tag.substr(1);
-        var isOpen = false;
-        for (var i = 0; i < tagStack.length; i++) {
-          if (tagStack[i].tag === tag) {
-            isOpen = true;
-            break;
-          }
-        }
-        if (!isOpen) {  // take out the trash
-          string = string.substr(0,pos-(tag.length+2)) + string.substr(pos+1);
-        } else {    // the tag was in the stack, and thus open, so we close it
-          // match to tag stack, closing all tags above it, and popping them and the match from the stack
-          for (var i = tagStack.length-1; i > -1; i--) {
+      //
+      if (tagsThatForceNewLine[tag] && !extracting) {
+        string = removeExtraLineBreak(string, pos);
+      }
+
+      if (selfClosingTagRef[tag]) {
+        // do nothing
+      } else {
+        if (tag.substr(0,1) === "/") {  //if closing, then first make sure it's in the tag stack at all, if not: remove it
+          tag = tag.substr(1);
+          var isOpen = false;
+          for (var i = 0; i < tagStack.length; i++) {
             if (tagStack[i].tag === tag) {
-              tagStack.pop();
+              isOpen = true;
               break;
-            } else {
-              string = insertStringIntoStringAtPos(string, "</"+tagStack[i].tag+">", (pos-close)-1);
-              pos+= tagStack[i].tag.length +3;
-              tagStack.pop();
             }
           }
+          if (!isOpen) {  // take out the trash
+            string = string.substr(0,pos-(tag.length+2)) + string.substr(pos+1);
+          } else {    // the tag was in the stack, and thus open, so we close it
+            // match to tag stack, closing all tags above it, and popping them and the match from the stack
+            for (var i = tagStack.length-1; i > -1; i--) {
+              if (tagStack[i].tag === tag) {
+                tagStack.pop();
+                break;
+              } else {
+                string = insertStringIntoStringAtPos(string, "</"+tagStack[i].tag+">", (pos-close)-1);
+                pos+= tagStack[i].tag.length +3;
+                tagStack.pop();
+              }
+            }
+          }
+        } else {  // it is an opening tag
+          tagStack.push({tag:tag});
         }
-      } else {  // it is an opening tag
-        tagStack.push({tag:tag});
       }
     }
-    return deWeaveAndRemoveUnmatchedTags(string, pos, tagStack);
+    return deWeaveAndRemoveUnmatchedTags(string, extracting, pos, tagStack);
   }
 }
 
@@ -992,7 +1097,13 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
 
   // init
   if (!pos) {
-    string = deWeaveAndRemoveUnmatchedTags(string);
+    if (!extracting) {
+      string = convertCodes(string);
+    }
+    //change /n for <br>
+    string = string.replace(/\r?\n|\r/g, '<br>');
+    string = deWeaveAndRemoveUnmatchedTags(string, extracting);
+    //
     pos = 0; elemCount = 0; tagStack = []; noteList = [];
     if (string[0] && string[0] !== "<") {
       var x = checkOrInsertElem(string, pos, id, elemCount, extracting, tagStack);
@@ -1389,33 +1500,6 @@ var findQuoteCite = function (string, pos, nestCount) {
 var insertX = function (string, pos, id, elemCount) {
   var elemID = "<x id='"+id+"-"+elemCount+"'>";
   return insertStringIntoStringAtPos(string, elemID, pos);
-}
-
-var preCleanText = function (string) {  //prep editor text for backEnd, prior to cleanse
-  if (typeof string !== "string") {return;}
-  // check the text between code tags,
-  //    replacing "&" with "&amp;"
-  //    and THEN replace "<" with "&lt;"
-  var recurse = function (pos) {
-    var next = string.substr(pos).search(/<code>/);
-    if (next === -1) {return string;}
-    else {
-      pos += next+6;
-      var endPos = string.substr(pos).search("</code>");
-      if (endPos === -1) { //unpaired code tag
-        var newString = string.substr(pos).replace(/&/g, '&amp;');
-        newString = newString.replace(/</g, '&lt;');
-        string = string.substr(0,pos)+newString+"</code>";
-      } else {
-        var newString = string.substr(pos, endPos).replace(/&/g, '&amp;');
-        newString = newString.replace(/</g, '&lt;');
-        string = string.substr(0,pos)+newString+string.substr(pos+endPos);
-        pos += endPos+1;
-      }
-      return recurse(pos+1);
-    }
-  }                               //change /n for <br>
-  return recurse(0).replace(/\r?\n|\r/g, '<br>');
 }
 
 var collapseNote = function (buttonId, innerId, expanding, postID, viaBottom) {
@@ -2488,7 +2572,7 @@ var renderOnePost = function (postData, type, postID) {
 
   // we need "uniqueID" because there can be a preview edit version of the post w/ the same id
   if (type === "preview") {
-    var uniqueID = "post-preview-"+pool.getCurDate(-1);
+    var uniqueID = "previewTomorrow";
   } else if (postData.post_id && type !== 'preview-edit') {
     var uniqueID = 'post-'+postData.post_id;
   } else {
@@ -2569,6 +2653,9 @@ var renderOnePost = function (postData, type, postID) {
     postHeader.setAttribute('class', 'post-header-feed');
 
     //
+    var postHeaderRightWrapper = document.createElement("div")
+    postHeader.appendChild(postHeaderRightWrapper);
+
     var postHeaderRight = document.createElement("a");
     postHeaderRight.setAttribute('href', "/"+postData.author);
     (function (id) {
@@ -2576,8 +2663,8 @@ var renderOnePost = function (postData, type, postID) {
         modKeyCheck(event, function(){fetchPosts(true, {postCode:'TFFF', author:id});});
       }
     })(postData._id);
-    postHeaderRight.setAttribute('class', 'clicky');
-    postHeader.appendChild(postHeaderRight);
+    postHeaderRight.setAttribute('class', 'clicky post-header-right');
+    postHeaderRightWrapper.appendChild(postHeaderRight);
 
     // authorPic
     if (postData.authorPic && postData.authorPic !== "") {
@@ -3048,11 +3135,11 @@ var quotePost = function (postData, selection, shiftDown, altDown) {
     }
 
     if (shiftDown) {  // put the quote in a note
-      var text = `<note linkText="@`+postData.author+`"><quote>`+selection+
-      '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote></note>";
+      var text = `<note linkText="@`+postData.author+`">\n<quote>\n`+selection+
+      '\n<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r>\n</quote>\n</note>";
     } else {
-      var text = "<quote>"+selection+
-      '<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r></quote>";
+      var text = "<quote>\n"+selection+
+      '\n<r><a href="/~/'+postData.post_id+'">-'+postData.author+"</a></r>\n</quote>";
     }
 
     if ($('post-editor').value !== "") {text = '<br>'+text;}
@@ -3327,7 +3414,6 @@ var editPost = function (post) {
       }
     }                                   // yes changes, send them
     loading();
-    data.text = preCleanText(data.text);
     if (onlyTheUrlHasBeenChanged) {
       data.onlyTheUrlHasBeenChanged = true;
     }
@@ -3478,7 +3564,6 @@ var editBio = function () {
       return hideWriter('old-post');
     }
     loading();
-    data.text = preCleanText(data.text);
     ajaxCall("/editOldPost", 'POST', data, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
       if (json.linkProblems) {uiAlert(json.linkProblems);}
@@ -3575,12 +3660,6 @@ var submitPost = function (remove) { //also handles editing and deleting
     });
   } else {
     loading();
-    // i wanna deweave it before sending it to DB, but before deveawing it's gotta be cleansed,
-    // but it's also gotta be cleansed again on the backend, so the double clean results in linebreaks being removed
-    // which like, line break removal shouldn't be happening in cleanse anyway...
-    // fudgie fudgie
-    //  text = deWeaveAndRemoveUnmatchedTags(pool.cleanseInputText(preCleanText(text))[1])
-    text = preCleanText(text);
     ajaxCall("/postPost", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey}, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
       var popup = false;
@@ -3933,117 +4012,8 @@ var prepTextForEditor = function (text) {
   if (text === null || text === undefined) {
     return "";
   }
-  // a bunch garbage hacking of html whitespace handling
 
-  //
-  text = text.replace(/<\/ascii>/g, '</ascii><br>');
-  text = text.replace(/<\/li>/g, '</li><br>');
-  text = text.replace(/<\/quote>/g, '</quote><br>');
-  text = text.replace(/<\/r>/g, '</r><br>');
-  text = text.replace(/<\/c>/g, '</c><br>');
-  text = text.replace(/<\/l>/g, '</l><br>');
-  text = text.replace(/<\/ol>/g, '</ol><br>');
-  text = text.replace(/<\/ul>/g, '</ul><br>');
-  //
-  text = text.replace(/<quote>/g, '<quote><br>');
-  text = text.replace(/<ascii>/g, '<ascii><br>');
-  text = text.replace(/<r>/g, '<r><br>');
-  text = text.replace(/<c>/g, '<c><br>');
-  text = text.replace(/<l>/g, '<l><br>');
-  text = text.replace(/<ol>/g, '<ol><br>');
-  text = text.replace(/<ul>/g, '<ul><br>');
-  text = text.replace(/<hr>/g, '<hr><br>');
-
-  var noteRecurse = function (pos) {
-    var next = text.substr(pos).search(/<note linkText="/);
-    if (next !== -1) {
-      pos = pos+next+15;
-      var closePos = text.substr(pos+1).search(/">/)+2;
-      if (closePos === -1) {
-        text += '">';
-        return;
-      }
-      else {
-        pos += closePos;
-        text = insertStringIntoStringAtPos(text, "<br>", pos+1);
-      }
-      noteRecurse(pos+1);
-    }
-  }
-  noteRecurse(0);
-
-  var preTagLineBreakRecurse = function (pos, tag) {
-    var next = text.substr(pos).search(tag);
-    if (next !== -1) {
-      pos = pos+next;
-      if (text.substr(pos-4, 4) !== '<br>') {
-        text = text.substr(0,pos)+'<br>'+text.substr(pos);
-      }
-      preTagLineBreakRecurse(pos+1, tag);
-    }
-  }
-  var tagArr = [/<ul>/, /<ol>/, /<li>/, /<quote>/, /<ascii>/, /<r>/, /<c>/, /<l>/, /<hr>/];
-  for (var i = 0; i < tagArr.length; i++) {
-    preTagLineBreakRecurse(1, tagArr[i]);
-  }
-
-  var imgRecurse = function (pos, singleQuote) {   //image code shows on it's own line, since it displays as block
-    if (singleQuote) {
-      var next = text.substr(pos).search(/<img src='/);
-    } else {
-      var next = text.substr(pos).search(/<img src="/);
-    }
-    if (next !== -1) {
-      pos = pos+next;
-      if (pos !== 0) {        // is there a line break before the img tag?
-        if (text.substr(pos-4, 4) !== '<br>' && text.substr(pos-5, 5) !== '<cut>') {
-          text = text.substr(0,pos)+'<br>'+text.substr(pos);
-        }
-      }
-      pos = pos+9;
-      var closePos = text.substr(pos+1).search(/>/)+2;
-      if (closePos === -1) {
-        if (singleQuote) {
-          text += "'>";
-        } else {
-          text += '">';
-        }
-        return;
-      }
-      else {
-        pos += closePos;         // is there a line break after the img tag?
-        if (text.substr(pos, 4) !== '<br>') {
-          text = text.substr(0,pos) + '<br>' + text.substr(pos);
-        }
-      }
-      imgRecurse(pos+1, singleQuote);
-    }
-  }
-  imgRecurse(0, false);
-  imgRecurse(0, true);
-
-  text = text.replace(/<br>/g, '\n');
-
-  // change the < and & back
-  var codeRecurse = function (pos) {
-    var next = text.substr(pos).search(/<code>/);
-    if (next !== -1) {
-      pos += next+6;
-      var endPos = text.substr(pos).search("</code>");
-      if (endPos === -1) { // 'should' never be the case since "cleanse" has already ran
-        return uiAlert(`error, sorry! unpaired code tag on "prepText", please show this to staff`);
-      } else {
-        var newString = text.substr(pos, endPos).replace(/&lt;/g, '<');
-        newString = newString.replace(/&amp;/g, '&');
-        text = text.substr(0,pos)+newString+text.substr(pos+endPos);
-        pos += endPos+1;
-      }
-      codeRecurse(pos+1);
-    }
-  }
-  codeRecurse (0);
-
-  return text;
+  return text.replace(/<br>/g, '\n');
 }
 
 var pingPong = function (key, delay) {
@@ -4097,7 +4067,7 @@ var showPostWriter = function (callback) {
     if (callback) {callback();}
   } else {
     if (glo.editorOpenElsewhere) {
-      verify(`schlaugh detects that you currently already have an editor open, perhaps in another tab, browser, or device? If there are unsaved changes in that editor, you won't see them here. And if you start making changes here and then save the changes there, you still won't see the changes here... In general, having multiple editors open makes overwriting yourself easy and is not recommended<br><br>are you sure you want to open this editor?`,
+      verify(`schlaugh detects that you currently already have an editor open, perhaps in another tab, browser, or device? If there are unsaved changes in <b>that</b> editor, you won't see them <b>here</b>. And if you start making changes <b>here</b> and then save the changes <b>there</b>, you still won't see those changes here... In general, having multiple editors open makes overwriting yourself easy and is not recommended<br><br>are you sure you want to open this editor?`,
       'yeah, do it anyway', 'nah, hold up', function (resp) {
         if (resp) {
           showWriter('post');
@@ -4160,11 +4130,9 @@ var resizeEditor = function (kind) {
 
   //
   if (maxHeight > newHeight && newHeight > initHeight) {
-    if (glo.username === "Akkete") { console.log('case1','maxHeight:',maxHeight, 'newHeight:',newHeight, 'initHeight:',initHeight)}
     field.style.height = newHeight + 'px';
     window.scrollTo(0, initWindowScroll);
   } else if (newHeight > maxHeight && maxHeight > initHeight) {
-    if (glo.username === "Akkete") { console.log('case2','maxHeight:',maxHeight, 'newHeight:',newHeight, 'initHeight:',initHeight)}
     field.style.height = maxHeight + 'px';
     window.scrollTo(0, $("editor-options-"+kind).getBoundingClientRect().top -5);
   } else {
@@ -4759,7 +4727,7 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     }
 
     // cleanse and image validate
-    var x = pool.cleanseInputText(preCleanText(text));
+    var x = pool.cleanseInputText(text);
     text = x[1];
 
     // fudge, need to call the backend for link checking here, x[2]
@@ -5008,7 +4976,7 @@ var unlockInbox = function (pass, callback) {     // decrypts all messages
             if (err) {
               glo.threads[i].thread[j].body = "<c>***unable to decrypt message***</c>";
             } else {
-              glo.threads[i].thread[j].body = pool.cleanseInputText(preCleanText(text))[1];
+              glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
             }
             // image validation
             //(goes here)
@@ -5187,7 +5155,6 @@ var signIn = function (url, data, callback) {
           }).then(function(encryptedMessage) {
             keys.newUserMessage = encryptedMessage.data;
             ajaxCall('/keys', 'POST', keys, function(json) {
-              if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, A <br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!"); console.log("A" ,json);};
               parseUserData(json.payload);
               unlockInbox(data.password);
               if (callback) {callback(json.payload);}
@@ -5195,7 +5162,6 @@ var signIn = function (url, data, callback) {
           });
         } else {
           ajaxCall('/keys', 'POST', keys, function(json) {
-            if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, B <br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!"); console.log("B" ,json);};
             parseUserData(json.payload);
             unlockInbox(data.password);
             if (callback) {callback(json.payload);}
@@ -5203,7 +5169,6 @@ var signIn = function (url, data, callback) {
         }
       });
     } else {
-      if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, C <br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!"); console.log("C" ,json);};
       parseUserData(json.payload);
       unlockInbox(data.password);
       if (callback) {callback(json.payload);}
@@ -5482,7 +5447,6 @@ var initSchlaugh = function (user, callback) {
       //  with a persistent login cookie, such that they will have to sign in and make keys
       if (json.needKeys) {return signOut();}
       else {
-        if (!json.payload) {uiAlert("ERROR! SORRY!<br><br>undefined data payload, D <br><br>(if on a desktop browser) please press F12 to open your console, and then screenshot whatever is there and show it to @staff<br><br>thank you!"); console.log("D" ,json);};
         parseUserData(json.payload);
         if (callback) {callback();}
       }
