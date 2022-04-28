@@ -1045,7 +1045,8 @@ var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack)
 
     } else {  // tag is allowed
       // force it to lowercase
-      string = string.substr(0,pos) + tag.toLowerCase() + string.substr(pos+close);
+      tag = tag.toLowerCase();
+      string = string.substr(0,pos) + tag + string.substr(pos+close);
       //
       if (tag === "img") { close = string.substr(pos).search(/[>]/);}
       //
