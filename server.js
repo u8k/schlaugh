@@ -2035,13 +2035,14 @@ app.post('/postPost', function(req, res) {
   if (!req.body || !req.body.key) {return sendError(req, res, errMsg+"malformed request 119");}
   //
   readCurrentUser(req, res, errMsg, {list:['posts','username', 'postList', 'postListPending','postListUpdatedOn', 'customURLs']}, function (user) {
+    var userID = user._id;
     pushNewToPostlist(user);
 
     var tmrw = pool.getCurDate(-1);
     var x = pool.cleanseInputText(req.body.body);
     if (req.body.remove || (x[1] === "" && !req.body.tags && !req.body.title)) {                 //remove pending post, do not replace
       deletePost(req, res, errMsg, user, tmrw, function () {
-        pongOnPostSubmit(user._id, req.body.key, false);
+        pongOnPostSubmit(userID, req.body.key, false);
         return res.send({error:false, body:"", tags:{}, title:""});
       });
     } else {
@@ -2060,9 +2061,9 @@ app.post('/postPost', function(req, res) {
         //
         imageValidate(x[0], function (resp) {
           if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          updateUserPost(req, res, errMsg, x[1], tags, title, url, user._id, user, function () {
+          updateUserPost(req, res, errMsg, x[1], tags, title, url, userID, user, function () {
             writeToUser(req, res, errMsg, user, function () {
-              pongOnPostSubmit(user._id, req.body.key, {body:x[1], tags:tags, title:title, url:url});
+              pongOnPostSubmit(userID, req.body.key, {body:x[1], tags:tags, title:title, url:url});
               return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
             });
           });
