@@ -124,7 +124,13 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [prepTextForRender(`123<note linkText="">aaaa</note>456`,`id`,null,{startElem:0, endElem:3, startOffset:2, endOffset:1}), `3<note linkText="">a</note>`],
   [prepTextForRender(`123<note linkText="">aaaa</note>456`,`id`,null,{startElem:3, endElem:4, startOffset:3, endOffset:1}), `<note linkText="">a</note>4`],
   [prepTextForRender(`123<note linkText="">aaaa</note>456`,`id`,null,{startElem:3, endElem:3, startOffset:1, endOffset:3}), "aa"],
+  [prepTextForRender(`bipo <code><code></code> zipo`,`id`,null,{startElem:0, endElem:2, startOffset:3, endOffset:2}), "o <code><code></code> z"],
   [prepTextForRender(`<quote>test<br><r><a href="http://butts.cash">-cite</a><br></r></quote>`, 'id', 'preview').string, `<quote><x id='id-0'>test</x><br><r><a class='clicky special ex-link' target="_blank" href="http://butts.cash"><x id='id-1'>-cite</x></a><br></r></quote>`],
+  // #105
+  [unConvertCodes(convertCodes(`<code>&lt; <code> <<<&& a</code>`)), `<code>&lt; <code> <<<&& a</code>`],
+  [prepTextForRender(`<nonTag>abcdefg<nonTag>1234`,`id`,null,{startElem:0, endElem:0, startOffset:10, endOffset:13}), "cde"],
+  [prepTextForRender(`<nonTag>abcdefg<nonTag>1234`,`id`,null,{startElem:0, endElem:0, startOffset:19, endOffset:22}), "Tag"],
+  [prepTextForRender(`<nonTag>abcdefg<nonTag>1234`,`id`,null,{startElem:0, endElem:0, startOffset:22, endOffset:26}), ">123"],
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,
@@ -179,7 +185,14 @@ var getErrorLogs = function () {
 
 var getDbStats = function () {
   ajaxCall('/admin/getDbStats', 'POST', {}, function(json) {
-    console.log(json);
+    // console.log(json);
+    var readUnits = 0;
+    var writeUnits = 0;
+    for (var i = 0; i < 32; i++) {
+      readUnits += json[(json.length - 1) - i].read;
+      writeUnits += json[(json.length - 1) - i].write;
+    }
+    console.log("since " +json[(json.length - 1) - 31]._id + "(inclusive):\n readUnits: "+readUnits+"\n writeUnits: "+writeUnits);
   });
 }
 

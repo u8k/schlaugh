@@ -940,6 +940,30 @@ var convertCodes = function (string, pos) {
     return convertCodes(string, pos+1);
   }
 }
+var unConvertCodes = function (string, pos) {
+  // for quoting, this does the opposite of convertCodes
+  if (!pos) {
+    pos = 0;
+  }
+
+  var next = string.substr(pos).search(/<code>/);
+  if (next === -1) {return string;}
+  else {
+    pos += next+6;
+    var endPos = string.substr(pos).search("</code>");
+    if (endPos === -1) {         //unpaired code tag
+      var newString = string.substr(pos).replace(/&lt;/g, '<');
+      newString = newString.replace(/&amp;/g, '&');
+      string = string.substr(0,pos)+newString+"</code>";
+    } else {
+      var newString = string.substr(pos, endPos).replace(/&lt;/g, '<');
+      newString = newString.replace(/&amp;/g, '&');
+      string = string.substr(0,pos)+newString+string.substr(pos+endPos);
+      pos += endPos+1;
+    }
+    return unConvertCodes(string, pos+1);
+  }
+}
 
 var sanctionedTagRef = {
   'b':true,
@@ -983,6 +1007,17 @@ var sanctionedTagRef = {
   "br/":true,
   "hr/":true,
   "hr":true,
+}
+var extraSanctionedTagRef = {
+  "x":true,
+  "icon":true,
+  "/icon":true,
+  "button":true,
+  "/button":true,
+  "innerNote":true,
+  "/innerNote":true,
+  "innerCut":true,
+  "/innerCut":true,
 }
 var selfClosingTagRef = {
   "img":true,
@@ -1045,7 +1080,9 @@ var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack)
 
     } else {  // tag is allowed
       // force it to lowercase
-      tag = tag.toLowerCase();
+      if (sanctionedTagRef[tag.toLowerCase()]) {
+        tag = tag.toLowerCase();
+      }
       string = string.substr(0,pos) + tag + string.substr(pos+close);
       //
       if (tag === "img") { close = string.substr(pos).search(/[>]/);}
@@ -1098,9 +1135,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
 
   // init
   if (!pos) {
-    if (!extracting) {
-      string = convertCodes(string);
-    }
+    string = convertCodes(string);
     //change /n for <br>
     string = string.replace(/\r?\n|\r/g, '<br>');
     string = deWeaveAndRemoveUnmatchedTags(string, extracting);
@@ -1157,7 +1192,10 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         string = x.string;
         elemCount++;
       }
-    } else {
+    } else if (sanctionedTagRef[tag] || extraSanctionedTagRef[tag]) {
+        // if sanctioned, then lowercasing it was already taken care of in earlier validation
+        // also, if NOT sanctioned, that means we're extracting
+        //  because when not extracting we already killed non sanctiond tags
       pos += close;
       if (tag.substr(0,1) === "/") {                           // it is a closingTag,
         tag = tag.substr(1);
@@ -1197,7 +1235,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
             elemCount++;
           }
 
-      } else {  // it is an opening tag
+      } else {                        // it is an opening tag
         if (tag === "note") {                               // do note conversion stuff
           if (extracting) {
             elemCount+=2;
@@ -1441,7 +1479,7 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
         }
       }
 
-      extracting.returnString = string;
+      extracting.returnString = unConvertCodes(string);
     }
   } else {
     string = insertX(string, pos, id, elemCount);
@@ -4014,6 +4052,7 @@ var prepTextForEditor = function (text) {
     return "";
   }
 
+  // posts are now stored with "\n"s anyway, but this covers if it's quoting/editing an old post w/ "<br>s"
   return text.replace(/<br>/g, '\n');
 }
 

@@ -23,7 +23,6 @@ var dbURI = process.env.ATLAS_DB_KEY || 'mongodb://mongo:27017/schlaugh';
 MongoClient.connect(dbURI, { useUnifiedTopology: true }, function(err, database) {
   if (err) {throw err;}
   else {
-    //console.log("MONGO IS ALIVE");
     db = database.db("heroku_kr76r150");
   }
 });
@@ -53,9 +52,15 @@ app.use(session({
   maxAge: 90 * 24 * 60 * 60 * 1000, // (90 days?)
 }))
 
+var devFlag = false;  //NEVER EVER LET THIS BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
+
 // enforce https, "trustProtoHeader" is because heroku proxy
 // very silly hack to make it not enforce https on local...
-if (process.env.ATLAS_DB_KEY) {app.use(enforce.HTTPS({ trustProtoHeader: true }))}
+if (process.env.ATLAS_DB_KEY) {
+  app.use(enforce.HTTPS({ trustProtoHeader: true }));
+} else {
+  devFlag = true; // on production we'll always have the DB key, so if we don't have the DB key, put it in dev mode
+}
 
 // sendgrid email config
 var sgMail = require('@sendgrid/mail');
@@ -1143,7 +1148,8 @@ var cancelDbTimer = function (timer, callback) {
   clearTimeout(timer);
   return callback();
 }
-//
+
+// CRUD (or RRRCUD)
 var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, callback) {
   // 'collection' is the name of the database table, 'projection' is output from 'getProjection'
   //
@@ -1288,6 +1294,7 @@ var dbDeleteByID = function (req, res, errMsg, collection, _id, callback) {
   });
 }
 
+//
 var incrementDbStat = function (kind, amount) {
   var date = pool.getCurDate();
   // does statBucket already exist for day?
@@ -1314,7 +1321,6 @@ var incrementDbStat = function (kind, amount) {
   });
 }
 
-//
 var readUser = function (req, res, errMsg, userID, propRef, callback) {
   if (!ObjectId.isValid(userID)) {return sendError(req, res, errMsg+"invalid userID format");}
   dbReadOneByID(req, res, errMsg, 'users', ObjectId(userID), getProjection(propRef.list, propRef.dates), function (user) {
@@ -1372,12 +1378,9 @@ var getUserIdFromName = function (req, res, errMsg, username, callback) {
   });
 }
 
-//*******//ROUTING//*******//
+
 
 // admin
-var devFlag = false;
-  // ^ NEVER EVER LET THAT BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
-
 var adminGate = function (req, res, callback) {
   if (devFlag) {return callback(res);}
   if (!req.session.user) {
@@ -1430,8 +1433,7 @@ app.get('/admin', function(req, res) {
         [getProjection(['username', 'iconURI', 'pendingUpdates', 'bio'], ['2020-03-01']).projection['posts.2020-03-01'], 1],
       ]
     );
-    if (!devFlag) {return res.render('admin', { results:results });}
-    else {res.render('admin', { results:results });}
+    res.render('admin', { results:results });
   });
 });
 
@@ -1570,7 +1572,6 @@ app.post('/admin/getTag', function(req, res) {
     });
   });
 });
-
 
 
 
@@ -1903,9 +1904,6 @@ app.post('/~setSchlaunquerBookmark', function(req, res) {
   });
 });
 
-
-
-// ********** ~~~~****~~~~****~~~~ *********** //
 
 
 // main page, and panels
@@ -3809,7 +3807,7 @@ app.get('/:author', function(req, res) {
 app.set('port', (process.env.PORT || 3000));
 // Start Server
 app.listen(app.get('port'), function(){
-  //console.log('Servin it up fresh on port ' + app.get('port') + '!');
+  //
 });
 
 // If the Node process ends, close the DB connection
