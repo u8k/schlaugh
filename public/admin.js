@@ -131,6 +131,12 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [prepTextForRender(`<nonTag>abcdefg<nonTag>1234`,`id`,null,{startElem:0, endElem:0, startOffset:10, endOffset:13}), "cde"],
   [prepTextForRender(`<nonTag>abcdefg<nonTag>1234`,`id`,null,{startElem:0, endElem:0, startOffset:19, endOffset:22}), "Tag"],
   [prepTextForRender(`<nonTag>abcdefg<nonTag>1234`,`id`,null,{startElem:0, endElem:0, startOffset:22, endOffset:26}), ">123"],
+  [prepTextForRender(`abc <code><code></code> def`,`id`,null,{startElem:1, endElem:1, startOffset:1, endOffset:5}), "<code>code</code>"],
+  // 110
+  [prepTextForRender(`abc <code><code></code> def`,`id`,null,{startElem:0, endElem:1, startOffset:2, endOffset:4}), "c <code><cod</code>"],
+  [prepTextForRender(`abc <code><code></code> def`,`id`,null,{startElem:1, endElem:2, startOffset:4, endOffset:2}), "<code>e></code> d"],
+  [prepTextForRender(`abc <code><<<<<<<<code></code> defaoeu`,`id`,null,{startElem:2, endElem:2, startOffset:3, endOffset:6}), "fao"],
+  [prepTextForRender(`<u><i><butt></i></u>`,`id`,null,{startElem:0, endElem:0, startOffset:1, endOffset:5}), "butt"],
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,

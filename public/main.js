@@ -954,7 +954,7 @@ var unConvertCodes = function (string, pos) {
     if (endPos === -1) {         //unpaired code tag
       var newString = string.substr(pos).replace(/&lt;/g, '<');
       newString = newString.replace(/&amp;/g, '&');
-      string = string.substr(0,pos)+newString+"</code>";
+      string = string.substr(0,pos)+newString;        // do NOT throw on the closing tag
     } else {
       var newString = string.substr(pos, endPos).replace(/&lt;/g, '<');
       newString = newString.replace(/&amp;/g, '&');
@@ -1356,15 +1356,23 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
       for (var i = 0; i < tagStack.length; i++) {
         extracting.startTags.push(tagStack[i]);
       }
+
     }
     if (extracting.endElem === elemCount) {
       extracting.done = true;
       if (extracting.elemStartPos === undefined) {
         return {error:"selection not found"}
       }
+      var startElem = unConvertCodeInOneElem(string, extracting.elemStartPos);
+      string = startElem.string;
+      var endElem = unConvertCodeInOneElem(string, pos);
+      string = endElem.string;
+      if (extracting.startElem !== extracting.endElem) {
+        pos = pos - startElem.offset;
+      }
 
-      var startPos = extracting.elemStartPos+extracting.startOffset;
-      var endPos = pos+extracting.endOffset;
+      var startPos = extracting.elemStartPos + extracting.startOffset;
+      var endPos = pos + extracting.endOffset;
 
       var prepend = "";
       var append = "";
@@ -1410,8 +1418,14 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
           append = append2 + append;
         }
       }
-      var oldString = string;
-      var string = prepend+string.substr(startPos ,endPos-startPos)+append;
+
+      // adjust endpoints for codeConversion
+      startPos = startPos - (string.substr(0, startPos).length - unConvertCodes(string.substr(0, startPos)).length);
+      endPos = endPos - (string.substr(0, endPos).length - unConvertCodes(string.substr(0, endPos)).length);
+      //
+      string = unConvertCodes(string);
+      var snip = string.substr(startPos, endPos-startPos);
+      string = prepend+snip+append;
 
       if (extracting.startTags && extracting.startTags.length) {
         // check if we're nested inside note tags, and if so remove the outer ones we don't want
@@ -1479,12 +1493,27 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
         }
       }
 
-      extracting.returnString = unConvertCodes(string);
+      extracting.returnString = string;
     }
   } else {
     string = insertX(string, pos, id, elemCount);
   }
   return {extracting: extracting, string: string};
+}
+
+var unConvertCodeInOneElem = function (string, pos) {
+  // convert '&lt;' to '<' just on the elem
+  var elemEndPos = string.substring(pos).search(/</)+1;
+  if (elemEndPos === 0) {
+    elemEndPos = string.length;
+  }
+  var preElem = string.substring(0, pos);
+  var elem = string.substring(pos, pos+elemEndPos).replace(/&lt;/g, '<');
+  var postElem = string.substring(pos+elemEndPos);
+  //
+  var newString = preElem+elem+postElem;
+  var offset = string.length - newString.length;
+  return {string:newString, offset:offset};
 }
 
 var findClosingNoteTag = function (string, pos, noteCount) {
