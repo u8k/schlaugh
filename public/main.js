@@ -3565,7 +3565,9 @@ var updatePendingEdit = function (post, bio) {
     $('write-old-post-button').innerHTML = "edit edit";
   }
   if (post.onlyTheUrlHasBeenChanged) {
-    uiAlert(`successfull url edit<br>post is accessible now at:<br><a class='special' target='_blank' href='/`+glo.username+"/"+post.url+"'>schlaugh.com/"+glo.username+"/"+post.url+"</a>")
+    uiAlert(`successfull url edit<br><br>post is accessible now at:<br><a class='special' target='_blank' href='/`+glo.username+"/"+post.url+"'>schlaugh.com/"+glo.username+"/"+post.url+"</a>");
+    hideWriter('old-post');
+    return;
   } else {
     var tags = getTagString(post.tags);
     $('old-tag-input').value = tags;

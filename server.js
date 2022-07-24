@@ -2083,45 +2083,51 @@ app.post('/editOldPost', function (req, res) {
     checkForUserUpdates(req, res, errMsg, userID, function () {
       readCurrentUser(req, res, errMsg, {list:['posts', 'pendingUpdates', 'bio', 'customURLs', 'username', 'iconURI']}, function (user) {
         // before changing anything, verify the postID corresponds with the date
-        if ((req.body.date === "bio" && req.body.post_id === "bio") || (user.posts[req.body.date] && user.posts[req.body.date][0].post_id === req.body.post_id)) {
+        var date = req.body.date;
+        if ((date === "bio" && req.body.post_id === "bio") || (user.posts[date] && user.posts[date][0].post_id === req.body.post_id)) {
           var x = pool.cleanseInputText(req.body.text);
-          if (x.error || x[1] === "") {                 // delete a pending draft
-            if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[req.body.date]) {
-              delete user.pendingUpdates.updates[req.body.date];
+
+          // are we deleting a pending edit?
+          if (x.error || x[1] === "") {
+            if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[date]) {
+              delete user.pendingUpdates.updates[date];
               writeToUser(req, res, errMsg, user, function () {
                 return res.send({error:false, body:"", tags:{}, title:"", url:"",});
               });
             } else {return sendError(req, res, errMsg+"edit not found");}
-          } else {                                      // new/edit
+          } else {
+            // no, it's a new edit or an edit edit
+
             var today = pool.getCurDate();
             if (!user.pendingUpdates) {user.pendingUpdates = {updates:{}, lastUpdatedOn:today};}
             if (!user.pendingUpdates.updates) {user.pendingUpdates.updates = {};}
             if (!user.pendingUpdates.lastUpdatedOn) {user.pendingUpdates.lastUpdatedOn = today;}
-            //
-            if (req.body.post_id !== "bio") {
+
+            // is it a bio?
+            if (req.body.post_id === "bio") {
+              var tags = {};
+              var title = "";
+              var url = "";
+            } else {
+              // no, it's a post
               var tags = parseInboundTags(req.body.tags);
               if (typeof tags === 'string') {return sendError(req, res, errMsg+tags);}
               var title = validatePostTitle(req.body.title);
               if (title.error) {return sendError(req, res, errMsg+title.error);}
               //
-              var urlVal = validatePostURL(user, req.body.date, req.body.url);
+              var urlVal = validatePostURL(user, date, req.body.url);
               if (urlVal.error) {return sendError(req, res, errMsg+urlVal.error);}
               if (urlVal.deny) {return res.send(urlVal);}
               var url = urlVal.url;
               user = urlVal.user;
               // on a new post, the following happens as part of updating the rest of the post,
               // here, the post goes into pendingUpdates, so we need to do it separately right away
-              user.posts[req.body.date][0].url = url;
+              user.posts[date][0].url = url;
               if (req.body.onlyTheUrlHasBeenChanged) {
-                writeToUser(req, res, errMsg, user, function () {
-                  return res.send({error:false, body:"", onlyTheUrlHasBeenChanged:true, url:url});
+                return writeToUser(req, res, errMsg, user, function () {
+                  return res.send({error:false, body:"", onlyTheUrlHasBeenChanged:true, url:url, date:date});
                 });
               }
-              //
-            } else {
-              var tags = {};
-              var title = "";
-              var url = "";
             }
             //
             linkValidate(x[2], function (linkProblems) {
@@ -2140,7 +2146,7 @@ app.post('/editOldPost', function (req, res) {
                     edited: true,
                   }];
                 }
-                user.pendingUpdates.updates[req.body.date] = newPost;
+                user.pendingUpdates.updates[date] = newPost;
                 writeToUser(req, res, errMsg, user, function () {
                   return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
                 });
@@ -3279,7 +3285,7 @@ var getAuthorInfo = function (author, req) {
 
 var getSinglePostFromAuthorAndDate = function (req, res) {
   var errMsg = "post retrieval error<br><br>";
-  if (!req.body.author || !req.body.date || !pool.isStringValidDate(req.body.date)) {return sendError(req, res, errMsg+"malformed request 513");}
+  if (!req.body.author) {return sendError(req, res, errMsg+"malformed request 513");}
   var authorID = req.body.author;
   checkForUserUpdates(req, res, errMsg, authorID, function () {
 
@@ -3291,7 +3297,8 @@ var getSinglePostFromAuthorAndDate = function (req, res) {
         if (req.body.needAuthorInfo) {
           data.authorInfo = getAuthorInfo(author, req);
         }
-        if (author.posts && author.posts[req.body.date] && req.body.date <= pool.getCurDate()) {
+
+        if (req.body.date && pool.isStringValidDate(req.body.date) && req.body.date <= pool.getCurDate() && author.posts && author.posts[req.body.date]) {
           // strip out private posts
           if (!author.posts[req.body.date][0].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
             var authorPic = getUserPic(author);
@@ -3780,6 +3787,7 @@ app.get('/:author/:path', function(req, res) {
     readUser(req, res, errMsg, authorID, {list:['customURLs',]}, function(author) {
       if (!author) {return return404author(req, res);}
       if (author.customURLs && author.customURLs[req.params.path]) {
+        // is the proposed custom url keyed to a post?
         return renderLayout(req, res, {author:authorID, date:author.customURLs[req.params.path].date, post_url:req.params.path, postCode:"TFTF",});
       } else {
         return renderLayout(req, res, {author: authorID, date:null, post_url:req.params.path, postCode:"TFTF",});
