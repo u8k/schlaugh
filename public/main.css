@@ -1041,7 +1041,8 @@ i {font-style: italic;}
 u {text-decoration: underline;}
 s {text-decoration: line-through;}
 
-quote > i {font-style: normal;}
+quote i {font-style: normal;}
+quote i i {font-style: italic;;}
 
 r > ascii, r > img, r > a >img {margin-right: 0;}
 l > ascii, l > img, l > a >img {margin-left: 0;}
