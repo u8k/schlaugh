@@ -95,7 +95,7 @@ var saveAppearance = function () {
           delete glo.newSettings.colors[prop];
         }
       }
-      var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
+      var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing, max-width'];
       for (var i = 0; i < props.length; i++) {
         if (glo.newSettings[props[i]]) {
           glo.settings[props[i]] = glo.newSettings[props[i]];
@@ -119,11 +119,11 @@ var revertAppearance = function () {
       delete glo.newSettings.colors[prop];
     }
   }
-  var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
+  var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing', 'max-width'];
   for (var i = 0; i < props.length; i++) {
     if (glo.newSettings[props[i]]) {
       changeFont(glo.settings[props[i]], props[i]);
-      $(props[i]+'-select2').value = glo.settings[props[i]];
+      $(props[i]+'-select').value = glo.settings[props[i]];
       delete glo.newSettings[props[i]];
     }
   }
@@ -263,8 +263,11 @@ var changeFont = function (value, attribute) {          // makes the new CSS rul
   if (attribute === "font-family" && fontBank[value]) {
     value = value +", "+ fontBank[value];
   }
-  //
-  sheet.insertRule(".reader-font"+" {"+attribute+": "+value+";}", sheet.cssRules.length);
+  if (attribute === "max-width") {
+    sheet.insertRule(".post"+" {max-width: "+value+"px;}", sheet.cssRules.length);
+  } else {
+    sheet.insertRule(".reader-font"+" {"+attribute+": "+value+";}", sheet.cssRules.length);
+  }
 }
 
 var selectColor = function (colorCode, type) {
@@ -284,8 +287,7 @@ var selectColor = function (colorCode, type) {
   }
   $('revert-appearance2').classList.remove('removed');
   $('revert-appearance3').classList.remove('removed');
-  //$('preset-select').value = "custom";
-  $('preset-select2').value = "custom";
+  $('preset-select').value = "custom";
   glo.newSettings.preset = "custom";
 }
 
@@ -295,7 +297,6 @@ var selectFont = function (elem, prop) {
     changeFont(value, prop);
     glo.newSettings[prop] = value;
     if (glo.username) {
-      //$('save-appearance').classList.remove('hidden');
       $('save-appearance2').classList.remove('removed');
       $('save-appearance3').classList.remove('removed');
     } else {
@@ -443,12 +444,12 @@ var themeBank = {
   },
 }
 var loadThemesFromBank = function () {
-  if ($('preset-select2').options.length < 2) { //check if already loaded
+  if ($('preset-select').options.length < 2) { //check if already loaded
     for (var theme in themeBank) {
       if (themeBank.hasOwnProperty(theme)) {
         var option = document.createElement("option");
         option.text = theme;
-        $('preset-select2').add(option);
+        $('preset-select').add(option);
       }
     }
   }
@@ -470,12 +471,12 @@ var fontBank = {
   'monospace': 'monospace',
 }
 var loadFontsFromBank = function () {
-  if ($('font-family-select2').options.length < 2) { //check if already loaded
+  if ($('font-family-select').options.length < 2) { //check if already loaded
     for (var font in fontBank) {
       if (fontBank.hasOwnProperty(font)) {
         var option = document.createElement("option");
         option.text = font;
-        $('font-family-select2').add(option);
+        $('font-family-select').add(option);
       }
     }
   }
@@ -5932,18 +5933,6 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
       $('resize-editor-setting').value = 'false';
     }
     //
-    /*
-    if (typeof glo.settings.italicizeQuotes === 'undefined') {
-      glo.settings.italicizeQuotes = true;  // this is so it defaults to true if unset
-    }
-    if (glo.settings.italicizeQuotes) {
-      $('italicize-quotes-setting').value = 'true';
-    } else {
-      $('italicize-quotes-setting').value = 'false';
-    }
-    setItalianQuotesCSS();
-    */
-    //
     if (glo.settings.sortOldestPostsAtTop) {
       $('post-stream-toggle').value = "oldest";
     }
@@ -6062,21 +6051,19 @@ var setAppearance = function () {
     }
     changeAllColors(glo.settings.colors);
     //
-    var props = [['font-family', "Roboto"], ['font-size', '16px'], ['line-height', 1.25], ['letter-spacing', '0px']];
+    var props = [['font-family', "Roboto"], ['font-size', '16px'], ['line-height', 1.25], ['letter-spacing', '0px'],['max-width',"1000"]];
     for (var i = 0; i < props.length; i++) {
       if (!glo.settings[props[i][0]]) {
         glo.settings[props[i][0]] = props[i][1];
       }
       changeFont(glo.settings[props[i][0]], props[i][0]);
-      //$(props[i][0]+'-select').value = glo.settings[props[i][0]];
-      $(props[i][0]+'-select2').value = glo.settings[props[i][0]];
+      $(props[i][0]+'-select').value = glo.settings[props[i][0]];
     }
     //
     if (!glo.settings.preset) {
       glo.settings.preset = defaultTheme;
     }
-    //$('preset-select').value = glo.settings.preset;
-    $('preset-select2').value = glo.settings.preset;
+    $('preset-select').value = glo.settings.preset;
   }
 }
 

@@ -123,7 +123,7 @@
     <br>but there was nobody home<br><br>
   </text>
 </div>
-<div id="404-panel-post" class="removed">
+<div id="404-panel-selectlass="removed">
   <text class="page-title-404 monospace">
     <br>not even a single thing!<br><br>
   </text>
@@ -608,10 +608,10 @@
   <h2 class="options-pop-up-title">font options</h2>
   <div class="settings-box">
     <text>post font: </text>
-    <select id="font-family-select2" onchange="selectFont('font-family-select2', 'font-family');">
+    <select id="font-family-select" onchange="selectFont('font-family-select', 'font-family');">
     </select><br>
     <text>font size: </text>
-    <select id="font-size-select2" onchange="selectFont('font-size-select2', 'font-size')">
+    <select id="font-size-select" onchange="selectFont('font-size-select', 'font-size')">
       <option>8px</option>
       <option>10px</option>
       <option>12px</option>
@@ -623,7 +623,7 @@
       <option>30px</option>
     </select><br>
     <text>line spacing: </text>
-    <select id="line-height-select2" onchange="selectFont('line-height-select2', 'line-height')">
+    <select id="line-height-select" onchange="selectFont('line-height-select', 'line-height')">
       <option>.8</option>
       <option>1</option>
       <option>1.25</option>
@@ -633,13 +633,16 @@
       <option>2.25</option>
     </select><br>
     <text>character spacing: </text>
-    <select id="letter-spacing-select2" onchange="selectFont('letter-spacing-select2', 'letter-spacing')">
+    <select id="letter-spacing-select" onchange="selectFont('letter-spacing-select', 'letter-spacing')">
       <option>-1px</option>
       <option>0px</option>
       <option>1px</option>
       <option>2px</option>
       <option>3px</option>
-    </select>
+    </select><br>
+    <br>
+    <text>max post width(px): </text>
+    <input type="number" id="max-width-select" onchange="selectFont('max-width-select', 'max-width')" class="" min="0" max="2000" step="10" value="1000">
   </div>
   <button id="save-appearance2" type="button" class="removed" onclick="saveAppearance()">save</button>
   <button id="revert-appearance2" type="button" class="removed" onclick="revertAppearance()">revert</button>
@@ -651,7 +654,7 @@
   <h2 class="options-pop-up-title">colors</h2>
   <div>
     <text>presets:</text>
-    <select id="preset-select2" onclick="themeSelect('preset-select2');" onchange="themeSelect('preset-select2');" name="color-presets">
+    <select id="preset-select" onclick="themeSelect('preset-select');" onchange="themeSelect('preset-select');" name="color-presets">
       <option>custom</option>
     </select>
   </div>

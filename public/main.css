@@ -770,6 +770,9 @@ input:-webkit-autofill {
   margin-bottom: 10px;
   margin-top: 10px;
 }
+#max-width-select {
+  width: 56px;
+}
 
 body, h1, input, select, .main-background {
   /* color: #383F45; */

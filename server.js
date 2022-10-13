@@ -2615,7 +2615,7 @@ app.post('/saveAppearance', function(req, res) {
         }
       }
     }
-    var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing'];
+    var props = ['preset', 'font-family', 'font-size', 'line-height', 'letter-spacing', 'max-width'];
     for (var i = 0; i < props.length; i++) {
       if (req.body[props[i]] && typeof req.body[props[i]] === "string") {
         user.settings[props[i]] = req.body[props[i]];
