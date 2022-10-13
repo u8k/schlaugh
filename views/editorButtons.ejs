@@ -4,9 +4,15 @@
 --><button class="editor-button" title="italic" onclick="styleText('i', '<%- kind %>')"><i class="editor-italic">I</i></button><!--
 --><button class="editor-button" title="underline" onclick="styleText('u', '<%- kind %>')"><u>U</u></button><!--
 --><button class="editor-button" title="strikethrough" onclick="styleText('s', '<%- kind %>')"><s>S</s></button><!--
---><button class="editor-button" title="list item" onclick="styleText('li', '<%- kind %>')">li</button><!--
---><button class="editor-button" title="unordered list" onclick="styleText('ul', '<%- kind %>', true)">ul</button><!--
---><button class="editor-button" title="ordered list" onclick="styleText('ol', '<%- kind %>', true)">ol</button><!--
+--><wrapper id="<%- kind + '-html-list-buttons'%>" class="removed"><!--
+  --><button class="editor-button" title="list item" onclick="styleText('li', '<%- kind %>')">li</button><!--
+  --><button class="editor-button" title="unordered list" onclick="styleText('ul', '<%- kind %>', true)">ul</button><!--
+  --><button class="editor-button" title="ordered list" onclick="styleText('ol', '<%- kind %>', true)">ol</button><!--
+--></wrapper><!--
+--><wrapper id="<%- kind + '-md-list-buttons'%>" class=""><!--
+  --><button class="editor-button" title="unordered list item" onclick="insertMDlist('<%- kind %>', 'ul')"><icon class="fas fa-list-ul"></icon></button><!--
+  --><button class="editor-button" title="ordered list item" onclick="insertMDlist('<%- kind %>', 'ol')"><icon class="fas fa-list-ol"></icon></button><!--
+--></wrapper><!--
 --><button class="editor-button" onclick="hyperlink('<%- kind %>')">link</button><!--
 --><button class="editor-button" onclick="insertImage('<%- kind %>')">img</button><!--
 --><button class="editor-button" onclick="insertNote('<%- kind %>')">note</button><!--
@@ -23,6 +29,7 @@
   --><button class="editor-button" onclick="styleText('code', '<%- kind %>')">code</button><!--
   --><button class="editor-button" onclick="styleText('ascii', '<%- kind %>', true)">ascii</button><!--
   --><button class="editor-button" onclick="styleText('spoil', '<%- kind %>', false)">spoil</button><!--
+  --><button class="editor-button" title="toggle editor mode" onclick="toggleEditorMarkdown('<%- kind %>')" id='<%- kind + "-editor-mode-button" %>'>HTML</button><!--
 --></wrapper><!--
 --><button class="editor-button" title="more buttons" onclick="toggleMoreEditorButtons('<%- kind %>',this)"><icon class="fas fa-plus editor-more-less"></icon></button>
 </div>

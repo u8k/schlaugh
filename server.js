@@ -1573,6 +1573,28 @@ app.post('/admin/getTag', function(req, res) {
   });
 });
 
+app.post('/admin/deletePost', function(req, res) {
+  adminGate(req, res, function () {
+    if (!req.body.post_id) {return res.send({error:"malformed request 6813"});}
+
+    dbReadOneByID(req, res, 'adminErrMsg', 'posts', req.body.post_id, getProjection(['date','authorID']), function (post) {
+      if (!post) {return res.send({error:"post not found! we can't delete what don't exist!"});}
+      if (!post.authorID) {return res.send({error:"missing authorID... is this post already deleted?"});}
+      if (!post.date) {return res.send({error:"the post data does not include a date? but it did have an authorID????"});}
+
+      readUser(req, res, 'adminErrMsg', post.authorID, {list:['posts','postList', 'postListPending','postListUpdatedOn', 'pendingUpdates', 'bio', 'customURLs']}, function (user) {
+        pushNewToPostlist(user); //in case they want to delete a post from today that is still in pendingList
+        // before changing anything, verify the postID corresponds with the date
+        if (user.posts[post.date] && user.posts[post.date][0].post_id === req.body.post_id) {
+          deletePost(req, res, 'adminErrMsg', user, post.date, function () {
+            return res.send({error:false});
+          });
+        } else {return res.send({error:"postID and date miscoresponce"});}
+      });
+    });
+  });
+});
+
 
 
 // ********** clicker game *********** //

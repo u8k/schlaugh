@@ -137,6 +137,7 @@ var tests = [ //array of arrays, each inner array contains two statements that a
   [prepTextForRender(`abc <code><code></code> def`,`id`,null,{startElem:1, endElem:2, startOffset:4, endOffset:2}), "<code>e></code> d"],
   [prepTextForRender(`abc <code><<<<<<<<code></code> defaoeu`,`id`,null,{startElem:2, endElem:2, startOffset:3, endOffset:6}), "fao"],
   [prepTextForRender(`<u><i><butt></i></u>`,`id`,null,{startElem:0, endElem:0, startOffset:1, endOffset:5}), "butt"],
+  [convertHtmlToMarkdown(convertMarkdownToHtml("**bold**\n//italic//\n__underline__\n--strikethrough--\n  *bullet item\n  -numbered item\n    *deeper nested bullet\n[https://www.schlaugh.com/|schlaugh]\n![https://i.imgur.com/hDEXSt7.jpg|hover text|alt text]\n((clicked part of note|initially hidden part))\n((note shorthand if you only want the + sign button thingy with no extra text))\n>>this is a quote<<\n=== (big line)\n``inline code``\n%% code block(ascii art)%%\n##spoiler##\n&&i put this last to not cut off the rest...&&\nhi mom")),"**bold**\n//italic//\n__underline__\n--strikethrough--\n  *bullet item\n  -numbered item\n    *deeper nested bullet\n[https://www.schlaugh.com/|schlaugh]\n![https://i.imgur.com/hDEXSt7.jpg|hover text|alt text]\n((clicked part of note|initially hidden part))\n((note shorthand if you only want the + sign button thingy with no extra text))\n>>this is a quote<<\n=== (big line)\n``inline code``\n%% code block(ascii art)%%\n##spoiler##\n&&i put this last to not cut off the rest...&&\nhi mom"]
 ]
 
 /* this is a test of the cryption stuff, but it's asynch,
@@ -247,6 +248,12 @@ var getTagsOfDate = function () {
 }
 var getTag = function () {
   ajaxCall('/admin/getTag', 'POST', {tag: $('name-of-tag').value}, function(json) {
+    console.log(json);
+  });
+}
+
+var adminDeletePost = function (post_id) {
+  ajaxCall('/admin/deletePost', 'POST', {post_id: post_id}, function(json) {
     console.log(json);
   });
 }

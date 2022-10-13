@@ -1107,6 +1107,7 @@ var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack)
           }
           if (!isOpen) {  // take out the trash
             string = string.substr(0,pos-(tag.length+2)) + string.substr(pos+1);
+            pos -= tag.length+2
           } else {    // the tag was in the stack, and thus open, so we close it
             // match to tag stack, closing all tags above it, and popping them and the match from the stack
             for (var i = tagStack.length-1; i > -1; i--) {
@@ -3460,6 +3461,11 @@ var editPost = function (post) {
   var data = {date: post.date, post_id:post.post_id}
   $('submit-editing-old-post').onclick = function () {
     data.text = $('old-post-editor').value;
+    //
+    if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+      data.text = convertMarkdownToHtml(data.text);
+    }
+    //
     data.tags = $('old-tag-input').value;
     data.title = $('old-title-input').value;
     data.url = $('old-url-input').value;
@@ -3467,7 +3473,7 @@ var editPost = function (post) {
     // have changes been made?
 
     if (glo.postStash[post.post_id]) {   // make sure thing even exists first...
-      if (prepTextForEditor(glo.postStash[post.post_id].body) === data.text) {
+      if (glo.postStash[post.post_id].body === data.text) {
         var oldTitle = glo.postStash[post.post_id].title || "";
         if (oldTitle === data.title) {
           if (getTagString(glo.postStash[post.post_id].tags) === data.tags) {
@@ -3629,8 +3635,12 @@ var editBio = function () {
   var data = {date: "bio", post_id:"bio"}
   $('submit-editing-old-post').onclick = function () {
     data.text = $('old-post-editor').value;
+    //
+    if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+      data.text = convertMarkdownToHtml(data.text);
+    }
     // have changes been made?
-    if (prepTextForEditor(glo.bio) === data.text) {
+    if (glo.bio === data.text) {
       return hideWriter('old-post');
     }
     loading();
@@ -3696,6 +3706,11 @@ var destroyAllChildrenOfElement = function (elem) {
 
 var submitPost = function (remove) { //also handles editing and deleting
   var text = $('post-editor').value;
+  //
+  if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    text = convertMarkdownToHtml(text);
+  }
+  //
   var tags = $('tag-input').value;
   var title = $('title-input').value;
   var url = $('url-input').value;
@@ -3707,7 +3722,7 @@ var submitPost = function (remove) { //also handles editing and deleting
     return hideWriter('post');
   }
   // have changes been made?
-  if (!remove && glo.pending && prepTextForEditor(glo.pending.body) === text) {
+  if (!remove && glo.pending && glo.pending.body === text) {
     if (glo.pending.title === title) {
       if (glo.pending.url === url) {
         if (getTagString(glo.pending.tags) === tags) {
@@ -4017,32 +4032,6 @@ var toggleAutoEditorResize = function () {
   }
 }
 
-/*
-var toggleItalianQuotes = function () {
-  ajaxCall('/toggleSetting', 'POST', {setting: "italicizeQuotes"}, function(json) {});
-  if (glo.settings.italicizeQuotes) {
-    $('italicize-quotes-setting').value = 'false';
-    glo.settings.italicizeQuotes = false;
-  } else {
-    $('italicize-quotes-setting').value = 'true';
-    glo.settings.italicizeQuotes = true;
-  }
-  setItalianQuotesCSS();
-}
-var setItalianQuotesCSS = function () {          // makes the new CSS rule
-  var sheet = getStyleSheet();
-  if (!sheet) {return;}
-  //
-  if (glo.settings.italicizeQuotes) {
-    var value = 'italic';
-  } else {
-    var value = 'unset';
-  }
-  //
-  sheet.insertRule("quote {font-style: "+value+";}", sheet.cssRules.length);
-}
-*/
-
 var setPaginationDirection = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "newPostsToTheLeft"}, function(json) {});
   if (glo.settings.newPostsToTheLeft) {
@@ -4081,6 +4070,9 @@ var setPostsPerPage = function () {
 var prepTextForEditor = function (text) {
   if (text === null || text === undefined) {
     return "";
+  }
+  if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    text = convertHtmlToMarkdown(text);
   }
 
   // posts are now stored with "\n"s anyway, but this covers if it's quoting/editing an old post w/ "<br>s"
@@ -4233,14 +4225,32 @@ var styleText = function (tag, src, lineBreak) {
   var b = x.end;
   var y = area.value;
   if (a !== b && y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
+  //
+  var openTag = '<'+tag+'>';
+  var closeTag = '</'+tag+'>';
+  if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    var found = false;
+    for (var i = 0; i < mdLib.swaps.length; i++) {
+      if (mdLib.swaps[i][1] === openTag) {
+        found = true;
+        openTag = mdLib.swaps[i][0];
+        break;
+      }
+    }
+    if (found) {
+      closeTag = openTag;
+    }
+  }
+  //
   if (!lineBreak) {
-    area.value = y.slice(0, a)+'<'+tag+'>'+y.slice(a, b)+'</'+tag+'>'+y.slice(b);
-    setCursorPosition(area, a+2+tag.length, b+2+tag.length);
+    area.value = y.slice(0, a) + openTag +y.slice(a, b)+closeTag + y.slice(b);
+    setCursorPosition(area, a+openTag.length, b+openTag.length);
   } else {
-    var openTag = '\n<'+tag+'>\n';
-    if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<'+tag+'>\n';}
-    var closeTag = '\n</'+tag+'>\n';
-    if (y.substr(b,1) === "\n") {closeTag = '\n</'+tag+'>';}
+
+    if (a === 0 || y.substr(a-1,1) === "\n") {openTag = openTag+'\n';}
+    else { openTag = '\n'+openTag+'\n'; }
+    if (y.substr(b,1) === "\n") {closeTag = '\n'+closeTag;}
+    else { closeTag = '\n'+closeTag+'\n'; }
     area.value = y.slice(0, a)+ openTag + y.slice(a, b)+ closeTag +y.slice(b);
     setCursorPosition(area, a+openTag.length, b+openTag.length);
   }
@@ -4283,9 +4293,9 @@ var checkLink = function (target, linkText, area, y, a, b) {
   else if (marget.slice(0,8) !== "https://" && marget.slice(0,7) !== "http://") {
     marget = target = "http://" + marget;
   }
+  /*
   ajaxCall('/link', 'POST', {url:marget,}, function(json) {
     if (json.linkProblems) {uiAlert(json.linkProblems);}
-    /*
     if (json.linkProblems) {
       var cursorPos = getCursorPosition(area);
       verify(json.linkProblems, null, null, function (res) {
@@ -4297,10 +4307,18 @@ var checkLink = function (target, linkText, area, y, a, b) {
         }
       });
     }
-    */
   });
-  area.value = y.slice(0, a)+'<a href="'+target+'">'+linkText+'</a>'+y.slice(b);
-  var bump = a+target.length+linkText.length+15;
+  */
+  var open = mdLib.link[1][0];
+  var mid = mdLib.link[1][1];
+  var close = mdLib.link[1][2];
+  if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    open = mdLib.link[0][0]
+    mid = mdLib.link[0][1];
+    close = mdLib.link[0][2];
+  }
+  area.value = y.slice(0, a)+ open +target+ mid +linkText+ close +y.slice(b);
+  var bump = a+target.length+linkText.length+open.length+mid.length+close.length;
   setCursorPosition(area, bump, bump);
 }
 var insertImage = function (src) {
@@ -4326,17 +4344,27 @@ var insertImage = function (src) {
     var title = $('img-input-prompt-input2').value;
     var alt = $('img-input-prompt-input3').value;
     if (url) {
-      var openTag = '\n<img src="';
-      if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<img src="'}
-      url += '"';
+      var open = mdLib.img[1][0];
+      var mid = mdLib.img[1][1];
+      var mid2 = mdLib.img[1][2];
+      var close = mdLib.img[1][3];
+      if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+        open = mdLib.img[0][0]
+        mid = mdLib.img[0][1];
+        mid2 = mdLib.img[0][2];
+        close = mdLib.img[0][3];
+      }
+      var openTag = '\n'+open;
+      if (a === 0 || y.substr(a-1,1) === "\n") {openTag = open}
+      //url += '"';
       if (title) {
-        title = ' title="' +title+ '"';
+        title = mid + title;
       } else {title = "";}
       if (alt) {
-        alt = ' alt="' +alt+ '"';
+        alt = mid2 +alt;
       } else {alt = "";}
-      var closeTag = '>\n';
-      if (y.substr(b,1) === "\n") {closeTag = '>'}
+      var closeTag = close + '\n';
+      if (y.substr(b,1) === "\n") {closeTag = close}
       area.value = y.slice(0, a)+ openTag + url + title + alt + closeTag +y.slice(b);
       var bump = a +url.length+ title.length+ alt.length+ openTag.length + closeTag.length;
       setCursorPosition(area, bump, bump);
@@ -4358,8 +4386,30 @@ var insertHR = function (src) {
   var post = "";
   if (y.substr(b,1) !== "\n") {post = "\n"}
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
-  area.value = y.slice(0, a)+ pre +"<hr>"+ post +y.slice(b);
-  var bump = a+4 +pre.length + post.length;
+  //
+  var tag = mdLib.hr[1];
+  if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    tag = mdLib.hr[0];
+  }
+  //
+  area.value = y.slice(0, a)+ pre + tag + post +y.slice(b);
+  var bump = a + tag.length + pre.length + post.length;
+  setCursorPosition(area, bump, bump);
+}
+var insertMDlist = function (src, type) {
+  updateEditorStateList(src);
+  var area = $(src+'-editor');
+  var x = getCursorPosition(area);
+  var a = x.start;
+  var b = x.end;
+  var y = area.value;
+  var pre = "";
+  if (a !== 0 && y.substr(a-1,1) !== "\n") {pre = "\n"}
+  //
+  var tag = mdLib[type];
+  //
+  area.value = y.slice(0, a)+ pre + tag + y.slice(b);
+  var bump = a + tag.length + pre.length;
   setCursorPosition(area, bump, bump);
 }
 var insertQuote = function (src) {
@@ -4372,10 +4422,19 @@ var insertQuote = function (src) {
   if (y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   var quoteText;
   if (a !== b) {quoteText = convertLineBreaks(y.substr(a,b-a), true);}
-  var openTag = '\n<quote>\n'
-  if (a === 0 || y.substr(a-1,1) === "\n") {openTag = '<quote>\n'}
-  var closeTag = '\n</quote>\n';
-  if (y.substr(b,1) === "\n") {closeTag = '\n</quote>';}
+  //
+  var openTag = "<quote>";
+  var closeTag = "</quote>";
+  if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    openTag = mdLib.quote[0]
+    closeTag = mdLib.quote[1];
+  }
+  if (a === 0 || y.substr(a-1,1) === "\n") {openTag = openTag + '\n'}
+  else {openTag = '\n'+openTag+'\n'}
+  if (y.substr(b,1) === "\n") {closeTag = '\n'+closeTag;}
+  else {closeTag = '\n'+closeTag+'\n'}
+
+
   if (quoteText) {$("quote-prompt-input1").value = quoteText;}
   $('quote-prompt').classList.remove('hidden');
   blackBacking();
@@ -4395,13 +4454,22 @@ var insertQuote = function (src) {
     if (sourceText !== null && sourceText !== "") {
       if (sourceLink !== null && sourceLink !== "") {
 
-        // fudge, validate the link
+        // fudge, validate the link, ehhhh why? (it validates in after submitting, i think that's fine)
 
-        area.value = y.slice(0, a)+openTag+quoteText+'\n<r>\n<a href="'+sourceLink+'">-'+sourceText+'</a>\n</r>'+ closeTag +y.slice(b);
-        var bump = a+quoteText.length+sourceLink.length+sourceText.length +25 + openTag.length + closeTag.length;
+        var open = mdLib.link[1][0];
+        var mid = mdLib.link[1][1];
+        var close = mdLib.link[1][2];
+        if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+          open = mdLib.link[0][0]
+          mid = mdLib.link[0][1];
+          close = mdLib.link[0][2];
+        }
+
+        area.value = y.slice(0, a)+openTag+quoteText+'\n<r>'+open+sourceLink+ mid +'-'+sourceText+ close +'</r>'+ closeTag +y.slice(b);
+        var bump = a+quoteText.length+sourceLink.length+sourceText.length + 9 + openTag.length + closeTag.length +open.length+mid.length+close.length;
         setCursorPosition(area, bump, bump);
       } else {
-        area.value = y.slice(0, a)+openTag+quoteText+'\n<r>\n-'+sourceText+'\n</r>'+ closeTag +y.slice(b);
+        area.value = y.slice(0, a)+openTag+quoteText+'\n<r>-'+sourceText+'</r>'+ closeTag +y.slice(b);
         var bump = a+quoteText.length+sourceText.length +11 + openTag.length + closeTag.length;
         setCursorPosition(area, bump, bump);
       }
@@ -4422,23 +4490,33 @@ var insertNote = function (src) {
   var b = x.end;
   var y = area.value;
   var selectedText;
+  if (a !== b && y.substr(b-1,1) === " " && y.substr(b-2,1) !== " ") {b--;} //rid the trailing space
   if (a !== b) {selectedText = y.substr(a,b-a);}
+
+  var open = mdLib.note[1][0];
+  var mid = mdLib.note[1][1];
+  var close = mdLib.note[1][2];
+  if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    open = mdLib.note[0][0]
+    mid = mdLib.note[0][1];
+    close = mdLib.note[0][2];
+  }
 
   if (selectedText) {
     verify("would you like the currently selected text to be the text that is:", "clicked", "initially hidden", function (response) {
       if (response) {
-        area.value = y.slice(0, a)+'<note linkText="'+selectedText+'">\n\n</note>'+y.slice(b);
-        var bump = a+selectedText.length+19;
+        area.value = y.slice(0, a)+ open +selectedText+ mid +'\n\n'+ close +y.slice(b);
+        var bump = a+selectedText.length+open.length+mid.length;
         setCursorPosition(area, bump, bump);
       } else {
-        area.value = y.slice(0, a)+'<note linkText="">\n'+selectedText+'\n</note>'+y.slice(b);
-        var bump = a+16;
+        area.value = y.slice(0, a)+ open + mid +'\n'+selectedText+'\n'+ close +y.slice(b);
+        var bump = a+open.length;
         setCursorPosition(area, bump, bump);
       }
     });
   } else {
-    area.value = y.slice(0, a)+'<note linkText="">\n\n</note>'+y.slice(b);
-    var bump = a+16;
+    area.value = y.slice(0, a)+ open+mid +'\n\n'+ close +y.slice(b);
+    var bump = a+open.length;
     setCursorPosition(area, bump, bump);
   }
 }
@@ -4459,6 +4537,510 @@ var toggleMoreEditorButtons = function (kind, elem) {
     $(kind+"-more-buttons").classList.add("removed");
   }
   setCursorPosition($(kind+'-editor'), cursorPos.start, cursorPos.end);
+}
+
+var toggleEditorMarkdown = function (kind) {
+  var cursorPos = getCursorPosition($(kind+'-editor'));
+  ajaxCall('/toggleSetting', 'POST', {setting: "isUsingHtmlEditorMode"}, function(json) {});
+  if (_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    _npa(['glo','settings','isUsingHtmlEditorMode'], false);
+    var convert = convertHtmlToMarkdown;
+  } else {
+    _npa(['glo','settings','isUsingHtmlEditorMode'], true);
+    var convert = convertMarkdownToHtml;
+  }
+  //
+  var text = $(kind+'-editor').value;
+  text = convert(text);
+  $(kind+'-editor').value = text;
+  //
+  updateEditorModeButtons();
+  //
+  setCursorPosition($(kind+'-editor'), text.length, text.length);
+}
+
+var mdLib = {
+  esc: "\\",
+  code: "``",
+  ascii: "%%",
+  ol: "  -",
+  ul: "  *",
+  hr: ['===','<hr>'],
+  quote: [">>","<<"],
+  link: [["[[","|","]]"],[`<a href="`,`">`,`</a>`]],
+  img: [["{{","|","|","}}"],[`<img src="`,`" title="`,`" alt="`,`">`]],
+  note: [["((","|","))"],[`<note linkText="`,`">`,`</note>`, `<note>`]],
+  swaps: [
+  ['**',"<b>","</b>"],
+  ['//',"<i>","</i>"],
+  ['__',"<u>","</u>"],
+  ['--',"<s>","</s>"],
+  ['&&',"<cut>","</cut>"],
+  ['``',"<code>","</code>"],
+  ['%%',"<ascii>","</ascii>"],
+  ['##',"<spoil>","</spoil>"],
+  ],
+  straightSwaps : [
+    ['>>',"<quote>"],
+    ["<<","</quote>"],
+    ["((","<note>"],
+    ["))","</note>"],
+    ["===", "<hr>"],
+  ],
+  escList: ['**','//','__','--','&&','``','%%','##','>>',"<<","((","))","===","  -","  *","{{","[["]
+};
+
+var convertHtmlToMarkdown = function (string) {
+  string = escapeMarkdown(string);
+
+  string = mdImgConvert(string, 0, 1);
+  string = mdLinkConvert(string, 0, 1);
+  string = mdNoteConvert(string, 0, 1);
+  string = listConvertHtmlToMd(string);
+
+  for (var i = 0; i < mdLib.straightSwaps.length; i++) {
+    string = stringReplaceAll(string, mdLib.straightSwaps[i][1], mdLib.straightSwaps[i][0]);
+  }
+
+  for (var i = 0; i < mdLib.swaps.length; i++) {
+    //
+    string = matchAndConvertHtmlTagPairs(string, 0, i, 1);
+    string = matchAndConvertHtmlTagPairs(string, 0, i, 2);
+  }
+  // unEscape
+  string = escapeMdTweenTags(string, 0, 'code', true);
+  string = escapeMdTweenTags(string, 0, 'ascii', true);
+
+  return string;
+}
+
+var stringReplaceAll = function (string, replacee, replacement, mindEscapes, pos) {
+  // because too many chars i want to use mean something special in regex, so i can't use regex, so i can't use the "global" modifier on string.replace so this is my version of that
+  if (!pos) {
+    pos = 0;
+    if (replacement.indexOf(replacee) !== -1) {
+      uiAlert("infinite loop catch<br><br>the replacement string can't contain the replacee string");
+      return null;
+    }
+  }
+
+  var pos = string.indexOf(replacee, pos);
+  if (pos === -1) {return string;}
+
+  if (string.substr(pos-1,1) !== mdLib.esc) {
+    string = string.substr(0,pos) + string.substr(pos).replace(replacee, replacement);
+  } else {
+    string = string.substr(0,pos-1) + string.substr(pos);
+  }
+
+  return stringReplaceAll(string, replacee, replacement, mindEscapes, pos+1);
+}
+
+var escapeMarkdown = function (string, pos, mdPos, undo) {
+  // inserts an esc char in front of any valid markdown syntax to neuter it
+  // and does the reverse with the "undo" flag true
+  if (!pos && !mdPos) {
+    pos = 0;
+    mdPos = 0;
+  }
+
+  var next = string.indexOf(mdLib.escList[mdPos], pos);
+  // CANTALOPE, the above line is not good enough, it doesn't cover all the MD syntax that's not in the "swaps"
+
+  if (next === -1) {
+    if (mdLib.escList.length === mdPos+1) {
+      return string;
+    } else {
+      return escapeMarkdown(string, 0, mdPos+1, undo);
+    }
+  }
+  pos = next;
+  // is it ALREADY escaped?
+  if (string.substr(pos-1, 1) === mdLib.esc) {
+    if (undo) {
+      string = string.substr(0, pos-mdLib.esc.length)+string.substr(pos)
+    }
+    return escapeMarkdown(string, pos+1, mdPos, undo);
+  } else {
+    string = string.substr(0, pos) + mdLib.esc + string.substr(pos);
+    return escapeMarkdown(string, pos+2, mdPos, undo);
+  }
+}
+
+var matchAndConvertHtmlTagPairs = function (string, pos, mdPos, j) {
+  var next = string.indexOf(mdLib.swaps[mdPos][j], pos);
+  if (next === -1) {return string;}
+  pos = next;
+  //replace w/ opening tag
+  string = string.replace(mdLib.swaps[mdPos][j], mdLib.swaps[mdPos][0]);
+  //
+  return matchAndConvertHtmlTagPairs(string, pos, mdPos, j);
+}
+
+var convertMarkdownToHtml = function (string) {
+  string = escapeMdTweenTags(string, 0, 'code');
+  string = escapeMdTweenTags(string, 0, 'ascii');
+  //
+  string = mdImgConvert(string, 0, 0);
+  string = mdLinkConvert(string, 0, 0);
+  string = mdNoteConvert(string, 0, 0);
+  string = listConvertMdToHtml(string);
+
+  for (var i = 0; i < mdLib.straightSwaps.length; i++) {
+    string = stringReplaceAll(string, mdLib.straightSwaps[i][0], mdLib.straightSwaps[i][1], true);
+  }
+
+  for (var i = 0; i < mdLib.swaps.length; i++) {
+    string = matchAndConvertMarkdownTagPairs(string, 0, i, true);
+  }
+  return string;
+}
+
+var escapeMdTweenTags = function (string, pos, type, undo) {
+  if (!pos) { pos = 0;}
+
+  var first = string.indexOf(mdLib[type], pos);
+  if (first !== -1) {
+    first += mdLib[type].length
+    var second = string.indexOf(mdLib[type], first);
+    if (second !== -1) {
+      var a = string.substr(0,first);
+      var b = string.substr(first,second-first)
+      b = escapeMarkdown(b, 0, 0, undo);
+      var c = string.substr(second);
+      string = a + b + c;
+      pos = a.length + b.length + 1;
+    } else {
+      return string;
+    }
+  } else {
+    return string;
+  }
+
+  return escapeMdTweenTags(string, pos, type, undo);
+}
+
+var listConvertHtmlToMd = function (string, pos, stack) {
+  if (!pos && !stack) { // init
+    pos = 0;
+    stack = [];
+    string = stringReplaceAll(string, "</li>", "");
+  }
+
+  var pos = findNext(string, pos, ["<ol>", "<ul>", "</ol>", "</ul>", "<li>"]);
+  if (pos === Infinity) { return string; }
+
+  if (string.substr(pos, 4) === "<ol>" || string.substr(pos, 4) === "<ul>") {
+    stack.push(string.substr(pos+1,2));
+    string = string.substr(0,pos) + string.substr(pos+4);
+
+  } else if (string.substr(pos, 5) === "</ol>" || string.substr(pos, 5) === "</ul>") {
+    stack.pop();  // we're assuming that the tag we found is the last item on the stack...
+                  // which it should be, but i guess people might type broken nonpaired html tags... and then try to convert them to markdown?
+    string = string.substr(0,pos) + string.substr(pos+5);
+
+  } else if (string.substr(pos, 4) === "<li>") {
+    if (stack[stack.length-1]) {
+      var indent = "";
+      while (indent.length !== (stack.length-1)*2) {
+        indent += "  ";
+      }
+      string = string.substr(0,pos) + indent + mdLib[stack[stack.length-1]] + string.substr(pos+4);
+    } else {
+      // if no stack? as in, they have a <li> floating outside inside a list
+      // i guess just leave it be
+      pos++;
+    }
+  }
+
+  return listConvertHtmlToMd(string, pos, stack);
+}
+var listConvertMdToHtml = function (string, pos, stack) {
+  if (!pos) {pos = 0; stack = [];}
+
+  var nextOl = string.indexOf(mdLib.ol, pos);
+  var nextUl = string.indexOf(mdLib.ul, pos);
+
+  if (nextUl === -1 && nextOl === -1) {return string;}
+  if (nextUl === -1) {nextUl = Infinity;}
+  if (nextOl === -1) {nextOl = Infinity;}
+
+  pos = nextUl;
+  var tag = "<ul>";
+  if (nextOl < nextUl) { pos = nextOl; tag = "<ol>" }
+
+  // is it escaped?
+  if (string.substr(pos-1, 1) === mdLib.esc) {
+    return listConvertMdToHtml(string.substr(0, pos-1) + string.substr(pos), pos+1, stack);
+  }
+
+  // get the ol/ul depth in order
+  var spaceDepth = getSpaceDepth(string, pos-1);
+  pos -= (spaceDepth-1)*2;
+  if (spaceDepth === stack.length) {
+    if (stack[stack.length-1] === tag) {  // the list is already open and ready to pop another item on
+      // do nothing
+    } else {      // the list is at the right depth, but needs to switch to the other kind
+      var out = stack.pop();
+      stack.push(tag);
+      var insert = "</" + out.substr(1) + tag;
+      string = insertStringIntoStringAtPos(string, insert, pos);
+      pos+=insert.length;
+    }
+  } else {
+    if (spaceDepth > stack.length) {        // we've got to go deeper
+      while (spaceDepth !== stack.length) {
+        stack.push(tag);
+        string = insertStringIntoStringAtPos(string, tag, pos);
+        pos+=tag.length;
+      }
+    } else {                            // we're in too deep
+      while (spaceDepth <= stack.length) {
+        var out = stack.pop();
+        var insert = "</" + out.substr(1);
+        string = insertStringIntoStringAtPos(string, insert, pos);
+        pos+=insert.length;
+      }
+      stack.push(tag);
+      string = insertStringIntoStringAtPos(string, tag, pos);
+      pos+=tag.length;
+    }
+  }
+  // actually swap in the li
+  string = string.substr(0,pos)+"<li>"+string.substr(pos + mdLib[tag.substr(1,2)].length + (spaceDepth-1)*2);
+
+  // close out the li
+  var pos = string.indexOf("\n", pos);
+  if (pos !== -1) {
+    string = insertStringIntoStringAtPos(string, '</li>', pos);
+    pos +=6;
+  } else {
+    string = string + '</li>';
+    pos = string.length;
+  }
+
+  // what comes next?
+  while (string[pos] === " ") {
+    pos++;
+  }
+  if (string.substr(pos-2, mdLib.ol.length) === mdLib.ol || string.substr(pos-2, mdLib.ul.length) === mdLib.ul) {
+    pos-=2;
+    // another list item is what comes next
+    // so we do nothing and the next item is handled on the next loop through
+  } else {
+    // since there's no list item next, we close up shop, pop out the stack
+    while (stack.length) {
+      var out = stack.pop();
+      var insert = "</" + out.substr(1);
+      string = insertStringIntoStringAtPos(string, insert, pos);
+      pos+=insert.length;
+    }
+  }
+
+  return listConvertMdToHtml(string, pos, stack);
+}
+
+var findNext = function (string, pos, arr) {
+  // takes in a base string to search, a pos to start searching from, and an array of strings to search for
+  // returns the pos at which it first found any one of the strings
+  // you could do this with regex search, but then i'd have to figuer out dynamically esacaping any string i might be searching for
+
+  if (!pos) {pos = 0;}
+  if (!arr || !arr[0]) {return -1;}
+
+  var leader = Infinity;
+  for (var i = 0; i < arr.length; i++) {
+    var next = string.indexOf(arr[i], pos);
+    if (next === -1) { next = Infinity; }
+    if (next < leader) {
+      leader = next;
+    }
+  }
+  return leader;
+}
+
+var getSpaceDepth = function (string, pos) {
+  var i = 0;
+  while (string[pos] === " ") {
+    i++;
+    pos--;
+  }
+  return Math.floor(i/2)+1;
+}
+
+var mdLinkConvert = function (string, pos, dir) {
+  if (!pos) {pos = 0}
+
+  var nextStart = string.indexOf(mdLib.link[dir][0], pos);
+  var scndNextStart = string.indexOf(mdLib.link[dir][0], nextStart+1);
+  var nextMid = string.indexOf(mdLib.link[dir][1], nextStart+1);
+  var nextEnd = string.indexOf(mdLib.link[dir][2], nextStart+1);
+
+  if (nextStart === -1 || nextMid === -1 || nextEnd === -1) {return string;}
+  if (scndNextStart === -1) {scndNextStart = Infinity;}
+  if (nextMid > scndNextStart || nextMid > nextEnd || nextEnd > scndNextStart) {
+    if (scndNextStart !== Infinity) {
+      return mdLinkConvert(string, scndNextStart, dir);
+    } else {
+      return string;
+    }
+  }
+  //
+  var undo = false;
+  if (dir === 1) {
+    undo = true;
+  }
+
+  // mind escapes
+  if (string[nextStart-1] !== mdLib.esc || undo) {
+    // the actual string operation happens here
+    string = string.substring(0,nextStart) + mdLib.link[(dir+1)%2][0] +
+    escapeMarkdown(string.substring(nextStart+mdLib.link[dir][0].length, nextMid), 0,0,undo) + mdLib.link[(dir+1)%2][1] +
+    string.substring(nextMid+mdLib.link[dir][1].length, nextEnd) + mdLib.link[(dir+1)%2][2] +
+    string.substring(nextEnd+mdLib.link[dir][2].length);
+  } else {
+    string = string.substr(0, nextStart-1) + string.substr(nextStart);
+  }
+
+  if (scndNextStart !== Infinity) {
+    return mdLinkConvert(string, nextStart+1, dir);
+  } else {
+    return string;
+  }
+}
+
+var mdImgConvert = function (string, pos, dir) {
+  if (!pos) {pos = 0}
+
+  var nextStart = string.indexOf(mdLib.img[dir][0], pos);
+  var scndNextStart = string.indexOf(mdLib.img[dir][0], nextStart+1);
+  var nextEnd = string.indexOf(mdLib.img[dir][3], nextStart+1);
+  var nextMid = string.indexOf(mdLib.img[dir][1], nextStart+1);
+  if (nextMid > nextEnd) {nextMid = -1;}
+  if (nextMid !== -1) {
+    var scndnextMid = string.indexOf(mdLib.img[dir][2], nextMid+1);
+    if (scndnextMid > nextEnd) {scndnextMid = -1;}
+  }
+
+  if (nextStart === -1 || nextEnd === -1) {return string;}
+  if (scndNextStart === -1) {scndNextStart = Infinity;}
+  if (nextEnd > scndNextStart) {
+    if (scndNextStart !== Infinity) {
+      return mdImgConvert(string, scndNextStart, dir);
+    } else {
+      return string;
+    }
+  }
+  var undo = false;
+  if (dir === 1) {
+    undo = true;
+  }
+
+  // mind escapes
+  if (string[nextStart-1] === mdLib.esc && !undo) {
+    return mdImgConvert(string.substr(0, nextStart-1) + string.substr(nextStart), nextStart+1, dir);
+  }
+
+  if (nextMid !== -1) {
+    if (scndnextMid !== -1) {
+      string = string.substring(0,nextStart) + mdLib.img[(dir+1)%2][0] +
+        escapeMarkdown(string.substring(nextStart+mdLib.img[dir][0].length, nextMid), 0,0,undo) + mdLib.img[(dir+1)%2][1] +
+        string.substring(nextMid+mdLib.img[dir][1].length, scndnextMid) + mdLib.img[(dir+1)%2][2] +
+        string.substring(scndnextMid+mdLib.img[dir][2].length, nextEnd) + mdLib.img[(dir+1)%2][3] +
+        string.substring(nextEnd+mdLib.img[dir][3].length);
+    } else {
+      string = string.substring(0,nextStart) + mdLib.img[(dir+1)%2][0] +
+      escapeMarkdown(string.substring(nextStart+mdLib.img[dir][0].length, nextMid), 0,0,undo) + mdLib.img[(dir+1)%2][1] +
+      string.substring(nextMid+mdLib.img[dir][1].length, nextEnd) + mdLib.img[(dir+1)%2][3] +
+      string.substring(nextEnd+mdLib.img[dir][3].length);
+    }
+  } else {
+    string = string.substring(0,nextStart) + mdLib.img[(dir+1)%2][0] +
+    escapeMarkdown(string.substring(nextStart+mdLib.img[dir][0].length, nextEnd), 0,0,undo) + mdLib.img[(dir+1)%2][3] +
+    string.substring(nextEnd+mdLib.img[dir][3].length);
+  }
+
+  if (scndNextStart !== Infinity) {
+    return mdImgConvert(string, nextStart+1, dir);
+  } else {
+    return string;
+  }
+}
+
+var mdNoteConvert = function (string, pos, dir) {
+  if (!pos) {pos = 0}
+
+  var nextStart = string.indexOf(mdLib.note[dir][0], pos);
+  var scndNextStart = string.indexOf(mdLib.note[dir][0], nextStart+1);
+  var nextEnd = string.indexOf(mdLib.note[dir][2], nextStart+1);
+  var nextMid = string.indexOf(mdLib.note[dir][1], nextStart+1);
+
+  if (nextMid > nextEnd) {nextMid = -1;}
+
+  if (nextStart === -1 || nextEnd === -1) {return string;}
+
+  if (scndNextStart === -1) {scndNextStart = Infinity;}
+
+  // mind escapes
+  if (string[nextStart-1] === mdLib.esc && !dir) {
+    return mdNoteConvert(string, nextStart+1, dir);
+  }
+
+  if (nextMid !== -1) {
+    string = string.substring(0,nextStart) + mdLib.note[(dir+1)%2][0] +
+      string.substring(nextStart+mdLib.note[dir][0].length, nextMid) + mdLib.note[(dir+1)%2][1] +
+      string.substring(nextMid+mdLib.note[dir][1].length);
+  } else {
+    // textless note shorthand, just the + button, <note>, no "linktext"
+    string = string.substring(0,nextStart) + mdLib.note[(dir+1)%2][3] +
+      string.substring(nextStart+mdLib.note[dir][0].length);
+  }
+
+  if (scndNextStart !== Infinity) {
+    return mdNoteConvert(string, nextStart+1, dir);
+  } else {
+    return string;
+  }
+}
+
+var matchAndConvertMarkdownTagPairs = function (string, pos, mdPos, opening) {
+  // find next instance
+  var next = string.indexOf(mdLib.swaps[mdPos][0], pos);
+  if (next === -1) {return string;}                   // end condition
+  pos = next;
+                                        //is the match we found escaped?
+  if (string.substr(pos-1, 1) === mdLib.esc) {
+    string = string.substr(0, pos-1) + string.substr(pos);
+    return matchAndConvertMarkdownTagPairs(string, pos+1, mdPos, opening);
+  } else {
+                              // no, go ahead and replace it with the html tag
+    var tag = mdLib.swaps[mdPos][2];
+    if (opening) {
+      var tag = mdLib.swaps[mdPos][1];
+      opening = false;
+    } else {
+      opening = true;
+    }
+    string = string.substr(0, pos) + string.substr(pos).replace(mdLib.swaps[mdPos][0], tag);
+    return matchAndConvertMarkdownTagPairs(string, pos, mdPos, opening);
+  }
+}
+
+var updateEditorModeButtons = function () {
+  var arr = ["post","message","old-post"];
+  if (_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    for (var i = 0; i < arr.length; i++) {
+      $(arr[i]+"-editor-mode-button").innerHTML = "markdown";
+      $(arr[i]+"-md-list-buttons").classList.add("removed");
+      $(arr[i]+"-html-list-buttons").classList.remove("removed");
+    }
+  } else {
+    for (var i = 0; i < arr.length; i++) {
+      $(arr[i]+"-editor-mode-button").innerHTML = "HTML";
+      $(arr[i]+"-md-list-buttons").classList.remove("removed");
+      $(arr[i]+"-html-list-buttons").classList.add("removed");
+    }
+  }
 }
 
 var convertLineBreaks = function (string, dir) {
@@ -4755,10 +5337,15 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     });
   } else {
     var text = $('message-editor').value;
+    //
+    if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+      text = convertMarkdownToHtml(text);
+    }
+    //
     if (text === "") {return hideWriter('message');}
     // have changes been made?
     if (glo.threads[i].thread[glo.threads[i].thread.length-1]) {
-      if (prepTextForEditor(glo.threads[i].thread[glo.threads[i].thread.length-1].body) === $('message-editor').value) {
+      if (glo.threads[i].thread[glo.threads[i].thread.length-1].body === text) {
         return hideWriter('message');
       }
     }
@@ -5286,8 +5873,9 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
   updateEditorStateList('post',true);
   updateEditorStateList('old-post',true);
   updateEditorStateList('message',true);
+  updateEditorModeButtons();
   populateThreadlist();
-  pingPong(data.sessionKey)
+  pingPong(data.sessionKey);
   glo.sessionKey = data.sessionKey;
 
   //

@@ -251,6 +251,11 @@ clicky, .clicky {
 .editor-button  {
   margin: 2px;
 }
+@media screen and (max-width: 500px) {
+  .editor-button  {
+    margin: 5px;
+  }
+}
 .editor-italic {
   position: relative;
   left: -2px;
