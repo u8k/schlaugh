@@ -4972,22 +4972,24 @@ var mdNoteConvert = function (string, pos, dir) {
   if (!pos) {pos = 0}
 
   var nextStart = string.indexOf(mdLib.note[dir][0], pos);
-  var scndNextStart = string.indexOf(mdLib.note[dir][0], nextStart+1);
-  var nextEnd = string.indexOf(mdLib.note[dir][2], nextStart+1);
-  var nextMid = string.indexOf(mdLib.note[dir][1], nextStart+1);
-
-  if (nextMid > nextEnd) {nextMid = -1;}
-
-  if (nextStart === -1 || nextEnd === -1) {return string;}
+  var scndNextStart = string.indexOf(mdLib.note[dir][0], nextStart+ mdLib.note[dir][0].length);
+  var nextEnd = string.indexOf(mdLib.note[dir][2], nextStart+ mdLib.note[dir][0].length);
+  var nextMid = string.indexOf(mdLib.note[dir][1], nextStart+ mdLib.note[dir][0].length);
 
   if (scndNextStart === -1) {scndNextStart = Infinity;}
+  if (nextMid === -1) {nextMid = Infinity;}
+  if (nextEnd === -1) {nextEnd = Infinity;}
+  if (nextMid > nextEnd || nextMid > scndNextStart) {nextMid = Infinity;}
+
+  if (nextStart === -1 || nextEnd === Infinity) {return string;}
+
 
   // mind escapes
   if (string[nextStart-1] === mdLib.esc && !dir) {
     return mdNoteConvert(string, nextStart+1, dir);
   }
 
-  if (nextMid !== -1) {
+  if (nextMid !== Infinity) {
     string = string.substring(0,nextStart) + mdLib.note[(dir+1)%2][0] +
       string.substring(nextStart+mdLib.note[dir][0].length, nextMid) + mdLib.note[(dir+1)%2][1] +
       string.substring(nextMid+mdLib.note[dir][1].length);

@@ -773,6 +773,11 @@ input:-webkit-autofill {
 #max-width-select {
   width: 56px;
 }
+@media screen and (max-width: 500px) {
+  #max-width-select {
+    width: 67px;
+  }
+}
 
 body, h1, input, select, .main-background {
   /* color: #383F45; */
