@@ -4682,12 +4682,17 @@ var convertMarkdownToHtml = function (string) {
   string = escapeMdTweenTags(string, 0, 'code');
   string = escapeMdTweenTags(string, 0, 'ascii');
   //
+  // we do the quote tags here first, because i've assigned them >> which can get tripped up if they are used next to other tags that are converted to html
+  for (var i = 0; i < 2; i++) {
+    string = stringReplaceAll(string, mdLib.straightSwaps[i][0], mdLib.straightSwaps[i][1], true);
+  }
+  //
   string = mdImgConvert(string, 0, 0);
   string = mdLinkConvert(string, 0, 0);
   string = mdNoteConvert(string, 0, 0);
   string = listConvertMdToHtml(string);
 
-  for (var i = 0; i < mdLib.straightSwaps.length; i++) {
+  for (var i = 2; i < mdLib.straightSwaps.length; i++) {
     string = stringReplaceAll(string, mdLib.straightSwaps[i][0], mdLib.straightSwaps[i][1], true);
   }
 
