@@ -4576,6 +4576,7 @@ var mdLib = {
   ['//',"<i>","</i>"],
   ['__',"<u>","</u>"],
   ['--',"<s>","</s>"],
+  ['~~',"<s>","</s>"],
   ['&&',"<cut>","</cut>"],
   ['``',"<code>","</code>"],
   ['%%',"<ascii>","</ascii>"],
@@ -4588,7 +4589,7 @@ var mdLib = {
     ["))","</note>"],
     ["===", "<hr>"],
   ],
-  escList: ['**','//','__','--','&&','``','%%','##','>>',"<<","((","))","===","  -","  *","{{","[["]
+  escList: ['**','//','__','--','~~','&&','``','%%','##','>>',"<<","((","))","===","  -","  *","{{","[["]
 };
 
 var convertHtmlToMarkdown = function (string) {
@@ -4628,10 +4629,11 @@ var stringReplaceAll = function (string, replacee, replacement, mindEscapes, pos
   var pos = string.indexOf(replacee, pos);
   if (pos === -1) {return string;}
 
-  if (string.substr(pos-1,1) !== mdLib.esc) {
-    string = string.substr(0,pos) + string.substr(pos).replace(replacee, replacement);
-  } else {
+  //is the match we found escaped? (...and the escape NOT escaped)
+  if (string.substr(pos-1, 1) === mdLib.esc && string.substr(pos-2, 1) !== mdLib.esc) {
     string = string.substr(0,pos-1) + string.substr(pos);
+  } else {
+    string = string.substr(0,pos) + string.substr(pos).replace(replacee, replacement);
   }
 
   return stringReplaceAll(string, replacee, replacement, mindEscapes, pos+1);
@@ -4646,7 +4648,6 @@ var escapeMarkdown = function (string, pos, mdPos, undo) {
   }
 
   var next = string.indexOf(mdLib.escList[mdPos], pos);
-  // CANTALOPE, the above line is not good enough, it doesn't cover all the MD syntax that's not in the "swaps"
 
   if (next === -1) {
     if (mdLib.escList.length === mdPos+1) {
@@ -4656,15 +4657,15 @@ var escapeMarkdown = function (string, pos, mdPos, undo) {
     }
   }
   pos = next;
-  // is it ALREADY escaped?
-  if (string.substr(pos-1, 1) === mdLib.esc) {
+  // is it ALREADY escaped? (...and the escape NOT escaped)
+  if (string.substr(pos-1, 1) === mdLib.esc && string.substr(pos-2, 1) !== mdLib.esc) {
     if (undo) {
       string = string.substr(0, pos-mdLib.esc.length)+string.substr(pos)
     }
     return escapeMarkdown(string, pos+1, mdPos, undo);
   } else {
     string = string.substr(0, pos) + mdLib.esc + string.substr(pos);
-    return escapeMarkdown(string, pos+2, mdPos, undo);
+    return escapeMarkdown(string, pos + mdLib.esc.length + mdLib.escList[mdPos].length, mdPos, undo);
   }
 }
 
@@ -4775,8 +4776,8 @@ var listConvertMdToHtml = function (string, pos, stack) {
   var tag = "<ul>";
   if (nextOl < nextUl) { pos = nextOl; tag = "<ol>" }
 
-  // is it escaped?
-  if (string.substr(pos-1, 1) === mdLib.esc) {
+  //is the match we found escaped? (...and the escape NOT escaped)
+  if (string.substr(pos-1, 1) === mdLib.esc && string.substr(pos-2, 1) !== mdLib.esc) {
     return listConvertMdToHtml(string.substr(0, pos-1) + string.substr(pos), pos+1, stack);
   }
 
@@ -4897,15 +4898,15 @@ var mdLinkConvert = function (string, pos, dir) {
     undo = true;
   }
 
-  // mind escapes
-  if (string[nextStart-1] !== mdLib.esc || undo) {
+  //is the match we found escaped? (...and the escape NOT escaped)
+  if ((string.substr(nextStart-1, 1) === mdLib.esc && string.substr(nextStart-2, 1) !== mdLib.esc) && !undo) {
+    string = string.substr(0, nextStart-1) + string.substr(nextStart);
+  } else {
     // the actual string operation happens here
     string = string.substring(0,nextStart) + mdLib.link[(dir+1)%2][0] +
     escapeMarkdown(string.substring(nextStart+mdLib.link[dir][0].length, nextMid), 0,0,undo) + mdLib.link[(dir+1)%2][1] +
     string.substring(nextMid+mdLib.link[dir][1].length, nextEnd) + mdLib.link[(dir+1)%2][2] +
     string.substring(nextEnd+mdLib.link[dir][2].length);
-  } else {
-    string = string.substr(0, nextStart-1) + string.substr(nextStart);
   }
 
   if (scndNextStart !== Infinity) {
@@ -4942,8 +4943,8 @@ var mdImgConvert = function (string, pos, dir) {
     undo = true;
   }
 
-  // mind escapes
-  if (string[nextStart-1] === mdLib.esc && !undo) {
+  //is the match we found escaped? (...and the escape NOT escaped)
+  if (string.substr(nextStart-1, 1) === mdLib.esc && string.substr(nextStart-2, 1) !== mdLib.esc && !undo) {
     return mdImgConvert(string.substr(0, nextStart-1) + string.substr(nextStart), nextStart+1, dir);
   }
 
@@ -4989,8 +4990,8 @@ var mdNoteConvert = function (string, pos, dir) {
   if (nextStart === -1 || nextEnd === Infinity) {return string;}
 
 
-  // mind escapes
-  if (string[nextStart-1] === mdLib.esc && !dir) {
+  //is the match we found escaped? (...and the escape NOT escaped)
+  if (string.substr(nextStart-1, 1) === mdLib.esc && string.substr(nextStart-2, 1) !== mdLib.esc && !dir) {
     return mdNoteConvert(string, nextStart+1, dir);
   }
 
@@ -5016,8 +5017,8 @@ var matchAndConvertMarkdownTagPairs = function (string, pos, mdPos, opening) {
   var next = string.indexOf(mdLib.swaps[mdPos][0], pos);
   if (next === -1) {return string;}                   // end condition
   pos = next;
-                                        //is the match we found escaped?
-  if (string.substr(pos-1, 1) === mdLib.esc) {
+                                        //is the match we found escaped? (...and the escape NOT escaped)
+  if (string.substr(pos-1, 1) === mdLib.esc && string.substr(pos-2, 1) !== mdLib.esc) {
     string = string.substr(0, pos-1) + string.substr(pos);
     return matchAndConvertMarkdownTagPairs(string, pos+1, mdPos, opening);
   } else {
