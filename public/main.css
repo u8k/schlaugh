@@ -229,6 +229,8 @@ clicky, .clicky {
 
 #pending-status { margin-top: 15px; margin-bottom: 8px;}
 
+.below-editor-button{ margin-right: 30px;}
+
 #post-writer, #old-post-writer, #message-writer {width: 75%; margin: auto;}
 
 .editor {

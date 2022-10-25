@@ -23,7 +23,7 @@
   <div id="post-preview">
     <div id="pending-status">no pending post for tomorrow</div>
     <div id="pending-post" class="removed"></div>
-    <button type="button" id='write-post-button' onclick="showPostWriter()">new post</button>
+    <button type="button"  class="below-editor-button" id='write-post-button' onclick="showPostWriter()">new post</button>
     <button id='delete-pending-post' class="removed" onclick="submitPost(true)">delete</button><br><br>
     <text id="pending-post-link"></text>
   </div>
@@ -43,7 +43,7 @@
       <input id="url-input" class="editor-input" type="text" placeholder="optional">
     </wrapper>
     <br><br>
-    <button onclick="submitPost()">save post</button>
+    <button onclick="submitPost()" class="below-editor-button">save post</button>
     <button onclick="cancelPost()">cancel</button>
   </div>
 </div>
@@ -156,14 +156,14 @@
     <br>
     <p id="pending-message-status"></p>
     <div id="pending-message" class="message removed reader-font"></div>
-    <button type="button" id='write-message-button' onclick="showWriter('message')"></button>
+    <button type="button"  class="below-editor-button" id='write-message-button' onclick="showWriter('message')"></button>
     <button id='delete-message' onclick="submitMessage(true)">delete</button>
   </div>
   <div id="message-writer" class="removed">
     <%- include("editorButtons", {kind: "message"}) %>
     <textarea id="message-editor" autocomplete="off" class="editor reader-font" autocapitalize="off" oninput="resizeEditor('message')" onkeydown="editorKeyHandler(event, 'message')"></textarea>
     <br>
-    <button onclick="submitMessage()">save message</button>
+    <button onclick="submitMessage()" class="below-editor-button">save message</button>
     <button onclick="cancelMessage()">cancel</button>
   </div>
   <br>
@@ -381,7 +381,7 @@
 
     <%- include("authorHeader", {kind: "edit"}) %>
 
-    <button type="button" id='write-old-post-button' onclick="showWriter('old-post')">new edit</button>
+    <button type="button"  class="below-editor-button" id='write-old-post-button' onclick="showWriter('old-post')">new edit</button>
     <button id='delete-pending-old-post'>delete edit</button>
   </div>
 
@@ -401,7 +401,7 @@
       <input id="old-url-input" class="editor-input" type="text" placeholder="optional">
     </wrapper>
     <br><br>
-    <button id='submit-editing-old-post'>save post</button>
+    <button id='submit-editing-old-post' class="below-editor-button">save post</button>
     <button id='cancel-edit-button'>cancel</button>
   </div>
 </div>

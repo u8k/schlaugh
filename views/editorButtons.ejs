@@ -1,13 +1,13 @@
 <br>
 <div id="editor-options-<%- kind %>" class="editor-options">
-  <button class="editor-button" title="bold" onclick="styleText('b', '<%- kind %>')"><b>B</b></button><!--
---><button class="editor-button" title="italic" onclick="styleText('i', '<%- kind %>')"><i class="editor-italic">I</i></button><!--
---><button class="editor-button" title="underline" onclick="styleText('u', '<%- kind %>')"><u>U</u></button><!--
---><button class="editor-button" title="strikethrough" onclick="styleText('s', '<%- kind %>')"><s>S</s></button><!--
+  <button class="editor-button" title="bold" onclick="edButtHand.bold('<%- kind %>')"><b>B</b></button><!--
+--><button class="editor-button" title="italic" onclick="edButtHand.ital('<%- kind %>')"><i class="editor-italic">I</i></button><!--
+--><button class="editor-button" title="underline" onclick="edButtHand.under('<%- kind %>')"><u>U</u></button><!--
+--><button class="editor-button" title="strikethrough" onclick="edButtHand.strike('<%- kind %>')"><s>S</s></button><!--
 --><wrapper id="<%- kind + '-html-list-buttons'%>" class="removed"><!--
-  --><button class="editor-button" title="list item" onclick="styleText('li', '<%- kind %>')">li</button><!--
-  --><button class="editor-button" title="unordered list" onclick="styleText('ul', '<%- kind %>', true)">ul</button><!--
-  --><button class="editor-button" title="ordered list" onclick="styleText('ol', '<%- kind %>', true)">ol</button><!--
+  --><button class="editor-button" title="list item" onclick="edButtHand.li('<%- kind %>')">li</button><!--
+  --><button class="editor-button" title="unordered list" onclick="edButtHand.ul('<%- kind %>')">ul</button><!--
+  --><button class="editor-button" title="ordered list" onclick="edButtHand.ol('<%- kind %>')">ol</button><!--
 --></wrapper><!--
 --><wrapper id="<%- kind + '-md-list-buttons'%>" class=""><!--
   --><button class="editor-button" title="unordered list item" onclick="insertMDlist('<%- kind %>', 'ul')"><icon class="fas fa-list-ul"></icon></button><!--

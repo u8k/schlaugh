@@ -5139,6 +5139,16 @@ var changeEditorState = function (kind) {
   setCursorPosition($(kind+"-editor"), cursPos.start, cursPos.end);
 }
 
+var edButtHand = {
+  bold: function (kind) {styleText('b', kind);},
+  ital: function (kind) {styleText('i', kind);},
+  under: function (kind) {styleText('u', kind);},
+  strike: function (kind) {styleText('s', kind);},
+  li: function (kind) {styleText('li', kind);},
+  ul: function (kind) {styleText('ul', kind, true);},
+  ol: function (kind) {styleText('ol', kind, true);},
+}
+
 glo.editorHotKeys = {
   ctrlKey: {
     shift:{
@@ -5146,37 +5156,35 @@ glo.editorHotKeys = {
     },
     z: undo,
     y: redo,
+    b: edButtHand.bold,
+    i: edButtHand.ital,
+    u: edButtHand.under,
+    k: edButtHand.strike,
   },
+  /* // make sure this works, otherwise put it back, but if Metakey, then just look up what we would do for Ctrl and do that
   metaKey: {
     z: undo,
     y: redo,
   }
+  */
 }
 var editorKeyHandler = function (event, kind) {
   event.stopPropagation();
-  if (event.ctrlKey && _npa(['event','key',]) !== "Control") {  // ctrl + shift
+  if ((event.ctrlKey || event.metaKey) && _npa(['event','key',]) !== "Control") {  // ctrl(or meta) + shift
     if (event.shiftKey && _npa(['event','key',]) !== "Shift") {
       if (_npa(['glo','editorHotKeys','ctrlKey','shift',event.key])) {
         event.preventDefault();
         _npa(['glo','editorHotKeys','ctrlKey','shift', event.key])(kind);
       }
-    } else if (_npa(['glo','editorHotKeys','ctrlKey', event.key])) { // ctrl(only)
+    } else if (_npa(['glo','editorHotKeys','ctrlKey', event.key])) {          // ctrl(or meta)(only)
       event.preventDefault();
       _npa(['glo','editorHotKeys','ctrlKey', event.key])(kind);
     }
-
-  } else if (event.metaKey && _npa(['event','key',]) !== "Meta" && _npa(['glo','editorHotKeys','metaKey', event.key])) {
+  } /* else if (event.metaKey && _npa(['event','key',]) !== "Meta" && _npa(['glo','editorHotKeys','metaKey', event.key])) {
     event.preventDefault();
     _npa(['glo','editorHotKeys','metaKey', event.key])(kind);
-  }
+  } */
 }
-/*var blockDefaultKeys = function (event) {
-  if (event.ctrlKey && _npa(['event','key',]) !== "Control" && _npa(['glo','editorHotKeys','ctrlKey', event.key])) {
-    event.preventDefault();
-  } else if (event.metaKey && _npa(['event','key',]) !== "Meta" && _npa(['glo','editorHotKeys','metaKey', event.key])) {
-    event.preventDefault();
-  }
-}*/
 
 // thread stuff
 var closeThread = function () { // returns true for threadClosed, false for NO
