@@ -4210,9 +4210,11 @@ var editorButtonManagement = function () {
     if (document.activeElement.id.substr(-7) === "-editor") {
       var kind = document.activeElement.id.substr(0, document.activeElement.id.length-7);
       $("editor-options-"+kind).classList.remove('removed');
+      $(kind+"-editor-key-notice").classList.remove('removed');
     } else if (glo.lastClickedElem && glo.lastClickedElem.substr(-7) === "-editor") {
       var kind = glo.lastClickedElem.substr(0, glo.lastClickedElem.length-7);
       $("editor-options-"+kind).classList.add('removed');
+      $(kind+"-editor-key-notice").classList.add('removed');
     }
     glo.lastClickedElem = document.activeElement.id;
   }
@@ -5147,6 +5149,38 @@ var edButtHand = {
   li: function (kind) {styleText('li', kind);},
   ul: function (kind) {styleText('ul', kind, true);},
   ol: function (kind) {styleText('ol', kind, true);},
+
+  ol: function (kind) {styleText('ol', kind, true);},
+
+  submit: function (kind) {
+    if (kind === "post") { return submitPost();}
+    if (kind === "message") { return submitMessage();}
+    if (kind === "old-post") { return $('submit-editing-old-post').onclick();}
+  }
+}
+
+var showEditorHotkeyList = function () {
+  uiAlert(`<ascii>
+    Ctrl + b &nbsp=> &nbspbold
+    Ctrl + i &nbsp=> &nbspitalic
+    Ctrl + u &nbsp=> &nbspunderline
+    Ctrl + k &nbsp=> &nbspstrikethrough
+
+    Ctrl + l &nbsp=> &nbsplink
+    Ctrl + p &nbsp=> &nbspimg
+    Ctrl + o &nbsp=> &nbspnote
+    Ctrl + q &nbsp=> &nbspquote
+    Ctrl + h &nbsp=> &nbsphr
+
+    Ctrl + Enter or s => submit/save
+    Esc => cancel
+    </ascii>`, 'oh wow');
+}
+
+var cancelEditor = function (kind) {
+  if (kind === "post") { return cancelPost();}
+  if (kind === "message") { return cancelMessage();}
+  if (kind === "old-post") { return $('cancel-edit-button').onclick();}
 }
 
 glo.editorHotKeys = {
@@ -5160,6 +5194,15 @@ glo.editorHotKeys = {
     i: edButtHand.ital,
     u: edButtHand.under,
     k: edButtHand.strike,
+
+    l: hyperlink,
+    p: insertImage,
+    o: insertNote,
+    q: insertQuote,
+    h: insertHR,
+
+    Enter: edButtHand.submit,
+    s: edButtHand.submit,
   },
   /* // make sure this works, otherwise put it back, but if Metakey, then just look up what we would do for Ctrl and do that
   metaKey: {
@@ -5168,8 +5211,12 @@ glo.editorHotKeys = {
   }
   */
 }
+
 var editorKeyHandler = function (event, kind) {
   event.stopPropagation();
+  if (event.key === "F2") { return showEditorHotkeyList();}
+  if (event.key === "Escape") { return cancelEditor(kind);}
+
   if ((event.ctrlKey || event.metaKey) && _npa(['event','key',]) !== "Control") {  // ctrl(or meta) + shift
     if (event.shiftKey && _npa(['event','key',]) !== "Shift") {
       if (_npa(['glo','editorHotKeys','ctrlKey','shift',event.key])) {

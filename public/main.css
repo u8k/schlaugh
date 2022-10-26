@@ -229,6 +229,19 @@ clicky, .clicky {
 
 #pending-status { margin-top: 15px; margin-bottom: 8px;}
 
+.keyboard-shortcut-notice {
+  display: block;
+  position: absolute;
+  margin-top: -6px;
+  opacity: 70%;
+  font-size: 0.9em;
+}
+@media screen and (max-width: 600px) {
+  .keyboard-shortcut-notice {
+    visibility: hidden;
+  }
+}
+
 .below-editor-button{ margin-right: 15px; margin-left: 15px;}
 
 #post-writer, #old-post-writer, #message-writer {width: 75%; margin: auto;}
