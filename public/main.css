@@ -232,7 +232,7 @@ clicky, .clicky {
 .keyboard-shortcut-notice {
   display: block;
   position: absolute;
-  margin-top: -6px;
+  /* margin-top: -6px; */
   opacity: 70%;
   font-size: 0.9em;
 }
