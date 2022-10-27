@@ -5149,9 +5149,18 @@ var edButtHand = {
   li: function (kind) {styleText('li', kind);},
   ul: function (kind) {styleText('ul', kind, true);},
   ol: function (kind) {styleText('ol', kind, true);},
-
-  ol: function (kind) {styleText('ol', kind, true);},
-
+  //
+  bulletItem: function (kind) {insertMDlist(kind, 'ul')},
+  numberItem: function (kind) {insertMDlist(kind, 'ol')},
+  //
+  l: function (kind) {styleText('l', kind, true);},
+  c: function (kind) {styleText('c', kind, true);},
+  r: function (kind) {styleText('r', kind, true);},
+  cut: function (kind) {styleText('cut', kind);},
+  code: function (kind) {styleText('code', kind);},
+  ascii: function (kind) {styleText('ascii', kind, true);},
+  spoil: function (kind) {styleText('spoil', kind);},
+  //
   submit: function (kind) {
     if (kind === "post") { return submitPost();}
     if (kind === "message") { return submitMessage();}
@@ -5160,21 +5169,41 @@ var edButtHand = {
 }
 
 var showEditorHotkeyList = function () {
-  uiAlert(`<ascii>
-    Ctrl + b &nbsp=> &nbspbold
-    Ctrl + i &nbsp=> &nbspitalic
-    Ctrl + u &nbsp=> &nbspunderline
-    Ctrl + k &nbsp=> &nbspstrikethrough
+  uiAlert(`<ascii>        Ctrl + b  =>  bold
+        Ctrl + i  =>  italic
+        Ctrl + u  =>  underline
+        Ctrl + k  =>  strikethrough
+        Ctrl + l  =>  bullet item
+Ctrl + Shift + L  =>  number item
+        Ctrl + h  =>  link
+        Ctrl + p  =>  img
+        Ctrl + o  =>  note
+        Ctrl + q  =>  quote
+        Ctrl + r  =>  hr
+        Ctrl + 8  =>  left
+        Ctrl + 9  =>  center
+        Ctrl + 0  =>  right
+        Ctrl + m  =>  cut
+        Ctrl + j  =>  code
+        Ctrl + g  =>  ascii
+        Ctrl + d  =>  spoil
+Ctrl + Enter or s => submit/save
+              Esc => cancel</ascii>`, 'oh wow');
+}
 
-    Ctrl + l &nbsp=> &nbsplink
-    Ctrl + p &nbsp=> &nbspimg
-    Ctrl + o &nbsp=> &nbspnote
-    Ctrl + q &nbsp=> &nbspquote
-    Ctrl + h &nbsp=> &nbsphr
-
-    Ctrl + Enter or s => submit/save
-    Esc => cancel
-    </ascii>`, 'oh wow');
+var ulHotkeyRouter = function (kind) {
+  if (_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+      edButtHand.ul(kind);
+  } else {
+      edButtHand.bulletItem(kind);
+  }
+}
+var olHotKeyRouter = function (kind) {
+  if (_npa(['glo','settings','isUsingHtmlEditorMode'])) {
+    edButtHand.ol(kind);
+  } else {
+    edButtHand.numberItem(kind);
+  }
 }
 
 var cancelEditor = function (kind) {
@@ -5187,6 +5216,7 @@ glo.editorHotKeys = {
   ctrlKey: {
     shift:{
       Z: redo,
+      L: olHotKeyRouter,
     },
     z: undo,
     y: redo,
@@ -5194,13 +5224,24 @@ glo.editorHotKeys = {
     i: edButtHand.ital,
     u: edButtHand.under,
     k: edButtHand.strike,
-
-    l: hyperlink,
+    //
+    e: edButtHand.li,
+    l: ulHotkeyRouter,
+    //
+    h: hyperlink,
     p: insertImage,
     o: insertNote,
     q: insertQuote,
-    h: insertHR,
-
+    r: insertHR,
+    //
+    8: edButtHand.l,
+    9: edButtHand.c,
+    0: edButtHand.r,
+    m: edButtHand.cut,
+    j: edButtHand.code,
+    g: edButtHand.ascii,
+    d: edButtHand.spoil,
+    //
     Enter: edButtHand.submit,
     s: edButtHand.submit,
   },

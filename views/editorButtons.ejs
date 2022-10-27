@@ -10,8 +10,8 @@
   --><button class="editor-button" title="ordered list" onclick="edButtHand.ol('<%- kind %>')">ol</button><!--
 --></wrapper><!--
 --><wrapper id="<%- kind + '-md-list-buttons'%>" class=""><!--
-  --><button class="editor-button" title="unordered list item" onclick="insertMDlist('<%- kind %>', 'ul')"><icon class="fas fa-list-ul"></icon></button><!--
-  --><button class="editor-button" title="ordered list item" onclick="insertMDlist('<%- kind %>', 'ol')"><icon class="fas fa-list-ol"></icon></button><!--
+  --><button class="editor-button" title="unordered list item" onclick="edButtHand.bulletItem('<%- kind %>')"><icon class="fas fa-list-ul"></icon></button><!--
+  --><button class="editor-button" title="ordered list item" onclick="edButtHand.numberItem('<%- kind %>')"><icon class="fas fa-list-ol"></icon></button><!--
 --></wrapper><!--
 --><button class="editor-button" onclick="hyperlink('<%- kind %>')">link</button><!--
 --><button class="editor-button" onclick="insertImage('<%- kind %>')">img</button><!--
@@ -22,13 +22,13 @@
 --><button class="editor-button" title="redo" onclick="redo('<%- kind %>')" id='<%- kind + "-redo-button"%>'>↪</button><!--
 
 --><wrapper id="<%- kind + '-more-buttons'%>" class="removed"><!--
-  --><button class="editor-button" title="left align" onclick="styleText('l', '<%- kind %>', true)"><icon class="fas fa-align-left"></icon></button><!--
-  --><button class="editor-button" title="center align" onclick="styleText('c', '<%- kind %>', true)"><icon class="fas fa-align-center"></icon></button><!--
-  --><button class="editor-button" title="right align" onclick="styleText('r', '<%- kind %>', true)"><icon class="fas fa-align-right"></icon></button><!--
-  --><button class="editor-button" onclick="styleText('cut', '<%- kind %>')">cut</button><!--
-  --><button class="editor-button" onclick="styleText('code', '<%- kind %>')">code</button><!--
-  --><button class="editor-button" onclick="styleText('ascii', '<%- kind %>', true)">ascii</button><!--
-  --><button class="editor-button" onclick="styleText('spoil', '<%- kind %>', false)">spoil</button><!--
+  --><button class="editor-button" title="left align" onclick="edButtHand.l('<%- kind %>')"><icon class="fas fa-align-left"></icon></button><!--
+  --><button class="editor-button" title="center align" onclick="edButtHand.c('<%- kind %>')"><icon class="fas fa-align-center"></icon></button><!--
+  --><button class="editor-button" title="right align" onclick="edButtHand.r('<%- kind %>')"><icon class="fas fa-align-right"></icon></button><!--
+  --><button class="editor-button" onclick="edButtHand.cut('<%- kind %>')">cut</button><!--
+  --><button class="editor-button" onclick="edButtHand.code('<%- kind %>')">code</button><!--
+  --><button class="editor-button" onclick="edButtHand.ascii('<%- kind %>')">ascii</button><!--
+  --><button class="editor-button" onclick="edButtHand.spoil('<%- kind %>')">spoil</button><!--
   --><button class="editor-button" title="toggle editor mode" onclick="toggleEditorMarkdown('<%- kind %>')" id='<%- kind + "-editor-mode-button" %>'>HTML</button><!--
 --></wrapper><!--
 --><button class="editor-button" title="more buttons" onclick="toggleMoreEditorButtons('<%- kind %>',this)"><icon class="fas fa-plus editor-more-less"></icon></button>
