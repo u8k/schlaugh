@@ -496,13 +496,10 @@ a, a.visited {
   opacity: .7;
   border: none;
   padding: 0;
-  height: 14px;
   background-color: #ffffff00;
+  margin: 0;
 }
-.collapse-button-bottom {
-  top: auto;
-  bottom: 5px;
-}
+
 .expand-button {
   margin: 2px 3px 0px;
   font-size: .94em;
@@ -517,12 +514,11 @@ a, a.visited {
   padding: 0;
   top: -2px;
   left: 18px;
-  height: 14px;
   background-color: #ffffff00;
 }
-.expand-all-bot-button {
+.expand-all-bot-button, .collapse-button-bottom {
   top: unset;
-  bottom: 7px;
+  bottom: -2px;
 }
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
   .expand-all-bot-button, .expand-all-top-button {
@@ -531,9 +527,6 @@ a, a.visited {
   }
   .expand-all-top-button {
     top: -4px;
-  }
-  .expand-all-bot-button {
-    bottom: 12px;
   }
 }
 
@@ -717,7 +710,7 @@ button, .button {
   .author-button {width: 140px;}
   .collapse-button-top, .collapse-button-bottom {font-size: 20px;}
   .collapse-button-top {top: -4px;}
-  .collapse-button-bottom {bottom: 10px;}
+  .collapse-button-bottom, .expand-all-bot-button {bottom: -3px;}
   .color-button {width: 75px; height: 28px;}
   .footer-button {height: 29px;}
 }
