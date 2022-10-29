@@ -817,7 +817,7 @@ var parseInboundTags = function (tagString) {
         arr.splice(i,1);
       }
     }
-    if (arr.length > 31) {return "this is not actually an 'error', this is just me preventing you from using this many tags. Do you <i>really</i> need this many tags?? Tell staff about this if you have legitimate reason for the limit to be higher. I might have drawn the line too low, i dunno, i had to draw it somewhere.<br><br>beep boop"}
+    if (arr.length >= 41) {return "this is not actually an 'error', this is just me preventing you from using this many tags. Do you <i>really</i> need this many tags?? Tell staff about this if you have legitimate reason for the limit to be higher. I might have drawn the line too low, i dunno, i had to draw it somewhere.<br><br>beep boop"}
     for (var i = 0; i < arr.length; i++) {
       if (arr[i].length > 280) {return "this is not actually an 'error', it's just one of your tags is very long and I'm preventing you from submitting it. Do you <i>really</i> need that many characters in one tag?? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>Worth the Candle</i> as tags in an attempt to break the site.<br><br>enjoy your breakfast"}
       tags[arr[i]] = true;
