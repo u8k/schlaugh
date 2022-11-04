@@ -903,6 +903,30 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
   return string;
 }
 
+var convertMaths = function (string, pos) {
+  if (!pos) {pos = 0;}
+
+  // find next opening latex tag
+  pos = string.indexOf("<latex>", pos);
+  if (pos === -1) {
+    return string;
+  }
+  // find the closing of the following "x" tag
+  pos = string.indexOf("'>", pos+7);
+  pos += 2;
+  var pre = string.substr(0, pos);
+  var close = string.indexOf("</x>", pos);
+  //
+  var theMath = string.substr(pos,close-pos);
+  theMath = katex.renderToString(theMath, {throwOnError: false});
+  //
+  var post = string.substr(close);
+  //
+  string = pre + theMath + post;
+  //
+  return convertMaths(string, close);
+}
+
 var convertSpoils = function (string) {
   var modString = string.replace(/<\/spoil>/g, `</a>`);
   modString = modString.replace(/<spoil>/g, `<a href="javascript:void(0);" onclick="toggleSpoil(this)" class='spoil text-button'>`);
@@ -966,6 +990,28 @@ var unConvertCodes = function (string, pos) {
   }
 }
 
+var swapInBrTagsButNotTweenLatexTags = function (string, prevClos) {
+  if (!prevClos) {prevClos = 0;}
+
+  var next = string.indexOf("<latex>", prevClos);
+  if (next === -1) {
+    return string.substr(0,prevClos) + string.substr(prevClos).replace(/\r?\n|\r/g, '<br>');
+  }
+
+  var pre = string.substr(0, prevClos)
+  var mid = string.substr(prevClos, next-prevClos).replace(/\r?\n|\r/g, '<br>');
+  var post = string.substr(next);
+  string = pre+mid+post;
+
+
+  var nextClos = string.indexOf("</latex>", pre.length + mid.length);
+  if (nextClos === -1) {
+    return pre + mid + post.replace(/\r?\n|\r/g, '<br>');
+  } else {
+    return swapInBrTagsButNotTweenLatexTags(string, nextClos);
+  }
+}
+
 var sanctionedTagRef = {
   'b':true,
   '/b':true,
@@ -991,6 +1037,8 @@ var sanctionedTagRef = {
   '/ascii':true,
   'secret':true,
   '/secret':true,
+  'latex':true,
+  '/latex':true,
   'spoil':true,
   '/spoil':true,
   'quote':true,
@@ -1050,8 +1098,11 @@ var tagsThatForceNewLine = {
   "img":true,
 }
 var removeExtraLineBreak = function (string, pos) {
-  if (string.substr(pos+1,4) === "<br>") {
+  pos++;
+  if (string.substr(pos,4) === "<br>") {
     string = string.substr(0,pos) + string.substr(pos+4);
+  } else if (string.substr(pos,1) === "\n") {
+    string = string.substr(0,pos) + string.substr(pos+1);
   }
   return string;
 }
@@ -1097,7 +1148,17 @@ var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack)
       if (selfClosingTagRef[tag]) {
         // do nothing
       } else {
-        if (tag.substr(0,1) === "/") {  //if closing, then first make sure it's in the tag stack at all, if not: remove it
+        if (tag === "latex") {
+          // find the closing latex tag, and move pos to skip checking everything in between
+          var closingTag = string.indexOf("</latex>", pos);
+          if (closingTag === -1) {
+            pos++;
+            string = insertStringIntoStringAtPos(string, "</latex>", pos);
+            pos += 8;
+          } else {
+            pos = closingTag + 8;
+          }
+        } else if (tag.substr(0,1) === "/") {  //if closing, then first make sure it's in the tag stack at all, if not: remove it
           tag = tag.substr(1);
           var isOpen = false;
           for (var i = 0; i < tagStack.length; i++) {
@@ -1139,7 +1200,8 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
   if (!pos) {
     string = convertCodes(string);
     //change /n for <br>
-    string = string.replace(/\r?\n|\r/g, '<br>');
+    string = swapInBrTagsButNotTweenLatexTags(string);
+    //
     string = deWeaveAndRemoveUnmatchedTags(string, extracting);
     //
     pos = 0; elemCount = 0; tagStack = []; noteList = [];
@@ -1172,6 +1234,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         string = string + "</"+tagStack[i].tag+">";
       }
       string = convertSpoils(string);
+      string = convertMaths(string);
       return {string:string, noteList:noteList};
     }
   } else {
@@ -1210,8 +1273,13 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
           // match to tag stack, closing all tags above it, and popping them and the match from the stack
           for (var i = tagStack.length-1; i > -1; i--) {    // since the deweave-and-remove has already ran, it should always be the last tag on the stack
             if (tagStack[i].tag === tag) {                      // unless it's a cut, then we let the innercut get ended here
-              if (!extracting && tag === "innerNote" && string.substr(pos+1,4) === "<br>" && tagStack[i].id) {   // closing a note, check for <br>
-                string = string.substr(0, pos+1)+`<br id="`+tagStack[i].id+`-br">`+string.substr(pos+5);
+
+              if (!extracting && tag === "innerNote" && tagStack[i].id) {   // closing a note, check for <br>
+                if (string.substr(pos+1,4) === "<br>") {
+                  string = string.substr(0, pos+1)+`<br id="`+tagStack[i].id+`-br">`+string.substr(pos+5);
+                } else if (string.substr(pos+1,1) === "\n") {
+                  string = string.substr(0, pos+1)+`<br id="`+tagStack[i].id+`-br">`+string.substr(pos+2);
+                }
               }
               tagStack.pop();
               break;
@@ -1282,9 +1350,8 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
 
           } else {
             string = convertNote(string, id, elemCount, type, pos-5);
-            if (!extracting) {
-              noteList.push({postID:id, elemNum:elemCount,});
-            }
+            noteList.push({postID:id, elemNum:elemCount,});
+
             tagStack.push({tag:"innerNote", id:id+"-"+(elemCount+1)});
             tag = "button";
             pos+=2;
@@ -1335,13 +1402,23 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
           var nextOpenPos = string.substr(pos+1).search(/</);
           if (nextOpenPos === -1) {nextOpenPos = Infinity}
           //
-          if (string[pos+endPos+1] !== "<" && !(extracting && endPos > nextOpenPos)) {
+          if (tag === "latex" || (string[pos+endPos+1] !== "<" && !(extracting && endPos > nextOpenPos))) {
             var x = checkOrInsertElem(string, pos+endPos+1, id, elemCount, extracting, tagStack);
             if (x.error) {return x;}
             if (x.extracting && x.extracting.done) {return x.extracting.returnString}
             extracting = x.extracting;
             string = x.string;
             elemCount++;
+            if (tag === "latex") {
+              var closingTag = string.indexOf("</latex>", pos);
+              // assume that it will always find a match because deweave has always already run
+              if (extracting) {
+                pos = closingTag;
+              } else {
+                string = insertStringIntoStringAtPos(string, "</x>", closingTag);
+                pos = closingTag + 4;
+              }
+            }
           }
         }
       }
@@ -1358,7 +1435,6 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
       for (var i = 0; i < tagStack.length; i++) {
         extracting.startTags.push(tagStack[i]);
       }
-
     }
     if (extracting.endElem === elemCount) {
       extracting.done = true;
@@ -1375,6 +1451,14 @@ var checkOrInsertElem = function (string, pos, id, elemCount, extracting, tagSta
 
       var startPos = extracting.elemStartPos + extracting.startOffset;
       var endPos = pos + extracting.endOffset;
+
+      // if LaTeX, then just grab the whole element
+      if (extracting.startTags.length && extracting.startTags[extracting.startTags.length-1] && extracting.startTags[extracting.startTags.length-1].tag === "latex") {
+        startPos = extracting.elemStartPos
+      }
+      if (tagStack.length && tagStack[tagStack.length-1] && tagStack[tagStack.length-1].tag === "latex") {
+        endPos = string.indexOf("</latex>", pos);
+      }
 
       var prepend = "";
       var append = "";
@@ -3239,15 +3323,17 @@ var convertImgTagsToLinks = function (string) {
 }
 
 var selectiveQuote = function (postID, selectionSpecs) {
-  /* // for testing only, allows quoting the preview
+  // /*
+  // for testing only, allows quoting the preview
   if (!postID) {
     var postString = glo.pending.body;
     selectionSpecs = isQuotableSelection();
     console.log(postString);
     console.log(selectionSpecs);
   } else {
-  } */
-  var postString = glo.postStash[postID].body;
+    var postString = glo.postStash[postID].body;
+  }
+  // */
 
   var x = prepTextForRender(postString, postID, null, selectionSpecs);
   if (x.error) {
@@ -4566,6 +4652,7 @@ var mdLib = {
   esc: "\\",
   code: "``",
   ascii: "%%",
+  latex: "##",
   ol: "  -",
   ul: "  *",
   hr: ['===','<hr>'],
@@ -4581,8 +4668,9 @@ var mdLib = {
   ['~~',"<s>","</s>"],
   ['&&',"<cut>","</cut>"],
   ['``',"<code>","</code>"],
+  ['##',"<latex>","</latex>"],
   ['%%',"<ascii>","</ascii>"],
-  ['##',"<spoil>","</spoil>"],
+  ['@@',"<spoil>","</spoil>"],
   ],
   straightSwaps : [
     ['>>',"<quote>"],
@@ -4591,7 +4679,7 @@ var mdLib = {
     ["))","</note>"],
     ["===", "<hr>"],
   ],
-  escList: ['**','//','__','--','~~','&&','``','%%','##','>>',"<<","((","))","===","  -","  *","{{","[["]
+  escList: ['**','//','__','--','~~','&&','``','%%','##','@@','>>',"<<","((","))","===","  -","  *","{{","[["]
 };
 
 var convertHtmlToMarkdown = function (string) {
@@ -4614,6 +4702,7 @@ var convertHtmlToMarkdown = function (string) {
   // unEscape
   string = escapeMdTweenTags(string, 0, 'code', true);
   string = escapeMdTweenTags(string, 0, 'ascii', true);
+  string = escapeMdTweenTags(string, 0, 'latex', true);
 
   return string;
 }
@@ -4684,6 +4773,7 @@ var matchAndConvertHtmlTagPairs = function (string, pos, mdPos, j) {
 var convertMarkdownToHtml = function (string) {
   string = escapeMdTweenTags(string, 0, 'code');
   string = escapeMdTweenTags(string, 0, 'ascii');
+  string = escapeMdTweenTags(string, 0, 'latex');
   //
   // we do the quote tags here first, because i've assigned them >> which can get tripped up if they are used next to other tags that are converted to html
   for (var i = 0; i < 2; i++) {
@@ -5158,6 +5248,7 @@ var edButtHand = {
   r: function (kind) {styleText('r', kind, true);},
   cut: function (kind) {styleText('cut', kind);},
   code: function (kind) {styleText('code', kind);},
+  latex: function (kind) {styleText('latex', kind);},
   ascii: function (kind) {styleText('ascii', kind, true);},
   spoil: function (kind) {styleText('spoil', kind);},
   //
@@ -5172,7 +5263,7 @@ var showEditorHotkeyList = function () {
   uiAlert(`<ascii>        Ctrl + b  =>  bold
         Ctrl + i  =>  italic
         Ctrl + u  =>  underline
-        Ctrl + k  =>  strikethrough
+Ctrl + Shift + K  =>  strikethrough
         Ctrl + l  =>  bullet item
 Ctrl + Shift + L  =>  number item
         Ctrl + h  =>  link
@@ -5185,6 +5276,7 @@ Ctrl + Shift + L  =>  number item
         Ctrl + 0  =>  right
         Ctrl + m  =>  cut
         Ctrl + j  =>  code
+        Ctrl + k  =>  LaTeX(KaTeX)
         Ctrl + g  =>  ascii
         Ctrl + d  =>  spoil
 Ctrl + Enter or s => submit/save
@@ -5217,13 +5309,13 @@ glo.editorHotKeys = {
     shift:{
       Z: redo,
       L: olHotKeyRouter,
+      K: edButtHand.strike,
     },
     z: undo,
     y: redo,
     b: edButtHand.bold,
     i: edButtHand.ital,
     u: edButtHand.under,
-    k: edButtHand.strike,
     //
     e: edButtHand.li,
     l: ulHotkeyRouter,
@@ -5239,6 +5331,7 @@ glo.editorHotKeys = {
     0: edButtHand.r,
     m: edButtHand.cut,
     j: edButtHand.code,
+    k: edButtHand.latex,
     g: edButtHand.ascii,
     d: edButtHand.spoil,
     //
