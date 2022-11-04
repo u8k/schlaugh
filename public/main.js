@@ -903,8 +903,8 @@ var convertNote = function (string, id, elemCount, type, tagStartPos) {
   return string;
 }
 
-var convertMaths = function (string, pos) {
-  if (!pos) {pos = 0;}
+var convertMaths = function (string, pos, macros) {
+  if (!pos) {pos = 0; macros = {};}
 
   // find next opening latex tag
   pos = string.indexOf("<latex>", pos);
@@ -918,13 +918,13 @@ var convertMaths = function (string, pos) {
   var close = string.indexOf("</x>", pos);
   //
   var theMath = string.substr(pos,close-pos);
-  theMath = katex.renderToString(theMath, {throwOnError: false});
+  theMath = katex.renderToString(theMath, {throwOnError: false, maxSize:2, macros:macros});
   //
   var post = string.substr(close);
   //
   string = pre + theMath + post;
   //
-  return convertMaths(string, close);
+  return convertMaths(string, close, macros);
 }
 
 var convertSpoils = function (string) {
