@@ -3323,7 +3323,7 @@ var convertImgTagsToLinks = function (string) {
 }
 
 var selectiveQuote = function (postID, selectionSpecs) {
-  // /*
+  /*
   // for testing only, allows quoting the preview
   if (!postID) {
     var postString = glo.pending.body;
@@ -3331,9 +3331,9 @@ var selectiveQuote = function (postID, selectionSpecs) {
     console.log(postString);
     console.log(selectionSpecs);
   } else {
-    var postString = glo.postStash[postID].body;
   }
-  // */
+  */
+  var postString = glo.postStash[postID].body;
 
   var x = prepTextForRender(postString, postID, null, selectionSpecs);
   if (x.error) {

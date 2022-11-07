@@ -1065,6 +1065,8 @@ s {text-decoration: line-through;}
 quote i {font-style: normal;}
 quote i i {font-style: italic;;}
 
+.katex-html, .katex-html span {font-family: inherit}
+
 r > ascii, r > img, r > a >img {margin-right: 0;}
 l > ascii, l > img, l > a >img {margin-left: 0;}
 
