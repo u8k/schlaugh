@@ -30,7 +30,7 @@
 
   <div id="post-writer" class="removed">
     <%- include("editorButtons", {kind: "post"}) %>
-    <textarea id="post-editor" class="editor reader-font" autocomplete="off" autocapitalize="off" oninput="resizeEditor('post')" onkeydown="editorKeyHandler(event, 'post')"></textarea>
+    <textarea id="post-editor" class="editor reader-font" autocomplete="off" oninput="resizeEditor('post')" onkeydown="editorKeyHandler(event, 'post')"></textarea>
     <text id="post-editor-key-notice" class="keyboard-shortcut-notice">F2 for hotkeys</text>
     <br><br>
     <wrapper id="post-editor-meta" class="editor-meta">
@@ -162,7 +162,7 @@
   </div>
   <div id="message-writer" class="removed">
     <%- include("editorButtons", {kind: "message"}) %>
-    <textarea id="message-editor" autocomplete="off" class="editor reader-font" autocapitalize="off" oninput="resizeEditor('message')" onkeydown="editorKeyHandler(event, 'message')"></textarea>
+    <textarea id="message-editor" autocomplete="off" class="editor reader-font" oninput="resizeEditor('message')" onkeydown="editorKeyHandler(event, 'message')"></textarea>
     <text id="message-editor-key-notice" class="keyboard-shortcut-notice">F2 for hotkeys</text>
     <br>
     <button onclick="submitMessage()" class="below-editor-button">save message</button>
@@ -390,7 +390,7 @@
   <div id="old-post-writer" class="removed">
     <div id="old-post-editor-title"></div>
     <%- include("editorButtons", {kind: "old-post"}) %>
-    <textarea id="old-post-editor" class="editor reader-font" autocomplete="off" autocapitalize="off" oninput="resizeEditor('old-post')" onkeydown="editorKeyHandler(event, 'old-post')"></textarea>
+    <textarea id="old-post-editor" class="editor reader-font" autocomplete="off" oninput="resizeEditor('old-post')" onkeydown="editorKeyHandler(event, 'old-post')"></textarea>
     <text id="old-post-editor-key-notice" class="keyboard-shortcut-notice">F2 for hotkeys</text>
     <br><br>
     <wrapper id="old-post-editor-meta" class="editor-meta">
