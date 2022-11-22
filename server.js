@@ -3675,6 +3675,14 @@ app.get('/:author/~rss', function (req, res) {
 });
 
 
+//
+app.get('/~getAllMyData', function(req, res) {
+  var errMsg = "error getting all the data<br><br>"
+  readCurrentUser(req, res, errMsg, {}, function (user) {
+    return res.send(user);
+  });
+});
+
 // ------- **** ~ THE 14 ROUTES OF POST VIEWING ~ **** ------- //
 // https://docs.google.com/spreadsheets/d/1JM39RfQonAbxT3VBbNwMEsqEO_96DG76RHoGStNMDJo/edit?usp=sharing
 // #### = author/tag/date/page
