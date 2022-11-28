@@ -218,6 +218,10 @@ clicky, .clicky {
   border-right-style: solid;
   border-left-style: solid;
   border-radius: 2px;
+  color: #0000;
+}
+.spoil ::selection {
+color:  #0000;
 }
 
 .no-select {

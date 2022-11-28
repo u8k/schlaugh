@@ -203,7 +203,7 @@ var changeColor = function (colorCode, type) {          // makes the new CSS rul
     // sheet.insertRule(".collapse-focus:focus {box-shadow: 0 0 4px 2px "+colorCode+";}", sheet.cssRules.length);
 
   } else if (type === "text") {
-    var selector = "body, h1, input, select, .post, .message, .editor, .content-box, button, .pop-up, .post-background, a, a.visited, a.hover, spoil";
+    var selector = "body, h1, input, select, .post, .message, .editor, .content-box, button, .pop-up, .post-background, a, a.visited, a.hover";
     var attribute = "color";
     // border color
     for (var i = sheet.cssRules.length-1; i > -1; i--) {
