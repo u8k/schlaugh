@@ -5338,33 +5338,36 @@ glo.editorHotKeys = {
     Enter: edButtHand.submit,
     s: edButtHand.submit,
   },
-  /* // make sure this works, otherwise put it back, but if Metakey, then just look up what we would do for Ctrl and do that
-  metaKey: {
-    z: undo,
-    y: redo,
-  }
-  */
 }
 
 var editorKeyHandler = function (event, kind) {
   event.stopPropagation();
-  if (event.key === "F2") { return showEditorHotkeyList();}
-  if (event.key === "Escape") { return cancelEditor(kind);}
+  if (event.key === "F2") { return showEditorHotkeyList(); }
+  if (event.key === "Escape") { return cancelEditor(kind); }
 
-  if ((event.ctrlKey || event.metaKey) && _npa(['event','key',]) !== "Control") {  // ctrl(or meta) + shift
-    if (event.shiftKey && _npa(['event','key',]) !== "Shift") {
+  if ((event.ctrlKey || event.metaKey) && _npa(['event','key',]) !== "Control") {  // ctrl(or meta)
+    if (event.shiftKey && _npa(['event','key',]) !== "Shift") {                    // + shift
       if (_npa(['glo','editorHotKeys','ctrlKey','shift',event.key])) {
         event.preventDefault();
         _npa(['glo','editorHotKeys','ctrlKey','shift', event.key])(kind);
       }
-    } else if (_npa(['glo','editorHotKeys','ctrlKey', event.key])) {          // ctrl(or meta)(only)
+    } else if (_npa(['glo','editorHotKeys','ctrlKey', event.key])) {          // no shift
       event.preventDefault();
       _npa(['glo','editorHotKeys','ctrlKey', event.key])(kind);
     }
-  } /* else if (event.metaKey && _npa(['event','key',]) !== "Meta" && _npa(['glo','editorHotKeys','metaKey', event.key])) {
-    event.preventDefault();
-    _npa(['glo','editorHotKeys','metaKey', event.key])(kind);
-  } */
+  }
+}
+var editorExtraKeyHandler = function (event, kind) {
+  event.stopPropagation();
+  if (event.key === "Escape") { return cancelEditor(kind); }
+  //
+  if ((event.ctrlKey || event.metaKey) && _npa(['event','key',]) !== "Control") {  // ctrl(or meta)
+
+    if (event.key === "Enter" || event.key === "s") {
+      event.preventDefault();
+      edButtHand.submit(kind);
+    }
+  }
 }
 
 // thread stuff
