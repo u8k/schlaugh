@@ -68,11 +68,11 @@
     return !isNaN(parseFloat(n)) && isFinite(n);
   }
 
-  exports.cleanseInputText = function (string) { // returns an "imgList", "linklist" and the cleaned text
+  exports.screenInputTextForImagesAndLinks = function (string) {
     if (typeof string !== "string") {return "";}
 
     var buttonUp = function (imgList, linkList) {
-      return [imgList, string, linkList];
+      return {string:string ,imgList:imgList, linkList:linkList};
     }
 
     var recurse = function (pos, imgList, linkList) {
@@ -81,53 +81,43 @@
       else {
         pos += next;
 
-
-        if (string.substr(pos+1,8) === 'a href="') {
-          pos += 8;
-          var qPos = string.substr(pos+1).search(/"/);
-          if (qPos === -1) {
-            string += '">';
-            return buttonUp(imgList, linkList);
+        // links
+        if (string.substr(pos+1,1) === 'a') {
+          if (string.substr(pos+1,8) !== 'a href="') {
+            string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
+            pos += 3;
           } else {
-            if (string.substr(pos+1, 1) !== "/") {
-              if (string.substr(pos+1, 4) !== "http") {
-                string = string.substr(0,pos+1) + 'http://' + string.substr(pos+1);
-                qPos += 7;
-              }
-              var link = string.substr(pos+1, qPos);
-              linkList.push(link);
-            }
-            pos += qPos;
-          }
-          if (string[pos+2] !== ">") {
-            string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
-          }
-          else {pos += 1;}
-
-
-          // image
-        } else if (string.substr(pos+1,9) === 'img src="' || string.substr(pos+1,9) === `img src='`) {
-          pos += 9;
-          if (string.substr(pos,1) === "'") {
-            var qPos = string.substr(pos+1).search(/'/);
-            var singleQuote = true;
-          } else {
-            var qPos = string.substr(pos+1).search(/"/);
-          }
-          if (qPos === -1) {
-            imgList.push(string.substr(pos+1));
-            if (singleQuote) {
-              string += `'>`;
-            } else {
-              string += '">';
-            }
-            return buttonUp(imgList, linkList);
-          } else {
-            imgList.push(string.substr(pos+1,qPos))
-            pos += qPos+1;
-          }
-          if (string.substr(pos+1,8) === ' title="' || string.substr(pos+1,8) === ` title='`) {
             pos += 8;
+            var qPos = string.substr(pos+1).search(/"/);
+            if (qPos === -1) {
+              string += '">';
+              return buttonUp(imgList, linkList);
+            } else {
+              if (string.substr(pos+1, 1) !== "/") {
+                if (string.substr(pos+1, 4) !== "http") {
+                  string = string.substr(0,pos+1) + 'http://' + string.substr(pos+1);
+                  qPos += 7;
+                }
+                var link = string.substr(pos+1, qPos);
+                linkList.push(link);
+              }
+              pos += qPos;
+            }
+            if (string[pos+2] !== ">") {
+              string = string.substr(0,pos+2) + '>' + string.substr(pos+2);
+            }
+            else {pos += 1;}
+          }
+
+        // images
+        } else if (string.substr(pos+1,3) === 'img') {
+          if (string.substr(pos+1,9) !== 'img src="' && string.substr(pos+1,9) !== `img src='`) {
+
+            string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
+            pos += 3;
+
+          } else if (string.substr(pos+1,9) === 'img src="' || string.substr(pos+1,9) === `img src='`) {
+            pos += 9;
             if (string.substr(pos,1) === "'") {
               var qPos = string.substr(pos+1).search(/'/);
               var singleQuote = true;
@@ -136,34 +126,55 @@
             }
             if (qPos === -1) {
               imgList.push(string.substr(pos+1));
-              if (singleQuote) {string += `'>`;}
-              else {string += '">';}
+              if (singleQuote) {
+                string += `'>`;
+              } else {
+                string += '">';
+              }
               return buttonUp(imgList, linkList);
             } else {
+              imgList.push(string.substr(pos+1,qPos))
               pos += qPos+1;
             }
-          }
-          if (string.substr(pos+1,6) === ' alt="' || string.substr(pos+1,6) === ` alt='`) {
-            pos += 6;
-            if (string.substr(pos,1) === "'") {
-              var qPos = string.substr(pos+1).search(/'/);
-              var singleQuote = true;
-            } else {
-              var qPos = string.substr(pos+1).search(/"/);
+            if (string.substr(pos+1,8) === ' title="' || string.substr(pos+1,8) === ` title='`) {
+              pos += 8;
+              if (string.substr(pos,1) === "'") {
+                var qPos = string.substr(pos+1).search(/'/);
+                var singleQuote = true;
+              } else {
+                var qPos = string.substr(pos+1).search(/"/);
+              }
+              if (qPos === -1) {
+                imgList.push(string.substr(pos+1));
+                if (singleQuote) {string += `'>`;}
+                else {string += '">';}
+                return buttonUp(imgList, linkList);
+              } else {
+                pos += qPos+1;
+              }
             }
-            if (qPos === -1) {
-              imgList.push(string.substr(pos+1));
-              if (singleQuote) {string += `'>`;}
-              else {string += '">';}
-              return buttonUp(imgList, linkList);
-            } else {
-              pos += qPos+1;
+            if (string.substr(pos+1,6) === ' alt="' || string.substr(pos+1,6) === ` alt='`) {
+              pos += 6;
+              if (string.substr(pos,1) === "'") {
+                var qPos = string.substr(pos+1).search(/'/);
+                var singleQuote = true;
+              } else {
+                var qPos = string.substr(pos+1).search(/"/);
+              }
+              if (qPos === -1) {
+                imgList.push(string.substr(pos+1));
+                if (singleQuote) {string += `'>`;}
+                else {string += '">';}
+                return buttonUp(imgList, linkList);
+              } else {
+                pos += qPos+1;
+              }
             }
+            if (string[pos+1] !== ">") {
+              string = string.substr(0,pos+1) + '>' + string.substr(pos+1);
+            }
+            else {pos += 1;}
           }
-          if (string[pos+1] !== ">") {
-            string = string.substr(0,pos+1) + '>' + string.substr(pos+1);
-          }
-          else {pos += 1;}
         }
 
         return recurse(pos+1, imgList, linkList);

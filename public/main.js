@@ -1107,7 +1107,12 @@ var removeExtraLineBreak = function (string, pos) {
   return string;
 }
 
-var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack) {
+var killBadTag = function (string, pos) {
+  return string.substr(0,pos-1) + '&lt;' + string.substr(pos);
+}
+var deWeaveAndRemoveUnmatchedAndUnsanctinedTags = function (string, extracting, pos, tagStack) {
+  // this also handles stripping out any non-sanctioned tags
+
     // init
     if (!pos) {
       pos = 0; tagStack = [];
@@ -1125,10 +1130,25 @@ var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack)
     var close = string.substr(pos).search(/[ >]/);
     var tag = string.substr(pos, close);
 
+    if (string[pos+close] === " ") {  // is that allowed?
+      if (tag === "img") {
+        // might be good to eventually handle this here, for now it's being taken care of by "screenInputTextForImagesAndLinks"
+      } else if (tag === "a") {
+        // likewise ^
+      } else if (tag === "note") {
+        if (string.substr(pos, 14) !== 'note linkText=') {
+          string = killBadTag(string, pos);
+          return deWeaveAndRemoveUnmatchedAndUnsanctinedTags(string, extracting, pos, tagStack);
+        }
+      } else {
+        string = killBadTag(string, pos);
+        return deWeaveAndRemoveUnmatchedAndUnsanctinedTags(string, extracting, pos, tagStack);
+      }
+    }
+
     // is this an allowed tag at all?
     if (!sanctionedTagRef[tag.toLowerCase()] && !extracting) {
-      // no, kill it
-      string = string.substr(0,pos-1) + '&lt;' + string.substr(pos);
+      string = killBadTag(string, pos);
 
     } else {  // tag is allowed
       // force it to lowercase
@@ -1169,7 +1189,7 @@ var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack)
           }
           if (!isOpen) {  // take out the trash
             string = string.substr(0,pos-(tag.length+2)) + string.substr(pos+1);
-            pos -= tag.length+2
+            pos -= tag.length+2;
           } else {    // the tag was in the stack, and thus open, so we close it
             // match to tag stack, closing all tags above it, and popping them and the match from the stack
             for (var i = tagStack.length-1; i > -1; i--) {
@@ -1188,7 +1208,7 @@ var deWeaveAndRemoveUnmatchedTags = function (string, extracting, pos, tagStack)
         }
       }
     }
-    return deWeaveAndRemoveUnmatchedTags(string, extracting, pos, tagStack);
+    return deWeaveAndRemoveUnmatchedAndUnsanctinedTags(string, extracting, pos, tagStack);
   }
 }
 
@@ -1202,7 +1222,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
     //change /n for <br>
     string = swapInBrTagsButNotTweenLatexTags(string);
     //
-    string = deWeaveAndRemoveUnmatchedTags(string, extracting);
+    string = deWeaveAndRemoveUnmatchedAndUnsanctinedTags(string, extracting);
     //
     pos = 0; elemCount = 0; tagStack = []; noteList = [];
     if (string[0] && string[0] !== "<") {
@@ -3390,9 +3410,9 @@ var createBookmarkButton = function (parent, post) {
   if (!parent || !post._id || !post.date || !post.post_id) {return;}
   var author_id = post._id;
   // is there an extant bookmark button?
-  var x = parent.childNodes;
-  if (x[x.length-2] && x[1].classList[0] === "bookmark-button") {
-    var insert = x[1];
+  var childList = parent.childNodes;
+  if (childList[childList.length-2] && childList[1].classList[0] === "bookmark-button") {
+    var insert = childList[1];
   }
   var elem = document.createElement("button");
   elem.setAttribute('class', 'bookmark-button footer-button filter-focus ');
@@ -5554,49 +5574,48 @@ var submitMessage = function (remove) {  //also handles editing and deleting
     //
     loading();
 
-    var encryptAndSend = function () {
-      encrypt(text, glo.keys.pubKey, glo.threads[i].key, function (encSenderText, encRecText) {
-        var data = {
-          recipient: glo.threads[i]._id,
-          encSenderText: encSenderText,
-          encRecText: encRecText,
-          remove: remove,
-        };
-        ajaxCall('/inbox', 'POST', data, function(json) {
-          if (json.reKey) {
-            glo.threads[i].key = json.reKey;
-            return submitMessage();
-          } else {
-            var len = glo.threads[i].thread.length-1;
-            var last = glo.threads[i].thread[len];
-            // is the thread's last message already a pending message?
-            if (last && last.date === pool.getCurDate(-1)) {
-              last.body = text;         //overwrite
-            } else {
-              glo.threads[i].thread.push({
-                inbound: false,
-                date: pool.getCurDate(-1),
-                body: text,
-              });
-            }
-            updatePendingMessage(i);
-          }
-        });
+
+    var parsedMessage = pool.screenInputTextForImagesAndLinks(text);
+
+    // fudge, need to call the backend for link checking here, parsedMessage.linkList
+
+    if (parsedMessage.imgList.length !== 0) {
+      ajaxCall('/image', 'POST', parsedMessage.imgList, function(json) {
+        encryptAndSend(parsedMessage.string);
       });
-    }
-
-    // cleanse and image validate
-    var x = pool.cleanseInputText(text);
-    text = x[1];
-
-    // fudge, need to call the backend for link checking here, x[2]
-
-    if (x[0].length !== 0) {
-      ajaxCall('/image', 'POST', x[0], function(json) {
-        encryptAndSend();
-      });
-    } else {encryptAndSend();}
+    } else {encryptAndSend(parsedMessage.string);}
   }
+}
+var encryptAndSend = function (messageBody) {
+  var i = glo.activeThreadIndex;
+
+  encrypt(messageBody, glo.keys.pubKey, glo.threads[i].key, function (encSenderText, encRecText) {
+    var data = {
+      recipient: glo.threads[i]._id,
+      encSenderText: encSenderText,
+      encRecText: encRecText,
+    };
+    ajaxCall('/inbox', 'POST', data, function(json) {
+      if (json.reKey) {
+        glo.threads[i].key = json.reKey;
+        return submitMessage();
+      } else {
+        var len = glo.threads[i].thread.length-1;
+        var last = glo.threads[i].thread[len];
+        // is the thread's last message already a pending message?
+        if (last && last.date === pool.getCurDate(-1)) {
+          last.body = messageBody;         //overwrite
+        } else {
+          glo.threads[i].thread.push({
+            inbound: false,
+            date: pool.getCurDate(-1),
+            body: messageBody,
+          });
+        }
+        updatePendingMessage(i);
+      }
+    });
+  });
 }
 
 var checkForThread = function (user) {
@@ -5835,10 +5854,15 @@ var unlockInbox = function (pass, callback) {     // decrypts all messages
             if (err) {
               glo.threads[i].thread[j].body = "<c>***unable to decrypt message***</c>";
             } else {
-              glo.threads[i].thread[j].body = pool.cleanseInputText(text)[1];
+              var parsedMessage = pool.screenInputTextForImagesAndLinks(text);
+              glo.threads[i].thread[j].body = parsedMessage.string;
+
+              // image/link validation goes here
+              // parsedMessage.imgList
+              // parsedMessage.linkList
+              // or do we even need to do links here? worst case it's just a broken link?
             }
-            // image validation
-            //(goes here)
+
 
             msgCount[i]--;
             if (msgCount[i] === 0) {

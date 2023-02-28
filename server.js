@@ -2061,14 +2061,15 @@ app.post('/postPost', function(req, res) {
     pushNewToPostlist(user);
 
     var tmrw = pool.getCurDate(-1);
-    var x = pool.cleanseInputText(req.body.body);
-    if (req.body.remove || (x[1] === "" && !req.body.tags && !req.body.title)) {                 //remove pending post, do not replace
+    var parsedPost = pool.screenInputTextForImagesAndLinks(req.body.body);
+    //
+    if (req.body.remove || (parsedPost.string === "" && !req.body.tags && !req.body.title)) {                 //remove pending post, do not replace
       deletePost(req, res, errMsg, user, tmrw, function () {
         pongOnPostSubmit(userID, req.body.key, false);
         return res.send({error:false, body:"", tags:{}, title:""});
       });
     } else {
-      linkValidate(x[2], function (linkProblems) {
+      linkValidate(parsedPost.linkList, function (linkProblems) {
         //
         var tags = parseInboundTags(req.body.tags);
         if (typeof tags === 'string') {return sendError(req, res, errMsg+tags);}
@@ -2081,12 +2082,12 @@ app.post('/postPost', function(req, res) {
         var url = urlVal.url;
         user = urlVal.user;
         //
-        imageValidate(x[0], function (resp) {
+        imageValidate(parsedPost.imgList, function (resp) {
           if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          updateUserPost(req, res, errMsg, x[1], tags, title, url, userID, user, function () {
+          updateUserPost(req, res, errMsg, parsedPost.string, tags, title, url, userID, user, function () {
             writeToUser(req, res, errMsg, user, function () {
-              pongOnPostSubmit(userID, req.body.key, {body:x[1], tags:tags, title:title, url:url});
-              return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
+              pongOnPostSubmit(userID, req.body.key, {body:parsedPost.string, tags:tags, title:title, url:url});
+              return res.send({error:false, body:parsedPost.string, tags:tags, title:title, url:url, linkProblems:linkProblems});
             });
           });
         });
@@ -2107,10 +2108,11 @@ app.post('/editOldPost', function (req, res) {
         // before changing anything, verify the postID corresponds with the date
         var date = req.body.date;
         if ((date === "bio" && req.body.post_id === "bio") || (user.posts[date] && user.posts[date][0].post_id === req.body.post_id)) {
-          var x = pool.cleanseInputText(req.body.text);
+
+          var parsedPost = pool.screenInputTextForImagesAndLinks(req.body.text);
 
           // are we deleting a pending edit?
-          if (x.error || x[1] === "") {
+          if (x.error || parsedPost.string === "") {
             if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[date]) {
               delete user.pendingUpdates.updates[date];
               writeToUser(req, res, errMsg, user, function () {
@@ -2152,15 +2154,15 @@ app.post('/editOldPost', function (req, res) {
               }
             }
             //
-            linkValidate(x[2], function (linkProblems) {
+            linkValidate(parsedPost.linkList, function (linkProblems) {
               //
-              imageValidate(x[0], function (resp) {
+              imageValidate(parsedPost.imgList, function (resp) {
                 if (resp.error) {return sendError(req, res, errMsg+resp.error);}
                 if (req.body.post_id === "bio") {
-                  var newPost = x[1];
+                  var newPost = parsedPost.string;
                 } else {
                   var newPost = [{
-                    body: x[1],
+                    body: parsedPost.string,
                     tags: tags,
                     title: title,
                     url: url,
@@ -2170,7 +2172,7 @@ app.post('/editOldPost', function (req, res) {
                 }
                 user.pendingUpdates.updates[date] = newPost;
                 writeToUser(req, res, errMsg, user, function () {
-                  return res.send({error:false, body:x[1], tags:tags, title:title, url:url, linkProblems:linkProblems});
+                  return res.send({error:false, body:parsedPost.string, tags:tags, title:title, url:url, linkProblems:linkProblems});
                 });
               });
             });
