@@ -2112,7 +2112,7 @@ app.post('/editOldPost', function (req, res) {
           var parsedPost = pool.screenInputTextForImagesAndLinks(req.body.text);
 
           // are we deleting a pending edit?
-          if (x.error || parsedPost.string === "") {
+          if (parsedPost.error || parsedPost.string === "") {
             if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[date]) {
               delete user.pendingUpdates.updates[date];
               writeToUser(req, res, errMsg, user, function () {
