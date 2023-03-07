@@ -1054,8 +1054,9 @@ var sanctionedTagRef = {
   "img":true,
   "br":true,
   "br/":true,
-  "hr/":true,
   "hr":true,
+  "hr/":true,
+  "hr /":true,
 }
 var extraSanctionedTagRef = {
   "x":true,
@@ -1072,8 +1073,9 @@ var selfClosingTagRef = {
   "img":true,
   "br":true,
   "br/":true,
-  "hr/":true,
   "hr":true,
+  "hr/":true,
+  "hr /":true,
 }
 
 var tagsThatForceNewLine = {
@@ -1140,6 +1142,8 @@ var deWeaveAndRemoveUnmatchedAndUnsanctinedTags = function (string, extracting, 
           string = killBadTag(string, pos);
           return deWeaveAndRemoveUnmatchedAndUnsanctinedTags(string, extracting, pos, tagStack);
         }
+      } else if (tag === "hr" && string.substr(pos, close+3) === "hr />") {
+        // do nothing, avoid catching the following else
       } else {
         string = killBadTag(string, pos);
         return deWeaveAndRemoveUnmatchedAndUnsanctinedTags(string, extracting, pos, tagStack);
