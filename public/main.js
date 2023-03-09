@@ -1095,8 +1095,9 @@ var tagsThatForceNewLine = {
   '/ul':true,
   'ol':true,
   '/ol':true,
-  "hr/":true,
   "hr":true,
+  "hr/":true,
+  "hr /":true,
   "img":true,
 }
 var removeExtraLineBreak = function (string, pos) {
@@ -1143,7 +1144,9 @@ var deWeaveAndRemoveUnmatchedAndUnsanctinedTags = function (string, extracting, 
           return deWeaveAndRemoveUnmatchedAndUnsanctinedTags(string, extracting, pos, tagStack);
         }
       } else if (tag === "hr" && string.substr(pos, close+3) === "hr />") {
-        // do nothing, avoid catching the following else
+        tag = "hr /";
+        close+=2;
+
       } else {
         string = killBadTag(string, pos);
         return deWeaveAndRemoveUnmatchedAndUnsanctinedTags(string, extracting, pos, tagStack);
