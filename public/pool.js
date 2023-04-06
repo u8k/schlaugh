@@ -82,7 +82,7 @@
         pos += next;
 
         // links
-        if (string.substr(pos+1,1) === 'a') {
+        if (string.substr(pos+1,2) === 'a ') {
           if (string.substr(pos+1,8) !== 'a href="') {
             string = string.substr(0,pos) + '&lt;' + string.substr(pos+1);
             pos += 3;
