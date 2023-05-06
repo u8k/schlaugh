@@ -55,7 +55,7 @@ app.use(session({
 var devFlag = false;  //NEVER EVER LET THIS BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
 
 // enforce https, "trustProtoHeader" is because heroku proxy
-// very silly hack to make it not enforce https on local...
+// hack to make it not enforce https on localDev
 if (process.env.ATLAS_DB_KEY) {
   app.use(enforce.HTTPS({ trustProtoHeader: true }));
 } else {
@@ -3682,6 +3682,31 @@ app.get('/~getAllMyData', function(req, res) {
   var errMsg = "error getting all the data<br><br>"
   readCurrentUser(req, res, errMsg, {}, function (user) {
     return res.send(user);
+  });
+});
+
+//
+app.get('/:authorID/~getAllPostData', function (req, res) {
+  var errMsg = "error getting all the post data<br><br>"
+  if (!req.params.authorID) {return sendError(req, res, errMsg+"malformed request 3031");}
+  var authorID = req.params.authorID;
+  //
+  checkForUserUpdates(req, res, errMsg, authorID, function () {
+    readUser(req, res, errMsg, authorID, {list:['posts']}, function(author) {
+      if (!author) {return res.send("author not found");}                           //404
+
+      // is the logged in user the very same author?
+      if (!req.session.user || !ObjectId.isValid(req.session.user._id) || String(req.session.user._id) !== String(authorID)) {
+        // no, so strip out private posts
+        for (var date in author.posts) { if (author.posts.hasOwnProperty(date)) {
+          if (author.posts[date][0].private) {
+            delete author.posts[date];
+          }
+        }}
+      }
+      //
+      return res.send(author.posts);
+    });
   });
 });
 

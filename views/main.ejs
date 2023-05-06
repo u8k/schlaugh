@@ -200,6 +200,13 @@
       </wrapper>
     </div>
     <br><br><hr><br>
+    <h3>IMGUR might be taking down images uploaded without an account??? <a class="special" href="https://www.schlaugh.com/staff/~/2023-05-07">(more here)</a></h3>
+
+    <button id="get-imgur-button" onclick="displayImgurList()">get imgur image report</button>
+    <button id="get-imgur-text-file" class="removed" onclick="downloadImgurTextFile()">download a text file of all urls</button>
+    <wrapper id="imgur-list" class="setting-wrapper">
+    </wrapper>
+    <br><br><hr><br>
     <wrapper class="setting-wrapper">
       <text>posts per page<a href="javascript:void(0);" onclick="postsPerPageExplain()" class="special clicky">(?)</a>: </text>
       <select id="posts-per-page" onchange="setPostsPerPage()">

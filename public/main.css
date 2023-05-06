@@ -388,6 +388,22 @@ color:  #0000;
   }
 }
 
+#imgur-list {
+  width: 370px;
+  margin: auto;
+  text-align: left;
+}
+.imgur-listing {
+  margin-bottom: 10px;
+}
+.imgur-listing-date {
+  font-size: 1.2em;
+  text-decoration: underline;
+}
+.imgur-dl {
+  margin-left: 10px;
+}
+
 .post, .message, #tag-display, .top-tag, .author-header-right, .author-on-post, #thread-list {
   white-space: pre-wrap;
   overflow: hidden;

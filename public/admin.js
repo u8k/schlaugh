@@ -260,3 +260,16 @@ var adminDeletePost = function (post_id) {
     console.log(json);
   });
 }
+
+var getAllImgurURLs = function () {
+  ajaxCall('/admin/users', 'POST', {text:'posts'}, function(userList) {
+    var bigList = [];
+    for (var i = 0; i < userList.length; i++) {
+      var imgArr = extractImgurURLs(userList[i].posts).all;
+      for (var j = 0; j < imgArr.length; j++) {
+        bigList.push(imgArr[j]);
+      }
+    }
+    console.log(bigList);
+  });
+}

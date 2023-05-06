@@ -6665,3 +6665,144 @@ var makeResetCall = function (data) {
     }
   });
 }
+
+var callForAllPostData = function (userID, callback) {
+  if (!userID) { userID = glo.userID }
+  if (!userID) { return; }
+
+  ajaxCall('/'+userID+'/~getAllPostData', 'GET', '', function(posts) {
+    if (callback) {
+      callback(posts);
+    }
+  });
+}
+
+var extractImgurURLs = function (posts) {
+  var allMatches = [];
+  var results = [];
+  var openStr = `<img src=`;
+
+  for (var date in posts) { if (posts.hasOwnProperty(date)) {
+    var postBody = posts[date][0].body;
+    var postMatches = [];
+
+    var index = postBody.indexOf(openStr);
+    while (index !== -1) {
+
+      index += openStr.length;
+      var closeChar = `"`;
+      if (postBody.charAt(index) === `'`) {
+        closeChar = `'`;
+      }
+      index++;
+      var closePos = postBody.indexOf(closeChar, index);
+      var url = postBody.substring(index,closePos);
+
+      if (url.toLowerCase().indexOf("imgur") !== -1) {
+        postMatches.push(url);
+        allMatches.push(url);
+      }
+
+      // find next
+      index = postBody.indexOf(openStr, index);
+    }
+    if (postMatches && postMatches.length) {
+      results.push({postDate:date, matches:postMatches})
+    }
+  }}
+
+  return {all:allMatches, byPost:results};
+}
+
+var displayImgurList = function (user) {
+  loading();
+  callForAllPostData(user, function (posts) {
+    var result = extractImgurURLs(posts);
+
+    $('get-imgur-button').classList.add('removed');
+    //
+    $('get-imgur-text-file').classList.remove('removed');
+    $('get-imgur-text-file').onclick = function () {
+      downloadImgurTextFile(result.all);
+    }
+    //
+    var container = $('imgur-list');
+    var postList = result.byPost;
+
+    for (var i = 0; i < postList.length; i++) {
+      var div = document.createElement('div');
+      div.setAttribute('class', 'imgur-listing');
+      container.appendChild(div);
+      //
+      var link = document.createElement('a');
+      link.href = "/"+glo.username+"/~/"+postList[i].postDate;
+      link.innerHTML = postList[i].postDate;
+      link.setAttribute('class', 'special imgur-listing-date');
+      div.appendChild(link);
+      //
+      var imageList = document.createElement('ul');
+      div.appendChild(imageList);
+      //
+      for (var j = 0; j < postList[i].matches.length; j++) {
+        var imageItem = document.createElement('li');
+        imageList.appendChild(imageItem);
+        //
+        var imageLink = document.createElement('a');
+        imageLink.innerHTML = postList[i].matches[j];
+        imageLink.href = postList[i].matches[j];
+        imageLink.setAttribute('class', 'special');
+        imageItem.appendChild(imageLink);
+        //
+        var downloadButton = document.createElement('text');
+        downloadButton.innerHTML = "(download)";
+        var pattern = /com\/([^./]+)\./;
+        var match = pattern.exec(postList[i].matches[j]);
+        var extractedPart = match[1];
+        (function (uri, fileName) {
+          downloadButton.onclick = function () {
+            downloadOneImage(uri, fileName);
+          }
+        })(postList[i].matches[j], extractedPart);
+        downloadButton.setAttribute('class', 'special clicky imgur-dl');
+        imageItem.appendChild(downloadButton);
+      }
+    }
+    loading(true);
+  });
+}
+
+var downloadImgurTextFile = function (urlList) {
+  var data = "";
+
+  for (var i = 0; i < urlList.length; i++) {
+    data += urlList[i] + "\n";
+  }
+
+  data = 'data:text/plain;charset=utf-8,' + encodeURIComponent(data);
+  //
+  var filename = "allYourImgurUrlsOnSchlaugh" + ".txt";
+  //
+  var tempLink = document.createElement("a");
+  tempLink.download = filename;
+  //
+  tempLink.href = data;
+  tempLink.click();
+  //
+  removeElement(tempLink);
+}
+
+var downloadOneImage = function (uri, filename) {
+  fetch(uri)
+  .then(response => response.blob())
+  .then(data => {
+    var url = URL.createObjectURL(data);
+
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+
+    link.click();
+    removeElement(link);
+  })
+  .catch(error => console.error(error));
+}
