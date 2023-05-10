@@ -91,6 +91,19 @@ h2 {
   margin: auto;
 }
 
+.post-search {
+  margin: 18px 0;
+}
+.post-search-button{
+  margin-right: 10px;
+}
+.search-checkbox {
+  width: unset;
+  margin: unset;
+  padding: unset;
+  vertical-align: middle;
+}
+
 .bot-arrow {
   font-size: 1.7em;
   margin: 0 10px;

@@ -3685,30 +3685,6 @@ app.get('/~getAllMyData', function(req, res) {
   });
 });
 
-//
-app.get('/:authorID/~getAllPostData', function (req, res) {
-  var errMsg = "error getting all the post data<br><br>"
-  if (!req.params.authorID) {return sendError(req, res, errMsg+"malformed request 3031");}
-  var authorID = req.params.authorID;
-  //
-  checkForUserUpdates(req, res, errMsg, authorID, function () {
-    readUser(req, res, errMsg, authorID, {list:['posts']}, function(author) {
-      if (!author) {return res.send("author not found");}                           //404
-
-      // is the logged in user the very same author?
-      if (!req.session.user || !ObjectId.isValid(req.session.user._id) || String(req.session.user._id) !== String(authorID)) {
-        // no, so strip out private posts
-        for (var date in author.posts) { if (author.posts.hasOwnProperty(date)) {
-          if (author.posts[date][0].private) {
-            delete author.posts[date];
-          }
-        }}
-      }
-      //
-      return res.send(author.posts);
-    });
-  });
-});
 
 // ------- **** ~ THE 14 ROUTES OF POST VIEWING ~ **** ------- //
 // https://docs.google.com/spreadsheets/d/1JM39RfQonAbxT3VBbNwMEsqEO_96DG76RHoGStNMDJo/edit?usp=sharing
@@ -3778,6 +3754,19 @@ app.get('/:author/~tagged/:tag', function(req, res) {
     }
   });
 });
+//	SEARCH
+app.get('/:author/~search/:target', function(req, res) {
+  var author = req.params.author.toLowerCase();
+  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
+  var errMsg = "author lookup error<br><br>";
+  getUserIdFromName(req, res, errMsg, author, function (authorID) {
+    if (!authorID) {
+      return return404author(req, res);
+    } else {
+      renderLayout(req, res, {author:authorID, search:req.params.target, postCode:"ALL",});
+    }
+  });
+});
 //	TFTF
 app.get('/~/:post_id', function (req, res) {
   var errMsg = "post lookup error";
@@ -3817,20 +3806,6 @@ app.get('/:author/~/:num', function(req, res) {
       return return404author(req, res);
     } else {
       renderLayout(req, res, {author:authorID, page:page, date:date, postCode:postCode,});
-    }
-  });
-});
-//  ALL
-app.get('/:author/~all', function(req, res) {
-  var author = req.params.author.toLowerCase();
-  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
-  var errMsg = "author lookup error<br><br>";
-  getUserIdFromName(req, res, errMsg, author, function (authorID) {
-    if (!authorID) {
-      return return404author(req, res);
-    }
-    else {
-      return renderLayout(req, res, {author: authorID, postCode:"ALL",});
     }
   });
 });

@@ -617,7 +617,7 @@ var passPromptSubmit = function () {  // from the prompt box an a user/post page
 }
 
 var uiAlert = function (message, btnTxt, callback, annoying) {
-  if (!$("alert")) {return console.log(message);}
+  if (!$("alert")) {return console.error(message);}
   loading(true, true);
   if (!message) {  //close the alert
     $("alert").classList.add("hidden");
@@ -823,10 +823,10 @@ var insertStringIntoStringAtPos = function (stringOuter, stringInner, pos) {
   return stringOuter.substr(0,pos)+ stringInner +stringOuter.substr(pos);
 }
 
-var convertCut = function (string, id, type, pos) {
+var convertCut = function (string, id, expandable, pos) {
   // changes cut tags into functional cuts, needs unique id
 
-  if (type === "authorAll") {
+  if (expandable) {
     var classAsign = "removed expandable";
   } else {
     var classAsign = "removed";
@@ -862,9 +862,9 @@ var convertCut = function (string, id, type, pos) {
   return string;
 }
 
-var convertNote = function (string, id, elemCount, type, tagStartPos) {
+var convertNote = function (string, id, elemCount, expandable, tagStartPos) {
   // changes note tags into functional notes, needs id so that every note has a unique id tag on the front end,
-  if (type === "authorAll") {
+  if (expandable) {
     var classAsign = "removed expandable";
   } else {
     var classAsign = "removed";
@@ -1219,7 +1219,7 @@ var deWeaveAndRemoveUnmatchedAndUnsanctinedTags = function (string, extracting, 
   }
 }
 
-var prepTextForRender = function (string, id, type, extracting, pos, elemCount, tagStack, noteList) {
+var prepTextForRender = function (string, id, expandableCutsAndNotes, extracting, pos, elemCount, tagStack, noteList) {
   // NOTE: this function is also called as a key part of selectiveQuote,
   // thus 'prepTextForRender' is not a great name for everything this boy does
 
@@ -1376,7 +1376,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
             }
 
           } else {
-            string = convertNote(string, id, elemCount, type, pos-5);
+            string = convertNote(string, id, elemCount, expandableCutsAndNotes, pos-5);
             noteList.push({postID:id, elemNum:elemCount,});
 
             tagStack.push({tag:"innerNote", id:id+"-"+(elemCount+1)});
@@ -1403,7 +1403,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
           tag += string.substr(pos, aClose);
         } else if (tag === "cut") {                            // do cut conversion stuff
           if (!extracting) {
-            string = convertCut(string, id+"-"+(elemCount), type, pos);
+            string = convertCut(string, id+"-"+(elemCount), expandableCutsAndNotes, pos);
           }
           elemCount++;
 
@@ -1450,7 +1450,7 @@ var prepTextForRender = function (string, id, type, extracting, pos, elemCount, 
         }
       }
     }
-    return prepTextForRender(string, id, type, extracting, pos, elemCount, tagStack, noteList);
+    return prepTextForRender(string, id, expandableCutsAndNotes, extracting, pos, elemCount, tagStack, noteList);
   }
 }
 
@@ -1943,8 +1943,10 @@ var pageJump = function (input, loc) {
     var newPage = parseInt($(loc+'-page-number-left-input').value);
     if (newPage === 69) {uiAlert("<br>...<br><br>...<br><br>nice", "nice");}
   }
-  if (!Number.isInteger(newPage) || newPage < 1 || newPage > glo.postPanelStatus.totalPages) {
-    uiAlert("oh do <i>please</i> at least would you <i>try</i> to only input integers between 1 and the total number of pages, inclusive?", "yes doctor i will try");
+  newPage = newPage % glo.postPanelStatus.totalPages;
+
+  if (!Number.isInteger(newPage)) {
+    uiAlert("oh do <i>please</i> at least would you <i>try</i> to only input integers?", "yes doctor i will try");
   } else {
     glo.postPanelStatus.page = newPage;
     if (glo.postPanelStatus.postCode.slice(3) === "F") {
@@ -2001,7 +2003,13 @@ var open404 = function (display, input, callback) {
 
 var fetchPosts = function (display, input, callback) {
   if (!input) {
-    if (glo.postPanelStatus) {input = glo.postPanelStatus;}
+    if (glo.postPanelStatus) {
+      input = glo.postPanelStatus;
+      if (input.postCode === "SEARCH") {
+        input.postCode = 'TFFF';
+        delete input.search;
+      }
+    }
     else {input = {postCode:"FFTF", date:pool.getCurDate(),};}
   }
   //404
@@ -2040,6 +2048,7 @@ var fetchPosts = function (display, input, callback) {
       x = [input.post_id];
     }
   }
+
   // total page number shiz
   if (pc === "FTTT" || pc === "FTTF") {var totalPageNumberPointer = ['glo','pRef','tag',input.tag,'date',input.date,'totalPages'];} //not actualy paginated currently
   else if (pc === "FTFT" || pc === "FTFF") {var totalPageNumberPointer = ['glo','pRef','tag',input.tag,'totalPages'];}
@@ -2097,14 +2106,8 @@ var fetchPosts = function (display, input, callback) {
         _npa(totalPageNumberPointer, json.pages);
         input.totalPages = json.pages;
       }
-      if (input.page === 0 && json.pages) {
-        if (pc === "FTTT" || pc === "FTTF") {arr = ['glo','pRef','tag',input.tag,'date',input.date,'page',json.pages];}
-        else if (pc === "FTFT" || pc === "FTFF") {arr = ['glo','pRef','tag',input.tag,'page',json.pages];}
-        else if (pc === "FFTT" || pc === "FFTF") {arr = ['glo','pRef','date',input.date,'page',json.pages];}
-        else if (pc === "TTFT" || pc === "TTFF") {arr = ['glo','pRef','author',input.author,'tag',input.tag,'page',json.pages];}
-        else if (pc === "TFFT" || pc === "TFFF") {arr = ['glo','pRef','author',input.author,'page',json.pages];}
-        else {return uiAlert('eerrrrrrrrrrrrrr2')}
-      }
+
+
       if (pc === 'FFTT' || pc === 'FFTF') { //    date only "feed" posts
         // from returned post list, parse into lists for each tag
         var postListForTags = [];
@@ -2142,12 +2145,23 @@ var fetchPosts = function (display, input, callback) {
       }
       //
       _npa(arr, postList);
-      if (display) {
-        displayPosts(postList, input, callback);
-        loading(true);
-      } else if (callback) {
-        callback();
-        loading(true);
+      //
+      if (input.search) {
+        input.postCode = pc = "SEARCH";
+        var postList = findStringInPosts(json.posts, input.search);
+        searchResultQuantityGate(postList.length, input.search, function () {
+          displayPosts(postList, input, callback);
+          loading(true);
+        });
+      } else {
+        //
+        if (display) {
+          displayPosts(postList, input, callback);
+          loading(true);
+        } else if (callback) {
+          callback();
+          loading(true);
+        }
       }
     });
   }
@@ -2174,8 +2188,8 @@ var displayPosts = function (idArr, input, callback) {
     postType = "author";
   } else if (pc === "FTTT" || pc === "FTTF" || pc === "FFTT" || pc === "FFTF") {
     postType = "dated";
-  } else if (pc === "ALL") {
-    postType = 'authorAll';
+  } else if (pc === "SEARCH") {
+    postType = 'search';
   } else if (pc === "TFTF") {
     postType = "perma"
   }
@@ -2195,9 +2209,22 @@ var displayPosts = function (idArr, input, callback) {
       $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
     }
   }
+
+
+  //
+  $('collapse-all-notes-button').classList.add("removed");
+  if (pc === "SEARCH") {
+    $('expand-all-notes-button').classList.remove("removed");
+  } else {
+    $('expand-all-notes-button').classList.add("removed");
+    openSearchOptions('top', true);
+    openSearchOptions('bot', true);
+  }
+
   if (idArr.length === 0 && pc !== "TFTF") {
     $("post-bucket").appendChild(notSchlaugh(pc, input.date));
     $("bot-page-and-date-nav").classList.add("removed");
+    $("expand-all-notes-button").classList.add("removed");
   } else {
     $("bot-page-and-date-nav").classList.remove("removed");
   }
@@ -2205,12 +2232,11 @@ var displayPosts = function (idArr, input, callback) {
   $("post-bucket").classList.remove("removed");
   //
   glo.postPanelStatus = input;
-if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
+  if (postType === 'author' || pc === "TFTF" || pc === "SEARCH" || pc === "MARK") {
     switchPanel('posts-panel', true);
   } else {
     switchPanel('posts-panel');
   }
-
 
   ///////////////////////// pagination stuff
   if (input.totalPages) {
@@ -2246,14 +2272,6 @@ if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
     $("bot-date-box").classList.add('removed');
   }
 
-  //
-  $('collapse-all-notes-button').classList.add("removed");
-  if (pc === "ALL") {
-    $('expand-all-notes-button').classList.remove("removed");
-  } else {
-    $('expand-all-notes-button').classList.add("removed");
-  }
-
 ///////////////////////////////////// tag option stuff
   if (input.author || pc === "MARK") {              // don't display any tag/date option stuff
     $("date-and-tag-options").classList.add("removed");
@@ -2265,24 +2283,35 @@ if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
       $("bot-tag-display").classList.remove("removed");
     } else {
       if (input.tag) {                    // but if tag filtering, then show that/clear button
-        $("top-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i>';
-        $("bot-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i>';
+        $("top-tag-display").innerHTML = 'all '+idArr.length+' posts tagged <i>"'+input.tag+'"</i>';
+        $("bot-tag-display").innerHTML = 'all '+idArr.length+' posts tagged <i>"'+input.tag+'"</i>';
         $("top-tag-display").classList.remove("removed");
         $("bot-tag-display").classList.remove("removed");
-        $("author-clear-tag-top").classList.remove("removed");
-        $("author-clear-tag-bot").classList.remove("removed");
+        $("author-clear-filter-top").innerHTML = "clear tag filter";
+        $("author-clear-filter-bot").innerHTML = "clear tag filter";
+        $("author-clear-filter-top").classList.remove("removed");
+        $("author-clear-filter-bot").classList.remove("removed");
+      } else if (input.search) {
+        $("top-tag-display").innerHTML = 'all '+idArr.length+' posts containing <i>"'+input.search+'"</i>';
+        $("bot-tag-display").innerHTML = 'all '+idArr.length+' posts containing <i>"'+input.search+'"</i>';
+        $("top-tag-display").classList.remove("removed");
+        $("bot-tag-display").classList.remove("removed");
+        $("author-clear-filter-top").innerHTML = "clear search filter";
+        $("author-clear-filter-bot").innerHTML = "clear search filter";
+        $("author-clear-filter-top").classList.remove("removed");
+        $("author-clear-filter-bot").classList.remove("removed");
       } else {
         $("top-tag-display").classList.add("removed");
         $("bot-tag-display").classList.add("removed");
-        $("author-clear-tag-top").classList.add("removed");
-        $("author-clear-tag-bot").classList.add("removed");
+        $("author-clear-filter-top").classList.add("removed");
+        $("author-clear-filter-bot").classList.add("removed");
       }
     }
   } else {
     $("date-and-tag-options").classList.remove("removed");
     $("tag-feed-options").classList.remove("removed");
-    $("author-clear-tag-top").classList.add("removed");
-    $("author-clear-tag-bot").classList.add("removed");
+    $("author-clear-filter-top").classList.add("removed");
+    $("author-clear-filter-bot").classList.add("removed");
     if ((pc === 'FFTT' || pc === 'FFTF') && !input.tag) {          //dateFeeds, no tag, so tag option
       renderAllTagListings(input.date);
 
@@ -2318,7 +2347,7 @@ if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
     }
   }
 
-//////////////////////////////////         bios
+  //////////////////////////////////         bios
   if (input.author) {
     var authorInfo = _npa(['glo','pRef','author',input.author,'info']);
     if (authorInfo) {
@@ -2330,7 +2359,7 @@ if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
     // show author bio on bottom
     setAuthorHeader('bot', authorInfo);
     $("author-header-top").classList.add("removed");
-  } else if (postType === "author" || pc === "ALL") {  // author, not perma
+  } else if (postType === "author" || pc === "SEARCH") {  // author, not perma
     // show author stuff on top
     setAuthorHeader('top', authorInfo);
     $("author-header-bot").classList.add("removed");
@@ -2353,6 +2382,7 @@ if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
   }
   else if (pc === "TTFT") {simulatePageLoad(authorName+"/~tagged/"+input.tag+"/"+input.page, authorName, authorPicUrl)}
   else if (pc === "TTFF") {simulatePageLoad(authorName+"/~tagged/"+input.tag, authorName, authorPicUrl)}
+  else if (pc === "SEARCH") {simulatePageLoad(authorName+"/~search/"+input.search, authorName, authorPicUrl)}
   else if (pc === "TFTF") {
     var postTitle = _npa(['glo','postStash', idArr[0], 'title']);
     if (!postTitle) {postTitle = authorName}
@@ -2366,13 +2396,12 @@ if (postType === 'author' || pc === "TFTF" || pc === "ALL" || pc === "MARK") {
   }
   else if (pc === "TFFT") {simulatePageLoad(authorName+"/~/"+input.page, authorName, authorPicUrl);}
   else if (pc === "TFFF") {simulatePageLoad(authorName, authorName, authorPicUrl);}
-  else if (pc === "ALL") {simulatePageLoad(authorName+"/~all", authorName, authorPicUrl);}
   else {return uiAlert('eerrrrrrrrrrrrrr3')}
   //
   if (callback) {callback();}
 }
 
-var expandAllNotes = function (tog) { // this is for all notes and cuts on an author poge, for the ~all view
+var expandAllNotes = function (tog) { // this is for all notes and cuts on an author poge, for the SEARCH view
   if (tog) {
     $('expand-all-notes-button').classList.add("removed");
     $('collapse-all-notes-button').classList.remove("removed");
@@ -2450,7 +2479,7 @@ var setAuthorHeader = function (loc, aInfo) {
   setFollowButton(loc, aInfo);
   setMuteButton(loc, aInfo);
   setMessageButton(loc, aInfo);
-  setEditBioButtons(loc, aInfo);
+  setEditBioButton(loc, aInfo);
 
   // header-right
   if (aInfo.bio && aInfo.bio !== "") {
@@ -2554,7 +2583,7 @@ var setMessageButton = function (loc, authInf) {
   }
 }
 
-var setEditBioButtons = function (loc, authInf) {
+var setEditBioButton = function (loc, authInf) {
   // edit bio button,
   if (loc !== "edit" && glo.username && glo.username === authInf.author) {
     $("edit-bio-button-"+loc).classList.remove('removed');
@@ -2613,6 +2642,19 @@ var setPageNumbersAndArrows = function (page, totalPages, macguffin) {
     $(macguffin+"-"+dir2+"-page-arrow").classList.add('hidden');
   } else {
     $(macguffin+"-"+dir2+"-page-arrow").classList.remove('hidden');
+  }
+}
+
+var openSearchOptions = function (loc, close) {
+  if ($('author-search-button-'+loc).innerHTML === "close search" || close) {
+    $('author-search-button-'+loc).innerHTML = "search";
+
+    $('post-search-'+loc).classList.add('removed')
+  } else {
+    $('author-search-button-'+loc).innerHTML = "close search";
+
+    $('post-search-'+loc).classList.remove('removed')
+    $('post-search-input-'+loc).focus();
   }
 }
 
@@ -2735,7 +2777,7 @@ var addToPostStash = function (postData, authorData) {
 }
 
 var renderOnePost = function (postData, type, postID) {
-  // type = 'author', 'preview', 'preview-edit', "dated", "perma", authorAll, or NULL
+  // type = 'author', 'preview', 'preview-edit', "dated", "perma", "search" or NULL
   // postData needs fields: post_id, date, authorPic, author, body, tags, _id,
 
   if (postData === null && postID && glo.postStash) {
@@ -2749,6 +2791,12 @@ var renderOnePost = function (postData, type, postID) {
 
   if (type !== 'preview' && type !== 'preview-edit') {
     addToPostStash(postData);
+  }
+
+  var expandableCutsAndNotes = false;
+  if (type === "search") {
+    var expandableCutsAndNotes = true;
+    type = "author"
   }
 
   // we need "uniqueID" because there can be a preview edit version of the post w/ the same id
@@ -2785,7 +2833,7 @@ var renderOnePost = function (postData, type, postID) {
   var collapseBtn = document.createElement("button");
   collapseBtn.setAttribute('class', 'collapse-button-top filter-focus');
   collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
-  if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit' && type !== 'authorAll') {
+  if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit') {
     collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
     collapseBtn.title = 'expand post';
   } else {
@@ -2794,7 +2842,7 @@ var renderOnePost = function (postData, type, postID) {
   }
   post.appendChild(collapseBtn);
 
-  var preppedText = prepTextForRender(postData.body, uniqueID, type);
+  var preppedText = prepTextForRender(postData.body, uniqueID, expandableCutsAndNotes);
 
   // hexephre button
   if (preppedText.noteList && preppedText.noteList.length && preppedText.noteList.length > 0) {
@@ -2813,7 +2861,7 @@ var renderOnePost = function (postData, type, postID) {
   }
 
   // private
-  if ((type === 'author' || type === 'perma' || type === "authorAll") && glo.username && glo.username === postData.author) {
+  if ((type === 'author' || type === 'perma') && glo.username && glo.username === postData.author) {
     var privateIndicator = document.createElement('div');
     privateIndicator.innerHTML = "private post";
     privateIndicator.setAttribute('class', 'private-indicator main-background removed');
@@ -2891,7 +2939,7 @@ var renderOnePost = function (postData, type, postID) {
   //
   body.innerHTML = preppedText.string;
   //
-  if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'authorAll') {
+  if (glo.collapsed && glo.collapsed[postData.post_id]) {
     post.classList.add('faded');
     body.classList.add('removed');
   }
@@ -6666,15 +6714,87 @@ var makeResetCall = function (data) {
   });
 }
 
-var callForAllPostData = function (userID, callback) {
-  if (!userID) { userID = glo.userID }
+var callForAllOfAnAuthorsPostData = function (userID, callback) {
   if (!userID) { return; }
 
-  ajaxCall('/'+userID+'/~getAllPostData', 'GET', '', function(posts) {
+  fetchPosts(false, {author:userID ,postCode:'ALL'}, function () {
+    var postList = glo.pRef.author[userID].all;
+    var output = []
+    for (var i = 0; i < postList.length; i++) {
+      output.push(glo.postStash[postList[i]]);
+    }
     if (callback) {
-      callback(posts);
+      callback(output);
     }
   });
+}
+
+var findStringInPosts = function (posts, targetString, caseSensitive) {
+  var results = [];
+  if (!caseSensitive) {
+    targetString = targetString.toLowerCase();
+  }
+  // var resultBufferChars = 13;
+
+  for (var i = 0; i < posts.length; i++) {
+    var postBody = posts[i].body;
+
+    if (caseSensitive) {
+      var searchBody = postBody;
+    } else {
+      var searchBody = postBody.toLowerCase();
+    }
+    // var postMatches = [];
+
+    var index = searchBody.indexOf(targetString);
+    if (index !== -1) {
+      results.push(posts[i].post_id)
+    }
+
+    /*
+    while (index !== -1) {
+
+      var match = postBody.substring(index-resultBufferChars, index+targetString.length+resultBufferChars);
+      postMatches.push(match);
+
+      // find next
+      index = searchBody.indexOf(targetString, index+1);
+    }
+    if (postMatches && postMatches.length) {
+      results.push({postDate:posts[i].date, matches:postMatches})
+    }
+    */
+  }
+
+  return results;
+}
+
+var postSearchButtonFire = function (loc) {
+  var targetString = $('post-search-input-'+loc).value;
+  if (targetString === "") {
+    return;
+  }
+  var caseSensitive = $('case-sensitive-search-'+loc).checked;
+
+  if (glo.postPanelStatus && glo.postPanelStatus.author) {
+
+    callForAllOfAnAuthorsPostData(glo.postPanelStatus.author, function (posts) {
+      var results = findStringInPosts(posts, targetString, caseSensitive);
+
+      searchResultQuantityGate(results.length, targetString, function () {
+        displayPosts(results, {search:targetString, postCode:'SEARCH', author:glo.postPanelStatus.author},);
+      });
+
+    });
+  }
+}
+
+var searchResultQuantityGate = function (length, targetString, callback) {
+  if (length > 47) {
+    return uiAlert(`erm so, it would seem that the search you are attempting to run has turned up, *checks notes* ah yes, <b>`+length+`</b> posts that each contain this "`+targetString+`" string that you so desire. Unfortunately is has been determined that this is a number of posts that is sufficiently likely to brick your browser, such that i will not be attempting to display them for you. I don't know, man, what do you want, paginated search results? Probably if you are looking for some specific post and your search term is returning this many results than this search isn't useful anyway and you should try something else. Tell @staff how you think this should work`);
+  } else {
+    callback();
+  }
 }
 
 var extractImgurURLs = function (posts) {
@@ -6682,8 +6802,8 @@ var extractImgurURLs = function (posts) {
   var results = [];
   var openStr = `<img src=`;
 
-  for (var date in posts) { if (posts.hasOwnProperty(date)) {
-    var postBody = posts[date][0].body;
+  for (var i = 0; i < posts.length; i++) {
+    var postBody = posts[i].body;
     var postMatches = [];
 
     var index = postBody.indexOf(openStr);
@@ -6706,17 +6826,19 @@ var extractImgurURLs = function (posts) {
       // find next
       index = postBody.indexOf(openStr, index);
     }
+
+    //
     if (postMatches && postMatches.length) {
-      results.push({postDate:date, matches:postMatches})
+      results.push({postDate:posts[i].date, matches:postMatches})
     }
-  }}
+  }
 
   return {all:allMatches, byPost:results};
 }
 
-var displayImgurList = function (user) {
-  loading();
-  callForAllPostData(user, function (posts) {
+var displayImgurList = function () {
+
+  callForAllOfAnAuthorsPostData(glo.userID, function (posts) {
     var result = extractImgurURLs(posts);
 
     $('get-imgur-button').classList.add('removed');
@@ -6767,7 +6889,6 @@ var displayImgurList = function (user) {
         imageItem.appendChild(downloadButton);
       }
     }
-    loading(true);
   });
 }
 
