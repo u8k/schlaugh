@@ -6791,7 +6791,7 @@ var postSearchButtonFire = function (loc) {
 
 var searchResultQuantityGate = function (length, targetString, callback) {
   if (length > 47) {
-    return uiAlert(`erm so, it would seem that the search you are attempting to run has turned up, *checks notes* ah yes, <b>`+length+`</b> posts that each contain this "`+targetString+`" string that you so desire. Unfortunately is has been determined that this is a number of posts that is sufficiently likely to brick your browser, such that i will not be attempting to display them for you. I don't know, man, what do you want, paginated search results? Probably if you are looking for some specific post and your search term is returning this many results than this search isn't useful anyway and you should try something else. Tell @staff how you think this should work`);
+    return uiAlert(`erm so, it would seem that the search you are attempting to run has turned up, *checks notes* ah yes, <b>`+length+`</b> posts that each contain this "`+targetString+`" string that you so desire. Unfortunately it has been determined that this is a number of posts that is sufficiently likely to brick your browser, such that i will not be attempting to display them for you. I don't know, man, what do you want, paginated search results? Probably if you are looking for some specific post and your search term is returning this many results than this search isn't useful anyway and you should try something else. Tell @staff how you think this should work`);
   } else {
     callback();
   }

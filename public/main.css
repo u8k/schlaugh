@@ -223,6 +223,15 @@ pageAndDateNav, .page-title-404 {
   text-align: center;
 }
 
+#author-clear-filter-top, #author-clear-filter-bot {
+  font-size: .6em;
+}
+@media screen and (max-width: 500px), screen and (max-height: 500px) {
+  #author-clear-filter-top, #author-clear-filter-bot {
+    font-size: .7em;
+  }
+}
+
 clicky, .clicky {
   cursor: pointer;
 }
