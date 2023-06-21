@@ -3181,7 +3181,7 @@ var createPostFooter = function (postElem, postData, type) {
               })
             } else {
               if (glo && glo.settings && (!glo.settings.knowsAboutSelectiveQuoting || pool.getCurDate() >= glo.settings.knowsAboutSelectiveQuoting)) {
-                notifyWithReminderOption("¿DID U KNO?<br><br>if you only want to quote part of the post, you can do so by selecting that part before clicking the quote button", 'knowsAboutSelectiveQuoting');
+                notifyWithReminderOption("¿DID U KNO?<br><br>if you only want to quote part of the post, you can do so by selecting that part before clicking the quote button<br><br>also if you press Shift while you click the quote button, you'll get the quote auto wrapped up in a Note, in case you're into that kind of thing", 'knowsAboutSelectiveQuoting');
               } else {
                 quotePost(postData, false, event.shiftKey, event.altKey);
               }
