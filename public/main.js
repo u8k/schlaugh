@@ -1696,26 +1696,26 @@ var collapseNote = function (buttonId, innerId, expanding, postID, viaBottom) {
     }
 
   } else {        // collapse
-    if (viaBottom) {     // get the height of the post and position on page before collapsing
-      var initScroll = window.scrollY;
-      var initHeight = $(postID).offsetHeight;
+    if (viaBottom) {
+      var initBottom = $(postID).getBoundingClientRect().bottom;
     }
+    
     $(innerId).classList.add('removed');    // collapse the note
     $(innerId+'-note-top-plus').classList.remove('removed');
     $(innerId+'-note-top-minus').classList.add('removed');
-    if (viaBottom) {                // if via the bottom button, then adjust the scroll position
-      if (initScroll === window.scrollY) {
-        window.scrollBy(0, $(postID).offsetHeight - initHeight);
-      }
-      // move focus to the top button
-      $(buttonId).focus();
-    }
+    
+    // move focus to the top button
+    $(buttonId).focus();
     $(buttonId).onclick = function () {collapseNote(buttonId, innerId, true, postID);}
-
+    
     if ($(innerId+"-br")) {
       $(innerId+"-br").classList.remove('removed');
     }
-
+    
+    if (viaBottom) {                // if via the bottom button, then adjust the scroll position
+      var finalBottom = $(postID).getBoundingClientRect().bottom;
+      window.scrollBy(0, (finalBottom - initBottom));
+    }
   }
 }
 
@@ -3039,8 +3039,7 @@ var clearAuthorTagButton = function () {
 var collapseAllNotesInList = function (noteList, expand, btmBtn) {
   // assumes that all notes in list are in one post
   if (btmBtn) {
-    var initScroll = window.scrollY;
-    var initHeight = $(noteList[0].postID).offsetHeight;
+    var initBottom = $(noteList[0].postID).getBoundingClientRect().bottom;
   }
   //
   for (var i = 0; i < noteList.length; i++) {
@@ -3051,8 +3050,9 @@ var collapseAllNotesInList = function (noteList, expand, btmBtn) {
       collapseNote(ellen.postID+"-"+ellen.elemNum, ellen.postID+"-"+(ellen.elemNum+1), false, ellen.postID);
     }
   }
-  if (btmBtn && initScroll === window.scrollY) {
-    window.scrollBy(0, $(noteList[0].postID).offsetHeight - initHeight);
+  if (btmBtn) {
+    var finalBottom = $(noteList[0].postID).getBoundingClientRect().bottom;
+    window.scrollBy(0, (finalBottom - initBottom));
   }
 }
 
@@ -3080,7 +3080,13 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     var collapse = false;
     if (glo.collapsed) {glo.collapsed[postID] = false;}
     //
-  } else {                                          // collapse the post
+  } else {
+    // collapse the post
+
+    if (isBtmBtn) { // but first log the position of the bottom edge
+      var initBottom = $(uniqueID).getBoundingClientRect().bottom;
+    }
+
     $(uniqueID).classList.add('faded');
     if ($(postID+"_post-footer-right")) {
       $(postID+"_post-footer-right").classList.add('removed');
@@ -3094,18 +3100,15 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     btnElem.title = 'expand post';
     btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
     btnElem2.classList.add('hidden');
-    //
-    if (isBtmBtn) {
-      var initScroll = window.scrollY;
-      var initHeight = $(uniqueID).offsetHeight;
-    }
+
     // this order is important, collapse the post here
     $(uniqueID+'body').classList.add('removed');
+    
     // then find the offset from collapsing
     if (isBtmBtn) {
-      if (initScroll === window.scrollY) {  //after the post has been removed, if the scrollPos hasn't changed, then change it
-        window.scrollBy(0, $(uniqueID).offsetHeight - initHeight);
-      }
+      var finalBottom = $(uniqueID).getBoundingClientRect().bottom;
+
+      window.scrollBy(0, (finalBottom - initBottom));
     }
 
     var collapse = true;
