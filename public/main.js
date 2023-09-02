@@ -1699,7 +1699,7 @@ var collapseNote = function (buttonId, innerId, expanding, postID, viaBottom) {
     if (viaBottom) {
       var initBottom = $(postID).getBoundingClientRect().bottom;
     }
-    
+
     $(innerId).classList.add('removed');    // collapse the note
     $(innerId+'-note-top-plus').classList.remove('removed');
     $(innerId+'-note-top-minus').classList.add('removed');
@@ -4692,8 +4692,9 @@ var closePrompt = function (elem) {
   elem.classList.add('hidden');
 }
 
-var toggleMoreEditorButtons = function (kind, elem) {
+var toggleMoreEditorButtons = function (kind) {
   var cursorPos = getCursorPosition($(kind+'-editor'));
+  var elem = $(kind+"-toggle-more-buttons");
   if (elem.title === "more buttons") {
     elem.innerHTML = `<icon class="fas fa-minus editor-more-less"></icon>`;
     elem.title = "less buttons";
@@ -4704,6 +4705,10 @@ var toggleMoreEditorButtons = function (kind, elem) {
     $(kind+"-more-buttons").classList.add("removed");
   }
   setCursorPosition($(kind+'-editor'), cursorPos.start, cursorPos.end);
+  //
+  ajaxCall('/toggleSetting', 'POST', {setting: "showAllEditorButtons"}, function() {
+    // do nothing
+  });
 }
 
 var toggleEditorMarkdown = function (kind) {
@@ -6195,6 +6200,13 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     //
     if (!glo.openPanel || (glo.openPanel !== "clicker-panel" && glo.openPanel !== "schlaunquer-panel")) {
       $("panel-buttons-wrapper").classList.remove("removed");
+    }
+    //
+    if (glo.settings.showAllEditorButtons) {
+      var kinds = ["old-post", "message", "post"];
+      for (var i = 0; i < kinds.length; i++) {
+        toggleMoreEditorButtons(kinds[i]);
+      }
     }
     //
     if (glo.settings.includeTaggedPosts) {

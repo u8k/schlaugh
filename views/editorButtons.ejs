@@ -32,5 +32,5 @@
   --><button class="editor-button" onclick="edButtHand.spoil('<%- kind %>')">spoil</button><!--
   --><button class="editor-button" title="toggle editor mode" onclick="toggleEditorMarkdown('<%- kind %>')" id='<%- kind + "-editor-mode-button" %>'>HTML</button><!--
 --></wrapper><!--
---><button class="editor-button" title="more buttons" onclick="toggleMoreEditorButtons('<%- kind %>',this)"><icon class="fas fa-plus editor-more-less"></icon></button>
+--><button class="editor-button" id="<%- kind + '-toggle-more-buttons'%>" title="more buttons" onclick="toggleMoreEditorButtons('<%- kind %>')"><icon class="fas fa-plus editor-more-less"></icon></button>
 </div>
