@@ -3077,7 +3077,9 @@ app.post('/resetNameCheck', function (req, res) {
               });
             } else {
               var attempt = code.attempts;
-              dbWriteByID(req, res, errMsg, 'resetCodes', ObjectId(code._id), code, function (err) {
+
+              dbWriteByID(req, res, errMsg, 'resetCodes', code._id, code, function (err) {
+
                 res.send({error: false, attempt:attempt});  //fail state
               });
             }
