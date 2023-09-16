@@ -2703,7 +2703,7 @@ app.post('/register', function(req, res) {
               // "sign in" the user
               req.session.user = { _id: newID };
               return res.send({error:false, needKeys:true, newUser: true,
-                message: `welcome to schlaugh!<br><br>i'll be your staff. Can i get you started with something to drink?<br><br>this thing you're reading right now is a private message. Like everything else on schlaugh, messages are only sent at the schlaupdate. So don't sweat hitting that "save message" button! If you change your mind you have until the end of the day to edit it<br><br>please don't hesitate to ask any questions, that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. You can find the site FAQ <a href="https://www.schlaugh.com/~">here</a><br><br>may i ask what brought you here today? How did you hear about schlaugh?<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "schlaugh@protonmail.com"<br><br>&lt;3`,
+                message: `welcome to schlaugh!<br><br>i'll be your staff. Can i get you started with something to drink?<br><br>this thing you're reading right now is a private message. Like everything else on schlaugh, messages are only sent at the schlaupdate. So don't sweat hitting that "save message" button! If you change your mind you have until the end of the day to edit it<br><br>please don't hesitate to ask any questions, that's what i'm here for. if anything at all is even slightly confusing to you, you're doing me a huge favor by letting me know so that i can fix it for everyone else too. You can find the site FAQ <a href="https://www.schlaugh.com/~">here</a><br><br>may i ask what brought you here today? How did you hear about schlaugh?<br><br>i'd prefer you communicate by messaging me right here, but if need be, you can also reach me at "staff@schlaugh.com"<br><br>&lt;3`,
               });
             });
           });
@@ -2982,24 +2982,24 @@ app.post('/passResetRequest', function (req, res) {
                   from: 'noreply@schlaugh.com',
                   subject: 'schlaugh account recovery',
                   text: `visit the following link to reset your schlaugh password: https://www.schlaugh.com/~recovery/`+codeID+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
-                  html: `<a href="https://www.schlaugh.com/~recovery/`+codeID+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+codeID+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret. But if you need additional assistance accessing your account please do contact schlaugh@protonmail.com`,
+                  html: `<a href="https://www.schlaugh.com/~recovery/`+codeID+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+codeID+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret. But if you need additional assistance accessing your account please do contact staff@schlaugh.com`,
                 };
-                // sgMail.send(msg, (error, result) => {
-                //   if (error) {return sendError(req, res, errMsg+"email server malapropriationologification");}
-                //   else {
+                sgMail.send(msg, (error) => {
+                  if (error) {return sendError(req, res, errMsg+"email server malapropriationologification");}
+                  else {
                     var newCode = {
                       _id: codeID,
                       username: usernameHash,
                       attempts: 0,
                       creationTime: new Date(),
                     }
-                    dbCreateOne(req, res, errMsg, 'resetCodes', newCode, function (newID) {
+                    dbCreateOne(req, res, errMsg, 'resetCodes', newCode, function () {
                       user.settings.recovery[today].push(newCode.creationTime);
                       // victory state
                       writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
                     });
-                //   }
-                // });
+                  }
+                });
               }
             });
           });
