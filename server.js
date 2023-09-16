@@ -485,9 +485,27 @@ var incrementStat = function (kind) {
   var date = pool.getCurDate();
   // does statBucket already exist for day?
   dbReadOneByID(null, null, 'error incrementing stat<br><br>', 'stats', date, null, function (stat) {
-    if (!stat) {createStat(date, function () {
-      updateStat(date, kind, 1);
-    })} else {
+    if (!stat) {
+      createStat(date, function () {
+        updateStat(date, kind, 1);
+        
+        // send a weekly email to myself
+        var today = new Date();
+        var dayOfYear = Math.ceil((today - new Date(today.getFullYear(),0,1)) / 86400000);
+        if (dayOfYear % 7 === 0) {
+          var msg = {
+            to: "staff@schlaugh.com",
+            from: 'noreply@schlaugh.com',
+            subject: 'day '+dayOfYear,
+            text: `beep boop email is still working\n\n<3`,
+          };
+          sgMail.send(msg, (error) => {
+            if (error) { sendError(null, null, "email server malapropriationologification"); }
+            // that's all
+          });
+        }
+      });
+    } else {
       var x = 1;
       if (stat[kind]) {x = stat[kind] + 1;}
       updateStat(date, kind, x);
