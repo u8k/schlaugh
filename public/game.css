@@ -28,9 +28,9 @@
   border: none;
   font-size: 1.5em;
 }
-#schlaunquer-previous-day {transform: rotate(180deg); left: -3px;}
+#schlaunquer-previous-day {left: -3px;}
 #schlaunquer-previous-step {left: 22px;}
-#schlaunquer-next-step {left: 45px;}
+#schlaunquer-next-step {left: 46px;}
 #schlaunquer-next-day {left: 70px;}
 
 #forfeit-button {
@@ -131,7 +131,7 @@ polygon {
   font-size: 1.3em;
 }
 
-.schlaunquer-bookmark {
+#schlaunquer-bookmark {
   position: absolute;
   right: 10px;
   top: 10px;
@@ -196,8 +196,8 @@ td, th {
     font-size: 1.2em;
   }
   #schlaunquer-previous-day {left: -5px;}
-  #schlaunquer-previous-step {left: 17px;}
-  #schlaunquer-next-step {left: 36px;}
+  #schlaunquer-previous-step {left: 16px;}
+  #schlaunquer-next-step {left: 37px;}
   #schlaunquer-next-day {left: 58px;}
   .game-move-input-wide {
     width: 3.1em;

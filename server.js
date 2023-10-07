@@ -902,7 +902,9 @@ var sendError = function (req, res, errMsg) {
   //
   if (res) {  // so we can NOT notify the FE about an error, but still log it above
     errMsg = "ERROR! SORRY! Please screenshot this and note all details of the situation and tell staff. SORRY<br><br>" + errMsg;
-    res.send({error: errMsg});
+    if (!res.headersSent) {
+      res.send({error: errMsg});
+    }
   }
 }
 

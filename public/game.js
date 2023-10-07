@@ -150,15 +150,14 @@ var setUpGameInfo = function (data) {
   // is it bookmarked?
   if (glo.username) {
     if (_npa(['glo','games','schlaunquer','bookmarked',data._id])) {
-      $('schlaunquer-bookmark').classList.add('removed');
-      $('schlaunquer-unbookmark').classList.remove('removed');
+      $('schlaunquer-bookmark').innerHTML = iconBank.unbookmark;
+      $('schlaunquer-bookmark').title = 'un-bookmark';
     } else {
-      $('schlaunquer-bookmark').classList.remove('removed');
-      $('schlaunquer-unbookmark').classList.add('removed');
+      $('schlaunquer-bookmark').innerHTML = iconBank.bookmark;
+      $('schlaunquer-bookmark').title = 'bookmark';
     }
   } else {
-    $('schlaunquer-bookmark').classList.add('removed');
-    $('schlaunquer-unbookmark').classList.add('removed');
+    $('schlaunquer-bookmark').innerHTML = '';
   }
   //
   destroyAllChildrenOfElement($('schlaunquer-game-player-list'));
@@ -1084,15 +1083,20 @@ var closeVictory = function () {
   blackBacking(true);
 }
 
-var bookmarkMatch = function (remove) {
+var bookmarkMatch = function () {
+  var elem = $('schlaunquer-bookmark');
+  var remove = true;
+  if (elem.title === 'bookmark') {
+    remove = false;
+  }
   ajaxCall('/~setSchlaunquerBookmark', 'POST', {game_id:gameRef.game_id, remove:remove}, function(json) {
     // update the button
     if (remove) {
-      $('schlaunquer-bookmark').classList.remove('removed');
-      $('schlaunquer-unbookmark').classList.add('removed');
+      elem.innerHTML = iconBank.bookmark;
+      elem.title = 'bookmark';
     } else {
-      $('schlaunquer-bookmark').classList.add('removed');
-      $('schlaunquer-unbookmark').classList.remove('removed');
+      elem.innerHTML = iconBank.unbookmark;
+      elem.title = 'un-bookmark';
     }
     // update the list
     _npa(['glo','games','schlaunquer','bookmarked'], json);

@@ -333,6 +333,27 @@ var themeSelect = function (elem) {
   }
 }
 
+var openAppearanceSettings = function () {
+  $('appearance-options-wrapper').classList.remove('hidden');
+  //
+  if ($('text-options-pop-up').classList.contains("hidden")) {
+    $('preset-select').focus();
+  } else {
+    $('font-family-select').focus();
+  }
+}
+var toggleColorsAndTextSettings = function () {
+  if ($('text-options-pop-up').classList.contains("hidden")) {
+    $('text-options-pop-up').classList.remove('hidden');
+    $('color-options-pop-up').classList.add('hidden');
+    $('font-family-select').focus();
+  } else {
+    $('color-options-pop-up').classList.remove('hidden');
+    $('text-options-pop-up').classList.add('hidden');
+    $('preset-select').focus();
+  }
+}
+
 var themeBank = {
   "classic":{
     postBackground: '#32363F',
@@ -355,7 +376,7 @@ var themeBank = {
   "steve":{
     postBackground: '#FFFFFF',
     text: '#000000',
-    linkText: '#0500FF',
+    linkText: '#005DFF',
     background: '#E4E4E4',
   },
   "duckling":{
@@ -415,7 +436,7 @@ var themeBank = {
   "lorelei":{
     postBackground: '#B2C4D6',
     text: '#383F45',
-    linkText: '#0004FF',
+    linkText: '#8227FF',
     background: '#AFDCFA',
   },
   "pearl":{
@@ -841,7 +862,7 @@ var convertCut = function (string, id, expandable, pos) {
   var b = `button class='text-button special' onclick='$("`+id+`").classList.remove("removed"); this.classList.add("removed");'`;
   string = insertStringIntoStringAtPos(string, b, pos);
   pos += b.length;
-  var buttonAndexpandIcon = `<icon class="far fa-plus-square expand-button"></icon></button>`;
+  var buttonAndexpandIcon = `<icon class="expand-button">`+iconBank.expand+`</icon></button>`;
 
   // find the closing cut tag
   var gap = string.substr(pos).search('</cut>');
@@ -886,8 +907,8 @@ var convertNote = function (string, id, elemCount, expandable, tagStartPos) {
   var preTag = string.substr(0,tagStartPos);
   var postTag = string.substr(innerStartPos);
   var insert = `<button class="special text-button" id="`+id+"-"+elemCount+`" onclick="collapseNote('`+id+"-"+elemCount+`','`+id+"-"+(elemCount+1)+`', true, '`+id+`')">`+linkText
-    +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="far fa-plus-square expand-button"></icon>`
-    +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="far fa-minus-square removed expand-button"></icon></button>`
+    +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-plus" class="expand-button">`+iconBank.expand+`</icon>`
+    +`<icon id="`+id+"-"+(elemCount+1)+`-note-top-minus" class="removed expand-button">`+iconBank.collapse+`</icon></button>`
     +`<innerNote class="`+classAsign+`" id="`+id+"-"+(elemCount+1)+`">`;
 
   string = preTag+insert+postTag;
@@ -897,7 +918,7 @@ var convertNote = function (string, id, elemCount, expandable, tagStartPos) {
   //snip out the closing note tag
   string = string.substr(0,noteEndPos) + string.substr(noteEndPos+7);
   //
-  var innerNoteCollapseButtonAndClosingInnerNote = `<button onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="text-button collapse-button-bottom filter-focus" id="`+id+"-"+(elemCount+1)+`-note-close"><icon class="far fa-minus-square"></icon></button></innerNote>`;
+  var innerNoteCollapseButtonAndClosingInnerNote = `<button onclick="collapseNote('`+id+"-"+elemCount+`', '`+id+"-"+(elemCount+1)+`', false, '`+id+`', true)" class="text-button collapse-button-bottom filter-focus" id="`+id+"-"+(elemCount+1)+`-note-close">`+iconBank.collapse+`</button></innerNote>`;
   string = insertStringIntoStringAtPos(string, innerNoteCollapseButtonAndClosingInnerNote, noteEndPos);
   //
   return string;
@@ -2709,7 +2730,7 @@ var renderTagListing = function (tagName, count) {
   //
   var detag = document.createElement("button");
   detag.setAttribute('class', 'clicky de-tag-button special');
-  detag.innerHTML = '<icon class="fas fa-trash-alt"></icon>';
+  detag.innerHTML = iconBank.trash;
   (function (tagString) {
     detag.onclick = function(){
       saveTag(true, tagString);
@@ -2776,6 +2797,109 @@ var addToPostStash = function (postData, authorData) {
   _npa(['glo','pRef','post',postData.post_id,], true);
 }
 
+var iconBank = {
+  expand: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.08em;"><g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor"><path d="M35 394 c-13 -14 -15 -42 -13 -192 l3 -177 177 -3 c150 -2 178 0 192 13 13 14 16 44 16 184 0 116 -4 171 -12 179 -8 8 -63 12 -179 12 -140 0 -170 -3 -184 -16z m333 -26 c8 -8 12 -59 12 -165 l0 -153 -153 0 c-106 0 -157 4 -165 12 -8 8 -12 59 -12 165 l0 153 153 0 c106 0 157 -4 165 -12z"/><path d="M190 300 l0 -60 -49 0 c-28 0 -53 -6 -60 -13 -17 -22 8 -37 61 -37 l48 0 0 -48 c0 -48 12 -72 37 -72 9 0 13 17 13 60 l0 60 49 0 c28 0 53 6 60 13 17 22 -8 37 -61 37 l-48 0 0 48 c0 48 -12 72 -37 72 -9 0 -13 -17 -13 -60z"/></g></svg>`,
+  collapse: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.08em;"><g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor"><path d="M32 398 c-8 -8 -12 -63 -12 -179 0 -140 3 -170 16 -184 14 -13 42 -15 192 -13 l177 3 3 177 c2 150 0 178 -13 192 -14 13 -44 16 -184 16 -116 0 -171 -4 -179 -12z m348 -171 c0 -106 -4 -157 -12 -165 -8 -8 -59 -12 -165 -12 l-153 0 0 153 c0 106 4 157 12 165 8 8 59 12 165 12 l153 0 0 -153z"/><path d="M82 228 c-32 -32 -14 -38 121 -38 133 0 157 6 157 37 0 18 -260 19 -278 1z"/></g></svg>`,
+  plus: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.15em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M190 310 l0 -70 -59 0 c-66 0 -93 -18 -74 -48 7 -12 27 -18 72 -20
+        l61 -3 0 -58 c0 -57 1 -59 31 -70 18 -6 34 -11 35 -11 2 0 4 31 4 70 l0 69 56
+        3 c40 2 60 8 67 20 19 29 -9 48 -69 48 l-54 0 0 59 c0 57 -1 59 -31 70 -18 6
+        -34 11 -35 11 -2 0 -4 -31 -4 -70z"/>
+      </g>
+    </svg>`,
+  minus: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.15em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M59 224 c-9 -11 -10 -20 -2 -32 9 -15 31 -17 163 -17 132 0 154 2
+        163 17 8 12 7 21 -2 32 -20 24 -302 24 -322 0z"/>
+      </g>
+    </svg>`,
+  quote: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.08em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M237 373 c-12 -12 -8 -198 5 -211 7 -7 34 -12 60 -12 l48 0 0 -38 c0
+        -21 -5 -43 -11 -49 -17 -17 -2 -33 30 -33 24 0 29 6 44 53 21 65 24 266 5 285
+        -13 13 -169 17 -181 5z"/>
+        <path d="M7 353 c-12 -12 -8 -198 5 -211 7 -7 34 -12 60 -12 l48 0 0 -38 c0
+        -21 -5 -43 -11 -49 -17 -17 -2 -33 30 -33 24 0 29 6 44 53 21 65 24 266 5 285
+        -13 13 -169 17 -181 5z"/>
+      </g>
+    </svg>`,
+  bookmark: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.16em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M30 215 l0 -206 58 42 c31 23 73 55 93 70 30 24 38 26 50 15 8 -8 49
+        -39 92 -70 l77 -57 0 206 0 205 -185 0 -185 0 0 -205z m303 120 c2 -11 -206
+        -20 -230 -10 -8 2 -11 10 -8 15 9 14 234 9 238 -5z m0 -70 c2 -11 -206 -20
+        -230 -10 -8 2 -11 10 -8 15 9 14 234 9 238 -5z"/>
+      </g>
+    </svg>`,
+  unbookmark: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.16em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M30 215 l0 -206 58 42 c31 23 73 55 93 70 30 24 38 26 50 15 8 -8 49
+        -39 92 -70 l77 -57 0 206 0 205 -185 0 -185 0 0 -205z m350 14 l0 -170 -82 63
+        -83 64 -82 -64 -83 -63 0 170 0 171 165 0 165 0 0 -171z"/>
+        <path d="M95 340 c-3 -5 0 -13 8 -15 24 -10 232 -1 230 10 -4 14 -229 19 -238
+        5z"/>
+        <path d="M95 270 c-3 -5 0 -13 8 -15 24 -10 232 -1 230 10 -4 14 -229 19 -238
+        5z"/>
+      </g>
+    </svg>`,
+  link: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.17em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M132 418 c-7 -7 -12 -29 -12 -50 0 -37 1 -38 34 -38 25 0 35 5 39 20
+          5 18 14 20 79 20 44 0 79 -5 86 -12 16 -16 16 -152 0 -165 -7 -6 -50 -13 -96
+          -16 l-83 -6 6 29 c6 29 5 30 -28 30 -31 0 -35 -3 -41 -31 -3 -17 -6 -44 -6
+          -60 l0 -28 148 6 c81 3 153 10 160 16 17 13 17 268 0 285 -17 17 -269 17 -286
+          0z"/>
+          <path d="M136 313 c-61 -2 -116 -9 -123 -15 -18 -14 -19 -268 -1 -286 17 -17
+          269 -17 286 0 7 7 12 29 12 50 0 37 -1 38 -34 38 -25 0 -35 -5 -39 -20 -5 -18
+          -14 -20 -79 -20 -44 0 -79 5 -86 12 -16 16 -16 152 1 165 6 6 49 13 95 16 l83
+          6 -6 -29 c-6 -29 -5 -30 28 -30 31 0 35 3 41 31 3 17 6 44 6 60 0 27 -2 29
+          -37 27 -21 -1 -87 -4 -147 -5z"/>
+        </g>
+    </svg>`,
+  lock: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.125em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M133 395 c-48 -21 -75 -70 -68 -122 6 -41 5 -43 -19 -43 -30 0 -30
+        -6 -19 -147 l6 -83 182 0 182 0 6 83 c11 141 11 147 -19 147 -24 0 -25 2 -19
+        43 11 81 -51 137 -152 137 -26 -1 -63 -7 -80 -15z m157 -65 c22 -22 23 -24 14
+        -69 l-6 -31 -84 0 c-46 0 -84 4 -84 9 0 5 -3 22 -6 39 -10 47 22 72 91 72 42
+        0 60 -5 75 -20z m-42 -162 c14 -14 15 -42 3 -66 -5 -9 -12 -25 -15 -34 -7 -23
+        -35 -23 -42 0 -3 9 -10 25 -15 34 -21 40 -3 78 36 78 12 0 26 -5 33 -12z"/>
+      </g>
+    </svg>`,
+  unlock: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.125em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M133 395 c-48 -21 -75 -70 -68 -122 6 -41 5 -43 -19 -43 -30 0 -30
+        -6 -19 -147 l6 -83 182 0 182 0 6 83 c4 45 7 97 7 115 l0 32 -139 0 -138 0 -7
+        31 c-9 45 -8 47 14 69 15 15 33 20 75 20 42 0 60 -5 75 -20 22 -22 70 -27 70
+        -7 0 23 -32 59 -66 73 -42 18 -120 17 -161 -1z m243 -247 c-3 -29 -6 -68 -6
+        -85 l0 -33 -155 0 -155 0 0 33 c0 17 -3 56 -6 85 l-7 52 168 0 168 0 -7 -52z"/>
+        <path d="M182 168 c-14 -14 -15 -42 -3 -66 5 -9 12 -25 15 -34 7 -23 35 -23
+        42 0 3 9 10 25 15 34 21 40 3 78 -36 78 -12 0 -26 -5 -33 -12z"/>
+      </g>
+    </svg>`,
+  edit: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.125em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+        <path d="M312 407 c-29 -31 -28 -37 16 -80 44 -43 51 -45 80 -14 29 31 28 55
+        -5 89 -33 34 -62 36 -91 5z"/>
+        <path d="M127 222 c-127 -127 -127 -127 -127 -175 l0 -47 48 0 47 0 128 128
+        c70 70 127 134 127 143 0 19 -61 79 -81 79 -8 0 -72 -57 -142 -128z"/>
+      </g>
+    </svg>`,
+  trash: `<svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.125em;">
+      <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+      <path d="M200 415 c-9 -11 -33 -15 -89 -15 -81 0 -110 -12 -90 -37 15 -18 369
+-19 387 -1 24 24 -7 38 -86 38 -54 0 -80 4 -92 15 -15 14 -18 14 -30 0z"/>
+<path d="M46 223 c12 -60 27 -134 34 -165 l11 -58 124 0 124 0 11 58 c7 31 22
+105 34 165 l22 107 -191 0 -191 0 22 -107z m92 -30 c15 -97 15 -103 -1 -103
+-9 0 -17 26 -25 78 -15 96 -15 102 1 102 9 0 17 -26 25 -77z m92 -13 c0 -73
+-3 -90 -15 -90 -12 0 -15 17 -15 90 0 73 3 90 15 90 12 0 15 -17 15 -90z m100
+78 c0 -7 -5 -48 -12 -90 -8 -52 -16 -78 -25 -78 -16 0 -16 6 -1 103 8 51 16
+77 25 77 7 0 13 -6 13 -12z"/>
+      </g>
+    </svg>`,
+}
+
 var renderOnePost = function (postData, type, postID) {
   // type = 'author', 'preview', 'preview-edit', "dated", "perma", "search" or NULL
   // postData needs fields: post_id, date, authorPic, author, body, tags, _id,
@@ -2817,7 +2941,7 @@ var renderOnePost = function (postData, type, postID) {
     var quoteBtn = document.createElement("button");
     quoteBtn.setAttribute('class', 'panel-button-selected selective-quote-button removed');
     quoteBtn.setAttribute('id', uniqueID+'-selective-quote-button');
-    quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
+    quoteBtn.innerHTML = iconBank.quote;
     quoteBtn.onclick = function (event) {
       var selectionSpecs = isQuotableSelection(postData.post_id);
       if (selectionSpecs) {
@@ -2834,10 +2958,10 @@ var renderOnePost = function (postData, type, postID) {
   collapseBtn.setAttribute('class', 'collapse-button-top filter-focus');
   collapseBtn.setAttribute('id', uniqueID+'-collapse-button-top');
   if (glo.collapsed && glo.collapsed[postData.post_id] && type !== 'preview-edit') {
-    collapseBtn.innerHTML = '<i class="far fa-plus-square"></i>';
+    collapseBtn.innerHTML = iconBank.expand;
     collapseBtn.title = 'expand post';
   } else {
-    collapseBtn.innerHTML = '<i class="far fa-minus-square"></i>';
+    collapseBtn.innerHTML = iconBank.collapse;
     collapseBtn.title = 'collapse post';
   }
   post.appendChild(collapseBtn);
@@ -2849,7 +2973,7 @@ var renderOnePost = function (postData, type, postID) {
     var collapseAllBtn = document.createElement("button");
     collapseAllBtn.setAttribute('class', 'expand-all-top-button filter-focus');
     collapseAllBtn.setAttribute('id', uniqueID+'-collapse-all-button-top');
-    collapseAllBtn.innerHTML = '<i class="far fa-plus-square"></i>';
+    collapseAllBtn.innerHTML = iconBank.expand;
     collapseAllBtn.title = 'expand all notes in post';
     collapseAllBtn.onclick = function () {
       collapseAllNotesButton(uniqueID, preppedText.noteList);
@@ -3009,15 +3133,15 @@ var collapseAllNotesButton = function (uniqueID, noteList, btmBtn) {
   var botBttn = $(uniqueID+'-collapse-all-button-bot');
   if (topBttn.title === 'expand all notes in post') {
     collapseAllNotesInList(noteList, true, btmBtn);
-    topBttn.innerHTML = '<i class="far fa-minus-square"></i>';
+    topBttn.innerHTML = iconBank.collapse;
     topBttn.title = 'collapse all notes in post';
-    botBttn.innerHTML = '<i class="far fa-minus-square"></i>';
+    botBttn.innerHTML = iconBank.collapse;
     botBttn.title = 'collapse all notes in post';
   } else {
     collapseAllNotesInList(noteList, false, btmBtn);
-    topBttn.innerHTML = '<i class="far fa-plus-square"></i>';
+    topBttn.innerHTML = iconBank.expand;
     topBttn.title = 'expand all notes in post';
-    botBttn.innerHTML = '<i class="far fa-plus-square"></i>';
+    botBttn.innerHTML = iconBank.expand;
     botBttn.title = 'expand all notes in post';
   }
 }
@@ -3073,9 +3197,9 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     }
     //
     btnElem.title = 'collapse post';
-    btnElem.innerHTML = '<i class="far fa-minus-square"></i>';
+    btnElem.innerHTML = iconBank.collapse;
     btnElem2.title = 'collapse post';
-    btnElem2.innerHTML = '<i class="far fa-minus-square"></i>';
+    btnElem2.innerHTML = iconBank.collapse;
     btnElem2.classList.remove("hidden");
     var collapse = false;
     if (glo.collapsed) {glo.collapsed[postID] = false;}
@@ -3098,7 +3222,7 @@ var collapsePost = function (uniqueID, postID, isBtmBtn) {
     }
     //
     btnElem.title = 'expand post';
-    btnElem.innerHTML = '<i class="far fa-plus-square"></i>';
+    btnElem.innerHTML = iconBank.expand;
     btnElem2.classList.add('hidden');
 
     // this order is important, collapse the post here
@@ -3167,7 +3291,7 @@ var createPostFooter = function (postElem, postData, type) {
         // quote button
         var quoteBtn = document.createElement("button");
         quoteBtn.setAttribute('class', 'footer-button filter-focus');
-        quoteBtn.innerHTML = '<icon class="fas fa-quote-left"></icon>';
+        quoteBtn.innerHTML = iconBank.quote;
         quoteBtn.title = "quote";
         quoteBtn.onclick = function(event) {
           if (glo.postStash && glo.postStash[postData.post_id]) {     // is it already stashed?
@@ -3209,7 +3333,7 @@ var createPostFooter = function (postElem, postData, type) {
         permalinkButton.setAttribute('href', "/~/"+postData.post_id);
         link = null;
       }
-      permalinkButton.innerHTML = '<i class="fas fa-link"></i>';
+      permalinkButton.innerHTML = iconBank.link;
       permalinkButton.title = "permalink";
       permalinkButton.onclick = function(event) {
         modKeyCheck(event, function(){
@@ -3225,7 +3349,7 @@ var createPostFooter = function (postElem, postData, type) {
       //edit button
       var editBtn = document.createElement("button");
       editBtn.setAttribute('class', 'footer-button filter-focus');
-      editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+      editBtn.innerHTML = iconBank.edit;
       editBtn.title = "edit";
       editBtn.onclick = function() {
         editPost(postData);
@@ -3234,7 +3358,7 @@ var createPostFooter = function (postElem, postData, type) {
       // delete button
       var deleteBtn = document.createElement("button");
       deleteBtn.setAttribute('class', 'footer-button filter-focus');
-      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      deleteBtn.innerHTML = iconBank.trash;
       deleteBtn.title = "delete";
       deleteBtn.onclick = function() {
         deletePost(postData);
@@ -3256,10 +3380,10 @@ var createPrivateButton = function (parentElem, postData, prevButtonElem) {
   var alreadyPrivate = false;
   if (postData.private) {
     alreadyPrivate = true;
-    privateBtn.innerHTML = '<i class="fas fa-unlock"></i>';
+    privateBtn.innerHTML = iconBank.unlock;
     privateBtn.title = "un-private this post";
   } else {
-    privateBtn.innerHTML = '<i class="fas fa-lock"></i>';
+    privateBtn.innerHTML = iconBank.lock;
     privateBtn.title = "make this post private";
   }
   //
@@ -3478,10 +3602,10 @@ var createBookmarkButton = function (parent, post) {
   if (!glo.bookmarks) {glo.bookmarks = {}}
   if (glo.bookmarks[author_id] && glo.bookmarks[author_id][post.date]) {
     alreadyMarked = true;
-    elem.innerHTML = '<icon class="fas fa-bookmark"></icon>';
+    elem.innerHTML = iconBank.unbookmark;
     elem.title = "un-bookmark";
   } else {
-    elem.innerHTML = '<icon class="far fa-bookmark"></icon>';
+    elem.innerHTML = iconBank.bookmark;
     elem.title = "bookmark";
   }
   elem.onclick = function() {
@@ -4156,10 +4280,10 @@ var flushPostListAndReloadCurrentDate = function () {
 var toggleTaggedPostsInclusion = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "includeTaggedPosts"}, function(json) {
     if (glo.settings.includeTaggedPosts) {
-      $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+      $('include-tagged-posts-toggle').value = 'false';
       glo.settings.includeTaggedPosts = false;
     } else {
-      $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
+      $('include-tagged-posts-toggle').value = 'true';
       glo.settings.includeTaggedPosts = true;
     }
     fetchPosts(true);
@@ -4178,11 +4302,11 @@ var setPostStreamDirection = function () {
 var toggleAutoSaveTagsOnUse = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "autoSaveTagsOnUse"}, function(json) {});
   if (glo.settings.autoSaveTagsOnUse) {
-    $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+    $('auto-save-tags-on-use-toggle').value = 'false';
     glo.settings.autoSaveTagsOnUse = false;
   } else {
+    $('auto-save-tags-on-use-toggle').value = 'true';
     glo.settings.autoSaveTagsOnUse = true;
-    $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
   }
 }
 
@@ -4695,20 +4819,30 @@ var closePrompt = function (elem) {
 var toggleMoreEditorButtons = function (kind) {
   var cursorPos = getCursorPosition($(kind+'-editor'));
   var elem = $(kind+"-toggle-more-buttons");
+
   if (elem.title === "more buttons") {
-    elem.innerHTML = `<icon class="fas fa-minus editor-more-less"></icon>`;
-    elem.title = "less buttons";
-  $(kind+"-more-buttons").classList.remove("removed");
+    showMoreEditorButtons(kind);
   } else {
-    elem.innerHTML = `<icon class="fas fa-plus editor-more-less"></icon>`;
-    elem.title = "more buttons";
-    $(kind+"-more-buttons").classList.add("removed");
+    showLessEditorButtons(kind);
   }
+
   setCursorPosition($(kind+'-editor'), cursorPos.start, cursorPos.end);
   //
   ajaxCall('/toggleSetting', 'POST', {setting: "showAllEditorButtons"}, function() {
     // do nothing
   });
+}
+var showMoreEditorButtons = function (kind) {
+  var elem = $(kind+"-toggle-more-buttons");
+  elem.innerHTML = iconBank.minus;
+  elem.title = "less buttons";
+  $(kind+"-more-buttons").classList.remove("removed");
+}
+var showLessEditorButtons = function (kind) {
+  var elem = $(kind+"-toggle-more-buttons");
+  elem.innerHTML = iconBank.plus;
+  elem.title = "more buttons";
+  $(kind+"-more-buttons").classList.add("removed");
 }
 
 var toggleEditorMarkdown = function (kind) {
@@ -5474,7 +5608,6 @@ var closeThread = function () { // returns true for threadClosed, false for NO
 
 var hideCurrentThread = function (i) {
   glo.activeThreadIndex = undefined;
-  $("back-arrow").classList.add('removed');
   $(i+"-thread").classList.add('removed');
   $("message-writer").classList.add('removed');
   $("message-preview").classList.add('removed');
@@ -5528,7 +5661,6 @@ var openThread = function (i) {
       $('block-button').classList.remove('removed');
       $("thread-list").classList.add('removed');
       $(i+"-thread").classList.remove('removed');
-      $("back-arrow").classList.remove('removed');
       $("thread-title").innerHTML = glo.threads[i].name;
       // pic
       if (glo.threads[i].image && glo.threads[i].image !== "") {
@@ -6202,23 +6334,27 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
       $("panel-buttons-wrapper").classList.remove("removed");
     }
     //
+    var kinds = ["old-post", "message", "post"];
     if (glo.settings.showAllEditorButtons) {
-      var kinds = ["old-post", "message", "post"];
       for (var i = 0; i < kinds.length; i++) {
-        toggleMoreEditorButtons(kinds[i]);
+        showMoreEditorButtons(kinds[i]);
+      }
+    } else {
+      for (var i = 0; i < kinds.length; i++) {
+        showLessEditorButtons(kinds[i]);
       }
     }
     //
     if (glo.settings.includeTaggedPosts) {
-      $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
+      $('include-tagged-posts-toggle').value = 'true';
     } else {
-      $('include-tagged-posts-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+      $('include-tagged-posts-toggle').value = 'false';
     }
     //
     if (glo.settings.autoSaveTagsOnUse) {
-      $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-check-square"></icon>';
+      $('auto-save-tags-on-use-toggle').value = 'true';
     } else {
-      $('auto-save-tags-on-use-toggle').innerHTML = '<icon class="far fa-square"></icon>';
+      $('auto-save-tags-on-use-toggle').value = 'false';
     }
     //
     if (glo.settings.doNotResizeEditor) {
@@ -6473,15 +6609,14 @@ var schlaupdateExplain = function () {
   uiAlert(`all pending posts and messages will be published/sent at the strike of schlaupdate and not a moment sooner<br><br>you have `+timeString+` until the next schlaupdate`);
 }
 
-var showPassword = function (bool, elemName, elemArr) {       //or hide pass, if !bool
-  if (bool) {                                               // show it
-    $(elemName).classList.add('removed');
-    $(elemName+"c").classList.remove('removed');
+var showPassword = function (elem, elemArr) {
+  if (elem.innerHTML.slice(0,4) === 'show') {               // show it
     for (var i = 0; i < elemArr.length; i++) {$(elemArr[i]).type = 'text';}
-  } else {                                                    // hide it
-    $(elemName+"c").classList.add('removed');
-    $(elemName).classList.remove('removed');
+    elem.innerHTML = 'hide'+ elem.innerHTML.slice(4);
+
+  } else {                                                  // hide it
     for (var i = 0; i < elemArr.length; i++) {$(elemArr[i]).type = 'password';}
+    elem.innerHTML = 'show'+ elem.innerHTML.slice(4);
   }
 }
 
@@ -6494,7 +6629,7 @@ var imageUploadingExplain = function () {
 }
 
 var optionalEmailExplain = function () {
-  uiAlert(`the ONLY time schlaugh will <i>ever</i> email you is if you lose your password and need to recover it via email. In fact, we only store a hashed form of your email, so we couldn't email you if we tried, and if our database gets hacked your email address won't be compromised. If you still don't want to provide an email, that's fine, it just means we can't help you gain access to your account in the event of a lost or stolen password.`);
+  uiAlert(`providing an email is optional, but strongly recommended<br><br>the ONLY time schlaugh will <i>ever</i> email you is if you lose your password and need to recover it via email. In fact, we only store a hashed form of your email, so we couldn't email you if we tried, and if our database gets hacked your email address won't be compromised. If you still don't want to provide an email, that's fine, it just means we can't help you gain access to your account in the event of a lost or stolen password.`);
 }
 
 var customUrlExplain = function (old) {

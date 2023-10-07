@@ -2,23 +2,49 @@
   <div id="<%- kind %>-tag-display" class="removed"></div>
   <button id="author-clear-filter-<%- kind %>" onclick="clearAuthorTagButton()" class="removed">clear tag</button>
   <div id="<%- kind %>-date-box" class="no-select removed">
+
     <a href="javascript:void(0);" id="<%- kind %>-left-date-arrow" class="clicky filter-focus" title="previous day" onclick="moveDateByOneDay(-1)">
-      <svg class="svg-inline--fa fa-caret-left fa-w-6" aria-labelledby="svg-inline--fa-title-1" data-prefix="fas" data-icon="caret-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 512" data-fa-i2svg=""><title id="svg-inline--fa-title-1">previous day</title><path fill="currentColor" d="M192 127.338v257.324c0 17.818-21.543 26.741-34.142 14.142L29.196 270.142c-7.81-7.81-7.81-20.474 0-28.284l128.662-128.662c12.599-12.6 34.142-3.676 34.142 14.142z"></path></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="height: 1em; vertical-align: -.19em;">
+        <g transform="scale(0.1,0.1)" fill="currentColor">
+          <path d="M497 691 c-214 -103 -389 -191 -389 -196 0 -7 773 -385 788 -385 15
+          0 -12 40 -137 199 -78 99 -141 182 -141 186 0 4 63 87 141 186 131 166 153
+          200 134 198 -5 0 -183 -85 -396 -188z"/>
+        </g>
+      </svg>
     </a>
-    <text id="<%- kind %>-date-display"></text>
+    
+    <text id="<%- kind %>-date-display" class="date-display"></text>
+    
     <a href="javascript:void(0);" id="<%- kind %>-right-date-arrow" class="clicky filter-focus" title="next day" onclick="moveDateByOneDay(1)">
-      <svg class="svg-inline--fa fa-caret-right fa-w-6" aria-labelledby="svg-inline--fa-title-7" data-prefix="fas" data-icon="caret-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 512" data-fa-i2svg=""><title id="svg-inline--fa-title-7">next day</title><path fill="currentColor" d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"></path></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="height: 1em; vertical-align: -.19em;">
+        <g transform="translate(100,0) scale(-0.1,0.1)" fill="currentColor">
+          <path d="M497 691 c-214 -103 -389 -191 -389 -196 0 -7 773 -385 788 -385 15
+          0 -12 40 -137 199 -78 99 -141 182 -141 186 0 4 63 87 141 186 131 166 153
+          200 134 198 -5 0 -183 -85 -396 -188z"/>
+        </g>
+      </svg>
     </a>
   </div>
 
-
   <div id="<%- kind %>-page-box" class="removed">
     <a href="javascript:void(0);" id="<%- kind %>-left-page-arrow" class="clicky filter-focus" title="previous page" onclick="pageTurn(-1)">
-      <svg class="svg-inline--fa fa-caret-left fa-w-6" aria-labelledby="svg-inline--fa-title-11" data-prefix="fas" data-icon="caret-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 512" data-fa-i2svg=""><title id="svg-inline--fa-title-11">previous page</title><path fill="currentColor" d="M192 127.338v257.324c0 17.818-21.543 26.741-34.142 14.142L29.196 270.142c-7.81-7.81-7.81-20.474 0-28.284l128.662-128.662c12.599-12.6 34.142-3.676 34.142 14.142z"></path></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="height: 1em; vertical-align: -.19em;">
+        <g transform="scale(0.1,0.1)" fill="currentColor">
+          <path d="M497 691 c-214 -103 -389 -191 -389 -196 0 -7 773 -385 788 -385 15
+          0 -12 40 -137 199 -78 99 -141 182 -141 186 0 4 63 87 141 186 131 166 153
+          200 134 198 -5 0 -183 -85 -396 -188z"/>
+        </g>
+      </svg>
     </a>
     <text class="monospace">page</text>
     <a href="javascript:void(0);" id="<%- kind %>-right-page-arrow" class="clicky filter-focus" title="next page" onclick="pageTurn(1)">
-      <svg class="svg-inline--fa fa-caret-right fa-w-6" aria-labelledby="svg-inline--fa-title-12" data-prefix="fas" data-icon="caret-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 512" data-fa-i2svg=""><title id="svg-inline--fa-title-12">next page</title><path fill="currentColor" d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"></path></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="height: 1em; vertical-align: -.19em;">
+        <g transform="translate(100,0) scale(-0.1,0.1)" fill="currentColor">
+          <path d="M497 691 c-214 -103 -389 -191 -389 -196 0 -7 773 -385 788 -385 15
+          0 -12 40 -137 199 -78 99 -141 182 -141 186 0 4 63 87 141 186 131 166 153
+          200 134 198 -5 0 -183 -85 -396 -188z"/>
+        </g>
+      </svg>
     </a>
 
     <form action="javascript:void(0);" id="<%- kind %>-page-info">
