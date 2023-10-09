@@ -147,6 +147,25 @@ panelButtons {
 }
 .panel-button-selected {border: none;}
 
+@keyframes spin-bounce {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(.85);
+  }
+  93% {
+    transform: rotate(390deg) scale(1.03);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+.rotate-me {
+  animation: spin-bounce .6s linear forwards;
+  transform-origin: center center; /* Set the rotation origin to the center */
+}
+
 feedOptions {
   display: inline-block;
   border: 2.5px solid;

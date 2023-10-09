@@ -1790,20 +1790,32 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
       $('login-section').classList.add('removed')
     }
   }
+
   // de-highlight panel button
   if (glo.openPanel && $(glo.openPanel+"-button")) {
     $(glo.openPanel+"-button").classList.remove('panel-button-selected');
   }
+
   // highlight new panel button
   if ($(panelName+"-button") && !noPanelButtonHighlight) {
     $(panelName+"-button").classList.add('panel-button-selected');
   }
+
   // show/hide the feed options
   if (panelName === "posts-panel" && !noPanelButtonHighlight) {
     $('feed-options').classList.remove('removed')
   } else {
     $('feed-options').classList.add('removed')
   }
+
+  //
+  if (panelName === 'settings-panel') {
+    $('settings-gear').classList.remove('rotate-me');
+    setTimeout(() => {
+      $('settings-gear').classList.add('rotate-me');
+    }, 0);
+  }
+
   //
   if (glo.openPanel && glo.openPanel === panelName) {
     if (panelName === "write-panel") {
@@ -1812,10 +1824,12 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
     }
     return; // requested panel is already open, do nothing
   }
+  
   // hide the old stuff
   if (glo.openPanel) {
     $(glo.openPanel).classList.add('removed');
   }
+
   // remove header/user stuff in special cases
   if (panelName === "bad-recovery-panel" || panelName === "recovery-panel") {
     $("footer-footer").classList.add("removed");
@@ -1833,8 +1847,9 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
 
   // the one actual line that displays the panel
   $(panelName).classList.remove('removed');
+
   // set the cursor to the bottom of the post editor if open
-  //this needs to happen after the display of the ponel above, you can't move cursor to removed element
+  //this needs to happen after the display of the panel above, you can't move cursor to removed element
   if (panelName === "write-panel" && glo.openEditors && glo.openEditors['post']) {
     var editor = $('post-editor');
     setCursorPosition(editor, editor.value.length, editor.value.length);
@@ -6289,6 +6304,8 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
     glo.collapsed[data.collapsed[i]] = true;
   }
 
+  setGear();
+
   updatePendingPost(glo.pending);
   updateEditorStateList('post',true);
   updateEditorStateList('old-post',true);
@@ -6607,6 +6624,12 @@ var schlaupdateExplain = function () {
     }
   }
   uiAlert(`all pending posts and messages will be published/sent at the strike of schlaupdate and not a moment sooner<br><br>you have `+timeString+` until the next schlaupdate`);
+}
+
+var setGear = function () {
+  var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
+  var degrees = ((time.getDay()*24) + time.getUTCHours()) * 2.142857  // 2.142857 = 360 degrees / 168 hrs in a week
+  $('gear-box').setAttribute('transform', 'rotate('+degrees+', 100, 100) translate(0,200) scale(0.1,-0.1)')
 }
 
 var showPassword = function (elem, elemArr) {
