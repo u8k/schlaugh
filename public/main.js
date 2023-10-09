@@ -6628,7 +6628,7 @@ var schlaupdateExplain = function () {
 
 var setGear = function () {
   var time = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
-  var degrees = ((time.getDay()*24) + time.getUTCHours()) * 2.142857  // 2.142857 = 360 degrees / 168 hrs in a week
+  var degrees = ((time.getUTCDay()*24) + time.getUTCHours()) * 2.142857  // 2.142857 = 360 degrees / 168 hrs in a week
   $('gear-box').setAttribute('transform', 'rotate('+degrees+', 100, 100) translate(0,200) scale(0.1,-0.1)')
 }
 
