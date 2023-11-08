@@ -369,14 +369,18 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     var dir = null;
     for (var move in req.body.moves) {
       if (req.body.moves.hasOwnProperty(move)) {
-        if (Number(req.body.moves[move]) > 0) {
+        if (Number(req.body.moves[move]) !== 0) {
           moveCount++;
           dir = move;
         }
       }
     }
+    // each tile can only transfer units to one adjacent tile
     if (moveCount > 1) {return {error:"malformed request 8786"};}
-    // magnitude to the max of the inputed value or the allowed maximum, also "floor" takes care of nonInt values
+    // the number of units being sent must be positive
+    if (Number(req.body.moves[dir]) < 0) {return {error:"malformed request 8787"};}
+
+    // magnitude to the min of the inputed value or the allowed maximum, also "floor" takes care of nonInt values
     var mag = Math.min(Math.floor(Number(req.body.moves[dir])), map[req.body.coord].score);
     // make sure destination is in bounds
     if (dir) {

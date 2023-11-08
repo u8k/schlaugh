@@ -758,7 +758,7 @@ var moveInputChange = function (event, dir) {
     $("q-move-input").value = gameRef.curMovVals['q'];
   } else {
     var score = gameRef.activeTile.score;
-    var mag = Math.min(Math.floor(Number(newVal)), score);
+    var mag = Math.max(0, Math.min(Math.floor(Number(newVal)), score));
     $("w-move-input").value = 0;
     $("e-move-input").value = 0;
     $("d-move-input").value = 0;

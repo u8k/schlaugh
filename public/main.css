@@ -841,7 +841,7 @@ input:-webkit-autofill {
   }
 }
 
-body, h1, input, select, .main-background {
+body, input, select, .main-background {
   /* color: #383F45; */
   background-color: #AFDCFA;
 }
