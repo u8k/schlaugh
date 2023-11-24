@@ -3,7 +3,6 @@ var path = require('path');
 var bodyParser = require('body-parser');
 var session = require('cookie-session');
 var bcrypt = require('bcryptjs');
-var mongodb = require('mongodb');
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
 var requestModule = require('request');
@@ -2798,7 +2797,7 @@ app.post('/login', function(req, res) {
   });
 });
 
-// set keys
+// set mailbox encryption keys
 app.post('/keys', function(req, res) {
   var errMsg = "error setting encryption keys<br>";
   if (!req.body.privKey || !req.body.pubKey) {return sendError(req, res, errMsg+"malformed request");}

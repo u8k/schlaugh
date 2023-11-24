@@ -4884,7 +4884,7 @@ var mdLib = {
   esc: "\\",
   code: "``",
   ascii: "%%",
-  latex: "##",
+  latex: "$$",
   ol: "  -",
   ul: "  *",
   hr: ['===','<hr>'],
@@ -4900,7 +4900,7 @@ var mdLib = {
   ['~~',"<s>","</s>"],
   ['&&',"<cut>","</cut>"],
   ['``',"<code>","</code>"],
-  ['##',"<latex>","</latex>"],
+  ['$$',"<latex>","</latex>"],
   ['%%',"<ascii>","</ascii>"],
   ['@@',"<spoil>","</spoil>"],
   ],
@@ -4996,8 +4996,13 @@ var matchAndConvertHtmlTagPairs = function (string, pos, mdPos, j) {
   var next = string.indexOf(mdLib.swaps[mdPos][j], pos);
   if (next === -1) {return string;}
   pos = next;
+
+  // hack around double dollar sign problem
+  var swapIn = mdLib.swaps[mdPos][0];
+  swapIn = swapIn.replace('$$', '$$$$$$$$');
+  
   //replace w/ opening tag
-  string = string.replace(mdLib.swaps[mdPos][j], mdLib.swaps[mdPos][0]);
+  string = string.replace(mdLib.swaps[mdPos][j], swapIn);
   //
   return matchAndConvertHtmlTagPairs(string, pos, mdPos, j);
 }
