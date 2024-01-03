@@ -3179,6 +3179,8 @@ var collapseAllNotesInList = function (noteList, expand, btmBtn) {
   // assumes that all notes in list are in one post
   if (btmBtn) {
     var initBottom = $(noteList[0].postID).getBoundingClientRect().bottom;
+  } else {
+    var initTop = $(noteList[0].postID).getBoundingClientRect().top;
   }
   //
   for (var i = 0; i < noteList.length; i++) {
@@ -3192,6 +3194,9 @@ var collapseAllNotesInList = function (noteList, expand, btmBtn) {
   if (btmBtn) {
     var finalBottom = $(noteList[0].postID).getBoundingClientRect().bottom;
     window.scrollBy(0, (finalBottom - initBottom));
+  } else {
+    var finalTop = $(noteList[0].postID).getBoundingClientRect().top;
+    window.scrollBy(0, (finalTop - initTop));
   }
 }
 
