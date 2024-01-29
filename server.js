@@ -5,7 +5,7 @@ var session = require('cookie-session');
 var bcrypt = require('bcryptjs');
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
-var requestModule = require('request');
+var axios = require('axios');
 var enforce = require('express-sslify');
 var RSS = require('rss');
 var fs = require("fs");
@@ -14,6 +14,8 @@ var schlaunquer = require('./public/schlaunquer.js');
 var adminB = require('./public/adminB.js');
 var bson = require("bson");
 var BSON = new bson.BSON();
+var randomBytes = require('crypto').randomBytes;
+
 
 //connect and check mongoDB
 var db;
@@ -195,16 +197,18 @@ var imageValidate = function (arr, callback, byteLimit) {
     }
     for (var i = 0; i < arr.length; i++) {
       (function (index) {
-        requestModule.head(arr[index], function (error, resp) {
+        fetchHeaders(arr[index], function (error, resp) {
           if (count > 0) {
             count -=1;
-            if (error || resp.statusCode !== 200) {
+            if (error || resp.status !== 200) {
               count = 0;
               return callback({error:'the url for image '+(index+1)+' seems to be invalid'});
             } else if (!resp.headers['content-type'] || (resp.headers['content-type'].substr(0,5) !== "image" && resp.headers.server !== "AmazonS3")) {
               count = 0;
               return callback({error:'the url for image '+(index+1)+' is not a url for an image'});
-            } else {byteCount -= resp.headers['content-length'];}
+            } else {
+              byteCount -= resp.headers['content-length'];
+            }
             if (count === 0) {
               if (byteCount < 0) {
                 return callback({error:"your image(s) exceed the byte limit by "+(-byteCount)+" bytes"});
@@ -215,6 +219,18 @@ var imageValidate = function (arr, callback, byteLimit) {
       })(i);
     }     // no images to check
   } else {return callback({error:false});}
+}
+
+var fetchHeaders = function (url, callback) {
+  axios.head(url)
+    .then(response => {      
+      // Calling the callback function with the status code and headers
+      callback(null, response);
+    })
+    .catch(error => {
+      // If there's an error, calling the callback function with the error
+      callback(error);
+    });
 }
 
 var linkValidate = function (arr, callback) {
@@ -243,10 +259,10 @@ var linkValidate = function (arr, callback) {
       wrapUpLinkValidate(i, problems);
     }, 4000);
 
-    requestModule.head(url, function (error, resp) {
+    fetchHeaders(url, function (error, resp) {
       if (linkTimer !== null) { // otherwise, the timer already went off and this link has already been marked as bad, so do nothing
         clearTimeout(linkTimer);
-        if (error || !resp || !resp.statusCode) {
+        if (error || !resp || !resp.status) {
           problems.push(url);
         }
         //
@@ -2795,6 +2811,23 @@ app.post('/login', function(req, res) {
       });
     });
   });
+});
+
+app.get('/~apiKey', function(req, res) {
+  var errMsg = "apiKey not successfully generated/set<br><br>";
+  return sendError(req, res, errMsg);
+
+  // readCurrentUser(req, res, errMsg, {list:['settings']}, function (user) {
+
+    // user.settings[req.body.setting] = date;
+    // writeToUser(req, res, errMsg, user, function () {
+    // });
+
+  //   var length = 32;
+  //   var apiKey = randomBytes(length).toString('hex');
+    
+  //   return res.send({apiKey: apiKey});
+  // });
 });
 
 // set mailbox encryption keys
