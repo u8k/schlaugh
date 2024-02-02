@@ -2711,7 +2711,7 @@ app.post('/register', function(req, res) {
         var newUserObject = createNewUserObject(username, passHash, emailHash);
         dbCreateOne(req, res, errMsg, 'users', newUserObject, function (newID) {
           // the id is only created when the new db listing is created, so things that need the id have to happen after that
-          newID = ObjectId(newID);
+          newID = getObjId(newID);
           createUserUrl(req, res, errMsg, username, newID, function (resp) {
             var setValue = {
               following: [
