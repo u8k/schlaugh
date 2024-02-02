@@ -4,7 +4,7 @@ var bodyParser = require('body-parser');
 var session = require('cookie-session');
 var bcrypt = require('bcryptjs');
 var MongoClient = require('mongodb').MongoClient;
-var ObjectId = require('mongodb').ObjectID;
+var ObjectId = require('mongodb').ObjectId;
 var axios = require('axios');
 var enforce = require('express-sslify');
 var RSS = require('rss');
@@ -12,21 +12,14 @@ var fs = require("fs");
 var pool = require('./public/pool.js');
 var schlaunquer = require('./public/schlaunquer.js');
 var adminB = require('./public/adminB.js');
-var bson = require("bson");
-var BSON = new bson.BSON();
+var BSON = require('bson').BSON;
+
 var randomBytes = require('crypto').randomBytes;
 
 
-//connect and check mongoDB
-var db;
+//connect mongoDB
 var dbURI = process.env.ATLAS_DB_KEY || 'mongodb://mongo:27017/schlaugh';
-
-MongoClient.connect(dbURI, { useUnifiedTopology: true }, function(err, database) {
-  if (err) {throw err;}
-  else {
-    db = database.db("heroku_kr76r150");
-  }
-});
+var db = new MongoClient(dbURI).db("heroku_kr76r150");
 
 // Init App
 var app = express();
@@ -492,7 +485,7 @@ var genID = function (req, res, errMsg, clctn, length, callback) {
 }
 
 var createStat = function (date, callback) {
-  dbCreateOne(null, null, null, 'stats', {_id:date}, function (newID) {
+  dbCreateOne(null, null, null, 'stats', {_id:date}, function () {
     return callback();
   });
 }
@@ -535,7 +528,7 @@ var updateStat = function (date, kind, val) {
 
 var createPost = function (req, res, errMsg, authorID, callback, date) {    //creates a postID and ref in the postDB
   if (!ObjectId.isValid(authorID)) {return callback({error:"invalid authorID format"});}
-  authorID = ObjectId(authorID);
+  authorID = getObjId(authorID);
   if (!date) {date = pool.getCurDate(-1)}
   genID(req, res, errMsg, 'posts', 7, function (newID) {
     var newPostObject = {
@@ -777,7 +770,7 @@ var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback
   if (tagArr.length === 0) {return callback();}
   //
   if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+"invalid authorID format");}
-  authorID = ObjectId(authorID);
+  authorID = getObjId(authorID);
   multiTagIndexAddOrRemove(tagArr, date, authorID, true, function (resp) {
     if (resp.error) {return sendError(req, res, errMsg+resp.error);}
 
@@ -789,7 +782,7 @@ var createTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback
         for (var i = 0; i < tagArr.length; i++) {
           newDateBucket.ref[tagArr[i]] = [authorID];
         }
-        dbCreateOne(req, res, errMsg, 'tagsByDate', newDateBucket, function (newID) {
+        dbCreateOne(req, res, errMsg, 'tagsByDate', newDateBucket, function () {
           return callback();
         });
       } else {                                     // dateBucket exists, add to it
@@ -810,7 +803,7 @@ var deleteTagRefs = function (req, res, errMsg, tagArr, date, authorID, callback
   if (tagArr.length === 0) {return callback({date:date});}
   //
   if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+" invalid authorID format");}
-  authorID = ObjectId(authorID);
+  authorID = getObjId(authorID);
   multiTagIndexAddOrRemove(tagArr, date, authorID, false, function (resp) {
     if (resp.error) {return sendError(req, res, errMsg+resp.error);}
 
@@ -910,7 +903,9 @@ var sendError = function (req, res, errMsg) {
     newErrorLog.user = req.session.user._id;
   }
 
-  dbCreateOne(req, res, errMsg, 'errorLogs', newErrorLog, function (newID) {
+  console.log('-----------',errMsg);
+
+  dbCreateOne(req, res, errMsg, 'errorLogs', newErrorLog, function () {
     // do nothing, don't report an error if reporting the error doesn't work, because loop
   });
 
@@ -995,7 +990,7 @@ var postsFromListOfAuthorsAndDates = function (req, res, errMsg, postList, postR
   var authorList = [];
   for (var author in postBook) {
     if (postBook.hasOwnProperty(author)) {
-      authorList.push(ObjectId(author));
+      authorList.push(getObjId(author));
     }
   }
   //
@@ -1098,46 +1093,12 @@ var getAuthorListFromTagListAndDate = function (req, res, errMsg, tagList, date,
       }
       for (var i = 0; i < authorList.length; i++) {
         if (typeof authorList[i] === 'string' && ObjectId.isValid(authorList[i])) {
-          authorList[i] = ObjectId(authorList[i])
+          authorList[i] = getObjId(authorList[i]);
         }
       }
       return callback({authorList: authorList});
     }
   });
-}
-
-var insertIntoArray = function (array, index, item) { // array.sPlice already does that, accepts a 3rd parameter that is inserted this, swap this at some point
-  var before = array.slice(0,index);
-  before.push(item);
-  var after = array.slice(index);
-  return before.concat(after);
-}
-
-var getTags = function (ref) { //input ref of a date of tags
-  // DEPRECIATED, this is only called by admin, leave so admin can see all used tags???
-  // MISNOMER, this now just returns an ordered(by usage freq) list of ALL tags
-  var arr = [];
-  for (var tag in ref) {
-    if (ref.hasOwnProperty(tag)) {
-      if (ref[tag] && ref[tag].length) {
-        if (arr.length === 0) {
-          arr[0] = {tag: tag, count: ref[tag].length};
-        } else {
-          for (var i = arr.length-1; i > -1 ; i--) {
-            if (ref[tag].length > arr[i].count || ref[tag].length === arr[i].count) {
-              if (i === 0) {
-                arr = insertIntoArray(arr, 0, {tag: tag, count: ref[tag].length});
-              }
-            } else {    // less than
-              arr = insertIntoArray(arr, i+1, {tag: tag, count: ref[tag].length});
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
-  return arr;
 }
 
 var genInboxTemplate = function () {
@@ -1147,13 +1108,13 @@ var genInboxTemplate = function () {
 var idScreen = function (req, res, errMsg, callback) {
   if (!req.session || !req.session.user) {return sendError(req, res, errMsg+"no user session 6481");}
   if (!ObjectId.isValid(req.session.user._id)) {return sendError(req, res, errMsg+"invalid userID format");}
-  return callback(ObjectId(req.session.user._id));
+  return callback(getObjId(req.session.user._id));
 }
 
 var idCheck = function (req, callback) {
   if (!req.session.user) {return callback(false);}
   if (!ObjectId.isValid(req.session.user._id)) {return callback(false);}
-  return callback(ObjectId(req.session.user._id));
+  return callback(getObjId(req.session.user._id));
 }
 
 var snakeBank = [
@@ -1184,61 +1145,8 @@ var cancelDbTimer = function (timer, callback) {
   return callback();
 }
 
-// CRUD (or RRRCUD)
-var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, callback) {
-  // 'collection' is the name of the database table, 'projection' is output from 'getProjection'
-  //
-  var dbTimer = setDbTimer(req, res, errMsg);
-  db.collection(collection).findOne({_id: _id}, projection, function (err, doc) {
-    cancelDbTimer(dbTimer, function () {
-      if (err) {
-        if (res) {
-          return sendError(req, res, errMsg+err);
-        } else if (callback) {
-          return callback({error:err});
-        }
-      } else {
-        if (callback) {
-          callback(doc);
-        }
-        //
-        if (doc) {
-          var size = BSON.calculateObjectSize(doc);
-          if (size) {
-            size = Math.ceil(size/4000);
-            incrementDbStat('read', size)
-          }
-        }
-      }
-    });
-  });
-}
-var dbReadMany = function (req, res, errMsg, collection, idList, projection, callback) {
-  // if no idList, then returns ALL docs in the collection
-  var searchCriteria = {};
-  if (idList) {
-    searchCriteria['_id'] = {$in: idList};
-  }
-  var dbTimer = setDbTimer(req, res, errMsg);
-  db.collection(collection).find(searchCriteria, projection).toArray( function(err, docs) {
-    cancelDbTimer(dbTimer, function () {
-      if (err) {return sendError(req, res, errMsg+err);}
-      else {
-        if (callback) {
-          callback(docs);
-        }
-        //
-        if (docs) {
-          var size = BSON.calculateObjectSize(docs);
-          if (size) {
-            size = Math.ceil(size/4000);
-            incrementDbStat('read', size)
-          }
-        }
-        //
-      }
-    });
-  });
+var getObjId = function (string) {
+  return new ObjectId(string);
 }
 var getProjection = function (props, dates) {
   // both props and dates are arrays of strings
@@ -1256,109 +1164,188 @@ var getProjection = function (props, dates) {
   return {projection: obj};
 }
 
-var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
-  // if 'object' has an _id field, that will be the indexed unique id for the document, otherwise mongo assigns an ObjectId
+// CRUD (or RRCUD) 
+var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, callback) {
+  // 'collection' is the name of the database table, 'projection' is output from 'getProjection'
+  //
+  var query = {_id: _id};
   var dbTimer = setDbTimer(req, res, errMsg);
-  db.collection(collection).insertOne(object, null, function (err, result) {
-    cancelDbTimer(dbTimer, function () {
-      if (err) {
-        if (res) {return sendError(req, res, errMsg+err);}
-        else if (callback) {return callback({error:err});}
+
+  db.collection(collection).findOne(query, projection)
+  .then(document => {
+    cancelDbTimer(dbTimer, () => {
+      if (callback) { callback(document); }
+      //
+      if (document && collection !== 'dbStats') {
+        var size = BSON.calculateObjectSize(document);
+        if (size) {
+          size = Math.ceil(size/4000);
+          incrementDbStat('read', size);
+        }
+      }
+    })
+  })
+  .catch(err => {
+    cancelDbTimer(dbTimer, () => {
+      if (res) {
+        return sendError(req, res, errMsg+err);
       } else if (callback) {
-        callback(result.insertedId);
+        return callback({error:err});
+      }
+    })
+  });
+}
+var dbReadMany = function (req, res, errMsg, collection, idList, projection, callback) {
+  // if no idList, then returns ALL docs in the collection
+  var searchCriteria = {};
+  if (idList) {
+    searchCriteria['_id'] = {$in: idList};
+  }
+  var dbTimer = setDbTimer(req, res, errMsg);
+
+  db.collection(collection).find(searchCriteria, projection).limit(1000)
+  .toArray()
+  .then(docs => {
+    cancelDbTimer(dbTimer, function () {
+      if (callback) {
+        callback(docs);
       }
       //
-      if (object) {
+      if (docs) {
+        var size = BSON.calculateObjectSize(docs);
+        if (size) {
+          size = Math.ceil(size/4000);
+          incrementDbStat('read', size)
+        }
+      }
+    });
+  })
+  .catch(err => {
+    cancelDbTimer(dbTimer, () => {
+      if (res) {
+        return sendError(req, res, errMsg+err);
+      } else if (callback) {
+        return callback({error:err});
+      }
+    })
+  });
+}
+
+var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
+  // if 'object' has an _id field, that will be the indexed unique id for the document, otherwise mongo assigns an ObjectID
+  var dbTimer = setDbTimer(req, res, errMsg);
+
+  db.collection(collection).insertOne(object, null,)
+  .then(document => {
+    cancelDbTimer(dbTimer, () => {
+      if (callback) { callback(document.insertedId); }
+      //
+      if (document && object && collection !== 'dbStats') {
         var size = BSON.calculateObjectSize(object);
         if (size) {
           size = Math.ceil(size/1000);
           incrementDbStat('write', size)
         }
       }
-      //
-    });
+    })
+  })
+  .catch(err => {
+    cancelDbTimer(dbTimer, () => {
+      if (res) {return sendError(req, res, errMsg+err);}
+      else if (callback) {return callback({error:err});}
+    })
   });
 }
 
 var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback) {
   var dbTimer = setDbTimer(req, res, errMsg);
-  db.collection(collection).updateOne({_id:_id}, {$set: object}, function(err, doc) {
-    cancelDbTimer(dbTimer, function () {
-      if (err) {
-        if (res) {
-          return sendError(req, res, errMsg+err);
-        } else if (callback) {
-          return callback({error:err});
-        }
-      } else if (!doc) {
+  db.collection(collection).updateOne({_id:_id}, {$set: object})
+  .then(document => {
+    cancelDbTimer(dbTimer, () => {
+      if (!document) {
         if (res) {
           return sendError(req, res, errMsg+"db write error, could not find document");
         } else if (callback) {
           return callback({error:"db write error, could not find document"});
         }
       } else {
-        if (callback) {
-          callback();
-        }
+        if (callback) { callback(); }
         //
-        if (object) {
+        if (object && collection !== 'dbStats') {
           var size = BSON.calculateObjectSize(object);
           if (size) {
             size = Math.ceil(size/1000);
             incrementDbStat('write', size)
           }
         }
-        //
       }
+    });
+  })
+  .catch(err => {
+    cancelDbTimer(dbTimer, () => {
+      if (res) {return sendError(req, res, errMsg+err);}
+        else if (callback) {return callback({error:err});}
     });
   });
 }
 
 var dbDeleteByID = function (req, res, errMsg, collection, _id, callback) {
   var dbTimer = setDbTimer(req, res, errMsg);
-  db.collection(collection).deleteOne({_id: _id}, function(err) {
-    cancelDbTimer(dbTimer, function () {
-      if (err) {
-        if (res) {return sendError(req, res, errMsg+err);}
-        else if (callback) {return callback({error:err});}
-      } else if (callback) {
-        callback();
-      }
+
+  db.collection(collection).deleteOne({_id: _id})
+  .then(result => {
+    cancelDbTimer(dbTimer, () => {
+      if (callback) { callback(); }
+      //
       incrementDbStat('write', 1);
-    });
+    })
+  })
+  .catch(err => {
+    cancelDbTimer(dbTimer, () => {
+      if (res) {return sendError(req, res, errMsg+err);}
+      else if (callback) {return callback({error:err});}
+    })
   });
 }
 
-//
+// 
 var incrementDbStat = function (kind, amount) {
+  // return; 
   var date = pool.getCurDate();
-  // does statBucket already exist for day?
-  db.collection('dbStats').findOne({_id: date}, null, function (err, stat) {
-    if (err) {return sendError(null, null, "error incrementing dbStat, on read<br><br>"+err);}
-    else if (!stat) {
+  var errMsg = "error incrementing dbStat, on read<br><br>";
+  dbReadOneByID(null, null, errMsg, 'dbStats', date, null, (stat) => {
+    if (stat && stat.error) {return sendError(null, null, errMsg+stat.error);}
+    // does statBucket already exist for day?
+    if (!stat) {
       var bucket = {_id: date,}
       bucket[kind] = amount;
-      db.collection('dbStats').insertOne(bucket, null, function (err, result) {
-        if (err) {return sendError(null, null, "error incrementing dbStat, on create<br><br>"+err);}
+      
+      var errMsg = "error incrementing dbStat, on create<br><br>";
+      dbCreateOne(null, null, errMsg, 'dbStats', bucket, (result) => {
+        if (result && result.error) {return sendError(null, null, errMsg+result.error);}
         return;
       });
+
     } else {
-      if (stat[kind]) {
+      if (stat[kind]) { 
         stat[kind] += amount;
       } else {
         stat[kind] = amount;
       }
-      db.collection('dbStats').updateOne({_id:date}, {$set: stat}, function(err, doc) {
-        if (err) {return sendError(null, null, "error incrementing dbStat, on update<br><br>"+err);}
+      
+      var errMsg = "error incrementing dbStat, on update<br><br>";
+      dbWriteByID(null, null, errMsg, 'dbStats', date, stat, (doc) => {
+        if (doc && doc.error) {return sendError(null, null, errMsg+doc.error);}
         return;
       });
+
     }
   });
 }
 
 var readUser = function (req, res, errMsg, userID, propRef, callback) {
   if (!ObjectId.isValid(userID)) {return sendError(req, res, errMsg+"invalid userID format");}
-  dbReadOneByID(req, res, errMsg, 'users', ObjectId(userID), getProjection(propRef.list, propRef.dates), function (user) {
+  dbReadOneByID(req, res, errMsg, 'users', getObjId(userID), getProjection(propRef.list, propRef.dates), function (user) {
     callback(user);
   });
 }
@@ -1387,7 +1374,7 @@ var writeToUser = function (req, res, errMsg, userObj, callback) {
   delete userObj._id; // this removes the id from what we are trying to write, since we never want to write an _id...
   if (!userID) {return sendError(req, res, errMsg+"missing _id on user object");}
   if (!ObjectId.isValid(userID)) {return sendError(req, res, errMsg+"invalid user ID format");}
-  dbWriteByID(req, res, errMsg, 'users', ObjectId(userID), userObj, function () {
+  dbWriteByID(req, res, errMsg, 'users', getObjId(userID), userObj, function () {
     if (callback) {
       callback();
     }
@@ -1396,9 +1383,9 @@ var writeToUser = function (req, res, errMsg, userObj, callback) {
 
 var createUserUrl = function (req, res, errMsg, username, authorID, callback) {    //creates a listing in the userUrl collection
   if (!ObjectId.isValid(authorID)) {return sendError(req, res, errMsg+"invalid authorID format");}
-  authorID = ObjectId(authorID);
+  authorID = getObjId(authorID);
   var urlObject = {_id: username.toLowerCase(), authorID: authorID}
-  dbCreateOne(req, res, errMsg, 'userUrls', urlObject, function (newID) {
+  dbCreateOne(req, res, errMsg, 'userUrls', urlObject, function () {
     return callback();
   });
 }
@@ -1474,7 +1461,7 @@ app.get('/admin', function(req, res) {
 
 app.post('/admin/resetCodes', function(req, res) {
   adminGate(req, res, function () {
-    dbReadMany(req, res, 'resetCodes errMsg', 'resetCodes', null, null, function (codes) {
+    dbReadMany(req, res, 'resetCodes errMsg', 'resetCodes', null, {}, function (codes) {
       return res.send(codes);
     });
   });
@@ -1482,7 +1469,7 @@ app.post('/admin/resetCodes', function(req, res) {
 
 app.post('/admin/errorLogs', function(req, res) {
   adminGate(req, res, function () {
-    dbReadMany(req, res, 'errorLogs errMsg', 'errorLogs', null, null, function (logs) {
+    dbReadMany(req, res, 'errorLogs errMsg', 'errorLogs', null, {}, function (logs) {
       return res.send(logs);
     });
   });
@@ -1779,7 +1766,7 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
         iconURI: user.iconURI,
       }
       //
-      dbCreateOne(req, res, errMsg, 'schlaunquerMatches', match, function (newID) {
+      dbCreateOne(req, res, errMsg, 'schlaunquerMatches', match, function () {
         if (!user.games) {user.games = {}};
         if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
         if (!user.games.schlaunquer.pending) {user.games.schlaunquer.pending = {}};
@@ -2276,7 +2263,7 @@ app.post('/bookmarks', function(req, res) {
     }
     if (!found && !req.body.remove) {
       user.bookmarks.push({
-        author_id: ObjectId(req.body.author_id),
+        author_id: getObjId(req.body.author_id),
         date: req.body.date
       });
     }
@@ -2337,7 +2324,7 @@ app.post('/follow', function(req, res) {
         }
       }
     } else {
-      user.following.push(ObjectId(req.body.id));
+      user.following.push(getObjId(req.body.id));
     }
     writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
@@ -2728,7 +2715,7 @@ app.post('/register', function(req, res) {
           createUserUrl(req, res, errMsg, username, newID, function (resp) {
             var setValue = {
               following: [
-                ObjectId("5a0ea8429adb2100146f7568"),     //staff
+                getObjId("5a0ea8429adb2100146f7568"),     //staff
                 newID,                                    //self
               ],
               _id: newID,
@@ -2789,14 +2776,14 @@ app.post('/login', function(req, res) {
             // then this (should be)is a password check to unlock an inbox
             if (String(req.session.user._id) !== String(user._id)) {
               // valid username and pass, but for a different user than currently logged in
-              req.session.user = { _id: ObjectId(user._id) };
+              req.session.user = { _id: getObjId(user._id) };
               // switcheroo
               return res.send({switcheroo:true});
             } else {
               return res.send({error:false});
             }
           } else { // this is an actual login
-            req.session.user = { _id: ObjectId(user._id) };
+            req.session.user = { _id: getObjId(user._id) };
             if (!req.body.fromPopUp) {        // is this NOT a login from the popup prompt?
               incrementStat("logIns");
             }
@@ -3344,7 +3331,7 @@ var getAuthorInfo = function (author, req) {
   if (typeof bio !== 'string') {bio = "";}
   var key = null;
   if (req.session.user) {
-    var userID = ObjectId(req.session.user._id);
+    var userID = getObjId(req.session.user._id);
     if (author.inbox && author.inbox.threads) {
       if (!author.inbox.threads[userID] || (!author.inbox.threads[userID].blocking && !author.inbox.threads[userID].blocked)) {
         if (author.keyPublic) {key = author.keyPublic}
@@ -3824,7 +3811,7 @@ app.get('/:author/~search/:target', function(req, res) {
 //	TFTF
 app.get('/~/:post_id', function (req, res) {
   var errMsg = "post lookup error";
-  if (ObjectId.isValid(req.params.post_id)) {req.params.post_id = ObjectId(req.params.post_id);}
+  if (ObjectId.isValid(req.params.post_id)) {req.params.post_id = getObjId(req.params.post_id);}
   dbReadOneByID(req, res, errMsg, 'posts', req.params.post_id, getProjection(['date','authorID']), function (post) {
     if (!post) {    //404
       return renderLayout(req, res, {error: false, notFound: true, postCode:'TFTF', post_id: req.params.post_id});
