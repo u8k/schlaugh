@@ -487,6 +487,7 @@ var fontBank = {
   'Source Code Pro': 'monospace',
   'Rajdhani': 'sans-serif',
   'Gurajada': 'serif',
+  'League Spartan': 'serif',
   'serif': 'serif',
   'sans-serif': 'sans-serif',
   'monospace': 'monospace',
