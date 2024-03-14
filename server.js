@@ -1757,8 +1757,8 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
       match.spawnValue = schlaunquer.gameRef.spawnValue;
       if (typeof req.body.spawnValue !== "undefined" && Number.isInteger(req.body.spawnValue) && req.body.spawnValue > -1) {match.spawnValue = req.body.spawnValue;}
       //
-      match.unitCap = schlaunquer.gameRef.unitCap;
-      if (typeof req.body.unitCap !== "undefined" && Number.isInteger(req.body.unitCap) && req.body.unitCap > -1) {match.unitCap = req.body.unitCap;}
+      // match.unitCap = schlaunquer.gameRef.unitCap;
+      // if (typeof req.body.unitCap !== "undefined" && Number.isInteger(req.body.unitCap) && req.body.unitCap > -1) {match.unitCap = req.body.unitCap;} 
       //
       match.players = {};
       match.players[user._id] = {

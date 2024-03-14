@@ -4,7 +4,12 @@
   height: 80vmin;
   border-style: solid;
   border-radius: 1em;
+}
+
+#schlaunquer-backing-board {
   background: gainsboro;
+  position: absolute;
+  z-index: -1;
 }
 
 #schlaunquer-board-wrapper {
@@ -45,7 +50,8 @@
 }
 
 polygon {
-  fill: rgba(0, 0, 0, 0);
+  /* fill: rgba(0, 0, 0, 0); */
+  fill: gainsboro;
   stroke: rgba(60, 60, 60);
   stroke-width: 4px;
 }
@@ -53,6 +59,10 @@ polygon {
 .tile-highlight {
   stroke: white;
   stroke-width: 8px;
+}
+
+.corner-emphasis {
+  stroke-width: 83px;
 }
 
 #tile-options-current-score {
@@ -182,6 +192,8 @@ td, th {
 .green {fill: #8BF18B; background:#8BF18Bad}
 .blue {fill: #83B2FF; background:#83B2FFad}
 .purple {fill: #9B6EF3; background:#9B6EF3ad}
+
+.forsaken {fill: #929292; background:#929292ad}
 
 @media screen and (max-width: 600px) and (min-height: 500px) {
   .gameBoard {

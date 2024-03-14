@@ -3,6 +3,7 @@
 var gameRef = {
   tileHeight:174,
   tileWidth:200,
+  boardMargarine: 60,
   validNav:{},
 }
 
@@ -82,7 +83,7 @@ var gameCreationCall = function () {
   loading();
   var params = {
   players: Number($('schlaunquer-game-creation-players').value),
-  unitCap: 17,
+  // unitCap: 17,
   spawnValue: 10,
   opaqueEnemyUnits: false,
   }
@@ -136,7 +137,7 @@ var setUpGameInfo = function (data) {
   if (data.notFound) { return;}
   //
   $('schlaunquer-match-link').value = `schlaugh.com/~schlaunquer/`+data._id;
-  $('schlaunquer-match-unitCap').innerHTML = data.unitCap;
+  // $('schlaunquer-match-unitCap').innerHTML = data.unitCap;
   $('schlaunquer-match-spawnValue').innerHTML = data.spawnValue;
   if (data.opaqueEnemyUnits) {
     $('schlaunquer-match-opaqueEnemyUnits').innerHTML = "true";
@@ -217,23 +218,31 @@ var setUpGameBoards = function (json, num) {
   gameRef.startDate = json.startDate;
   gameRef.victor = json.victor;
   gameRef.forfeitures = json.forfeitures;
-  gameRef.unitCap = json.unitCap;
+  // gameRef.unitCap = json.unitCap;
   gameRef.spawnValue = json.spawnValue;
-  gameRef.boardHeight = ((json.radius*2)-1)*gameRef.tileHeight;
-  gameRef.boardWidth = gameRef.tileWidth*(1 +(1.5*((json.radius-1))));
-  gameRef.originX = (gameRef.boardWidth/2) - (.5*gameRef.tileWidth);
-  gameRef.originY = (json.radius-1)*gameRef.tileHeight;
+  gameRef.boardHeight = ((json.radius*2)-1)*gameRef.tileHeight + gameRef.boardMargarine*2;
+  gameRef.boardWidth = gameRef.tileWidth*(1 +(1.5*((json.radius-1)))) + gameRef.boardMargarine*2;
+  gameRef.originX = (gameRef.boardWidth/2) - (.5*gameRef.tileWidth) - 7;
+  gameRef.originY = (gameRef.boardHeight/2) - (.5*gameRef.tileWidth) + 6;
+  // gameRef.originY = (json.radius-1)*gameRef.tileHeight;
   //
   gameRef.players = json.players;
   gameRef.dates = json.dates;
   gameRef.scores = {};
   var dayCount = 0;
   destroyAllChildrenOfElement($('board-bucket'));
+  //
+  createBackingBoard();
+  //
   var latestDate = "0";
   for (var date in gameRef.dates) { if (gameRef.dates.hasOwnProperty(date)) {
     for (var spot in gameRef.dates[date]) { if (gameRef.dates[date].hasOwnProperty(spot)) {
       if (gameRef.dates[date][spot].ownerID) {
-        gameRef.dates[date][spot].color = json.players[gameRef.dates[date][spot].ownerID].color;
+        if (gameRef.dates[date][spot].ownerID === "forsaken") {
+          gameRef.dates[date][spot].color = "forsaken";
+        } else {
+          gameRef.dates[date][spot].color = json.players[gameRef.dates[date][spot].ownerID].color;
+        }
       }
     }}
     dayCount++;
@@ -255,7 +264,8 @@ var setUpGameBoards = function (json, num) {
       targetDate = gameRef.startDate;
     }
   }
-  //
+
+  // $('schlaunquer-placeHolder-board').classList.add('removed');
   for (var i = 0; i < dayCount; i++) {    // render the boards starting most recent day and going backwards in time
     var date = calcDateByOffest(latestDate, -i);
     if (gameRef.dates[date]) {
@@ -272,9 +282,41 @@ var setUpGameBoards = function (json, num) {
   setTimeout(function () {window.scroll(0, 50);}, 50);
 }
 
+var createBackingBoard = function () {
+  var board = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  board.setAttribute("viewBox", "-7 -7 "+(gameRef.boardWidth)+" "+(gameRef.boardHeight));
+  board.setAttribute("id", "schlaunquer-backing-board");
+  board.classList.add("gameBoard");
+  board.setAttribute("preserveAspectRatio", "none");
+  $('board-bucket').appendChild(board);
+
+  var cornerTiles = [[-4, 0], [0,-4], [4,-4], [4,0], [0, 4], [-4, 4]];
+
+  for (var i = 0; i < cornerTiles.length; i++) {
+    var wrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    var tile = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    tile.setAttribute('points', "200,87 150,0 50,0 0,87 50,174 150,174");
+    // tile.setAttribute('points', "200,87 200,-50 0,-50 0,87 50,0 150,0");
+    tile.classList.add("corner-emphasis");
+
+    // position the tile
+    var xPix = -(cornerTiles[i][0]*.75*gameRef.tileWidth) + gameRef.originX;
+    var yPix = -(cornerTiles[i][1]*gameRef.tileHeight + cornerTiles[i][0]*.5*gameRef.tileHeight) + gameRef.originY;
+    wrapper.setAttribute('transform', "translate("+xPix+","+yPix+")");
+    wrapper.appendChild(tile);
+    board.appendChild(wrapper);
+  }
+
+  // var placeHolder = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  // placeHolder.setAttribute("viewBox", "-7 -7 "+(gameRef.boardWidth)+" "+(gameRef.boardHeight));
+  // placeHolder.classList.add("gameBoard");
+  // $('board-bucket').appendChild(placeHolder);
+  // placeHolder.setAttribute("id", "schlaunquer-placeHolder-board");
+}
+
 var createBoard = function (dayCount, index, date, initBoard, step) {
   var board = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  board.setAttribute("viewBox", "-7 -7 "+(gameRef.boardWidth+14)+" "+(gameRef.boardHeight+14));   // 14 is margarine
+  board.setAttribute("viewBox", "-7 -7 "+(gameRef.boardWidth)+" "+(gameRef.boardHeight));
   if (step) {
     board.setAttribute("id", date+"."+step+"-board");
   } else {
@@ -287,7 +329,7 @@ var createBoard = function (dayCount, index, date, initBoard, step) {
   if (date === initBoard && !step) {
     gameRef.currentBoardDay = (dayCount-index)-1;
     if (gameRef.radius === 5) {
-      animationDelay = 30;
+      animationDelay = 35;
     } else {
       animationDelay = 50;
     }
@@ -351,8 +393,12 @@ var createBoard = function (dayCount, index, date, initBoard, step) {
       ref[map[spot].color].units += map[spot].score;
       ref[map[spot].color].tiles++;
     } else {
+      var playerName = gameRef.players[map[spot].ownerID].username;
+      if (map[spot].color === "forsaken") {
+        playerName = "forsaken";
+      }
       ref[map[spot].color] = {
-        player: gameRef.players[map[spot].ownerID].username,
+        player: playerName,
         units: map[spot].score,
         tiles: 1,
         color: gameRef.players[map[spot].ownerID].color,
@@ -364,6 +410,12 @@ var createBoard = function (dayCount, index, date, initBoard, step) {
   for (var player in ref) { if (ref.hasOwnProperty(player)) {
     gameRef.scores[date].push(ref[player])
   }}
+  if (animationDelay) { // garbage nonsense to smooth out how the board looks when loading, in firefox
+    updateScoreBoard(date);
+    setTimeout(() => {
+      updateScoreBoard();
+    }, 1);
+  }
 }
 
 var renderTiles = function (delay, date, step) {
@@ -422,7 +474,8 @@ var renderTiles = function (delay, date, step) {
       var second = 0;
       for (var player in warMap[spot]) { // determine the 1st and 2nd place scores in each spot
         if (warMap[spot].hasOwnProperty(player)) {
-          warMap[spot][player] = Math.min(gameRef.unitCap, warMap[spot][player]);  // enforce popCap
+
+          // warMap[spot][player] = Math.min(gameRef.unitCap, warMap[spot][player]);  // enforce popCap
 
           if (warMap[spot][player] > first[0]) {
             second = first[0];
@@ -721,12 +774,19 @@ var tileClick = function (coord, date, step) {
     $('tile-options-current-score').innerHTML = score;
     $("tile-options").classList.remove("hidden");
   } else {
-    $("tile-info-text").innerHTML = 'spot owned by '+gameRef.players[spot.ownerID].username;
-    if (gameRef.players[spot.ownerID].iconURI) {
-      $('tile-info-pic').setAttribute('src', gameRef.players[spot.ownerID].iconURI);
-      $('tile-info-pic').classList.remove('removed')
+    if (spot.ownerID === "forsaken") {
+      $("tile-info-text").innerHTML = 'spot owned by [VOID]';
+      $('tile-info-pic').setAttribute('src', "https://i.imgur.com/2sJserR.png");
+      $('tile-info-pic').classList.remove('removed');
+      
     } else {
-      $('tile-info-pic').classList.add('removed')
+      $("tile-info-text").innerHTML = 'spot owned by '+gameRef.players[spot.ownerID].username;
+      if (gameRef.players[spot.ownerID].iconURI) {
+        $('tile-info-pic').setAttribute('src', gameRef.players[spot.ownerID].iconURI);
+        $('tile-info-pic').classList.remove('removed')
+      } else {
+        $('tile-info-pic').classList.add('removed')
+      }
     }
     $("tile-info").classList.remove("hidden");
   }
@@ -813,7 +873,7 @@ var forfeit = function (dir) {
   if (dir) {dir = pool.getCurDate();}
   ajaxCall('/~moveSchlaunquer', 'POST', {forfeit:dir, game_id:gameRef.game_id}, function(json) {
     if (dir) {  // forfeiting
-      uiAlert(`🎵sad trombone🎵<br><br>at the schlaupdate, all of your units will expire<br><br>you have until then to change your mind`,'understood');
+      uiAlert(`🎵sad trombone🎵<br><br>at the schlaupdate, all of your units will be forsaken<br><br>you have until then to change your mind`,'understood');
     } else {    // de-forfeiting
       uiAlert(`get'cha get'cha get'cha get'cha head in the game`);
     }
@@ -886,7 +946,7 @@ var highlightTile = function (coord, date) {
 
 var updateScoreBoard = function (date) { // if no date, then removes the score board
   destroyAllChildrenOfElement($('schlaunquer-score-board'));
-
+  
   if (!date || !gameRef.scores[date] || !gameRef.scores[date].length) { return; }
 
   gameRef.scores[date].sort(function(a, b) {
@@ -1004,7 +1064,6 @@ var changeBoardRound = function (offset, date, step) {
       }
     }
   }
-
   //
   simulatePageLoad('~schlaunquer/'+gameRef.game_id+'/'+gameRef.currentBoardDay, 'schlaunquer', 'https://i.imgur.com/i4Py62f.png', true);
   document.body.onkeydown = function () {schlaunquerBoardKeyHandler(event)}
@@ -1126,7 +1185,7 @@ var schlaunquerBoardKeyHandler = function (event) {
   }
 }
 
-var exposition = `<u>Objective:</u><br>Be the only player left with any units on the board<br><br><img src="https://i.imgur.com/p5g71PL.png"><c>[a schlaunquer board at the start of a match]<br></c><br><u>Mechanics:</u><br>You control the movement of your Units. You can schedule movements at any time during the day. All the action takes place at the schlaupdate. Your scheduled moves are secret until the schlaupdate.<br><br>Units live on Tiles. A tile containing at least one of your units is Occupied by you. The color of a tile indicates which player currently occupies it. The number on a tile indicates how many units occupy it. The maximum allowed units on a single tile is 17.<br><br><img src="https://i.imgur.com/ufEZfMD.png"><c>[a tile occupied by 6 blue units, adjacent to a tile occupied by 4 yellow units]<br></c><br><br><u>The Schlaupdate:</u><br>at the strike of Schlaupdate, the following occurs, in order:<br><ol><li>Migration</li><li>War</li><li>Creation</li><li>Entropy</li></ol><br><br><u>Migration</u><br>Every unit, on every turn, can either Move or Stay. For each tile, you may pick <i>one</i> of the tile's adjacent tiles to move units to, and can move some or all units, leaving the rest on their original tile.<br><br>By default, all units Stay. They only Move if you assign it.<br><br><img src="https://i.imgur.com/sbDSnFl.png"><c>[the smaller numbers indicate upcoming scheduled moves. In this case, 3 of the 6 green units are splitting off and heading south, to be joined by another green unit also migrating from an adjacent tile]<br></c><br>If you move more than the maximum of 17 units to a tile, then at this time the extra units will be destroyed, leaving exactly 17.<br><br><br><u>War</u><br>Units on the same Tile as another player's Units will fight. Units on opposing sides destroy each other one-for-one. For example, if 7 red and 10 blue units occupy the same Tile, then after the battle the tile will be held by Blue with 3 remaining units.<br><br><img src="https://i.imgur.com/0sOa38Z.png"><c>[10 red units invade a tile containing 7 blue units. After battle 3 red units remain]<br></c><br>Ties result in all units destroyed and no one occupying the Tile.<br><br>If more than 2 players have units on a tile, then units from all players simultaneously destroy each other in the same manner. For example, if red has 6 units on a tile , and 5 other players also each have 5 units on the tile, then after battle only 1 red unit will remain.<br><br><br><u>Creation</u><br>If a tile is: <br><ol><li>unoccupied</li><li>adjacent to <i>exactly</i> 4(four) tiles that are occupied by the same player</li></ol>Then: 10 new units will spawn on the tile, belonging to the player occupying the four(4) adjacent tiles.<br><br><img src="https://i.imgur.com/RsA7Jc4.png"><c>[3 example configurations of units that would cause new units to spawn in the center tile]<br></c><br><br><u>Entropy</u><br>units are subtracted from every occupied tile, depending on the tile's number of adjacent like-colored units, according to the following table:<br><l><ascii><u>neighbors    entropy</u><br>0            0<br>1            1<br>2            1<br>3            2<br>4            3<br>5            5<br>6            8<br></ascii></l><br><img src="https://i.imgur.com/iUAz2wE.png"><c>[the same 3 example configurations from before, now shown after Creation, with red text indicating the entropy each tile is subject to]<br></c><br><br><note linkText="an alternate metaphor">which may or may not make the gameplay more or less easy to grok:<br><br>is to instead think of the "units" as being "health points", belonging to a single unit<br>you spawn in a new unit that starts with 10 HP<br>units can fuse with each other to combine HP(up to a maximum of 17)<br>a unit can un-fuse, splitting off part of itself to be a new unit living on an adjacent tile<br>    (but can only perform one such split at a time)<br>units are decaying and lose HP to entropy each round<br>    with the amount lost depending on their environment<br></note><br><hr>i am probably forgetting things, please ask questions. You can do so by messaging the <a href="/schlaunquer">schlaunquer account</a>, or tagging a post with <code>schlaunquer</code>`;
+var exposition = `<u>Objective:</u><br>Be the first player to Occupy 4 of the 6 corner tiles<br><br><img src="https://i.imgur.com/f11hCv6.png"><c>[a schlaunquer board at the start of a match]<br></c><br><br><u>Mechanics:</u><br>You control the movement of your Units. You can schedule movements at any time during the day. All the action takes place at the schlaupdate. Your scheduled moves are secret until the schlaupdate.<br><br>Units live on Tiles. A tile containing at least one of your units is Occupied by you. The color of a tile indicates which player currently occupies it. The number on a tile indicates how many units occupy it.<br><br><img src="https://i.imgur.com/ufEZfMD.png"><c>[a tile occupied by 6 blue units, adjacent to a tile occupied by 4 yellow units]<br></c><br><br><u>The Schlaupdate:</u><br>at the strike of Schlaupdate, the following occurs, in order:<br><ol><li>Migration</li><li>War</li><li>Creation</li><li>Entropy</li></ol><br><br><u>Migration</u><br>Every unit, on every turn, can either Move or Stay. For each tile, you may pick <i>one</i> of the tile's adjacent tiles to move units to, and can move some or all units, leaving the rest on their original tile.<br><br>By default, all units Stay. They only Move if you assign it.<br><br><img src="https://i.imgur.com/sbDSnFl.png"><c>[the smaller numbers indicate upcoming scheduled moves. In this case, 3 of the 6 green units are splitting off and heading south, to be joined by another green unit also migrating from an adjacent tile]<br></c><br><br><br><u>War</u><br>Units on the same Tile as another player's Units will fight. Units on opposing sides destroy each other one-for-one. For example, if 7 red and 10 blue units occupy the same Tile, then after the battle the tile will be held by Blue with 3 remaining units.<br><br><img src="https://i.imgur.com/0sOa38Z.png"><c>[10 red units invade a tile containing 7 blue units. After battle 3 red units remain]<br></c><br>Ties result in all units destroyed and no one occupying the Tile.<br><br>If more than 2 players have units on a tile, then units from all players simultaneously destroy each other in the same manner. For example, if red has 6 units on a tile , and 5 other players also each have 5 units on the tile, then after battle only 1 red unit will remain.<br><br><br><u>Creation</u><br>If a tile is: <br><ol><li>unoccupied</li><li>adjacent to <i>exactly</i> 4(four) tiles that are occupied by the same player</li></ol>Then: 10 new units will spawn on the tile, belonging to the player occupying the four(4) adjacent tiles.<br><br><img src="https://i.imgur.com/RsA7Jc4.png"><c>[3 example configurations of units that would cause new units to spawn in the center tile]<br></c><br><br><u>Entropy</u><br>units are subtracted from every occupied tile, depending on the tile's number of adjacent like-colored units, according to the following table:<br><l><ascii><u>neighbors    entropy</u><br>0            0<br>1            1<br>2            1<br>3            2<br>4            3<br>5            5<br>6            8<br></ascii></l><br><br><img src="https://i.imgur.com/iUAz2wE.png"><c>[the same 3 example configurations from before, now shown after Creation, with red text indicating the entropy each tile is subject to]<br></c><br><br><u>Note</u><br>Corners are checked for Occupation only at this time, after the four stages of the update have been completed. Briefly holding 4 corners mid update will not result in victory.<br><br><note linkText="an alternate metaphor">which may or may not make the gameplay more or less easy to grok:<br><br>is to instead think of the "units" as being "health points", belonging to a single unit<br>you spawn in a new unit that starts with 10 HP<br>units can fuse with each other to combine HP<br>a unit can un-fuse, splitting off part of itself to be a new unit living on an adjacent tile<br>    (but can only perform one such split at a time)<br>units are decaying and lose HP to entropy each round<br>    with the amount lost depending on their environment<br></note><br><hr>i am probably forgetting things, please ask questions. You can do so by messaging the <a href="/schlaunquer">schlaunquer account</a>, or tagging a post with <code>schlaunquer</code>`;
 
 /* rotation
 var rotateGrid = function () {

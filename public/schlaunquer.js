@@ -21,7 +21,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       6:8,
     },
     spawnValue:10,
-    unitCap:17,
+    // unitCap:17,
     init: {
       players: {
         6: {
@@ -45,18 +45,36 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
           ],
         },
         3: {
-          radius: 4,
+          radius: 5,
           pos: [
-            {color:'red', tiles:[[0, 3],[1,2],[-1,3]]},          //w
-            {color:'blue', tiles:[[-3, 0],[-3,1],[-2,-1]]},      //d
-            {color:'yellow', tiles:[[3,-3],[3,-2],[2,-3]]},      //a
+            {color:'green', tiles:[
+              [-4, 0],[-4,1],[-3,-1],
+              [0,-4],[1,-4],[-1,-3],
+            ]},
+            {color:'orange', tiles:[
+              [0, 4],[1,3],[-1,4], 
+              [-4, 4],[-3,4],[-4,3],
+            ]},
+            {color:'purple', tiles:[
+              [4,0],[3,1],[4,-1],
+              [4,-4],[4,-3],[3,-4],
+            ]},
+
           ],
         },
         2: {
-          radius: 3,
+          radius: 5,
           pos: [
-            {color:'orange', tiles:[[0, 2],[1,1],[-1,2]]},       //w
-            {color:'blue', tiles:[[0,-2],[1,-2],[-1,-1]]},       //s
+            {color:'green', tiles:[
+              [-4, 0],[-4,1],[-3,-1],
+              [0,-4],[1,-4],[-1,-3],
+              [4,-4],[4,-3],[3,-4],
+            ]},
+            {color:'red', tiles:[
+              [4,0],[3,1],[4,-1],
+              [0, 4],[1,3],[-1,4], 
+              [-4, 4],[-3,4],[-4,3],
+            ]},
           ],
         },
       }
@@ -98,7 +116,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     cleanedData.totalPlayers = match.totalPlayers;
     cleanedData.victor = match.victor;
     cleanedData._id = match._id;
-    cleanedData.unitCap = match.unitCap;
+    // cleanedData.unitCap = match.unitCap;
     cleanedData.spawnValue = match.spawnValue;
     cleanedData.opaqueEnemyUnits = match.opaqueEnemyUnits;
     cleanedData.dates = {};
@@ -142,29 +160,34 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
 
 
     //
-    var unitCap = exp.gameRef.unitCap;
-    if (typeof match.unitCap !== "undefined") {unitCap = match.unitCap;}
-    if (unitCap === 0) {unitCap = Infinity;}
+    // var unitCap = exp.gameRef.unitCap;
+    // if (typeof match.unitCap !== "undefined") {unitCap = match.unitCap;}
+    // if (unitCap === 0) {unitCap = Infinity;}
 
     // Migration
     for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
       spot = spot.split(",");
-      // check for forfeit
-      if (!match.players[oldMap[spot].ownerID].forfeit) {
-        var stayers = oldMap[spot].score;
-        for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
+      var stayers = oldMap[spot].score;
+      for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
+        // check for forfeit
+        if (!match.players[oldMap[spot].ownerID].forfeit) {
           stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
           var x = Number(spot[0]) + exp.gameRef.moves[move][0];   // determine immigration spot
           var y = Number(spot[1]) + exp.gameRef.moves[move][1];
           if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
           if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
           warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
-        }}
+        }
+      }}
         // add back the Stayers, to the init Spot
         if (!warMap[spot]) {warMap[spot] = {};}
-        if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
-        warMap[spot][oldMap[spot].ownerID] += stayers;
-      } else {
+        if (!match.players[oldMap[spot].ownerID].forfeit) {
+          if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
+          warMap[spot][oldMap[spot].ownerID] += stayers;
+        } else {
+          warMap[spot]['forsaken'] += stayers;
+
+
         if (!match.forfeitures) {match.forfeitures = {}}
         if (!match.forfeitures[pool.getCurDate(daysAgo)]) {match.forfeitures[pool.getCurDate(daysAgo)] = {};}
         if (!match.forfeitures[pool.getCurDate(daysAgo)][oldMap[spot].ownerID]) {
@@ -179,7 +202,8 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       var second = 0;
       for (var player in warMap[spot]) { // determine the 1st and 2nd place scores in each spot
         if (warMap[spot].hasOwnProperty(player)) {
-          warMap[spot][player] = Math.min(unitCap, warMap[spot][player]);  // enforce popCap
+
+          // warMap[spot][player] = Math.min(unitCap, warMap[spot][player]);  // enforce popCap
 
           if (warMap[spot][player] > first[0]) {
             second = first[0];
@@ -270,6 +294,22 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
         match.players[newMap[spot].ownerID].active = true;
       }
     }}
+    
+    //
+    var cornerTiles = [[-4, 0], [0,-4], [4,-4], [4,0], [0, 4], [-4, 4]];
+    var cornerRef = {};
+    for (var i = 0; i < cornerTiles.length; i++) {
+      if (newMap[cornerTiles[i]].ownerID) {
+        if (!cornerRef[newMap[cornerTiles[i]].ownerID]) {
+          cornerRef[newMap[cornerTiles[i]].ownerID] = 0
+        }
+        cornerRef[newMap[cornerTiles[i]].ownerID]++;
+        if (cornerRef[newMap[cornerTiles[i]].ownerID] === 4) {
+          match.victor = newMap[cornerTiles[i]].ownerID;
+          match.gameState = 'finished';
+        }
+      }
+    }
 
     if (activePlayerList.length === 0) {  // nobody wins(but match is over)
       match.victor = true;
@@ -292,6 +332,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
 
   exp.pendingAudit = function (match) { // nightAudit when a game is in the "pending" state
     if (match.lastUpdatedOn === pool.getCurDate()) { return false; }
+
     match.lastUpdatedOn = pool.getCurDate();
     var available = match.totalPlayers;
     for (var player in match.players) {if (match.players.hasOwnProperty(player)) {
