@@ -158,7 +158,6 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     var warMap = {};
     var newMap = {};
 
-
     //
     // var unitCap = exp.gameRef.unitCap;
     // if (typeof match.unitCap !== "undefined") {unitCap = match.unitCap;}
@@ -281,6 +280,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
         newMap[spot].score = newMap[spot].score - exp.gameRef.entropy[neigborCount];
       }
     }}
+
     // THEN delete spots, after they've counted for the above
     for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
       spot = spot.split(",");
@@ -299,7 +299,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     var cornerTiles = [[-4, 0], [0,-4], [4,-4], [4,0], [0, 4], [-4, 4]];
     var cornerRef = {};
     for (var i = 0; i < cornerTiles.length; i++) {
-      if (newMap[cornerTiles[i]].ownerID) {
+      if (newMap[cornerTiles[i]] && newMap[cornerTiles[i]].ownerID) {
         if (!cornerRef[newMap[cornerTiles[i]].ownerID]) {
           cornerRef[newMap[cornerTiles[i]].ownerID] = 0
         }
