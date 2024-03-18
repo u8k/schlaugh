@@ -97,7 +97,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
   }
 
   exp.tidyUp = function (userID, match, res, errMsg, devFlag) {
-    if (match.victor || devFlag || (userID && String(userID) === "5a0f87ec1d2b9000148368b3")) { // give it all up
+    if (match.victor || devFlag) { // give it all up
       return res.send(match);
     } else if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
       return res.send(exp.cleanMatchData(match, userID));
@@ -167,25 +167,28 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     for (var spot in oldMap) {if (oldMap.hasOwnProperty(spot)) {    // for each spot
       spot = spot.split(",");
       var stayers = oldMap[spot].score;
+
+      // check for forfeit
+      if (oldMap[spot].ownerID !== 'forsaken' && !match.players[oldMap[spot].ownerID].forfeit) {
       for (var move in oldMap[spot].pendingMoves) {if (oldMap[spot].pendingMoves.hasOwnProperty(move)) { // for each pendingMove
-        // check for forfeit
-        if (!match.players[oldMap[spot].ownerID].forfeit) {
           stayers = stayers - oldMap[spot].pendingMoves[move]; //emmigration
           var x = Number(spot[0]) + exp.gameRef.moves[move][0];   // determine immigration spot
           var y = Number(spot[1]) + exp.gameRef.moves[move][1];
           if (!warMap[[x,y]]) {warMap[[x,y]] = {};}
           if (!warMap[[x,y]][oldMap[spot].ownerID]) {warMap[[x,y]][oldMap[spot].ownerID] = 0;}
           warMap[[x,y]][oldMap[spot].ownerID] += oldMap[spot].pendingMoves[move]; // immigration
-        }
-      }}
-        // add back the Stayers, to the init Spot
-        if (!warMap[spot]) {warMap[spot] = {};}
-        if (!match.players[oldMap[spot].ownerID].forfeit) {
-          if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
-          warMap[spot][oldMap[spot].ownerID] += stayers;
-        } else {
-          warMap[spot]['forsaken'] += stayers;
+        }}
+      }
+      
+      // add back the Stayers, to the init Spot
+      if (!warMap[spot]) {warMap[spot] = {};}
 
+      if (oldMap[spot].ownerID !== 'forsaken' && !match.players[oldMap[spot].ownerID].forfeit) {
+        if (!warMap[spot][oldMap[spot].ownerID]) {warMap[spot][oldMap[spot].ownerID] = 0;}
+        warMap[spot][oldMap[spot].ownerID] += stayers;
+
+      } else {
+        warMap[spot]['forsaken'] = stayers;
 
         if (!match.forfeitures) {match.forfeitures = {}}
         if (!match.forfeitures[pool.getCurDate(daysAgo)]) {match.forfeitures[pool.getCurDate(daysAgo)] = {};}
@@ -259,11 +262,10 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     // Entropy/victory/defeat check
     var activePlayerList = [];
     // mark all players dead
-    for (var player in match.players) {
-      if (match.players.hasOwnProperty(player)) {
-        match.players[player].active = false;
-      }
-    }
+    for (var player in match.players) { if (match.players.hasOwnProperty(player)) {
+      match.players[player].active = false;
+    }}
+    
     // entropy
     // for each occupied spot on the map,
     for (var spot in newMap) {if (newMap.hasOwnProperty(spot)) {
@@ -287,11 +289,13 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
       if (newMap[spot].score < 1) { // is it dead?
         delete newMap[spot];
       } else {              // take census
-        if (activePlayerList[0] !== newMap[spot].ownerID) {
-          activePlayerList.push(newMap[spot].ownerID);
+        if (newMap[spot].ownerID !== 'forsaken') {
+          if (activePlayerList[0] !== newMap[spot].ownerID) {
+            activePlayerList.push(newMap[spot].ownerID);
+          }
+          // mark player as alive
+          match.players[newMap[spot].ownerID].active = true;
         }
-        // mark player as alive
-        match.players[newMap[spot].ownerID].active = true;
       }
     }}
     

@@ -393,15 +393,16 @@ var createBoard = function (dayCount, index, date, initBoard, step) {
       ref[map[spot].color].units += map[spot].score;
       ref[map[spot].color].tiles++;
     } else {
-      var playerName = gameRef.players[map[spot].ownerID].username;
       if (map[spot].color === "forsaken") {
-        playerName = "forsaken";
+        var playerName = "forsaken";
+      } else {
+        var playerName = gameRef.players[map[spot].ownerID].username;
       }
       ref[map[spot].color] = {
         player: playerName,
         units: map[spot].score,
         tiles: 1,
-        color: gameRef.players[map[spot].ownerID].color,
+        color: map[spot].color,
       }
     }
   }}

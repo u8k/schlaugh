@@ -876,7 +876,7 @@ var validatePostURL = function (user, date, string) {
     return {user:user, url:string};
   }
   if (string.length > 60) {
-    return {error: "this is not actually an 'error', this is just me preventing you from making a url >60 characters. Like, you really want it that long? <i>Short</i> urls are typically the thing people want? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>Worth the Candle</i> as a url in an attempt to break the site.<br><br>remember to floss!"};
+    return {error: "this is not actually an 'error', this is just me preventing you from making a url >60 characters. Like, you really want it that long? <i>Short</i> urls are typically the thing people want? I mean, maybe. Tell staff if you think there is good reason to nudge the limit higher. I just had to draw the line somewhere, lest someone submit the entire text of <i>The Power Broker</i> as a url in an attempt to break the site.<br><br>remember to floss!"};
   }
   string = string.replace(/[^a-zA-Z0-9-_]/g, '');
   if (!user.customURLs) {user.customURLs = {}}
