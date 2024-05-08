@@ -3537,8 +3537,19 @@ var convertImgTagsToLinks = function (string) {
     var linkString = string.substr(next+10, string.substr(next+10).search(/"/));
     var textString = linkString;
     var closingTagPos = string.substr(next+10).search(/>/) + next+11;
+    
+    // if an 'alt' follows the 'src'
     if (string.substr(next+10+linkString.length, 7) === '" alt="') {
       textString = string.substr(next+17+linkString.length, string.substr(next+17+linkString.length).search(/"/));
+      
+      // if a 'title' follows the 'src'
+    } else if (string.substr(next+10+linkString.length, 9) === '" title="') {
+      var titleClosePos = string.substr(next+10+linkString.length+9).search(/"/) + next+10+linkString.length+9;
+      
+      // if an 'alt' follows the 'title'
+      if (string.substr(titleClosePos, 7) === '" alt="') {
+        textString = string.substr(titleClosePos+7, string.substr(titleClosePos+7).search(/"/));
+      }
     }
     string = string.substr(0,next) + `<a href="`+linkString+`">`+textString+`</a>` + string.substr(closingTagPos);
   }
