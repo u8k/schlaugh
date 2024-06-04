@@ -18,7 +18,7 @@ var randomBytes = require('crypto').randomBytes;
 
 
 //connect mongoDB
-var dbURI = process.env.ATLAS_DB_KEY || 'mongodb://mongo:27017/schlaugh';
+var dbURI = MONGO_DB_KEY || 'mongodb://mongo:27017/schlaugh';
 var db = new MongoClient(dbURI).db("heroku_kr76r150");
 
 // Init App
@@ -905,8 +905,9 @@ var sendError = function (req, res, errMsg) {
 
   console.log('-----------',errMsg);
 
-  dbCreateOne(req, res, errMsg, 'errorLogs', newErrorLog, function () {
+  dbCreateOne(req, res, null, 'errorLogs', newErrorLog, function () {
     // do nothing, don't report an error if reporting the error doesn't work, because loop
+    // the "null" entry for the errMsg is also so that send Error isn't called again
   });
 
   //
@@ -1251,7 +1252,11 @@ var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
   })
   .catch(err => {
     cancelDbTimer(dbTimer, () => {
-      if (res) {return sendError(req, res, errMsg+err);}
+      if (res) {
+        if (errMsg) {
+          return sendError(req, res, errMsg+err);
+        }
+      }
       else if (callback) {return callback({error:err});}
     })
   });
