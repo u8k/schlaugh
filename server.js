@@ -50,7 +50,7 @@ var devFlag = false;  //NEVER EVER LET THIS BE TRUE ON THE LIVE PRODUCTION VERSI
 
 // enforce https, "trustProtoHeader" is because heroku proxy
 // hack to make it not enforce https on localDev
-if (process.env.ATLAS_DB_KEY) {
+if (process.env.MONGO_DB_KEY) {
   app.use(enforce.HTTPS({ trustProtoHeader: true }));
 } else {
   devFlag = true; // on production we'll always have the DB key, so if we don't have the DB key, put it in dev mode
