@@ -18,7 +18,7 @@ var randomBytes = require('crypto').randomBytes;
 
 
 //connect mongoDB
-var dbURI = MONGO_DB_KEY || 'mongodb://mongo:27017/schlaugh';
+var dbURI = process.env.MONGO_DB_KEY || 'mongodb://mongo:27017/schlaugh';
 var db = new MongoClient(dbURI).db("heroku_kr76r150");
 
 // Init App
