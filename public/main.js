@@ -342,8 +342,8 @@ var openAppearanceSettings = function () {
     $('font-family-select').focus();
   }
 }
-var toggleColorsAndTextSettings = function () {
-  if ($('text-options-pop-up').classList.contains("hidden")) {
+var toggleColorsAndTextSettings = function (text) {
+  if (($('text-options-pop-up').classList.contains("hidden") || text === true) && text !== false) {
     $('text-options-pop-up').classList.remove('hidden');
     $('color-options-pop-up').classList.add('hidden');
     $('font-family-select').focus();
@@ -1750,6 +1750,7 @@ var backToMain = function (event) {
       switchPanel('meta-panel');
       simulatePageLoad();
     }
+    jumpFocusToContent();
   });
 }
 
@@ -6180,7 +6181,7 @@ var login = function() {
   //
   signIn('/login', data, function () {
     switchPanel('posts-panel');
-    fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),});
+    fetchPosts(true, {postCode:"FFTF", date:pool.getCurDate(),}, jumpFocusToContent);
   });
 }
 
@@ -6891,7 +6892,9 @@ var makeResetCall = function (data) {
       loading(true);
       $("recovery-username-box").classList.add("removed");
       $("recovery-pass-box").classList.remove("removed");
+      $("show-password-recovery-button").classList.remove("removed");
       $("submit-password-reset").classList.add("change-pass-button-bump");
+      $('password-recovery1').focus();
     } else if (json.victory) {
       loading(true);
       $("pass-reset-form").classList.add("removed");
@@ -7122,4 +7125,54 @@ var downloadOneImage = function (uri, filename) {
     removeElement(link);
   })
   .catch(error => console.error(error));
+}
+
+var setTopJumpButtons = function () {
+  console.log(glo.username);
+  console.log(window.location.pathname);
+
+  const parentElement = document.getElementById('tab-jump-buttons');
+  if (parentElement) {
+    const childElements = parentElement.querySelectorAll('.tab-jump-button');
+  
+    childElements.forEach(child => {
+      child.addEventListener('focus', () => {
+        parentElement.classList.remove('tab-jump-buttons-hidden');
+      });
+      
+      child.addEventListener('blur', () => {
+        parentElement.classList.add('tab-jump-buttons-hidden');
+      });
+    });
+  }
+};
+
+var jumpFocusToContent = function () {
+  if (isElementFocusable($('top-right-date-arrow'))) { $('top-right-date-arrow').focus() }
+  else if (isElementFocusable($('top-left-date-arrow'))) { $('top-left-date-arrow').focus() }
+  else if (isElementFocusable($('settings-panel-button'))) { $('settings-panel-button').focus() }
+  else if (isElementFocusable($('sign-out'))) { $('sign-out').focus() }
+  else if (isElementFocusable($('sign-in'))) { $('sign-in').focus() }
+  else if (isElementFocusable($('site-title'))) { $('site-title').focus() }
+
+  focusNextElement();
+}
+
+var isElementFocusable = function (element) {
+  if (element.tabIndex < 0) return false;
+  if (element.disabled) return false;
+  if (element.hidden) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+}
+
+var focusNextElement = function () {
+  const focusableElements = Array.from(document.querySelectorAll('input, button, textarea, select, a[href], [tabindex]:not([tabindex="-1"])'))
+      .filter(element => isElementFocusable(element) && !element.disabled && element.tabIndex >= 0);
+
+  const activeElement = document.activeElement;
+  const currentIndex = focusableElements.indexOf(activeElement);
+  const nextIndex = (currentIndex + 1) % focusableElements.length;
+  focusableElements[nextIndex].focus();
 }

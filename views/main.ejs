@@ -464,9 +464,9 @@
           <button type="button" class="change-pass-button-bump" onclick="showPassword(this, ['in-pass-input', 'pass-input-two'])">show password</button>
           <button type="submit" class="change-pass-button-bump">schlaugh in</button>
           <br><br>
-          <clicky id="lost-pass" onclick="switchPanel('lost-panel')">lost password?</clicky>
         </form>
-        <br>
+        <button id="lost-pass" onclick="switchPanel('lost-panel')">lost password?</button>
+        <br><br>
         <button class="text-button special meta-panel-button" onclick="backToLogInMenu();">back</button>
       </div>
 
@@ -564,7 +564,7 @@
       <input id="password-recovery1" type="password" autocomplete="new-password" name="new-password"><br>
       <input id="password-recovery2" type="password" autocomplete="new-password" name="new-password"><br>
     </div>
-    <button type="button" class="change-pass-button-bump" onclick="showPassword(this, ['password-recovery1', 'password-recovery2'])">show passwords</button>
+    <button id="show-password-recovery-button" type="button" class="removed change-pass-button-bump" onclick="showPassword(this, ['password-recovery1', 'password-recovery2'])">show passwords</button>
     <button id="submit-password-reset" type="submit" onclick="submitRecoveryName()">submit</button>
   </form>
   <div id="pass-reset-success" class="removed">
@@ -577,7 +577,7 @@
 <div id="bad-recovery-panel" class="removed">
   <h2>invalid code</h2><br>
   perhaps it has expired?<br><br>
-  <clicky onclick="switchPanel('lost-panel');simulatePageLoad();" class="special">try again?</clicky><br><br>
+  <button onclick="switchPanel('lost-panel'); simulatePageLoad();">try again?</button><br><br>
 </div>
 
 <div id="clicker-panel" class="removed">

@@ -36,8 +36,13 @@
 
   </head>
   <body>
+    <div id="tab-jump-buttons" class="tab-jump-buttons-hidden">
+      <button class="tab-jump-button" onclick="jumpFocusToContent()">jump to content</button>
+      <button class="tab-jump-button" onclick="openAppearanceSettings(); toggleColorsAndTextSettings(true)">jump to text settings</button>
+      <button class="tab-jump-button" onclick="openAppearanceSettings(); toggleColorsAndTextSettings(false)">jump to color settings</button>
+    </div>
     <header>
-      <h1><a href="/" onclick="backToMain(event);">schlaugh</a></h1>
+      <h1><a id="site-title" href="/" onclick="backToMain(event);">schlaugh</a></h1>
 
       <userInfo>
         <user-info-item><a href="javascript:void(0);" id="username" class="clicky removed special"></a></user-info-item>
@@ -122,6 +127,7 @@
         if (!input.user && (input.panel !== "about" && input.panel !== "clicker" && input.panel !== "schlaunquer")) {
           simulatePageLoad();
           switchPanel("meta-panel");
+          
         } else if (input.panel === "meta") {
           initSchlaugh(input.user, function () {switchPanel("meta-panel")});
         } else if (input.panel === "clicker") {
@@ -145,6 +151,7 @@
           switchPanel("meta-panel");
         }
       }
+      setTopJumpButtons();
     })(<%- JSON.stringify(initProps) %>)
 
   </script>

@@ -205,6 +205,14 @@ user-info-item {
   line-height: 1.1;
 }
 
+#tab-jump-buttons {
+  text-align: left;
+}
+.tab-jump-buttons-hidden {
+  height: 0;
+  overflow: hidden;
+}
+
 header {
   width: 100%;
   height: 50px;

@@ -3056,7 +3056,7 @@ app.post('/passResetRequest', function (req, res) {
 // use password recovery code/link, VIEW
 app.get('/~recovery/:code', function (req, res) {
   var errMsg = "recovery pageload error";
-  //if (!req.session.user) { 'you are accessing this recovery page, but you seem to aleady be signed in...erm what?'}
+  //if (req.session.user) { 'you are accessing this recovery page, but you seem to aleady be signed in...erm what?'}
   req.session.user = null;
   dbReadOneByID(req, res, errMsg, 'resetCodes', req.params.code, null, function (code) {
     if (!code) {
