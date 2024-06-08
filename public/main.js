@@ -1864,35 +1864,66 @@ var switchPanel = function (panelName, noPanelButtonHighlight) {
   glo.openPanel = panelName;
 }
 
-var followingListDisplay = function (open) {
-  // have we already fetched the data?
-  if (_npa(['glo','pRef','date'])) {
-    if (open) {
-      $('following-list').classList.remove('removed');
+var fetchAndRenderFollowingList = function () {
+  loading();
+  ajaxCall('/~following', 'GET', '', function(json) {
+    glo.followingListRendered = true;
+    var followingList = json.followingList;
 
-      // set focus
-      var followingListings = $('following-bucket').childNodes;
-      if (followingListings.length !== 0 && followingListings[0]) {
-        var followingLink = followingListings[0].childNodes[0];
-        followingLink.focus();
-      } else {
-        $('following-list-close').focus();
-      }
-      blackBacking();
-      $("pop-up-backing").onclick = function () {
-        followingListDisplay(false);
-      }
+    var followingBucket = $("following-bucket");
+    for (var i = 0; i < followingList.length; i++) {
+      var listing = document.createElement("div");
+      listing.setAttribute('class', 'following-listing');
+      var link = document.createElement("a");
+      link.setAttribute('class', 'following-link-wrapper');
+      link.setAttribute('href', "/"+followingList[i].name);
+      (function (id) {
+        link.onclick = function(){
+          modKeyCheck(event, function(){
+            fetchPosts(true, {postCode:'TFFF', author:id});
+            followingListDisplay(false);
+          });
+        }
+      })(followingList[i]._id);
+      var name = document.createElement("text");
+      name.innerHTML = followingList[i].name;
+      var pic = document.createElement("img");
+      pic.setAttribute('class', 'little-pic');
+      pic.setAttribute('src', followingList[i].pic);
+      link.appendChild(pic);
+      link.appendChild(name);
+      listing.appendChild(link);
+      followingBucket.appendChild(listing);
     }
-    else {
-      $('following-list').classList.add('removed');
-      $('following-list-open').focus();
-      blackBacking(true);
+
+    loading(true);
+    followingListDisplay(true);
+  });
+}
+var followingListDisplay = function (open) {
+  if (!glo.followingListRendered) {
+    return fetchAndRenderFollowingList();
+  }
+  
+  if (open) {
+    $('following-list').classList.remove('removed');
+
+    // set focus
+    var followingListings = $('following-bucket').childNodes;
+    if (followingListings.length !== 0 && followingListings[0]) {
+      var followingLink = followingListings[0].childNodes[0];
+      followingLink.focus();
+    } else {
+      $('following-list-close').focus();
     }
-  } else {  // following list has not been fetched/rendered, so do that
-    fetchPosts(false, {postCode:"FFTF", date:pool.getCurDate(),}, function () {
-      loading(true)
-      followingListDisplay(open);
-    });
+    blackBacking();
+    $("pop-up-backing").onclick = function () {
+      followingListDisplay(false);
+    }
+  } else {
+    $('following-list').classList.add('removed');
+    $('following-list-open').focus();
+    blackBacking(true);
   }
 }
 
@@ -2102,16 +2133,15 @@ var fetchPosts = function (display, input, callback) {
     else if (callback) {callback();}
   } else {          //  call for it
     if (display || callback) {loading();}
+
     // send the postRef
     if (_npa(['glo','pRef','post'])) {input.postRef = glo.pRef.post;}
+
     // do we need author data?
     if (input.author && !_npa(['glo','pRef','author',input.author,'info'])) {
       input.needAuthorInfo = true;
     }
-    // do we need the followingList?
-    if ((pc === 'FFTT' || pc === 'FFTF') && !_npa(['glo','pRef','date'])) {
-      input.getFollowingList = true;
-    }
+
     if (glo.settings && glo.settings.postsPerPage) {
       input.postsPerPage = glo.settings.postsPerPage;
     }
@@ -2135,10 +2165,6 @@ var fetchPosts = function (display, input, callback) {
       if (input.needAuthorInfo) {
         _npa(['glo','pRef','author',input.author,'info'], json.authorInfo);
         input.needAuthorInfo = undefined;
-      }
-      if (input.getFollowingList && json.followingList) {
-        renderFollowingList(json.followingList);
-        input.getFollowingList = undefined;
       }
       // store the total number of available pages of a thing, to use in pagination displays later
       if (json.pages) {
@@ -2756,34 +2782,6 @@ var renderTagListing = function (tagName, count) {
   tagShell.appendChild(tagElem);
   tagShell.appendChild(detag);
   $("tag-bucket").appendChild(tagShell);
-}
-
-var renderFollowingList = function (followingList) {
-  var followingBucket = $("following-bucket");
-  for (var i = 0; i < followingList.length; i++) {
-    var listing = document.createElement("div");
-    listing.setAttribute('class', 'following-listing');
-    var link = document.createElement("a");
-    link.setAttribute('class', 'following-link-wrapper');
-    link.setAttribute('href', "/"+followingList[i].name);
-    (function (id) {
-      link.onclick = function(){
-        modKeyCheck(event, function(){
-          fetchPosts(true, {postCode:'TFFF', author:id});
-          followingListDisplay(false);
-        });
-      }
-    })(followingList[i]._id);
-    var name = document.createElement("text");
-    name.innerHTML = followingList[i].name;
-    var pic = document.createElement("img");
-    pic.setAttribute('class', 'little-pic');
-    pic.setAttribute('src', followingList[i].pic);
-    link.appendChild(pic);
-    link.appendChild(name);
-    listing.appendChild(link);
-    followingBucket.appendChild(listing);
-  }
 }
 
 var addToPostStash = function (postData, authorData) {
@@ -7128,9 +7126,6 @@ var downloadOneImage = function (uri, filename) {
 }
 
 var setTopJumpButtons = function () {
-  console.log(glo.username);
-  console.log(window.location.pathname);
-
   const parentElement = document.getElementById('tab-jump-buttons');
   if (parentElement) {
     const childElements = parentElement.querySelectorAll('.tab-jump-button');

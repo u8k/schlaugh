@@ -187,6 +187,12 @@ var getResetCodes = function () {
   });
 }
 
+var getPostCache = function () {
+  ajaxCall('/admin/getPostCache', 'POST', {}, function(json) {
+    console.log(json);
+  });
+}
+
 var getErrorLogs = function () {
   ajaxCall('/admin/errorLogs', 'POST', {}, function(json) {
     console.log(json);

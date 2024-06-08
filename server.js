@@ -82,14 +82,23 @@ var pushNewToPostlist = function (user) {  // pushes New pending posts to postli
   }
 }
 
+var userUpdateCache = {};
 var checkForUserUpdates = function (req, res, errMsg, userID, callback) {  // pushes edits on OLD posts, BIO, and userPic
+  var today = pool.getCurDate();
+
+  if (!userUpdateCache[today]) { userUpdateCache[today] = {}}
+  if (userUpdateCache[today][userID]) {
+    return callback();
+  } else {
+    userUpdateCache[today][userID] = true;
+  }
+
   // first cursory DB fetch to see if updates are needed
   var props = ['postListUpdatedOn','pendingUpdates'];
   readUser(req, res, errMsg, userID, {list:props}, function (user) {
     if (!user) {return callback();}
     var updatesNeedsUpdate = false;
     var postListNeedsUpdate = false;
-    var today = pool.getCurDate();
     // is postListUpdatedOn fresh?
     if (user.postListUpdatedOn !== today) {
       props.push('postListPending', 'postList');
@@ -653,6 +662,9 @@ var deletePost = function (req, res, errMsg, user, date, callback) {
       if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[date]) {
         delete user.pendingUpdates.updates[date];
       }
+      if (postCache && postCache[date] && postCache[date][user._id]) {
+        delete postCache[date][user._id];
+      }
       nullPostFromPosts(req, res, errMsg, user.posts[date][0].post_id, function () {
         delete user.posts[date];
         writeToUser(req, res, errMsg, user, function () {
@@ -919,27 +931,43 @@ var sendError = function (req, res, errMsg) {
   }
 }
 
-var postsFromAuthorListAndDate = function (req, res, errMsg, authorList, date, followingRef, postRef, callback) {
-  // for getting posts by following for main feed, and all posts with tag on date,
-  checkMultiUsersForUpdates(req, res, errMsg, authorList, function () {
-    readMultiUsers(req, res, errMsg, authorList, {list:['username', 'iconURI', 'pendingUpdates',], dates:[date]}, function (users) {
-      // this is to get pics for authors to populate the following list
-      var followingList = [];
-      if (followingRef) {
-        for (var i = 0; i < users.length; i++) {
-          if (followingRef[users[i]._id]) {
-            var pic = users[i].iconURI;
-            if (typeof pic !== 'string') {pic = "";}
-            followingList.push({
-              name: users[i].username,
-              _id: users[i]._id,
-              pic: pic,
-            });
-          }
-        }
-      }
-      var posts = [];
+var postCache = {}
 
+var postsFromAuthorListAndDate = function (req, res, errMsg, authorList, date, postRef, callback) {
+  let seen = {};
+  let uniqueAuthors = [];
+  for (var i = 0; i < authorList.length; i++) {
+    if (!seen[authorList[i]]) {
+        seen[authorList[i]] = true;
+        uniqueAuthors.push(authorList[i]);
+    }
+  }
+
+  // for getting posts by following for main feed, and all posts with tag on date,
+  checkMultiUsersForUpdates(req, res, errMsg, uniqueAuthors, function () {
+
+    if (!postCache[date]) { postCache[date] = {}}
+    var cache = postCache[date];
+    var filteredAuthorList = [];
+    var posts = [];
+
+    for (var i = 0; i < uniqueAuthors.length; i++) {
+      if (cache[uniqueAuthors[i]] === undefined) {
+        filteredAuthorList.push(uniqueAuthors[i]);
+        
+      } else if (cache[uniqueAuthors[i]]) {
+        if (postRef[cache[uniqueAuthors[i]].post_id]) {
+          posts.push({post_id: cache[uniqueAuthors[i]].post_id,});
+        } else {
+          posts.push(cache[uniqueAuthors[i]]);
+        }
+      } // else it's not undefined and is falsey so do nothing, there is no post
+    }
+    
+    readMultiUsers(req, res, errMsg, filteredAuthorList, {list:['username', 'iconURI'], dates:[date]}, function (users) {
+      // previously the line above had {list:['username', 'iconURI', 'pendingUpdates',], dates:[date]},
+      // i don't think i need "pendingUpdates" there, but if something errs after this push, check here
+      
       for (var i = 0; i < users.length; i++) {
         if (users[i].posts && users[i].posts[date]) {
           //
@@ -952,7 +980,7 @@ var postsFromAuthorListAndDate = function (req, res, errMsg, authorList, date, f
               posts.push({post_id: post_id,});
             } else {
               var authorPic = getUserPic(users[i]);
-              posts.push({
+              var post = {
                 body: users[i].posts[date][0].body,
                 tags: users[i].posts[date][0].tags,
                 post_id: post_id,
@@ -962,12 +990,16 @@ var postsFromAuthorListAndDate = function (req, res, errMsg, authorList, date, f
                 date: date,
                 title: users[i].posts[date][0].title,
                 url: users[i].posts[date][0].url,
-              });
+              }
+              posts.push(post);
+              cache[users[i]._id] = post;
             }
           }
+        } else {
+          cache[users[i]._id] = false;
         }
       }
-      return callback({error:false, posts:posts, followingList:followingList});
+      return callback({ error:false, posts:posts, });
     });
   });
 }
@@ -1472,6 +1504,12 @@ app.post('/admin/resetCodes', function(req, res) {
   });
 });
 
+app.post('/admin/getPostCache', function(req, res) {
+  adminGate(req, res, function () {
+    return res.send(postCache);
+  });
+});
+
 app.post('/admin/errorLogs', function(req, res) {
   adminGate(req, res, function () {
     dbReadMany(req, res, 'errorLogs errMsg', 'errorLogs', null, {}, function (logs) {
@@ -1766,10 +1804,12 @@ app.post('/~initSchlaunquerMatch', function(req, res) {
       // if (typeof req.body.unitCap !== "undefined" && Number.isInteger(req.body.unitCap) && req.body.unitCap > -1) {match.unitCap = req.body.unitCap;} 
       //
       match.players = {};
+      var pic = getUserPic(user);
       match.players[user._id] = {
         username: user.username,
-        iconURI: user.iconURI,
+        iconURI: pic,
       }
+      
       //
       dbCreateOne(req, res, errMsg, 'schlaunquerMatches', match, function () {
         if (!user.games) {user.games = {}};
@@ -1813,9 +1853,11 @@ app.post('/~joinSchlaunquerMatch', function(req, res) { // also handles de-joini
         if (match.players[user._id]) { // don't add a player that's already enrolled
           return sendError(req, res, errMsg+'user is already registered for this match');
         }
+        
+        var pic = getUserPic(user);
         match.pendingPlayers[user._id] = {
           username: user.username,
-          iconURI: user.iconURI,
+          iconURI: pic,
         };
         if (!user.games) {user.games = {}};
         if (!user.games.schlaunquer) {user.games.schlaunquer = {}};
@@ -1986,6 +2028,25 @@ app.get('/~payload', function(req, res) {
     });
   }
 });
+
+app.get('/~following', function (req, res) {
+  var errMsg = "unable to get following data<br><br>";
+  readCurrentUser(req, res, errMsg, {list:['following',]}, function (user) {
+    readMultiUsers(req, res, errMsg, user.following, {list:['username', 'iconURI'],}, function (users) {
+      var followingList = [];
+      for (var i = 0; i < users.length; i++) {
+        var pic = getUserPic(users[i]);
+        followingList.push({
+          name: users[i].username,
+          _id: users[i]._id,
+          pic: pic,
+        });
+      }
+      return res.send({followingList:followingList});
+    });
+  });
+});
+
 
 var sessions = {}
 // check for pendingPost changes and openEditors
@@ -2357,8 +2418,7 @@ app.post('/inbox', function(req, res) {
       var inboxTemplate = genInboxTemplate();
       checkObjForProp(sender, 'inbox', inboxTemplate);
       //
-      var recipientPic = recipient.iconURI;
-      if (typeof recipientPic !== 'string') {recipientPic = "";}
+      var recipientPic = getUserPic(recipient);
       // if the sender does not already have a thread w/ the recipient, create one
 
       if (checkObjForProp(sender.inbox.threads, recipient._id, {name:recipient.username, unread:false, image:recipientPic, thread:[], key:recipient.keyPublic})) {
@@ -2418,7 +2478,8 @@ app.post('/inbox', function(req, res) {
         if (!checkObjForProp(recipient, 'inbox', inboxTemplate)) {
           bumpThreadList(recipient.inbox);
         }
-        var senderPic = sender.iconURI;
+
+        var senderPic = getUserPic(sender);
         if (typeof senderPic !== 'string') {senderPic = "";}
         // if the recipient does not already have a thread w/ the sender, create one
         if (!checkObjForProp(recipient.inbox.threads, sender._id, {name:sender.username, unread:false, image:senderPic, thread:[], key:sender.keyPublic})) {
@@ -3172,13 +3233,6 @@ var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get F
     if (!user.following || !user.following.length) {user.following = [];}
     if (!user.savedTags || !user.savedTags.length) {user.savedTags = [];}
     //
-    var followingRef = null;
-    if (req.body.getFollowingList) {
-      followingRef = {};
-      for (var i = 0; i < user.following.length; i++) {
-        followingRef[user.following[i]] = true;
-      }
-    }
     getAuthorListFromTagListAndDate(req, res, errMsg, user.savedTags, req.body.date, function (resp) {
       // filter muted authors
       // if a user is being followed and muted, they get filtered out then added back in, this is intended
@@ -3191,8 +3245,8 @@ var getPostsOfFollowingWithTrackedTagsForADate = function(req, res) {   // get F
         }
       }
       var authorList = resp.authorList.concat(user.following);
-      postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, followingRef, req.body.postRef, function (resp) {
-        return res.send({error:false, posts:resp.posts, followingList:resp.followingList, tagList:user.savedTags});
+      postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, req.body.postRef, function (resp) {
+        return res.send({error:false, posts:resp.posts, tagList:user.savedTags});
       });
     });
   });
@@ -3519,7 +3573,7 @@ var getAllPostsWithTagOnDate = function (req, res) {
       return res.send({error:false, posts:[],});
     } else {
       filterMutedAuthors(req, res, errMsg, resp.authorList, function (authorList) {
-        postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, null, req.body.postRef, function (resp) {
+        postsFromAuthorListAndDate(req, res, errMsg, authorList, req.body.date, req.body.postRef, function (resp) {
           return res.send({error:false, posts:resp.posts,});
         });
       });
@@ -3575,7 +3629,7 @@ app.post('/getPosts', function (req, res) {
   if (!req.body.postCode) {return sendError(req, res, errMsg+"malformed request 284");}
   var postCode = req.body.postCode;
   if (!req.body.postRef) {req.body.postRef = {}};
-  if (req.body.date && req.body.date > pool.getCurDate() && postCode !== "TFTF") {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://i.imgur.com/D7HXWeX.png", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}],followingList:[], tagList:[]});}
+  if (req.body.date && req.body.date > pool.getCurDate() && postCode !== "TFTF") {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://i.imgur.com/D7HXWeX.png", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}], tagList:[]});}
   //
   // repsonse must have 'posts', and ,if not included w/ posts: 'authorData'
   if (postCode === "FTTT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
