@@ -4352,6 +4352,17 @@ var toggleAutoEditorResize = function () {
   }
 }
 
+var toggleAllowIndexing = function () {
+  ajaxCall('/toggleAllowIndexing', 'POST', {}, function(json) {});
+  if (glo.settings.allowIndexing) {
+    $('allow-indexing-setting').value = 'false';
+    glo.settings.allowIndexing = false;
+  } else {
+    $('allow-indexing-setting').value = 'true';
+    glo.settings.allowIndexing = true;
+  }
+}
+
 var setPaginationDirection = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "newPostsToTheLeft"}, function(json) {});
   if (glo.settings.newPostsToTheLeft) {
@@ -6399,6 +6410,12 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
       $('resize-editor-setting').value = 'true';
     } else {
       $('resize-editor-setting').value = 'false';
+    }
+    //
+    if (glo.settings.allowIndexing) {
+      $('allow-indexing-setting').value = 'true';
+    } else {
+      $('allow-indexing-setting').value = 'false';
     }
     //
     if (glo.settings.sortOldestPostsAtTop) {

@@ -225,7 +225,7 @@
   <button id="expand-all-notes-button" class='removed' onclick="expandAllNotes(true)">expand all notes and cuts</button>
   <button id="collapse-all-notes-button" class='removed' onclick="expandAllNotes(false)">collapse all notes and cuts</button>
 
-  <div id="post-bucket"></div>
+  <div id="post-bucket" data-nosnippet></div>
 
   <%- include("authorHeader", {kind: "bot"}) %>
 
@@ -310,13 +310,13 @@
         </form>
       </wrapper>
     </div>
-    <br><br><hr><br>
+    <!-- <br><br><hr><br>
     <h3>IMGUR might be taking down images uploaded without an account??? <a class="special" href="https://www.schlaugh.com/staff/~/2023-05-07">(more here)</a></h3>
 
     <button id="get-imgur-button" onclick="displayImgurList()">get imgur image report</button>
     <button id="get-imgur-text-file" class="removed" onclick="downloadImgurTextFile()">download a text file of all urls</button>
     <wrapper id="imgur-list" class="setting-wrapper">
-    </wrapper>
+    </wrapper> -->
     <br><br><hr><br>
     <wrapper class="setting-wrapper">
       <text>posts per page<a href="javascript:void(0);" onclick="postsPerPageExplain()" class="special clicky">(?)</a>: </text>
@@ -364,16 +364,24 @@
     <br><br>
     -->
 
-    <text>show a schlaunquer reminder on my post feed when i have active matches: </text>
-    <select id="schlaunquer-game-reminder-setting" onchange="setSchlaunquerReminder(true)">
+    <text>allow search engines to index my profile:</text>
+    <select id="allow-indexing-setting" onchange="toggleAllowIndexing()">
       <option>true</option>
       <option>false</option>
     </select>
-
+    
     <br><br>
-
+    
     <text>do NOT auto resize the post editor:</text>
     <select id="resize-editor-setting" onchange="toggleAutoEditorResize()">
+      <option>true</option>
+      <option>false</option>
+    </select>
+    
+    <br><br>
+    
+    <text>show a schlaunquer reminder on my post feed when i have active matches: </text>
+    <select id="schlaunquer-game-reminder-setting" onchange="setSchlaunquerReminder(true)">
       <option>true</option>
       <option>false</option>
     </select>
@@ -408,7 +416,7 @@
 </div>
 
 <div id="meta-panel" class="removed">
-  <div id="login-section">
+  <div id="login-section" data-nosnippet>
     <slogan>have you schlaughed today?</slogan>
     <div id="inOrUp">
       <button onclick="chooseInOrUp(false)">schlaugh in</button>
@@ -486,7 +494,7 @@
     <3
   </div>
 
-  <div id="faq-section">
+  <div id="faq-section" data-nosnippet>
     <div class="post"><text class="post-title">FAQ</text>
       <div id="faq" class="reader-font"></div>
     </div>

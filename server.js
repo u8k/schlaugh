@@ -395,7 +395,7 @@ var newSessionKey = function (userID) {
 var getPayload = function (req, res, callback) {
   var errMsg = 'unable to acquire payload<br><br>';
   checkForUserUpdates(req, res, errMsg, req.session.user._id, function () {
-    var propList = ['posts','username', 'iconURI', 'settings', 'inbox', 'keyPrivate', 'keyPublic', 'following', 'muted', 'pendingUpdates', 'bio', 'bookmarks', 'collapsed', 'savedTags', 'games'];
+    var propList = ['posts','username', 'iconURI', 'settings', 'inbox', 'keyPrivate', 'keyPublic', 'following', 'muted', 'pendingUpdates', 'bio', 'bookmarks', 'collapsed', 'savedTags', 'games', 'allowIndexing'];
     readCurrentUser(req, res, errMsg, {list:propList}, function (user) {
       // check if user needs keys
       if (!user.keyPrivate || !user.keyPublic) {return res.send({needKeys:true});}
@@ -422,6 +422,10 @@ var getPayload = function (req, res, callback) {
       var tmrw = pool.getCurDate(-1);
       if (user.posts[tmrw]) {
         payload.pending = user.posts[tmrw][0];
+      }
+      //
+      if (user.allowIndexing) {
+        payload.settings.allowIndexing = true;
       }
       //
       if (user.pendingUpdates && user.pendingUpdates.updates) {
@@ -1999,10 +2003,12 @@ app.post('/~setSchlaunquerBookmark', function(req, res) {
 
 // main page, and panels
 app.get('/', function(req, res) {
+  var data = {panel:"posts"};
   if (!req.session.user) {
     incrementStat("rawLoads");
+    data.allowIndexing = true;
   }
-  renderLayout(req, res, {panel:"posts"});
+  renderLayout(req, res, data);
 });
 app.get('/~posts', function(req, res) {
   renderLayout(req, res, {panel:"posts"});
@@ -2725,6 +2731,19 @@ app.post('/toggleSetting', function(req, res) {
       user.settings[setting] = false;
     } else {
       user.settings[setting] = true;
+    }
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+  });
+});
+
+// flip setting to allow search engines to index a user's profile
+app.post('/toggleAllowIndexing', function(req, res) {
+  var errMsg = "'allowIndexing' setting not successfully updated<br><br>";
+  readCurrentUser(req, res, errMsg, {list:['allowIndexing']}, function (user) {
+    if (user.allowIndexing) {
+      user.allowIndexing = false;
+    } else {
+      user.allowIndexing = true;
     }
     writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
   });
@@ -3936,9 +3955,17 @@ app.get('/:author', function(req, res) {
   getUserIdFromName(req, res, errMsg, author, function (authorID) {
     if (!authorID) {
       return return404author(req, res);
-    }
-    else {
-      return renderLayout(req, res, {author: authorID, page:0, postCode:"TFFF", authorName:authorName});
+    } else {
+
+      var allowIndexing = false;
+      readUser(req, res, errMsg, authorID, {list:['allowIndexing', ]}, function(author) {
+        if (!author) {return return404author(req, res);}
+        if (author.allowIndexing) {
+          allowIndexing = true;
+        }
+
+        return renderLayout(req, res, {author: authorID, page:0, allowIndexing:allowIndexing, postCode:"TFFF", authorName:authorName});
+      });
     }
   });
 });

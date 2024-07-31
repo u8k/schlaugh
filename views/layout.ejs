@@ -1,16 +1,25 @@
 <!DOCTYPE html>
 <html>
   <head>
+    
+    <%
+      if(!initProps || !initProps.allowIndexing) {
+    %>
+      <meta name="robots" content="noindex, nofollow">
+    <%
+      } else {
+    %>
+      <meta name="robots" content="nofollow">
+    <%
+      }
+    %>
+
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>s c h l a u g h</title>
     <link href="https://fonts.googleapis.com/css?family=Crimson+Pro|Gurajada|Lora|Montserrat|Open+Sans|Rajdhani|Roboto|Roboto+Slab|Source+Code+Pro|Space+Mono|League+Spartan:wght@500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/main.css">
     <link rel="stylesheet" href="/game.css">
-    <!-- <script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js" integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy" crossorigin="anonymous"></script> -->
-    <!-- KaTeX -->
-    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/katex.css" integrity="sha384-yW1frltt4cd2K6QCmOMx4M+ylOmyrGb+NDouZ1f5VL2f4NN7uBu5PQsmUSgWib1W" crossorigin="anonymous">
-    <script async src="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/katex.min.js" integrity="sha384-97gW6UIJxnlKemYavrqDHSX3SiygeOwIZhwyOKRfSaf0JWKRVj9hLASHgFTzT+0O" crossorigin="anonymous"></script> -->
     <link rel="stylesheet" href="/katex.css">
     <script  src="/katex.min.js"></script>
     <!-- -->
@@ -36,12 +45,12 @@
 
   </head>
   <body>
-    <div id="tab-jump-buttons" class="tab-jump-buttons-hidden">
+    <div id="tab-jump-buttons" class="tab-jump-buttons-hidden" data-nosnippet>
       <button class="tab-jump-button" onclick="jumpFocusToContent()">jump to content</button>
       <button class="tab-jump-button" onclick="openAppearanceSettings(); toggleColorsAndTextSettings(true)">jump to text settings</button>
       <button class="tab-jump-button" onclick="openAppearanceSettings(); toggleColorsAndTextSettings(false)">jump to color settings</button>
     </div>
-    <header>
+    <header data-nosnippet>
       <h1><a id="site-title" href="/" onclick="backToMain(event);">schlaugh</a></h1>
 
       <userInfo>
@@ -55,7 +64,7 @@
       <%- include("main") %>
     </main>
 
-    <footer>
+    <footer data-nosnippet>
       <%
         var date = new Date(new Date().getTime() - 9*3600*1000);  //UTC offset by -9
         var hoursRemaining = "< " + (24 - date.getUTCHours()) + " hours to schlaupdate";

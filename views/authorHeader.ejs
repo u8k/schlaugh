@@ -1,7 +1,7 @@
-<div id="author-header-<%- kind %>" class="author-header removed">
+<div id="author-header-<%- kind %>" itemtype="http://schema.org/Person" class="author-header removed">
   <div class="author-header-left">
-    <img id="author-panel-pic-<%- kind %>" class="author-panel-pic">
-    <a class="author-page-title not-special inset-focus" id="author-page-title-<%- kind %>"></a>
+    <img id="author-panel-pic-<%- kind %>" itemprop="image" class="author-panel-pic">
+    <a class="author-page-title not-special inset-focus" itemprop="name" id="author-page-title-<%- kind %>"></a>
     <button id="follow-button-<%- kind %>" class="author-button inset-focus">follow</button>
     <button id="mute-button-<%- kind %>" class="author-button inset-focus">mute</button>
     <button id="message-button-<%- kind %>" class="author-button inset-focus">message</button>
@@ -10,7 +10,7 @@
     <button id="author-search-button-<%- kind %>" class="author-button inset-focus" onclick="openSearchOptions('<%- kind %>');">search</button>
   </div>
 
-  <div class="author-header-right reader-font" id="author-header-right-<%- kind %>">
+  <div class="author-header-right reader-font" itemprop="description" id="author-header-right-<%- kind %>">
   </div>
 
 </div>
