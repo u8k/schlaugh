@@ -151,18 +151,18 @@ panelButtons {
   0% {
     transform: rotate(0deg) scale(1);
   }
-  50% {
-    transform: rotate(180deg) scale(.85);
+  47% {
+    transform: rotate(180deg) scale(.92);
   }
-  93% {
-    transform: rotate(390deg) scale(1.03);
+  94% {
+    transform: rotate(380deg) scale(1.03);
   }
   100% {
     transform: rotate(360deg) scale(1);
   }
 }
 .rotate-me {
-  animation: spin-bounce .6s linear forwards;
+  animation: spin-bounce 1.6s linear forwards;
   transform-origin: center center; /* Set the rotation origin to the center */
 }
 

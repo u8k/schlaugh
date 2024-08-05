@@ -1,4 +1,4 @@
-<wrapper id="panel-buttons-wrapper" class="removed no-select">
+<wrapper id="panel-buttons-wrapper" class="removed no-select" data-nosnippet>
   <panelButtons id="panel-buttons">
 
     <a href="/~write" id="write-panel-button" title="write" class="inset-focus clicky panel-button" onclick="panelButtonClick(event,'write')">
@@ -129,7 +129,97 @@
   </feedOptions>
 </wrapper>
 
-<div id="write-panel" class="removed">
+
+<div id="meta-panel" class="removed">
+  <div id="login-section" data-nosnippet>
+    <slogan>have you schlaughed today?</slogan>
+    <div id="inOrUp">
+      <button onclick="chooseInOrUp(false)">schlaugh in</button>
+      <h4>or</h4>
+      <button onclick="chooseInOrUp(true)">schlaugh up</button>
+      <br><br><br>
+      <button class="text-button special meta-panel-button" onclick="scrollToAboutSection();">schlaugh what?</button>
+      </div>
+
+      <div id="up" class="removed">
+        <h2>account creation</h2>
+        <br>
+        <form action="javascript:void(0);" onSubmit="signUp();">
+          <input class="login-input" id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
+          <br>
+          <input class="login-input" id="email-input" type="text" name="email" autocomplete="email" placeholder="email address">
+          <br>
+          <input class="login-input" id="pass-input" type="password" name="password" autocomplete="new-password" placeholder="password">
+          <br>
+          <input class="login-input" id="pass-input-two" type="password" name="password" autocomplete="new-password" placeholder="password">
+          <br>
+          <icon onclick="optionalEmailExplain()" class="optional-email-splain clicky">
+            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.08em;">
+              <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
+                <path d="M125 413 c-80 -42 -125 -113 -125 -198 0 -122 93 -215 215 -215 122
+                0 215 93 215 215 0 85 -44 156 -122 196 -46 24 -140 25 -183 2z m186 -46 c57
+                -38 79 -81 79 -152 0 -109 -66 -175 -175 -175 -109 0 -175 66 -175 175 0 71
+                22 114 79 152 48 32 144 32 192 0z"/>
+                <path d="M162 340 c-26 -11 -47 -52 -39 -74 9 -24 24 -19 39 12 10 20 22 28
+                46 30 69 7 87 -61 22 -82 -27 -9 -36 -17 -38 -38 -3 -24 0 -28 21 -28 14 0 27
+                7 31 15 3 8 12 15 20 15 49 0 64 93 21 135 -26 27 -78 33 -123 15z"/>
+                <path d="M190 125 c-10 -12 -10 -18 0 -30 7 -8 18 -15 25 -15 7 0 18 7 25 15
+                10 12 10 18 0 30 -7 8 -18 15 -25 15 -7 0 -18 -7 -25 -15z"/>
+              </g>
+            </svg>
+          </icon>
+          <br>
+          <button type="button" class="change-pass-button-bump" onclick="showPassword(this, ['pass-input', 'pass-input-two'])">show passwords</button>
+          <button type="submit" class="change-pass-button-bump">schlaugh up</button>
+        </form>
+        <br>
+        <button class="text-button special meta-panel-button" onclick="backToLogInMenu();">back</button>
+      </div>
+      
+      <div id="in" class="removed">
+        <h2>user login</h2>
+        <br>
+        <form action="javascript:void(0);" onSubmit="login();">
+          <input class="login-input" id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
+          <br>
+          <input class="login-input" id="in-pass-input" type="password" name="password" autocomplete="current-password" placeholder="password">
+          <br>
+          <button type="button" class="change-pass-button-bump" onclick="showPassword(this, ['in-pass-input', 'pass-input-two'])">show password</button>
+          <button type="submit" class="change-pass-button-bump">schlaugh in</button>
+          <br><br>
+        </form>
+        <button id="lost-pass" onclick="switchPanel('lost-panel')">lost password?</button>
+        <br><br>
+        <button class="text-button special meta-panel-button" onclick="backToLogInMenu();">back</button>
+      </div>
+
+  </div>
+
+  <div id="about-section">
+    schlaugh&nbspis&nbspa&nbspquiet&nbspplace for reading&nbspand&nbspwriting
+    <br><br>
+    schlaugh&nbsponly&nbspupdates once&nbspa&nbspday<br>
+    so&nbspyou&nbsponly&nbspcheck&nbspit once&nbspa&nbspday
+    <br><br>
+    there&nbspis&nbspno&nbspliking, there&nbspis&nbspno&nbspcommenting, there&nbspis&nbspno&nbspnoise<br>
+    there&nbspis&nbsponly reading&nbspand&nbspwriting
+    <br><br>
+    you&nbspmay&nbspmake one&nbsppost&nbspper&nbspday<br>
+    there&nbspis&nbspno&nbsprush<br><br>
+    <3
+  </div>
+
+  <div id="faq-section" data-nosnippet>
+    <div class="post"><text class="post-title">FAQ</text>
+      <div id="faq" class="reader-font"></div>
+    </div>
+
+    <h2><a href="/" class="special clicky" onclick="backToMain(event);">back</a></h2>
+  </div>
+</div>
+
+
+<div id="write-panel" class="removed" data-nosnippet>
 
   <div id="post-preview">
     <div id="pending-status">no pending post for tomorrow</div>
@@ -160,7 +250,7 @@
   </div>
 </div>
 
-<div id="posts-panel" class="removed">
+<div id="posts-panel" class="removed" data-nosnippet>
   <div id="schlaunquer-reminder" class="removed post-background">
     <u>REMINDER</u><br>
     <text id="schlaunquer-reminder-single" class="removed">your are currently engaged in a match of <a href="/~schlaunquer" class="clicky special" onclick="modKeyCheck(event, function () {openSchlaunquerPanel();});"><b>schlaunquer</b></a><br>be sure to input your moves before the schlaupdate!</text>
@@ -233,23 +323,23 @@
 
 </div>
 
-<div id="404-panel-author" class="removed">
+<div id="404-panel-author" class="removed" data-nosnippet>
   <text class="page-title-404 monospace">
     <br>but there was nobody home<br><br>
   </text>
 </div>
-<div id="404-panel-post" class="removed">
+<div id="404-panel-post" class="removed" data-nosnippet>
   <text class="page-title-404 monospace">
     <br>not even a single thing!<br><br>
   </text>
 </div>
-<div id="404-panel-existed" class="removed">
+<div id="404-panel-existed" class="removed" data-nosnippet>
   <text class="page-title-404 monospace">
     once here<br>there was something<br><br>now here<br>there is nothing<br><br><i>time</i><br><br>
   </text>
 </div>
 
-<div id="inbox-panel" class="removed">
+<div id="inbox-panel" class="removed" data-nosnippet>
   <h2>meschages</h2>
   <div id="thread-title-area" class="removed">
     <button id='back-to-inbox' onclick="closeThread()">back to inbox</button>
@@ -283,7 +373,7 @@
   <div id="thread-box"></div>
 </div>
 
-<div id="settings-panel" class="removed">
+<div id="settings-panel" class="removed" data-nosnippet>
   <h2>schlettings</h2>
   <div id="settings-container" class="content-box">
     <br><br>
@@ -415,99 +505,8 @@
   </div>
 </div>
 
-<div id="meta-panel" class="removed">
-  <div id="login-section" data-nosnippet>
-    <slogan>have you schlaughed today?</slogan>
-    <div id="inOrUp">
-      <button onclick="chooseInOrUp(false)">schlaugh in</button>
-      <h4>or</h4>
-      <button onclick="chooseInOrUp(true)">schlaugh up</button>
-      <br><br><br>
-      <button class="text-button special meta-panel-button" onclick="scrollToAboutSection();">schlaugh what?</button>
-      </div>
 
-      <div id="up" class="removed">
-        <h2>account creation</h2>
-        <br>
-        <form action="javascript:void(0);" onSubmit="signUp();">
-          <input class="login-input" id="name-input" type="text" name="username" autocomplete="username" placeholder="name">
-          <br>
-          <input class="login-input" id="email-input" type="text" name="email" autocomplete="email" placeholder="email address">
-          <br>
-          <input class="login-input" id="pass-input" type="password" name="password" autocomplete="new-password" placeholder="password">
-          <br>
-          <input class="login-input" id="pass-input-two" type="password" name="password" autocomplete="new-password" placeholder="password">
-          <br>
-          <icon onclick="optionalEmailExplain()" class="optional-email-splain clicky">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" style="height: 1em; vertical-align: -.08em;">
-              <g transform="translate(0,43) scale(0.1,-0.1)" fill="currentColor">
-                <path d="M125 413 c-80 -42 -125 -113 -125 -198 0 -122 93 -215 215 -215 122
-                0 215 93 215 215 0 85 -44 156 -122 196 -46 24 -140 25 -183 2z m186 -46 c57
-                -38 79 -81 79 -152 0 -109 -66 -175 -175 -175 -109 0 -175 66 -175 175 0 71
-                22 114 79 152 48 32 144 32 192 0z"/>
-                <path d="M162 340 c-26 -11 -47 -52 -39 -74 9 -24 24 -19 39 12 10 20 22 28
-                46 30 69 7 87 -61 22 -82 -27 -9 -36 -17 -38 -38 -3 -24 0 -28 21 -28 14 0 27
-                7 31 15 3 8 12 15 20 15 49 0 64 93 21 135 -26 27 -78 33 -123 15z"/>
-                <path d="M190 125 c-10 -12 -10 -18 0 -30 7 -8 18 -15 25 -15 7 0 18 7 25 15
-                10 12 10 18 0 30 -7 8 -18 15 -25 15 -7 0 -18 -7 -25 -15z"/>
-              </g>
-            </svg>
-          </icon>
-          <br>
-          <button type="button" class="change-pass-button-bump" onclick="showPassword(this, ['pass-input', 'pass-input-two'])">show passwords</button>
-          <button type="submit" class="change-pass-button-bump">schlaugh up</button>
-        </form>
-        <br>
-        <button class="text-button special meta-panel-button" onclick="backToLogInMenu();">back</button>
-      </div>
-      
-      <div id="in" class="removed">
-        <h2>user login</h2>
-        <br>
-        <form action="javascript:void(0);" onSubmit="login();">
-          <input class="login-input" id="in-name-input" type="text" name="username" autocomplete="username" placeholder="username">
-          <br>
-          <input class="login-input" id="in-pass-input" type="password" name="password" autocomplete="current-password" placeholder="password">
-          <br>
-          <button type="button" class="change-pass-button-bump" onclick="showPassword(this, ['in-pass-input', 'pass-input-two'])">show password</button>
-          <button type="submit" class="change-pass-button-bump">schlaugh in</button>
-          <br><br>
-        </form>
-        <button id="lost-pass" onclick="switchPanel('lost-panel')">lost password?</button>
-        <br><br>
-        <button class="text-button special meta-panel-button" onclick="backToLogInMenu();">back</button>
-      </div>
-
-  </div>
-
-  <div id="about-section">
-    schlaugh&nbspis&nbspa&nbspquiet&nbspplace for reading&nbspand&nbspwriting
-    <br><br>
-    schlaugh&nbsponly&nbspupdates once&nbspa&nbspday<br>
-    so&nbspyou&nbsponly&nbspcheck&nbspit once&nbspa&nbspday
-    <br><br>
-    there&nbspis&nbspno&nbspliking, there&nbspis&nbspno&nbspcommenting, there&nbspis&nbspno&nbspnoise<br>
-    there&nbspis&nbsponly reading&nbspand&nbspwriting
-    <br><br>
-    you&nbspmay&nbspmake one&nbsppost&nbspper&nbspday<br>
-    there&nbspis&nbspno&nbsprush<br><br>
-    <3
-  </div>
-
-  <div id="faq-section" data-nosnippet>
-    <div class="post"><text class="post-title">FAQ</text>
-      <div id="faq" class="reader-font"></div>
-    </div>
-
-    <h2><a href="/" class="special clicky" onclick="backToMain(event);">back</a></h2>
-  </div>
-</div>
-
-
-<div id="o-panel" class="removed">
-</div>
-
-<div id="edit-panel" class="removed">
+<div id="edit-panel" class="removed" data-nosnippet>
 
   <div id="old-post-preview">
     <br><br>
@@ -544,7 +543,7 @@
   </div>
 </div>
 
-<div id="lost-panel" class="removed">
+<div id="lost-panel" class="removed" data-nosnippet>
   <h2>PASSWORD RESET EMAIL REQUEST</h2><br>
   <text>please don't do this unless you absolutely super have to. your private messages are locked with your password, and changing your password in this manner will mean that those messages will be permanently locked in encryption and unrecoverable forever<br><br>anyway, enter your username and the email associated with your account. It has to be the same email that you previously entered. And we can't tell you whether it's correct or not. If it's right, you'll get an email, if not, then no email will be sent. If you didn't enter an email for your account, or don't know what you entered, then you're out of luck. But try several addresses, if you're not sure which one you used.<br><br>the recovery link we send you expires one hour from sending<br>for additional assistance: staff@schlaugh.com</text>
   <br><br>
@@ -582,13 +581,13 @@
   <br><br>
 </div>
 
-<div id="bad-recovery-panel" class="removed">
+<div id="bad-recovery-panel" class="removed" data-nosnippet>
   <h2>invalid code</h2><br>
   perhaps it has expired?<br><br>
   <button onclick="switchPanel('lost-panel'); simulatePageLoad();">try again?</button><br><br>
 </div>
 
-<div id="clicker-panel" class="removed">
+<div id="clicker-panel" class="removed" data-nosnippet>
   <h2 id="click-title">click</h2>
 
   <text class="clicker" id="click-count-preamble"></text>
@@ -601,7 +600,7 @@
   <text class="clicker" id="must-sign-in">you must be <button onclick="passPromptSubmit()" class="special text-button">signed in</button> to click</text>
 </div>
 
-<div id="schlaunquer-panel" class="removed">
+<div id="schlaunquer-panel" class="removed" data-nosnippet>
   <h2 id="schlaunquer-title">schlaunquer</h2>
   <wrapper id="schlaunquer-board-wrapper">
     <wrapper id="board-bucket"></wrapper>
@@ -751,7 +750,7 @@
   </div>
 </div>
 
-<div id="following-list" class="post-background removed">
+<div id="following-list" class="post-background removed" data-nosnippet>
   <h2>following:</h2>
   <div id="following-bucket"></div>
   <br>
@@ -760,7 +759,7 @@
   </c>
 </div>
 
-<wrapper id="appearance-options-wrapper" class="hidden">
+<wrapper id="appearance-options-wrapper" class="hidden" data-nosnippet>
   <div id="text-options-pop-up" class="hidden post-background">
     <button class='appearance-nav-button-left' onclick="toggleColorsAndTextSettings()">colors</button>
     <button class='appearance-nav-button-right' onclick="$('appearance-options-wrapper').classList.add('hidden'); $('appearance-options-open').focus();">X</button>
@@ -834,7 +833,7 @@
 
 <div id="pop-up-backing" class="hidden" onclick="blackBackingClickHandler()"></div>
 
-<div id="link-prompt" class="pop-up hidden">
+<div id="link-prompt" class="pop-up hidden" data-nosnippet>
   <form action="javascript:void(0);">
     <div class="editor-pop-up-inner-box">
       <text>target url:</text>
@@ -848,7 +847,7 @@
   </form>
 </div>
 
-<div id="img-input-prompt" class="pop-up hidden">
+<div id="img-input-prompt" class="pop-up hidden" data-nosnippet>
   <form action="javascript:void(0);">
     <div class="editor-pop-up-inner-box">
       <text>image url<a href="javascript:void(0);" onclick="imageUploadingExplain()" class="special clicky">(?)</a>: </text>
@@ -864,7 +863,7 @@
   </form>
 </div>
 
-<div id="quote-prompt" class="pop-up hidden">
+<div id="quote-prompt" class="pop-up hidden" data-nosnippet>
   <form action="javascript:void(0);">
     <div class="editor-pop-up-inner-box">
       <text>quote text:</text>
@@ -880,7 +879,7 @@
   </form>
 </div>
 
-<div id="password-prompt" class="pop-up hidden">
+<div id="password-prompt" class="pop-up hidden" data-nosnippet>
   <form action="javascript:void(0);">
     <text id="password-prompt-label"></text>
     <br><br>
@@ -899,7 +898,7 @@
   <button id="password-prompt-close">x</button>
 </div>
 
-<div id="alert" class="pop-up hidden">
+<div id="alert" class="pop-up hidden" data-nosnippet>
   <form action="javascript:void(0);">
     <text id="alert-text"></text>
     <br><br>
@@ -907,7 +906,7 @@
   </form>
 </div>
 
-<div id="confirm" class="pop-up hidden">
+<div id="confirm" class="pop-up hidden" data-nosnippet>
   <form action="javascript:void(0);">
     <text id="confirm-text"></text>
     <br><br>
@@ -916,7 +915,7 @@
   </form>
 </div>
 
-<div id="how-long" class="pop-up hidden">
+<div id="how-long" class="pop-up hidden" data-nosnippet>
   <form action="javascript:void(0);">
     <text id="how-long-text"></text><br><br>
     <text>⁘ ⁘ ⁘ ⁘ ⁘</text><br><br>
@@ -926,6 +925,6 @@
   </form>
 </div>
 
-<div id="loading-box" class="hidden no-select">
+<div id="loading-box" class="hidden no-select" data-nosnippet>
   <div id="loading-icon" class="no-select">❋</div>
 </div>
