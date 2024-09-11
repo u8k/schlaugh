@@ -266,6 +266,12 @@ var adminDeletePost = function (post_id) {
   });
 }
 
+var adminVerifyEmail = function (username, email) {
+  ajaxCall('/admin/verifyEmail', 'POST', {username: username, email:email}, function(json) {
+    console.log(json);
+  });
+}
+
 var getAllImgurURLs = function () {
   ajaxCall('/admin/users', 'POST', {text:'posts'}, function(userList) {
     var bigList = [];

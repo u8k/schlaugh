@@ -1664,6 +1664,28 @@ app.post('/admin/deletePost', function(req, res) {
   });
 });
 
+app.post('/admin/verifyEmail', function(req, res) {
+  adminGate(req, res, function () {
+    var errMsg = "email verification error<br><br>";
+    if (!req.body.email || !req.body.username) {return sendError(req, res, errMsg+"malformed request");}
+    getUserIdFromName(req, res, errMsg, req.body.username, function (userID) {
+      if (!userID) { return res.send({error:"username not found"}); }
+      readUser(req, res, 'adminErrMsg', userID, {list:['email']}, function (user) {
+        if (!user.email) {res.send({error: false, match:false});}
+        else {
+          bcrypt.compare(req.body.email, user.email, function(err, isMatch){
+            if (err) {return sendError(req, res, errMsg+err);}
+            else if (isMatch) {
+              res.send({error: false, match:true});
+            } else {
+              res.send({error: false, match:false});
+            }
+          });
+        }
+      });
+    });
+  });
+});
 
 
 // ********** clicker game *********** //
