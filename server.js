@@ -3607,8 +3607,7 @@ var getNthPageOfTaggedPostsByAnyAuthor = function (req, res) {
 
 var getAllPostsWithTagOnDate = function (req, res) {
   var errMsg = "tag fetch error<br><br>"
-  if (!req.body.date || !req.body.tag) {return sendError(req, res, errMsg+"malformed request 712");}
-  if (req.body.date > pool.getCurDate()) {return res.send({error:false, posts:[{body: 'IT DOES NOT DO TO DWELL ON DREAMS AND FORGET TO LIVE', author:"APWBD", authorPic:"https://i.imgur.com/D7HXWeX.png", _id:"5a1f1c2b57c0020014bbd5b7", key:adminB.dumbleKey}]});}
+  if (!req.body.date || !req.body.tag || req.body.date > pool.getCurDate()) {return sendError(req, res, errMsg+"malformed request 712");}
   getAuthorListFromTagListAndDate(req, res, errMsg, [req.body.tag], req.body.date, function (resp) {
     if (resp.authorList.length === 0) {
       return res.send({error:false, posts:[],});
@@ -3670,7 +3669,7 @@ app.post('/getPosts', function (req, res) {
   if (!req.body.postCode) {return sendError(req, res, errMsg+"malformed request 284");}
   var postCode = req.body.postCode;
   if (!req.body.postRef) {req.body.postRef = {}};
-  if (req.body.date && req.body.date > pool.getCurDate() && postCode !== "TFTF") {return res.send({error:false, posts:[{body: 'DIDYOUPUTYOURNAMEINTHEGOBLETOFFIRE', author:"APWBD", authorPic:"https://i.imgur.com/D7HXWeX.png", _id: "5a1f1c2b57c0020014bbd5b7", tags:{"swiper no swiping":true}, post_id: "01234567"}], tagList:[]});}
+  if (req.body.date && req.body.date > pool.getCurDate()) {return sendError(req, res, errMsg+"NUH UH");}
   //
   // repsonse must have 'posts', and ,if not included w/ posts: 'authorData'
   if (postCode === "FTTT") {return sendError(req, res, errMsg+"this is not(yet) a valid option...you must have typed this in yourself to see if it exsisted. Do you want this to be paginated? Nag staff if you want this actually to be built.");}
@@ -3871,7 +3870,6 @@ app.get('/~posts/:date', function(req, res) {
 //	TTFT
 app.get('/:author/~tagged/:tag/:page', function(req, res) {
   var author = req.params.author.toLowerCase();
-  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var page = parseInt(req.params.page);
   if (!Number.isInteger(page) || target < 0) {return return404author(req, res);}
   getUserIdFromName(req, res, errMsg, author, function (authorID) {
@@ -3885,7 +3883,6 @@ app.get('/:author/~tagged/:tag/:page', function(req, res) {
 //	TTFF
 app.get('/:author/~tagged/:tag', function(req, res) {
   var author = req.params.author.toLowerCase();
-  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
   getUserIdFromName(req, res, errMsg, author, function (authorID) {
     if (!authorID) {
@@ -3898,7 +3895,6 @@ app.get('/:author/~tagged/:tag', function(req, res) {
 //	SEARCH
 app.get('/:author/~search/:target', function(req, res) {
   var author = req.params.author.toLowerCase();
-  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
   getUserIdFromName(req, res, errMsg, author, function (authorID) {
     if (!authorID) {
@@ -3925,7 +3921,6 @@ app.get('/~/:post_id', function (req, res) {
 //	TFFT and TFTF
 app.get('/:author/~/:num', function(req, res) {
   var author = req.params.author.toLowerCase();
-  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
   var page = undefined;
   var date = undefined;
@@ -3953,7 +3948,6 @@ app.get('/:author/~/:num', function(req, res) {
 // author custom URL
 app.get('/:author/:path', function(req, res) {
   var author = req.params.author.toLowerCase();
-  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
   getUserIdFromName(req, res, errMsg, author, function (authorID) {
     if (!authorID) {return return404author(req, res);}
@@ -3972,7 +3966,6 @@ app.get('/:author/:path', function(req, res) {
 app.get('/:author', function(req, res) {
   var authorName = req.params.author.toLowerCase();
   var author = authorName.toLowerCase();
-  if (author === "admin" || author === "apwbd") {return return404author(req, res);}
   var errMsg = "author lookup error<br><br>";
   getUserIdFromName(req, res, errMsg, author, function (authorID) {
     if (!authorID) {

@@ -8,21 +8,6 @@
 
   }
 
-  exports.dumbleKey = `-----BEGIN PGP PUBLIC KEY BLOCK-----
-Version: OpenPGP.js v3.0.13
-Comment: https://openpgpjs.org
-
-xjMEW2fjIhYJKwYBBAHaRw8BAQdA+OcLoatqWo/nZxTDGMTickpKcxIG2cq1
-8SMYpzJdDDnNFWJvYiA8Ym9iQGV4YW1wbGUuY29tPsJ3BBAWCgApBQJbZ+Mi
-BgsJBwgDAgkQxwA1L9dFCHAEFQgKAgMWAgECGQECGwMCHgEAAEmNAQCc2Ojl
-ROlA7bXEyU0svf7nqMKkr0LLbNYQFSmvgkwPyQEAzI3mcfDh1G1tjqhrkrD7
-Nm3AOYP7jTgy4VJg8t/7/gHOOARbZ+MiEgorBgEEAZdVAQUBAQdAYPFb8/Lm
-kh1Rej9ih0Tz97APvQFEOSmncfX7tcZMbRkDAQgHwmEEGBYIABMFAltn4yIJ
-EMcANS/XRQhwAhsMAAARyAEA5JMTLCNuQ6mZtGz/ltMs0MuiY+r8RH2jXCI6
-uZUSqyIA/1EMtnvEAGJObl0Xbbm2ygNe/yufWQ69PfTdTavq8xoG
-=7ZeE
------END PGP PUBLIC KEY BLOCK-----`
-
   exports.getdumbData = function () {
     var dumbData = {};
 
