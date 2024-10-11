@@ -399,12 +399,14 @@ color:  #0000;
   font-size: 2.5em;
 }
 
-.post, .message, .content-box {
-  box-shadow: 0px 0px 1px 2px rgba(0, 0, 0, .1);
+.post-width, .message, .content-box {
   width: 75%;
   max-width: 1000px;
   margin: auto;
-  margin-bottom: 24px;
+}
+.post, .message, .content-box {
+  box-shadow: 3px 3px 5px 4px rgba(0, 0, 0, .15);
+  margin-bottom: 26px;
   border-radius: 6px;
   padding: 18px;
   text-align: left;
@@ -465,8 +467,15 @@ color:  #0000;
   overflow-wrap: break-word;
 }
 
-#post-bucket {
+/* #post-bucket {
   margin-top: 24px;
+} */
+
+.feed-section-title {
+  text-align: left;
+  font-size: 1.1em;
+  margin: 10px;
+  margin-left: 20px;
 }
 
 .tag-feed-option-button {
@@ -724,7 +733,7 @@ a, a.visited {
 #pending-header-preview {margin-top: 20px; margin-bottom: 20px;}
 
 @media screen and (max-width: 500px) , screen and (max-height: 500px) {
-  .post, .author-header, .content-box {width: 100%;}
+  .post-width, .author-header, .content-box {width: 100%;}
   #thread-box {width: 100%;}
   #pending-message {width: 85%}
   #post-writer, #old-post-writer, #message-writer{width: 100%;}

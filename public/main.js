@@ -264,7 +264,7 @@ var changeFont = function (value, attribute) {          // makes the new CSS rul
     value = value +", "+ fontBank[value];
   }
   if (attribute === "max-width") {
-    sheet.insertRule(".post"+" {max-width: "+value+"px;}", sheet.cssRules.length);
+    sheet.insertRule(".post-width"+" {max-width: "+value+"px;}", sheet.cssRules.length);
   } else {
     sheet.insertRule(".reader-font"+" {"+attribute+": "+value+";}", sheet.cssRules.length);
   }
@@ -2236,12 +2236,15 @@ var displayPosts = function (idArr, input, callback) {
   destroyAllChildrenOfElement($("post-bucket"));
 
   var pc = input.postCode;
-  // filter out posts from non-followers, if feed and not includeTaggedPosts
-  if ((pc === 'FFTT' || pc === 'FFTF') && !_npa(['glo','settings','includeTaggedPosts']) && input.date <= pool.getCurDate()) {
+  var nonFollowIdArr = [];
+  // filter out posts from non-followers, if feed 
+  if (pc === 'FFTT' || pc === 'FFTF') {
     var filtered = [];
     for (var i = 0; i < idArr.length; i++) {
       if (_npa(['glo','followingRef', _npa(['glo','postStash', idArr[i], '_id'])])) {
         filtered.push(idArr[i]);
+      } else {
+        nonFollowIdArr.push(idArr[i]);
       }
     }
     idArr = filtered;
@@ -2268,6 +2271,43 @@ var displayPosts = function (idArr, input, callback) {
     four04elem.innerHTML = "<c><br>not even a single thing!<br><br></c>"
     four04elem.setAttribute('class', "post page-title-404 monospace");
     $("post-bucket").appendChild(four04elem);
+
+  } else if (pc === 'FFTT' || pc === 'FFTF') {  // main feed
+
+    var followingSectionTitle = document.createElement("div");
+    followingSectionTitle.classList.add('feed-section-title');
+    if (idArr.length === 0) {
+      followingSectionTitle.innerHTML = "no posts on this day by people you follow,";      
+    } else {
+      followingSectionTitle.innerHTML = "posts by people you follow:";
+    }
+    $("post-bucket").appendChild(followingSectionTitle);
+    
+    for (var i = 0; i < idArr.length; i++) {
+      $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
+    }
+    
+    if (idArr.length !== 0) {
+      $("post-bucket").appendChild(document.createElement("br"))
+      $("post-bucket").appendChild(document.createElement("hr"))
+    }
+    var tagSectionTitle = document.createElement("div");
+    tagSectionTitle.classList.add('feed-section-title');
+    if (nonFollowIdArr.length === 0) {
+      if (idArr.length === 0) {
+        tagSectionTitle.innerHTML = "and no posts using tags that you follow";
+      } else {
+        tagSectionTitle.innerHTML = "no posts on this day using tags that you follow (made by people you do not follow)";
+      }
+    } else {
+      tagSectionTitle.innerHTML = "posts using tags that you follow (made by people you do not follow (yet)):";
+    }
+    $("post-bucket").appendChild(tagSectionTitle);
+
+    for (var i = 0; i < nonFollowIdArr.length; i++) {
+      $("post-bucket").appendChild(renderOnePost(null, postType, nonFollowIdArr[i]));
+    }
+
   } else {
     for (var i = 0; i < idArr.length; i++) {
       $("post-bucket").appendChild(renderOnePost(null, postType, idArr[i]));
@@ -2275,7 +2315,7 @@ var displayPosts = function (idArr, input, callback) {
   }
 
 
-  //
+  // set visibility of button to expand/collapse all notes, which is only for search results
   $('collapse-all-notes-button').classList.add("removed");
   if (pc === "SEARCH") {
     $('expand-all-notes-button').classList.remove("removed");
@@ -2285,6 +2325,7 @@ var displayPosts = function (idArr, input, callback) {
     openSearchOptions('bot', true);
   }
 
+  // no posts to display
   if (idArr.length === 0 && pc !== "TFTF") {
     $("post-bucket").appendChild(notSchlaugh(pc, input.date));
     $("bot-page-and-date-nav").classList.add("removed");
@@ -2294,6 +2335,7 @@ var displayPosts = function (idArr, input, callback) {
   }
 
   $("post-bucket").classList.remove("removed");
+
   //
   glo.postPanelStatus = input;
   if (postType === 'author' || pc === "TFTF" || pc === "SEARCH" || pc === "MARK") {
@@ -4308,7 +4350,7 @@ var flushPostListAndReloadCurrentDate = function () {
   }
 }
 
-var toggleTaggedPostsInclusion = function () {
+/*var toggleTaggedPostsInclusion = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "includeTaggedPosts"}, function(json) {
     if (glo.settings.includeTaggedPosts) {
       $('include-tagged-posts-toggle').value = 'false';
@@ -4319,7 +4361,7 @@ var toggleTaggedPostsInclusion = function () {
     }
     fetchPosts(true);
   });
-}
+}*/
 
 var setPostStreamDirection = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "sortOldestPostsAtTop"}, function(json) {});
@@ -6394,11 +6436,11 @@ var parseUserData = function (data) { // also sets glos and does some init "stuf
       }
     }
     //
-    if (glo.settings.includeTaggedPosts) {
-      $('include-tagged-posts-toggle').value = 'true';
-    } else {
-      $('include-tagged-posts-toggle').value = 'false';
-    }
+    // if (glo.settings.includeTaggedPosts) {
+    //   $('include-tagged-posts-toggle').value = 'true';
+    // } else {
+    //   $('include-tagged-posts-toggle').value = 'false';
+    // }
     //
     if (glo.settings.autoSaveTagsOnUse) {
       $('auto-save-tags-on-use-toggle').value = 'true';

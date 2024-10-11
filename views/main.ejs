@@ -223,7 +223,7 @@
 
   <div id="post-preview">
     <div id="pending-status">no pending post for tomorrow</div>
-    <div id="pending-post" class="removed"></div>
+    <div id="pending-post" class="post-width removed"></div>
     <button type="button"  class="below-editor-button" id='write-post-button' onclick="showPostWriter()">new post</button>
     <button id='delete-pending-post' class="below-editor-button removed" onclick="submitPost(true)">delete</button><br><br>
     <text id="pending-post-link"></text>
@@ -276,13 +276,13 @@
         <text id="none-tags">(none)</text>
         <div id="tag-bucket"></div>
         <br>
-        <text>include tagged posts in feed</text>
+        <!-- <text>include tagged posts in feed</text>
         <select id="include-tagged-posts-toggle" onchange="toggleTaggedPostsInclusion()">
           <option>true</option>
           <option>false</option>
         </select>
         <a href="javascript:void(0);" onclick="uiAlert(`checking this box means that posts with tags you are tracking will show up in your main feed alongside posts of people you are following`, `aight`)" class="special clicky"> (?)</a>
-        <br>
+        <br> -->
         <text>auto save tags you use on your own posts</text>
         <select id="auto-save-tags-on-use-toggle" onchange="toggleAutoSaveTagsOnUse()">
           <option>true</option>
@@ -315,7 +315,7 @@
   <button id="expand-all-notes-button" class='removed' onclick="expandAllNotes(true)">expand all notes and cuts</button>
   <button id="collapse-all-notes-button" class='removed' onclick="expandAllNotes(false)">collapse all notes and cuts</button>
 
-  <div id="post-bucket" data-nosnippet></div>
+  <div id="post-bucket" class="post-width" data-nosnippet></div>
 
   <%- include("authorHeader", {kind: "bot"}) %>
 
@@ -513,7 +513,7 @@
     <a class="special" id="edit-panel-title" class="author-size-0">back</a>
     <br><br>
     <div id="old-post-status"></div>
-    <div id="pending-post-edit" class="removed"></div>
+    <div id="pending-post-edit" class="post-width removed"></div>
 
     <%- include("authorHeader", {kind: "edit"}) %>
 

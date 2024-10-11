@@ -2860,7 +2860,7 @@ var createNewUserObject = function (username, passHash, emailHash) {
     following: [],
     accountCreatedOn: today,
     iconURI: snakeBank[Math.floor(Math.random() * (snakeBank.length))],
-    settings: {includeTaggedPosts:true},
+    settings: {},
     savedTags: ["@"+username, "milkshake"],
   }
   return object;
