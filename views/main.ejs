@@ -224,8 +224,10 @@
   <div id="post-preview">
     <div id="pending-status">no pending post for tomorrow</div>
     <div id="pending-post" class="post-width removed"></div>
-    <button type="button"  class="below-editor-button" id='write-post-button' onclick="showPostWriter()">new post</button>
-    <button id='delete-pending-post' class="below-editor-button removed" onclick="submitPost(true)">delete</button><br><br>
+    <button type="button"  class="below-editor-button-alt" id='write-post-button' onclick="showPostWriter()">new post</button>
+    <button type="button"  class="below-editor-button-alt" id='promote-post-button' onclick="submitPost(false, false)">set to publish</button>
+    <button type="button"  class="below-editor-button-alt" id='demote-post-button' onclick="submitPost(false, true)">demote to draft</button>
+    <button id='delete-pending-post' class="below-editor-button-alt removed" onclick="submitPost(true)">delete</button><br><br>
     <text id="pending-post-link"></text>
   </div>
 
@@ -245,8 +247,9 @@
       <input id="url-input" class="editor-input" type="text" placeholder="optional" onkeydown="editorExtraKeyHandler(event, 'post')">
     </wrapper>
     <br><br>
-    <button onclick="submitPost()" class="below-editor-button">save post</button>
-    <button onclick="cancelPost()" class="below-editor-button">cancel</button>
+    <button onclick="submitPost()" class="below-editor-button-alt">set to publish</button>
+    <button onclick="submitPost(false, true)" class="below-editor-button-alt">save as draft</button>
+    <button onclick="cancelPost()" class="below-editor-button-alt">cancel</button>
   </div>
 </div>
 
@@ -538,7 +541,7 @@
       <input id="old-url-input" class="editor-input" type="text" placeholder="optional" onkeydown="editorExtraKeyHandler(event, 'old-post')">
     </wrapper>
     <br><br>
-    <button id='submit-editing-old-post' class="below-editor-button">save post</button>
+    <button id='submit-editing-old-post' class="below-editor-button">save</button>
     <button id='cancel-edit-button' class="below-editor-button">cancel</button>
   </div>
 </div>

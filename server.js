@@ -395,7 +395,7 @@ var newSessionKey = function (userID) {
 var getPayload = function (req, res, callback) {
   var errMsg = 'unable to acquire payload<br><br>';
   checkForUserUpdates(req, res, errMsg, req.session.user._id, function () {
-    var propList = ['posts','username', 'iconURI', 'settings', 'inbox', 'keyPrivate', 'keyPublic', 'following', 'muted', 'pendingUpdates', 'bio', 'bookmarks', 'collapsed', 'savedTags', 'games', 'allowIndexing'];
+    var propList = ['posts','username', 'iconURI', 'settings', 'inbox', 'keyPrivate', 'keyPublic', 'following', 'muted', 'pendingUpdates', 'bio', 'bookmarks', 'collapsed', 'savedTags', 'games', 'drafts', 'allowIndexing'];
     readCurrentUser(req, res, errMsg, {list:propList}, function (user) {
       // check if user needs keys
       if (!user.keyPrivate || !user.keyPublic) {return res.send({needKeys:true});}
@@ -422,6 +422,9 @@ var getPayload = function (req, res, callback) {
       var tmrw = pool.getCurDate(-1);
       if (user.posts[tmrw]) {
         payload.pending = user.posts[tmrw][0];
+      } else if (user.drafts && user.drafts[0]) {
+        payload.pending = user.drafts[0];
+        payload.pending.draft = true;
       }
       //
       if (user.allowIndexing) {
@@ -2172,18 +2175,29 @@ app.post('/postPost', function(req, res) {
   var errMsg = "your post was not successfully saved<br><br>";
   if (!req.body || !req.body.key) {return sendError(req, res, errMsg+"malformed request 119");}
   //
-  readCurrentUser(req, res, errMsg, {list:['posts','username', 'postList', 'postListPending','postListUpdatedOn', 'customURLs']}, function (user) {
+  readCurrentUser(req, res, errMsg, {list:['posts','username', 'postList', 'postListPending','postListUpdatedOn', 'customURLs', 'drafts']}, function (user) {
     var userID = user._id;
     pushNewToPostlist(user);
 
     var tmrw = pool.getCurDate(-1);
     var parsedPost = pool.screenInputTextForImagesAndLinks(req.body.body);
-    //
-    if (req.body.remove || (parsedPost.string === "" && !req.body.tags && !req.body.title)) {                 //remove pending post, do not replace
-      deletePost(req, res, errMsg, user, tmrw, function () {
-        pongOnPostSubmit(userID, req.body.key, false);
-        return res.send({error:false, body:"", tags:{}, title:""});
-      });
+
+    //remove pending post, do not replace
+    if (req.body.remove || (parsedPost.string === "" && !req.body.tags && !req.body.title)) {
+
+      if (user.drafts && user.drafts[0]) {
+        user.drafts = [];
+        writeToUser(req, res, errMsg, user, function () {
+          pongOnPostSubmit(userID, req.body.key, false);
+          return res.send({error:false, body:"", tags:{}, title:""});
+        });
+
+      } else {
+        deletePost(req, res, errMsg, user, tmrw, function () {
+          pongOnPostSubmit(userID, req.body.key, false);
+          return res.send({error:false, body:"", tags:{}, title:""});
+        });
+      }
     } else {
       linkValidate(parsedPost.linkList, function (linkProblems) {
         //
@@ -2192,20 +2206,49 @@ app.post('/postPost', function(req, res) {
         var title = validatePostTitle(req.body.title);
         if (title.error) {return sendError(req, res, errMsg+title.error);}
         //
-        var urlVal = validatePostURL(user, tmrw, req.body.url);
-        if (urlVal.error) {return sendError(req, res, errMsg+urlVal.error);}
-        if (urlVal.deny) {return res.send(urlVal);}
-        var url = urlVal.url;
-        user = urlVal.user;
+        if (!req.body.asDraft) {
+          var urlVal = validatePostURL(user, tmrw, req.body.url);
+          if (urlVal.error) {return sendError(req, res, errMsg+urlVal.error);}
+          if (urlVal.deny) {return res.send(urlVal);}
+          var url = urlVal.url;
+          user = urlVal.user;
+        }
         //
         imageValidate(parsedPost.imgList, function (resp) {
           if (resp.error) {return sendError(req, res, errMsg+resp.error);}
-          updateUserPost(req, res, errMsg, parsedPost.string, tags, title, url, userID, user, function () {
-            writeToUser(req, res, errMsg, user, function () {
-              pongOnPostSubmit(userID, req.body.key, {body:parsedPost.string, tags:tags, title:title, url:url});
-              return res.send({error:false, body:parsedPost.string, tags:tags, title:title, url:url, linkProblems:linkProblems});
+
+          if (req.body.asDraft) {
+            user.drafts = [{
+              body: parsedPost.string,
+              tags: tags,
+              title: title,
+              url: url,
+            }];
+            if (user.posts[tmrw]) {
+              writeToUser(req, res, errMsg, user, function () {
+                user._id = userID;
+                deletePost(req, res, errMsg, user, tmrw, function () {
+                  pongOnPostSubmit(userID, req.body.key, {body:parsedPost.string, tags:tags, title:title, url:url, draft:true});
+                  return res.send({error:false, body:parsedPost.string, tags:tags, title:title, url:url, linkProblems:linkProblems});
+                });
+              });
+            } else {
+              writeToUser(req, res, errMsg, user, function () {
+                pongOnPostSubmit(userID, req.body.key, {body:parsedPost.string, tags:tags, title:title, url:url, draft:true});
+                return res.send({error:false, body:parsedPost.string, tags:tags, title:title, url:url, linkProblems:linkProblems});
+              });
+            }
+
+          } else {
+            // clear drafts, since they are scheduling for publish, and can only have one or the other
+            user.drafts = [];
+            updateUserPost(req, res, errMsg, parsedPost.string, tags, title, url, userID, user, function () {
+              writeToUser(req, res, errMsg, user, function () {
+                pongOnPostSubmit(userID, req.body.key, {body:parsedPost.string, tags:tags, title:title, url:url});
+                return res.send({error:false, body:parsedPost.string, tags:tags, title:title, url:url, linkProblems:linkProblems});
+              });
             });
-          });
+          }
         });
       });
     }

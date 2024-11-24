@@ -4066,7 +4066,7 @@ var destroyAllChildrenOfElement = function (elem) {
   }
 }
 
-var submitPost = function (remove) { //also handles editing and deleting
+var submitPost = function (remove, asDraft) { //also handles editing and deleting
   var text = $('post-editor').value;
   //
   if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
@@ -4085,13 +4085,15 @@ var submitPost = function (remove) { //also handles editing and deleting
   }
   // have changes been made?
   if (!remove && glo.pending && glo.pending.body === text) {
-    if (glo.pending.title === title) {
-      if (glo.pending.url === url) {
-        if (getTagString(glo.pending.tags) === tags) {
-          if (!glo.debugMode) {
-            ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+    if (asDraft === glo.pending.draft) {
+      if (glo.pending.title === title) {
+        if (glo.pending.url === url) {
+          if (getTagString(glo.pending.tags) === tags) {
+            if (!glo.debugMode) {
+              ajaxCall('/~postEditorOpen', 'POST', {key:glo.sessionKey, isEditorOpen:false});
+            }
+            return hideWriter('post');
           }
-          return hideWriter('post');
         }
       }
     }
@@ -4107,10 +4109,11 @@ var submitPost = function (remove) { //also handles editing and deleting
     });
   } else {
     loading();
-    ajaxCall("/postPost", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey}, function(json) {
+    ajaxCall("/postPost", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey, asDraft:asDraft}, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
       var popup = false;
       if (json.linkProblems) {uiAlert(json.linkProblems); popup = true;}
+      json.draft = asDraft;
       updatePendingPost(json, popup);
       // save tags on the post, if they have that setting on
       if (_npa(['glo','settings','autoSaveTagsOnUse'])) {
@@ -4170,10 +4173,13 @@ var cancelPost = function () {
 var updatePendingPost = function (post, popup) {
   if (!post) {
     glo.pending = false;
-    $('pending-status').innerHTML = "no pending post for tomorrow";
+    $('pending-status').classList.add("removed");
     $('pending-post-link').classList.add("removed");
     $('delete-pending-post').classList.add("removed");
+    $('promote-post-button').classList.add("removed");
+    $('demote-post-button').classList.add("removed");
     $('pending-post').classList.add("removed");
+    $('write-post-button').classList.add("below-editor-button-with-added-margin-top");
     $('write-post-button').innerHTML = "new post";
     post = {};
     post.body = "";
@@ -4186,17 +4192,33 @@ var updatePendingPost = function (post, popup) {
     glo.pending.tags = post.tags;
     glo.pending.title = post.title;
     glo.pending.url = post.url;
-    $('pending-post-link').classList.remove("removed");
-    if (post.url) {
-      var pendingLinkText = `(after the schlaupdate) your post will be available at:<br><code>schlaugh.com/`+glo.username+"/"+post.url+`</code><br>and<br><code>schlaugh.com/`+glo.username+"/~/"+pool.getCurDate(-1)+`</code>`
+    glo.pending.draft = post.draft;
+
+    if (post.draft) {
+      $('pending-status').innerHTML = "unscheduled draft:";
+      $('promote-post-button').classList.remove("removed");
+      $('demote-post-button').classList.add("removed");
+      $('pending-post-link').classList.add("removed");
+      
     } else {
-      var pendingLinkText = `(after the schlaupdate) your post will be available at:<br><code>schlaugh.com/`+glo.username+"/~/"+pool.getCurDate(-1)+`</code>`
+      $('pending-status').innerHTML = "scheduled post for next schlaupdate:";
+      $('promote-post-button').classList.add("removed");
+      $('demote-post-button').classList.remove("removed");
+      
+      $('pending-post-link').classList.remove("removed");
+      if (post.url) {
+        var pendingLinkText = `(after the schlaupdate) your post will be available at:<br><code>schlaugh.com/`+glo.username+"/"+post.url+`</code><br>and<br><code>schlaugh.com/`+glo.username+"/~/"+pool.getCurDate(-1)+`</code>`
+      } else {
+        var pendingLinkText = `(after the schlaupdate) your post will be available at:<br><code>schlaugh.com/`+glo.username+"/~/"+pool.getCurDate(-1)+`</code>`
+      }
+      $('pending-post-link').innerHTML = pendingLinkText;
     }
-    $('pending-post-link').innerHTML = pendingLinkText;
-    $('pending-status').innerHTML = "your pending post for tomorrow:";
+
+    $('pending-status').classList.remove("removed");
     $('delete-pending-post').classList.remove("removed");
     $('pending-post').classList.remove("removed");
-    $('write-post-button').innerHTML = "edit post";
+    $('write-post-button').classList.remove("below-editor-button-with-added-margin-top");
+    $('write-post-button').innerHTML = "edit";
   }
   var tags = getTagString(post.tags);
   $('tag-input').value = tags;
@@ -6669,7 +6691,9 @@ var performFrontEndSchlaupdate = function () {
     if (isAnEditorOpen()) {
       uiAlert(`It's Schlaupdate isn't it? Isn't it Schlaupdate?<br><br>And it seems you have an editor open, potentially holding unsaved changes! Just a heads up, if you submit the text in the editor, it will now be scheduled to post for the <i>next</i> schlaugh day, not this day that just started right now. If you had previously submitted a prior version of that post/message, then that will have just published/sent for today.`, null, null, true)
     } else {
-      updatePendingPost(null);  // removes a saved pending post, now that it's published
+      if (glo.pending && !glo.pending.draft) {
+        updatePendingPost(null);  // removes a saved pending post, now that it's published
+      }
       ajaxCall('/getInbox', 'POST', {}, function(json) {
         glo.threads = json.threads;
         glo.threadRef = {};

@@ -300,6 +300,8 @@ color:  #0000;
 }
 
 .below-editor-button{ margin-right: 15px; margin-left: 15px;}
+.below-editor-button-alt{ margin: 5px;}
+.below-editor-button-with-added-margin-top{ margin-top: 45px; }
 
 #post-writer, #old-post-writer, #message-writer {width: 75%; margin: auto;}
 
