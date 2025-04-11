@@ -266,6 +266,12 @@ var adminDeletePost = function (post_id) {
   });
 }
 
+var adminDeleteUser = function (user_id) {
+  ajaxCall('/admin/deleteUser', 'POST', {user_id: user_id}, function(json) {
+    console.log(json);
+  });
+}
+
 var adminVerifyEmail = function (username, email) {
   ajaxCall('/admin/verifyEmail', 'POST', {username: username, email:email}, function(json) {
     console.log(json);

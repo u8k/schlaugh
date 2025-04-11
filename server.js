@@ -202,8 +202,13 @@ var imageValidate = function (arr, callback, byteLimit) {
         fetchHeaders(arr[index], function (error, resp) {
           if (count > 0) {
             count -=1;
-            if (error || resp.status !== 200) {
-              count = 0;
+            //
+            if (arr[index].startsWith("https://i.imgur.com/")) {
+              // TEMPORARY NONSENSE TO GET AROUND IMGUR SUDDENLY DENYING ME
+              
+            } else if (error || resp.status !== 200) {
+            // if (error || resp.status !== 200) {
+              count = 0;              
               return callback({error:'the url for image '+(index+1)+' seems to be invalid'});
             } else if (!resp.headers['content-type'] || (resp.headers['content-type'].substr(0,5) !== "image" && resp.headers.server !== "AmazonS3")) {
               count = 0;
@@ -427,8 +432,8 @@ var getPayload = function (req, res, callback) {
         payload.pending.draft = true;
       }
       //
-      if (user.allowIndexing) {
-        payload.settings.allowIndexing = true;
+      if (user.allowIndexing !== undefined) {
+        payload.settings.allowIndexing = user.allowIndexing;
       }
       //
       if (user.pendingUpdates && user.pendingUpdates.updates) {
@@ -1662,6 +1667,24 @@ app.post('/admin/deletePost', function(req, res) {
             return res.send({error:false});
           });
         } else {return res.send({error:"postID and date miscoresponce"});}
+      });
+    });
+  });
+});
+
+app.post('/admin/deleteUser', function(req, res) {
+  adminGate(req, res, function () {
+    if (!req.body.user_id) {return res.send({error:"malformed request 6817"});}
+    
+    readUser(req, res, 'adminErrMsg', req.body.user_id, {}, function (user) {
+      if (!user) {return res.send({error:"user not found"});}
+
+      dbDeleteByID(req, res, 'adminErrMsg', 'users', user._id, function (resp) {
+        if (resp && resp.error) {return res.send({error:resp.error});}
+        dbDeleteByID(req, res, 'adminErrMsg', 'userUrls', user.username, function (resp) {
+          if (resp && resp.error) {return res.send({error:resp.error});}
+          return res.send({error:false});
+        });
       });
     });
   });
