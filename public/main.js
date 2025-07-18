@@ -3399,6 +3399,12 @@ var createPostFooter = function (postElem, postData, type) {
       permalinkButton.title = "permalink";
       permalinkButton.onclick = function(event) {
         modKeyCheck(event, function(){
+          // copy link to clipboard
+          if (navigator && navigator.clipboard) {
+            navigator.clipboard.writeText(permalinkButton.href);
+            showChillNotification('link copied to clipboard');
+          }
+
           fetchPosts(true, {postCode:"TFTF", author:postData._id , date:postData.date , post_url:link , post_id:postData.post_id})
         });
       }
@@ -3750,6 +3756,20 @@ var showPostFooterNotification = function (text, postID) {
   }, 4000);
 }
 
+var showChillNotification = function (text) {
+  $('chill-notification').innerHTML = text;
+  $('chill-notification').classList.add('chill-notification-fade');
+  $('chill-notification').style.opacity="0";
+  $('chill-notification').classList.remove('hidden');
+  setTimeout(function () {
+    if ($('chill-notification')) {
+      $('chill-notification').classList.remove('chill-notification-fade');
+      $('chill-notification').classList.add('hidden');
+      $('chill-notification').style.opacity="1";
+    }
+  }, 4000);
+}
+
 var deletePost = function (post) {
   verify('you would like to Permanently and Immediately delete this post?', 'yeah', 'nope', function (resp) {
     if (!resp) {return}
@@ -4066,7 +4086,7 @@ var destroyAllChildrenOfElement = function (elem) {
   }
 }
 
-var submitPost = function (remove, asDraft) { //also handles editing and deleting
+var submitPost = function (remove, asDraft, asIs) { //also handles editing and deleting
   var text = $('post-editor').value;
   //
   if (!_npa(['glo','settings','isUsingHtmlEditorMode'])) {
@@ -4109,6 +4129,12 @@ var submitPost = function (remove, asDraft) { //also handles editing and deletin
     });
   } else {
     loading();
+    if (asIs) {
+      if (glo.pending) {
+        asDraft = glo.pending.draft
+      }
+      // else, defaults to asDraft = false
+    }
     ajaxCall("/postPost", 'POST', {body:text, tags:tags, title:title, url:url, key:glo.sessionKey, asDraft:asDraft}, function(json) {
       if (json.deny) {loading(true); return uiAlert(json.deny);}
       var popup = false;
@@ -5581,34 +5607,42 @@ var edButtHand = {
   spoil: function (kind) {styleText('spoil', kind);},
   //
   submit: function (kind) {
-    if (kind === "post") { return submitPost();}
+    if (kind === "post") { return submitPost(false, false, true);}
     if (kind === "message") { return submitMessage();}
     if (kind === "old-post") { return $('submit-editing-old-post').onclick();}
-  }
+  },
+  submitToPublish: function (kind) {
+    if (kind === "post") { return submitPost(false, false);}
+  },
+  submitAsDraft: function (kind) {
+    if (kind === "post") { return submitPost(false, true);}
+  },
 }
 
 var showEditorHotkeyList = function () {
-  uiAlert(`<ascii>        Ctrl + b  =>  bold
-        Ctrl + i  =>  italic
-        Ctrl + u  =>  underline
-Ctrl + Shift + K  =>  strikethrough
-        Ctrl + l  =>  bullet item
-Ctrl + Shift + L  =>  number item
-        Ctrl + h  =>  link
-        Ctrl + p  =>  img
-        Ctrl + o  =>  note
-        Ctrl + q  =>  quote
-        Ctrl + r  =>  hr
-        Ctrl + 8  =>  left
-        Ctrl + 9  =>  center
-        Ctrl + 0  =>  right
-        Ctrl + m  =>  cut
-        Ctrl + j  =>  code
-        Ctrl + k  =>  LaTeX(KaTeX)
-        Ctrl + g  =>  ascii
-        Ctrl + d  =>  spoil
-Ctrl + Enter or s => submit/save
-              Esc => cancel</ascii>`, 'oh wow');
+  uiAlert(`<ascii>                   Ctrl + b  =>  bold
+                   Ctrl + i  =>  italic
+                   Ctrl + u  =>  underline
+           Ctrl + Shift + K  =>  strikethrough
+                   Ctrl + l  =>  bullet item
+           Ctrl + Shift + L  =>  number item
+                   Ctrl + h  =>  link
+                   Ctrl + p  =>  img
+                   Ctrl + o  =>  note
+                   Ctrl + q  =>  quote
+                   Ctrl + r  =>  hr
+                   Ctrl + 8  =>  left
+                   Ctrl + 9  =>  center
+                   Ctrl + 0  =>  right
+                   Ctrl + m  =>  cut
+                   Ctrl + j  =>  code
+                   Ctrl + k  =>  LaTeX(KaTeX)
+                   Ctrl + g  =>  ascii
+                   Ctrl + d  =>  spoil
+          Ctrl + Enter or s  =>  submit/save(as is)
+Ctrl + Shift + (Enter or s)  =>  submit/save(publish)
+  Ctrl + Alt + (Enter or s)  =>  submit/save(as draft)
+                        Esc  =>  cancel</ascii>`, 'oh wow');
 }
 
 var ulHotkeyRouter = function (kind) {
@@ -5638,6 +5672,12 @@ glo.editorHotKeys = {
       Z: redo,
       L: olHotKeyRouter,
       K: edButtHand.strike,
+      Enter: edButtHand.submitToPublish,
+      s: edButtHand.submitToPublish,
+    },
+    alt: {
+      Enter: edButtHand.submitAsDraft,
+      s: edButtHand.submitAsDraft,
     },
     z: undo,
     y: redo,
@@ -5673,13 +5713,19 @@ var editorKeyHandler = function (event, kind) {
   if (event.key === "F2") { return showEditorHotkeyList(); }
   if (event.key === "Escape") { return cancelEditor(kind); }
 
+  
   if ((event.ctrlKey || event.metaKey) && _npa(['event','key',]) !== "Control") {  // ctrl(or meta)
     if (event.shiftKey && _npa(['event','key',]) !== "Shift") {                    // + shift
       if (_npa(['glo','editorHotKeys','ctrlKey','shift',event.key])) {
         event.preventDefault();
         _npa(['glo','editorHotKeys','ctrlKey','shift', event.key])(kind);
       }
-    } else if (_npa(['glo','editorHotKeys','ctrlKey', event.key])) {          // no shift
+
+    } else if (event.altKey && _npa(['event','key',]) !== "Alt") {                // + Alt
+      event.preventDefault();
+      _npa(['glo','editorHotKeys','ctrlKey','alt', event.key])(kind);
+      
+    } else if (_npa(['glo','editorHotKeys','ctrlKey', event.key])) {          // no shift nor alt
       event.preventDefault();
       _npa(['glo','editorHotKeys','ctrlKey', event.key])(kind);
     }
@@ -7071,7 +7117,12 @@ var postSearchButtonFire = function (loc) {
 
 var searchResultQuantityGate = function (length, targetString, callback) {
   if (length > 89) {
-    return uiAlert(`erm so, it would seem that the search you are attempting to run has turned up, *checks notes* ah yes, <b>`+length+`</b> posts that each contain this "`+targetString+`" string that you so desire. Unfortunately it has been determined that this is a number of posts that is sufficiently likely to brick your browser, such that i will not be attempting to display them for you. I don't know, man, what do you want, paginated search results? Probably if you are looking for some specific post and your search term is returning this many results than this search isn't useful anyway and you should try something else. Tell @staff how you think this should work`);
+    verify(`erm so, it would seem that the search you are attempting to run has turned up, *checks notes* ah yes, <b>`+length+`</b> posts that each contain this "`+targetString+`" string that you so desire. Displaying that number of posts might brick your browser, particularly if you're on a phone or otherwise RAM constrained rn. Up to you if you want to try it.`, 'show the posts!', "nvmd, that's a lot", function (resp) {
+        if (!resp) {return;}
+        else {
+          callback();
+        }
+    });
   } else {
     callback();
   }

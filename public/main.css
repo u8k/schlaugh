@@ -945,6 +945,25 @@ slogan {
   #appearance-options-open {right: 5px; bottom: 0px; font-size: 1.5em;}
 }
 
+#chill-notification {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  border-radius: 4px;
+  padding: 10px;
+  box-shadow: 0px 0px 4px 0px;
+}
+@media screen and (max-width: 500px) {
+  #chill-notification {
+    left: -2.5px;
+    bottom: -2.5px;
+  }
+}
+.chill-notification-fade {
+  transition: opacity 2.5s ease-out;
+  transition-delay: 1.5s
+}
+
 .pop-up {
   padding: 15px;
   position: fixed;

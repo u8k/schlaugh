@@ -3570,23 +3570,34 @@ var getAllOfAnAuthorsPostsWithTag = function (req, res) {
         if (author.posts[pL[i].date] && author.posts[pL[i].date][pL[i].num]) {
           // strip out private posts
           if (!author.posts[pL[i].date][pL[i].num].private || (req.session.user && ObjectId.isValid(req.session.user._id) && String(req.session.user._id) === String(authorID))) {
+            
             // does it have the tags we want?
-            if (author.posts[pL[i].date][pL[i].num].tags && author.posts[pL[i].date][pL[i].num].tags[req.body.tag]) {
-              //
-              if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
-                posts.push({
-                  body: author.posts[pL[i].date][pL[i].num].body,
-                  tags: author.posts[pL[i].date][pL[i].num].tags,
-                  title: author.posts[pL[i].date][pL[i].num].title,
-                  url: author.posts[pL[i].date][pL[i].num].url,
-                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                  private: author.posts[pL[i].date][pL[i].num].private,
-                  date: pL[i].date,
-                });
-              } else {
-                posts.push({
-                  post_id: author.posts[pL[i].date][pL[i].num].post_id,
-                });
+            const tags = author.posts[pL[i].date][pL[i].num].tags;
+            if (tags) {
+              // Normalize the requested tag
+              const wantedTag = req.body.tag.toLowerCase();
+            
+              // Look for a matching tag key, case-insensitive
+              const found = Object.keys(tags).some(
+                key => key.toLowerCase() === wantedTag
+              );
+            
+              if (found) {
+                if (!req.body.postRef[author.posts[pL[i].date][pL[i].num].post_id]) {
+                  posts.push({
+                    body: author.posts[pL[i].date][pL[i].num].body,
+                    tags: author.posts[pL[i].date][pL[i].num].tags,
+                    title: author.posts[pL[i].date][pL[i].num].title,
+                    url: author.posts[pL[i].date][pL[i].num].url,
+                    post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                    private: author.posts[pL[i].date][pL[i].num].private,
+                    date: pL[i].date,
+                  });
+                } else {
+                  posts.push({
+                    post_id: author.posts[pL[i].date][pL[i].num].post_id,
+                  });
+                }
               }
             }
           }
