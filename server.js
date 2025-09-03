@@ -56,10 +56,23 @@ if (process.env.MONGO_DB_KEY) {
   devFlag = true; // on production we'll always have the DB key, so if we don't have the DB key, put it in dev mode
 }
 
-// sendgrid email config
-var sgMail = require('@sendgrid/mail');
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
+// Resend email config
+var { Resend } = require("resend");
+var resend;
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+  
+  function sendResendEmail(msg, callback) {
+    resend.emails.send({
+      to: msg.to,
+      from: msg.from,
+      subject: msg.subject,
+      html: msg.html,
+    })
+    .then(() => callback(null))
+    .catch((err) => callback(err));
+  }
+}
 
 
 //*******//HELPER FUNCTIONS//*******//
@@ -526,14 +539,16 @@ var incrementStat = function (kind) {
             to: "staff@schlaugh.com",
             from: 'noreply@schlaugh.com',
             subject: 'day '+dayOfYear,
-            text: `beep boop email is still working\n\n<3`,
+            html: `beep boop email is still working\n\n<3`,
           };
-          sgMail.send(msg, (error) => {
+          sendResendEmail(msg, (error) => {
             if (error) { sendError(null, null, "email server malapropriationologification"); }
-            // that's all
           });
         }
       });
+    } else if (stat.error) {
+      return;      
+
     } else {
       var x = 1;
       if (stat[kind]) {x = stat[kind] + 1;}
@@ -1212,10 +1227,12 @@ var getProjection = function (props, dates) {
 // CRUD (or RRCUD) 
 var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, callback) {
   // 'collection' is the name of the database table, 'projection' is output from 'getProjection'
+  // the "projection" object is actually an "options" object that contains a "projection" prop, but we never use any of the other options
   //
   var query = {_id: _id};
   var dbTimer = setDbTimer(req, res, errMsg);
-
+  if (!projection) { projection = {}; }
+  
   db.collection(collection).findOne(query, projection)
   .then(document => {
     cancelDbTimer(dbTimer, () => {
@@ -1359,11 +1376,14 @@ var dbDeleteByID = function (req, res, errMsg, collection, _id, callback) {
 
 // 
 var incrementDbStat = function (kind, amount) {
-  // return; 
   var date = pool.getCurDate();
   var errMsg = "error incrementing dbStat, on read<br><br>";
   dbReadOneByID(null, null, errMsg, 'dbStats', date, null, (stat) => {
-    if (stat && stat.error) {return sendError(null, null, errMsg+stat.error);}
+    if (stat && stat.error) {
+      // do not try to log an err to the DB about being unable to access the DB...
+      return;
+      // return sendError(null, null, errMsg+stat.error);
+    }
     // does statBucket already exist for day?
     if (!stat) {
       var bucket = {_id: date,}
@@ -3193,11 +3213,12 @@ app.post('/passResetRequest', function (req, res) {
                   to: req.body.email,
                   from: 'noreply@schlaugh.com',
                   subject: 'schlaugh account recovery',
-                  text: `visit the following link to reset your schlaugh password: https://www.schlaugh.com/~recovery/`+codeID+`\n\nIf you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.\n\nplease do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret`,
                   html: `<a href="https://www.schlaugh.com/~recovery/`+codeID+`">click here to reset your schlaugh password</a><br><br>or paste the following link into your browser: schlaugh.com/~recovery/`+codeID+`<br><br>If you did not request a password reset for your schlaugh account, then kindly do nothing at all and the reset link will shortly be deactivated.<br><br>please do not reply to this email, or otherwise allow anyone to see its contents, as the reset link is a powerful secret. But if you need additional assistance accessing your account please do contact staff@schlaugh.com`,
                 };
-                sgMail.send(msg, (error) => {
-                  if (error) {return sendError(req, res, errMsg+"email server malapropriationologification");}
+                sendResendEmail(msg, (error) => {
+                  if (error) {
+                    return sendError(req, res, errMsg+"email server malapropriationologification");
+                  }
                   else {
                     var newCode = {
                       _id: codeID,
