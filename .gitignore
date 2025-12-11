@@ -4,3 +4,4 @@ npm-debug.log
 /*.env
 /datasendgrid.env
 /docker
+package-lock.json
