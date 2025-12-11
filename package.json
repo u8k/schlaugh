@@ -6,22 +6,22 @@
   "private": true,
   "main": "server.js",
   "scripts": {
-	"start": "node server"
+    "start": "node server"
   },
   "author": "u8k",
   "dependencies": {
-    "resend": "^6.0.2",
+    "@aws-sdk/client-dynamodb": "^3.53.0",
+    "@aws-sdk/lib-dynamodb": "^3.53.0",
+    "axios": "^1.6.7",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.17.2",
+    "bson": "^6.2.0",
     "cookie-session": "^2.0.0-beta.2",
     "ejs": "^3.1.7",
-    "express": "^4.15.3",
+    "express": "^4.22.1",
     "express-sslify": "^1.2.0",
     "mongodb": "^6.3.0",
-    "bson": "^6.2.0",
-    "rss": "^1.2.2",
-    "axios": "^1.6.7",
-    "@aws-sdk/lib-dynamodb": "^3.53.0",
-    "@aws-sdk/client-dynamodb": "^3.53.0"
+    "resend": "^6.0.2",
+    "rss": "^1.2.2"
   }
 }
