@@ -1,19 +1,13 @@
 <!DOCTYPE html>
 <html>
   <head>
-    
     <%
       if(!initProps || !initProps.allowIndexing) {
-    %>
-      <meta name="robots" content="noindex, nofollow">
-    <%
+    %><meta name="robots" content="noindex, nofollow"><%
       } else {
-    %>
-      <meta name="robots" content="nofollow">
-    <%
-      }
-    %>
-
+    %><meta name="robots" content="nofollow"><%
+      } %>
+    <meta name="humans" content="hello page source viewer. If for some reason you would like to see more schlaugh code: github.com/u8k/schlaugh">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>s c h l a u g h</title>
@@ -22,28 +16,21 @@
     <link rel="stylesheet" href="/game.css">
     <link rel="stylesheet" href="/katex.css">
     <script  src="/katex.min.js"></script>
-    <!-- -->
     <script src="/openpgp.min.js"></script>
     <script src="/jscolor.js"></script>
     <script src="/pool.js"></script>
     <script src="/game.js"></script>
     <script src="/schlaunquer.js"></script>
     <script src="/main.js"></script>
-	  <link rel="icon" type="image/png" href="/favicon.png" id='dynamic-favicon'>
-
+    <link rel="icon" type="image/png" href="/favicon.png" id='dynamic-favicon'>
     <%
       if(initProps && initProps.authorName) {
-    %>
-        <link id="rssLink" rel="alternate" type="application/rss+xml" title=<%= initProps.authorName %> href=<%= '/'+initProps.authorName+'/~rss' %>>
-    <%
+    %><link id="rssLink" rel="alternate" type="application/rss+xml" title=<%= initProps.authorName %> href=<%= '/'+initProps.authorName+'/~rss' %>><%
       } else {
-    %>
-        <link id="rssLink" rel="alternate" type="application/rss+xml" title="schlaugh" href="/~rss">
-    <%
-      }
-    %>
-
+    %><link id="rssLink" rel="alternate" type="application/rss+xml" title="schlaugh" href="/~rss"><%
+      } %>
   </head>
+
   <body>
     <div id="tab-jump-buttons" class="tab-jump-buttons-hidden" data-nosnippet>
       <button class="tab-jump-button" onclick="jumpFocusToContent()">jump to content</button>

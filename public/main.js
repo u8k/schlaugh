@@ -2326,7 +2326,7 @@ var displayPosts = function (idArr, input, callback) {
   }
 
   // no posts to display
-  if (idArr.length === 0 && pc !== "TFTF") {
+  if (idArr.length === 0 && nonFollowIdArr.length === 0 && pc !== "TFTF") {
     $("post-bucket").appendChild(notSchlaugh(pc, input.date));
     $("bot-page-and-date-nav").classList.add("removed");
     $("expand-all-notes-button").classList.add("removed");
@@ -7305,3 +7305,5 @@ var focusNextElement = function () {
   const nextIndex = (currentIndex + 1) % focusableElements.length;
   focusableElements[nextIndex].focus();
 }
+
+console.log("hello console viewer. If for some reason you would like to see more schlaugh code: github.com/u8k/schlaugh")

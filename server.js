@@ -14,7 +14,7 @@ var schlaunquer = require('./public/schlaunquer.js');
 var adminB = require('./public/adminB.js');
 var BSON = require('bson').BSON;
 
-var randomBytes = require('crypto').randomBytes;
+// var randomBytes = require('crypto').randomBytes;
 
 
 //connect mongoDB
