@@ -18,8 +18,13 @@ var BSON = require('bson').BSON;
 
 
 //connect mongoDB
+
 var dbURI = process.env.MONGO_DB_KEY || 'mongodb://mongo:27017/schlaugh';
-var db = new MongoClient(dbURI).db("heroku_kr76r150");
+var certPath = path.join(__dirname, './public/mongodb-cert.crt');
+if (process.env.MONGO_DB_KEY) {
+  dbURI += `&tlsCAFile=${certPath}`;
+}
+var db = new MongoClient(dbURI).db("thomas");
 
 // Init App
 var app = express();
