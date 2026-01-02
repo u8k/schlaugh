@@ -18,7 +18,6 @@ var BSON = require('bson').BSON;
 
 
 //connect mongoDB
-
 var dbURI = process.env.MONGO_DB_KEY || 'mongodb://mongo:27017/schlaugh';
 var certPath = path.join(__dirname, './public/mongodb-cert.crt');
 if (process.env.MONGO_DB_KEY) {
@@ -996,10 +995,7 @@ var postsFromAuthorListAndDate = function (req, res, errMsg, authorList, date, p
       } // else it's not undefined and is falsey so do nothing, there is no post
     }
     
-    readMultiUsers(req, res, errMsg, filteredAuthorList, {list:['username', 'iconURI'], dates:[date]}, function (users) {
-      // previously the line above had {list:['username', 'iconURI', 'pendingUpdates',], dates:[date]},
-      // i don't think i need "pendingUpdates" there, but if something errs after this push, check here
-      
+    readMultiUsers(req, res, errMsg, filteredAuthorList, {list:['username', 'iconURI'], dates:[date]}, function (users) {      
       for (var i = 0; i < users.length; i++) {
         if (users[i].posts && users[i].posts[date]) {
           //
@@ -1234,6 +1230,12 @@ var dbReadOneByID = function (req, res, errMsg, collection, _id, projection, cal
   // 'collection' is the name of the database table, 'projection' is output from 'getProjection'
   // the "projection" object is actually an "options" object that contains a "projection" prop, but we never use any of the other options
   //
+  if (typeof _id !== 'string') {
+    if (typeof _id !== 'object' || !ObjectId.isValid(_id)) {
+      return sendError(req, res, errMsg+'invalid ID on dbReadOneByID');
+    }
+  }
+
   var query = {_id: _id};
   var dbTimer = setDbTimer(req, res, errMsg);
   if (!projection) { projection = {}; }
@@ -1329,6 +1331,12 @@ var dbCreateOne = function (req, res, errMsg, collection, object, callback) {
 }
 
 var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback) {
+  if (typeof _id !== 'string') {
+    if (typeof _id !== 'object' || !ObjectId.isValid(_id)) {
+      return sendError(req, res, errMsg+'invalid ID on dbWriteByID');
+    }
+  }
+
   var dbTimer = setDbTimer(req, res, errMsg);
   db.collection(collection).updateOne({_id:_id}, {$set: object})
   .then(document => {
@@ -1361,6 +1369,11 @@ var dbWriteByID = function (req, res, errMsg, collection, _id, object, callback)
 }
 
 var dbDeleteByID = function (req, res, errMsg, collection, _id, callback) {
+  if (typeof _id !== 'string') {
+    if (typeof _id !== 'object' || !ObjectId.isValid(_id)) {
+      return sendError(req, res, errMsg+'invalid ID on dbDeleteByID');
+    }
+  }
   var dbTimer = setDbTimer(req, res, errMsg);
 
   db.collection(collection).deleteOne({_id: _id})
@@ -4010,7 +4023,9 @@ app.get('/:author/~search/:target', function(req, res) {
 //	TFTF
 app.get('/~/:post_id', function (req, res) {
   var errMsg = "post lookup error";
-  if (ObjectId.isValid(req.params.post_id)) {req.params.post_id = getObjId(req.params.post_id);}
+  // if (ObjectId.isValid(req.params.post_id)) {req.params.post_id = getObjId(req.params.post_id);}
+  // idk what that line above could possibly be doing? i'm commenting it out on 2026-01-01, we'll see if its absence causes problems...
+
   dbReadOneByID(req, res, errMsg, 'posts', req.params.post_id, getProjection(['date','authorID']), function (post) {
     if (!post) {    //404
       return renderLayout(req, res, {error: false, notFound: true, postCode:'TFTF', post_id: req.params.post_id});
