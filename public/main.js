@@ -4453,6 +4453,22 @@ var toggleAllowIndexing = function () {
   }
 }
 
+var makeAllPostsPrivate = function (makePublic) {
+  var cur = "public";
+  var tar = "private";
+  if (makePublic) {
+    cur = tar;
+    tar = "public";
+  }
+
+  verify(`R U SURE<br>you want to set EVERY SINGLE ONE of your posts to be `+tar+`? You can always switch them back to `+cur+` later, but if you have *some* marked public/private, this is going to erase that by setting all of them one way and cannot be easily undone (you'd have to go through and mark individual posts again)`, "YES MAKE THEM ALL "+tar, "HOLD UP", function (result) {
+    if (!result) {return;}
+    ajaxCall('/makeAllPostsPrivate', 'POST', {makePublic}, function(json) {
+      // done
+    });
+  })
+}
+  
 var setPaginationDirection = function () {
   ajaxCall('/toggleSetting', 'POST', {setting: "newPostsToTheLeft"}, function(json) {});
   if (glo.settings.newPostsToTheLeft) {

@@ -2422,6 +2422,23 @@ app.post('/makePostPrivate', function (req, res) {
   });
 });
 
+//
+app.post('/makeAllPostsPrivate', function (req, res) {
+  var errMsg = "posts were not successfully privated<br><br>";
+  readCurrentUser(req, res, errMsg, {list:['posts',],}, function (user) {
+
+    for (var date in user.posts) { if (user.posts.hasOwnProperty(date)) {
+      var dir = true;
+      if (req.body.makePublic) {
+        dir = false;
+      }
+      user.posts[date][0].private = dir;
+    }}
+    
+    writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+  });
+});
+
 // delete an already posted(non pending) post, also bio
 app.post('/deleteOldPost', function (req, res) {
   var errMsg = "the post was not successfully deleted<br><br>";
