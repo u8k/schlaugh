@@ -22,6 +22,8 @@ services:
     restart: always
     command: nodemon -L --watch server.js server.js
     build: .
+    environment:
+      - SCHLAUGH_DEV=true
     ports:
       - "3000:3000"
     volumes:

@@ -4,6 +4,16 @@ var glo = {};
 
 var $ = function (id) {return document.getElementById(id);}
 
+// for interpolating untrusted values into an innerHTML string
+var escHtml = function (string) {
+  return String(string)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 var isAnEditorOpen = function () {
   var anyOpen = false;
   if (glo.openEditors) {
@@ -758,14 +768,14 @@ var signOut = function() {
       else {
         glo.openEditors = false;
         loading();
-        ajaxCall('/~logout', 'GET', {}, function(json) {
+        ajaxCall('/~logout', 'POST', {}, function(json) {
           location.reload();
         });
       }
     });
   } else {
     loading();
-    ajaxCall('/~logout', 'GET', {}, function(json) {
+    ajaxCall('/~logout', 'POST', {}, function(json) {
       location.reload();
     });
   }
@@ -2344,7 +2354,7 @@ var displayPosts = function (idArr, input, callback) {
     switchPanel('posts-panel');
   }
 
-  ///////////////////////// pagination stuff
+  // pagination stuff
   if (input.totalPages) {
     if (input.page === undefined || input.page === 0) {input.page = input.totalPages}
     setPageNumbersAndArrows(input.page, input.totalPages, "top");
@@ -2357,12 +2367,12 @@ var displayPosts = function (idArr, input, callback) {
     $("bot-page-box").classList.add("removed")
   }
 
-////////////////////////////////////// date display / arrows
+  // date display / arrows
   if (postType === "dated") {      //"dated"/feed posts
     $("top-date-box").classList.remove('removed');
     $("bot-date-box").classList.remove('removed');
-    $("top-date-display").innerHTML = input.date;
-    $("bot-date-display").innerHTML = input.date;
+    $("top-date-display").textContent = input.date;
+    $("bot-date-display").textContent = input.date;
     // show/hide the date arrows
     var dir = "right";
     if (glo.settings && glo.settings.newPostsToTheLeft) {dir = "left";}
@@ -2378,7 +2388,7 @@ var displayPosts = function (idArr, input, callback) {
     $("bot-date-box").classList.add('removed');
   }
 
-///////////////////////////////////// tag option stuff
+  // tag option stuff
   if (input.author || pc === "MARK") {              // don't display any tag/date option stuff
     $("date-and-tag-options").classList.add("removed");
     $("tag-feed-options").classList.add("removed");
@@ -2389,8 +2399,8 @@ var displayPosts = function (idArr, input, callback) {
       $("bot-tag-display").classList.remove("removed");
     } else {
       if (input.tag) {                    // but if tag filtering, then show that/clear button
-        $("top-tag-display").innerHTML = 'all '+idArr.length+' posts tagged <i>"'+input.tag+'"</i>';
-        $("bot-tag-display").innerHTML = 'all '+idArr.length+' posts tagged <i>"'+input.tag+'"</i>';
+        $("top-tag-display").innerHTML = 'all '+idArr.length+' posts tagged <i>"'+escHtml(input.tag)+'"</i>';
+        $("bot-tag-display").innerHTML = 'all '+idArr.length+' posts tagged <i>"'+escHtml(input.tag)+'"</i>';
         $("top-tag-display").classList.remove("removed");
         $("bot-tag-display").classList.remove("removed");
         $("author-clear-filter-top").innerHTML = "clear tag filter";
@@ -2398,8 +2408,8 @@ var displayPosts = function (idArr, input, callback) {
         $("author-clear-filter-top").classList.remove("removed");
         $("author-clear-filter-bot").classList.remove("removed");
       } else if (input.search) {
-        $("top-tag-display").innerHTML = 'all '+idArr.length+' posts containing <i>"'+input.search+'"</i>';
-        $("bot-tag-display").innerHTML = 'all '+idArr.length+' posts containing <i>"'+input.search+'"</i>';
+        $("top-tag-display").innerHTML = 'all '+idArr.length+' posts containing <i>"'+escHtml(input.search)+'"</i>';
+        $("bot-tag-display").innerHTML = 'all '+idArr.length+' posts containing <i>"'+escHtml(input.search)+'"</i>';
         $("top-tag-display").classList.remove("removed");
         $("bot-tag-display").classList.remove("removed");
         $("author-clear-filter-top").innerHTML = "clear search filter";
@@ -2431,14 +2441,14 @@ var displayPosts = function (idArr, input, callback) {
       if (input.date && input.tag) {                            ////////// tag by date,
         renderAllTagListings(input.date);
 
-        $("top-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i> on';
-        $("bot-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i> on';
+        $("top-tag-display").innerHTML = 'posts tagged <i>"'+escHtml(input.tag)+'"</i> on';
+        $("bot-tag-display").innerHTML = 'posts tagged <i>"'+escHtml(input.tag)+'"</i> on';
         $("all-days").classList.remove("removed");
       } else if (pc === "FTFT" || pc === "FTFF") {                  ///// all days tag page
         renderAllTagListings();
 
-        $("top-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i>';
-        $("bot-tag-display").innerHTML = 'posts tagged <i>"'+input.tag+'"</i>';
+        $("top-tag-display").innerHTML = 'posts tagged <i>"'+escHtml(input.tag)+'"</i>';
+        $("bot-tag-display").innerHTML = 'posts tagged <i>"'+escHtml(input.tag)+'"</i>';
         $("all-days").classList.add("removed");
       }
       $("clear-tag").classList.remove("removed");
@@ -2453,7 +2463,7 @@ var displayPosts = function (idArr, input, callback) {
     }
   }
 
-  //////////////////////////////////         bios
+  //         bios
   if (input.author) {
     var authorInfo = _npa(['glo','pRef','author',input.author,'info']);
     if (authorInfo) {
@@ -2474,7 +2484,7 @@ var displayPosts = function (idArr, input, callback) {
     $("author-header-bot").classList.add("removed");
   }
 
-/////////////////////////////////////stuff for updating the address bar, browser history, favicon, page title, etc
+  // stuff for updating the address bar, browser history, favicon, page title, etc
 
   if (pc === "FTTT") {simulatePageLoad("~tagged/"+input.tag+"/"+input.date+"/"+input.page, false, false)}
   else if (pc === "FTTF") {simulatePageLoad("~tagged/"+input.tag+"/"+input.date, false, false)}
@@ -6841,9 +6851,15 @@ var changeUsername = function () {
   verify("you sure? This will change the url for your profile, breaking any links to your current username. And your current username will be up for grabs for anyone else to claim<br><br>also this will require a refresh(so just like don't have any unsaved text sitting in an editor)<br><br>go ahead?", "let's do it", "nevermind", function (resp) {
     if (!resp) {return;}
     else {
-      loading();
       var newName = $('change-username-input').value;
-      ajaxCall('/changeUsername', 'POST', {newName:newName}, function(json) {
+      passPrompt({
+        label:"<i>please</i> re-enter your password to change your username",
+        callback: function (passData) {
+      if (passData === null) {return;}
+      if (!passData.password) {return uiAlert('empty string is not a valid password, sorry');}
+      loading();
+      ajaxCall('/changeUsername', 'POST', {newName:newName, password:passData.password}, function(json) {
+        if (json.noMatch) {return uiAlert("incorrect password");}
         if (!json.error) {
           if (glo.username.toLowerCase() !== newName.toLowerCase()) { // if the case-insensitive name has changed, follow the new tag
             saveTag(false, "@"+newName, function () {
@@ -6858,6 +6874,8 @@ var changeUsername = function () {
               location.reload();
             });
           }
+        }
+      });
         }
       });
     }
@@ -6877,10 +6895,18 @@ var verifyEmail = function () {
             if (!result) {return;}
             else {
               // validate email format,
-              loading();
-              ajaxCall('/changeEmail', 'POST', {email:$("email-verify-input").value}, function(json) {
-                if (json) {
-                  uiAlert('congratulations!<br><br>in the event of a lost password, "'+json.email+'" is your recovery email')
+              passPrompt({
+                label:"<i>please</i> re-enter your password to change your recovery email",
+                callback: function (passData) {
+                  if (passData === null) {return;}
+                  if (!passData.password) {return uiAlert('empty string is not a valid password, sorry');}
+                  loading();
+                  ajaxCall('/changeEmail', 'POST', {email:$("email-verify-input").value, password:passData.password}, function(json) {
+                    if (json.noMatch) {return uiAlert("incorrect password");}
+                    if (json) {
+                      uiAlert('congratulations!<br><br>in the event of a lost password, "'+json.email+'" is your recovery email')
+                    }
+                  });
                 }
               });
             }
@@ -6913,6 +6939,7 @@ var changePassword = function () {
           else {
             makeKeys(data.newPass, function (newKeys) {
               var newData = {
+                oldPass: data.oldPass,
                 newPass: data.newPass,
                 newKeys: newKeys,
               }
@@ -6979,6 +7006,7 @@ var changePassword = function () {
 
 var makePassFinCall = function (newData) {
   ajaxCall('/changePasswordFin', 'POST', newData, function(json) {
+    if (json.noMatch) {return uiAlert("incorrect current password");}
     uiAlert('your password has been changed<br><br>schlaugh will now reload' ,"huzzah", function () {
       location.reload();
     });

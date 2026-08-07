@@ -96,8 +96,8 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     return arr;
   }
 
-  exp.tidyUp = function (userID, match, res, errMsg, devFlag) {
-    if (match.victor || devFlag) { // give it all up
+  exp.tidyUp = function (userID, match, res, errMsg, debug) {
+    if (match.victor || debug) { // give it all up
       return res.send(match);
     } else if (userID && match.players[userID]) {  // Registerd, send gameData, including their own secret data
       return res.send(exp.cleanMatchData(match, userID));
@@ -392,9 +392,9 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
     }
   }
 
-  exp.validateMove = function (match, req, res, devFlag, userID) {
+  exp.validateMove = function (match, req, res, userID) {
     // are they a player in this game?
-    if ((!match.players || !match.players[userID]) && !devFlag) {return {error:"userID miscoresponce"};}
+    if (!match.players || !match.players[userID]) {return {error:"userID miscoresponce"};}
 
     if (!req.body) {return {error:"malformed request 8874"};}
 
@@ -408,7 +408,7 @@ if (typeof require !== 'undefined') { var pool = require('./pool.js'); }
 
     var map = match.dates[pool.getCurDate()];
     //you must be updating a spot you actually hold
-    if (!map[req.body.coord] || (!devFlag && String(map[req.body.coord].ownerID) !== String(userID)) || !map[req.body.coord].score) {return {error:"malformed request 8877"};}
+    if (!map[req.body.coord] || (String(map[req.body.coord].ownerID) !== String(userID)) || !map[req.body.coord].score) {return {error:"malformed request 8877"};}
 
     var moveCount = 0;
     var dir = null;

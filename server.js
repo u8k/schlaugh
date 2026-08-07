@@ -8,14 +8,31 @@ var ObjectId = require('mongodb').ObjectId;
 var axios = require('axios');
 var enforce = require('express-sslify');
 var RSS = require('rss');
-var fs = require("fs");
 var pool = require('./public/pool.js');
 var schlaunquer = require('./public/schlaunquer.js');
 var adminB = require('./public/adminB.js');
 var BSON = require('bson').BSON;
+var randomBytes = require('crypto').randomBytes;
 
-// var randomBytes = require('crypto').randomBytes;
+// dev has to be opted INTO explicitly. if this is ever read the wrong way round,
+// or an env var goes missing, the app must land in production mode, not dev
+var devMode = process.env.SCHLAUGH_DEV === 'true';
 
+if (devMode) {
+  if (process.env.MONGO_DB_KEY) {
+    console.error('FATAL: SCHLAUGH_DEV is set alongside MONGO_DB_KEY, refusing to run dev mode against a production database');
+    process.exit(1);
+  }
+  console.log('*** DEV MODE: cookies not secure, https not enforced ***');
+} else {
+  var requiredEnv = ['MONGO_DB_KEY', 'COOKIE_SESSION_KEY', 'RESEND_API_KEY'];
+  var missingEnv = requiredEnv.filter(function (name) {return !process.env[name];});
+  if (missingEnv.length) {
+    console.error('FATAL: refusing to start, missing env vars: '+missingEnv.join(', '));
+    console.error('(set SCHLAUGH_DEV=true if this is meant to be a local dev run)');
+    process.exit(1);
+  }
+}
 
 //connect mongoDB
 var dbURI = process.env.MONGO_DB_KEY || 'mongodb://mongo:27017/schlaugh';
@@ -39,6 +56,11 @@ app.use(bodyParser.json({limit: '5mb'}));
 // Set Public Folder
 app.use(express.static(path.join(__dirname, 'public')));
 
+// heroku terminates TLS at its router, so the dyno itself only ever sees plain
+// http. without this, req.protocol is never "https", and a secure cookie is then
+// silently NOT SET AT ALL: no error, no log, users just never stay logged in
+app.set('trust proxy', 1);
+
 var sessionKey = ['SECRETSECRETIVEGOTTASECRET'];
 if (process.env.COOKIE_SESSION_KEY) {
   sessionKey = [process.env.COOKIE_SESSION_KEY];
@@ -48,16 +70,16 @@ app.use(session({
   name: 'session',
   keys: sessionKey,
   maxAge: 90 * 24 * 60 * 60 * 1000, // (90 days?)
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: !devMode,
 }))
 
-var devFlag = false;  //NEVER EVER LET THIS BE TRUE ON THE LIVE PRODUCTION VERSION, FOR LOCAL TESTING ONLY
 
 // enforce https, "trustProtoHeader" is because heroku proxy
 // hack to make it not enforce https on localDev
-if (process.env.MONGO_DB_KEY) {
+if (!devMode) {
   app.use(enforce.HTTPS({ trustProtoHeader: true }));
-} else {
-  devFlag = true; // on production we'll always have the DB key, so if we don't have the DB key, put it in dev mode
 }
 
 // Resend email config
@@ -78,6 +100,15 @@ if (process.env.RESEND_API_KEY) {
   }
 }
 
+// sanitization for use in layout.ejs
+app.locals.safeJSON = function (data) {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
 
 //*******//HELPER FUNCTIONS//*******//
 var pushNewToPostlist = function (user) {  // pushes New pending posts to postlist
@@ -246,7 +277,9 @@ var imageValidate = function (arr, callback, byteLimit) {
 }
 
 var fetchHeaders = function (url, callback) {
-  axios.head(url)
+  // without a timeout, a host that accepts the connection and never answers
+  // leaves this callback pending forever and the client's response never sends
+  axios.head(url, {timeout: 5000})
     .then(response => {      
       // Calling the callback function with the status code and headers
       callback(null, response);
@@ -406,7 +439,7 @@ var removeListRefIfRemovingOnlyMessage = function (box, id, remove, tmrw) {
 }
 
 var newSessionKey = function (userID) {
-  var key = genRandString(5)
+  var key = genRandString(5);
   if (sessions && sessions[userID] && sessions[userID][key]) {
     return newSessionKey();
   } else {
@@ -507,9 +540,14 @@ var getSettings = function (req, res, callback) {
 
 var genRandString = function (length) {
   var bank = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  // discard bytes >= 208, else "% 52" would favor the first 48 letters
+  var max = 256 - (256 % bank.length);
   var output = "";
-  for (var i = 0; i < length; i++) {
-    output += bank[Math.floor(Math.random() * (bank.length))];
+  while (output.length < length) {
+    var bytes = randomBytes(length);
+    for (var i = 0; i < bytes.length && output.length < length; i++) {
+      if (bytes[i] < max) {output += bank[bytes[i] % bank.length];}
+    }
   }
   return output;
 }
@@ -602,11 +640,9 @@ var lowercaseTagRef = function (ref) {
   return newRef;
 }
 
-var updateUserPost = function (req, res, errMsg, text, newTags, title, url, userID, user, callback, daysAgo) {
+var updateUserPost = function (req, res, errMsg, text, newTags, title, url, userID, user, callback) {
   var tmrw = pool.getCurDate(-1);
-  if (devFlag && daysAgo) { // CHEATING, for local testing only
-    var tmrw = pool.getCurDate(daysAgo);
-  }
+
   // lowercase copy of the newTags
   var newTagsLowerCased = lowercaseTagRef(newTags);
   //
@@ -693,9 +729,7 @@ var deletePost = function (req, res, errMsg, user, date, callback) {
       if (user.pendingUpdates && user.pendingUpdates.updates && user.pendingUpdates.updates[date]) {
         delete user.pendingUpdates.updates[date];
       }
-      if (postCache && postCache[date] && postCache[date][user._id]) {
-        delete postCache[date][user._id];
-      }
+      clearPostFromCache(date, user._id);
       nullPostFromPosts(req, res, errMsg, user.posts[date][0].post_id, function () {
         delete user.posts[date];
         writeToUser(req, res, errMsg, user, function () {
@@ -962,7 +996,12 @@ var sendError = function (req, res, errMsg) {
   }
 }
 
+// grows forever, and would be a memory problem if heroku wasn't restarting everyday
 var postCache = {}
+
+var clearPostFromCache = function (date, userID) {
+  if (postCache[date]) {delete postCache[date][userID];}
+}
 
 var postsFromAuthorListAndDate = function (req, res, errMsg, authorList, date, postRef, callback) {
   let seen = {};
@@ -1488,18 +1527,15 @@ var getUserIdFromName = function (req, res, errMsg, username, callback) {
 }
 
 
-
 // admin
 var adminGate = function (req, res, callback) {
-  if (devFlag) {return callback(res);}
   if (!req.session.user) {
     return return404author(req, res);
   } else {
-    readCurrentUser(req, res, 'adminGate error', {list:['username',]}, function (user) {
-      if (user && user.username === "admin") {
+    readCurrentUser(req, res, 'adminGate error', {list:['isAdmin',]}, function (user) {
+      if (user && user.isAdmin === true) {
         callback();
-      } //no need to pass 'user' once we take out the code nonsense
-      else {
+      } else {
         return return404author(req, res);
       }
     });
@@ -1510,7 +1546,6 @@ app.get('/admin', function(req, res) {
   adminGate(req, res, function () {
     var results = pool.runTests(
       [ //array of arrays, each inner array contains two statements that are supposed to be equal
-        [devFlag, false, "IN DEV MODE"],
         [pool.userNameValidate(), "empty string is not a valid username, sorry", "pool.userNameValidate()"],
         [pool.userNameValidate(0), false, "pool.userNameValidate(0)"],
         //
@@ -1751,7 +1786,6 @@ app.post('/admin/verifyEmail', function(req, res) {
   });
 });
 
-
 // ********** clicker game *********** //
 app.get('/~click', function(req, res) {
   renderLayout(req, res, {panel:"clicker"});
@@ -1834,10 +1868,10 @@ app.post('/~getSchlaunquer', function(req, res) {
       if (updateMatch) {
         // now save audit to DB
         dbWriteByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, updateMatch, function () {
-          return schlaunquer.tidyUp(userID, updateMatch, res, errMsg, devFlag);
+          return schlaunquer.tidyUp(userID, updateMatch, res, errMsg);
         });
       } else {
-        return schlaunquer.tidyUp(userID, match, res, errMsg, devFlag);
+        return schlaunquer.tidyUp(userID, match, res, errMsg);
       }
     });
   });
@@ -1849,7 +1883,7 @@ app.post('/~moveSchlaunquer', function(req, res) {
     dbReadOneByID(req, res, errMsg, 'schlaunquerMatches', req.body.game_id, null, function (match) {
       if (!match) {return sendError(req, res, errMsg+'match not found? 8871, please refresh and try again');}
 
-      var match = schlaunquer.validateMove(match, req, res, devFlag, userID);
+      var match = schlaunquer.validateMove(match, req, res, userID);
       if (match.error) { return sendError(req, res, errMsg+match.error);}
 
       // all requirements have been met, save the move
@@ -2414,6 +2448,7 @@ app.post('/makePostPrivate', function (req, res) {
     // first verify the postID corresponds with the date (this makes sure a user is privating their own post)
     if (user.posts[req.body.postData.date] && user.posts[req.body.postData.date][0].post_id === req.body.postData.post_id) {
       user.posts[req.body.postData.date][0].private = req.body.postData.private;
+      clearPostFromCache(req.body.postData.date, user._id);
       //
       writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
     } else {
@@ -2433,6 +2468,7 @@ app.post('/makeAllPostsPrivate', function (req, res) {
         dir = false;
       }
       user.posts[date][0].private = dir;
+      clearPostFromCache(date, user._id);
     }}
     
     writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
@@ -2749,23 +2785,29 @@ app.post('/block', function(req, res) {
 // validate images, for messages
 app.post('/image', function(req, res) {
   // cant do this on the FE cause CORS
-  if (req.body && typeof req.body === "object" && req.body.length) {
-    imageValidate(req.body, function (resp) {
-      if (resp.error) {return sendError(req, res, resp.error);}
-      res.send({error:false});
-    });
-  } else {return sendError(req, res, errMsg+"malformed request 1504");}
+  var errMsg = "image validation error<br><br>";
+  idScreen(req, res, errMsg, function () {
+    if (req.body && typeof req.body === "object" && req.body.length) {
+      if (req.body.length > 50) {return sendError(req, res, errMsg+"that is an awful lot of images for one message");}
+      imageValidate(req.body, function (resp) {
+        if (resp.error) {return sendError(req, res, resp.error);}
+        res.send({error:false});
+      });
+    } else {return sendError(req, res, errMsg+"malformed request 1504");}
+  });
 });
 
 // validate links
 app.post('/link', function(req, res) {
   // cant do this on the FE cause CORS
   var errMsg = "URL validation error<br><br>";
-  if (req.body && typeof req.body.url === "string") {
-    linkValidate([req.body.url], function (linkProblems) {
-      res.send({linkProblems:linkProblems});
-    });
-  } else {return sendError(req, res, errMsg+"malformed request 503");}
+  idScreen(req, res, errMsg, function () {
+    if (req.body && typeof req.body.url === "string") {
+      linkValidate([req.body.url], function (linkProblems) {
+        res.send({linkProblems:linkProblems});
+      });
+    } else {return sendError(req, res, errMsg+"malformed request 503");}
+  });
 });
 
 // toggle collapsed status of posts
@@ -2865,9 +2907,27 @@ app.post('/saveAppearance', function(req, res) {
 });
 
 // flip a boolean setting
+// "settings" also holds security records (recovery, dateOfPreviousNameChange),
+// so these routes must never be handed an arbitrary key. compared against true
+// so that inherited props ("constructor", "__proto__") do not pass
+var toggleableSettings = {
+  includeTaggedPosts: true,
+  sortOldestPostsAtTop: true,
+  autoSaveTagsOnUse: true,
+  doNotResizeEditor: true,
+  newPostsToTheLeft: true,
+  showAllEditorButtons: true,
+  isUsingHtmlEditorMode: true,
+};
+var reminderSettings = {
+  knowsAboutSelectiveQuoting: true,
+  notifiedAboutCookie: true,
+};
+
 app.post('/toggleSetting', function(req, res) {
   var errMsg = "settings not successfully updated<br><br>";
   if (!req.body.setting) {return sendError(req, res, errMsg+"malformed request");}
+  if (toggleableSettings[req.body.setting] !== true) {return sendError(req, res, errMsg+"not a toggleable setting");}
   readCurrentUser(req, res, errMsg, {list:['settings']}, function (user) {
     var setting = req.body.setting;
     if (user.settings[setting]) {
@@ -2906,6 +2966,7 @@ app.post('/setPostsPerPage', function(req, res) {
 app.post('/setReminder', function(req, res) {
   var errMsg = "reminder not successfully set<br><br>";
   if (!req.body || !req.body.setting || req.body.days === undefined || !Number.isInteger(req.body.days) || req.body.days < 0) {return sendError(req, res, errMsg+"malformed request 993");}
+  if (reminderSettings[req.body.setting] !== true) {return sendError(req, res, errMsg+"not a reminder setting");}
   readCurrentUser(req, res, errMsg, {list:['settings']}, function (user) {
     var date = pool.getCurDate(-(req.body.days));
     user.settings[req.body.setting] = date;
@@ -2914,8 +2975,33 @@ app.post('/setReminder', function(req, res) {
 });
 
 // new user sign up
+  // rate limiter
+// in-memory, so it empties whenever the dyno cycles. that's fine: the point is
+// to make guessing slow, not to keep records. buckets are pruned on read
+var rateBuckets = {};
+var rateWindow = 900000;  // 15 min
+var rateLimited = function (key, max) {
+  var bucket = rateBuckets[key];
+  if (!bucket || Date.now() > bucket.resetAt) {
+    delete rateBuckets[key];
+    return false;
+  }
+  return bucket.count >= max;
+}
+var recordAttempt = function (key) {
+  var now = Date.now();
+  if (!rateBuckets[key] || now > rateBuckets[key].resetAt) {
+    rateBuckets[key] = {count: 1, resetAt: now + rateWindow};
+  } else {
+    rateBuckets[key].count++;
+  }
+}
+var tooMany = "too many attempts, lay off for a bit";
+
 app.post('/register', function(req, res) {
   var errMsg = 'user registration failure<br><br>'
+  if (rateLimited('register-'+req.ip, 10)) {return res.send({error:tooMany});}
+  recordAttempt('register-'+req.ip);
   var username = req.body.username;
   var password = req.body.password;
   var email = req.body.email;
@@ -2992,10 +3078,19 @@ app.post('/login', function(req, res) {
   var errMsg = "login error<br><br>"
   if (!req.body.username || !req.body.password) {return sendError(req, res, errMsg+"malformed request 147")}
   var nope = "invalid username/password";
+  // only FAILED attempts count, so unlocking your inbox repeatedly is not punished
+  var ipKey = 'login-ip-'+req.ip;
+  var nameKey = 'login-name-'+String(req.body.username).toLowerCase();
+  if (rateLimited(ipKey, 20) || rateLimited(nameKey, 10)) {return res.send({error:tooMany});}
+  var failed = function () {
+    recordAttempt(ipKey);
+    recordAttempt(nameKey);
+    return res.send({error:nope});
+  }
   getUserIdFromName(req, res, errMsg, req.body.username, function (userID) {
-    if (!userID) {return res.send({error:nope});}
+    if (!userID) {return failed();}
     readUser(req, res, errMsg, userID, {list:['password',]}, function(user) {
-      if (!user) {return res.send({error:nope});}
+      if (!user) {return failed();}
       // Match Password
       bcrypt.compare(req.body.password, user.password, function(err, isMatch) {
         if (err) {return sendError(req, res, errMsg+err);}
@@ -3021,7 +3116,7 @@ app.post('/login', function(req, res) {
             });
           }
         } else {
-          return res.send({error:nope});
+          return failed();
         }
       });
     });
@@ -3090,7 +3185,7 @@ app.post('/keys', function(req, res) {
 });
 
 // logout
-app.get('/~logout', function(req, res) {
+app.post('/~logout', function(req, res) {
   req.session.user = null;
   res.send({error: false});
 });
@@ -3098,34 +3193,39 @@ app.get('/~logout', function(req, res) {
 // change user name
 app.post('/changeUsername', function (req, res) {
   var errMsg = "username change error<br><br>";
+  if (!req.body.password) {return sendError(req, res, errMsg+"malformed request");}
   var x = pool.userNameValidate(req.body.newName);
   if (x) {return res.send({error:x});}
-  readCurrentUser(req, res, errMsg, {list:['settings', 'username']}, function (user) {
-    if (user.settings && user.settings.dateOfPreviousNameChange === pool.getCurDate()) {
-      return res.send({error:"seems you've already changed your name today...i think once a day is enough, try again tomorrow"});
-    } else {
-      getUserIdFromName(req, res, errMsg, req.body.newName, function (otherUserID) {
-        if (otherUserID && String(otherUserID) !== String(user._id)) {return res.send({error: "we regret to inform you that this username is already taken"});}
-        //
-        var oldName = user.username.toLowerCase();
-        user.username = req.body.newName;
-        if (!user.settings) {user.settings = {}};
-        user.settings.dateOfPreviousNameChange = pool.getCurDate();
-        if (req.body.newName.toLowerCase() !== oldName) { // this check is in case they were only changing capitalization
-          createUserUrl(req, res, errMsg, req.body.newName.toLowerCase(), user._id, function () {
-            dbDeleteByID(req, res, errMsg, 'userUrls', oldName, function () {
-              writeToUser(req, res, errMsg, user, function () {
-                res.send({error: false, name: req.body.newName});
+  readCurrentUser(req, res, errMsg, {list:['settings', 'username', 'password']}, function (user) {
+    bcrypt.compare(req.body.password, user.password, function (err, isMatch) {
+      if (err) {return sendError(req, res, errMsg+err);}
+      else if (!isMatch) {return res.send({error: false, noMatch:true});}
+      if (user.settings && user.settings.dateOfPreviousNameChange === pool.getCurDate()) {
+        return res.send({error:"seems you've already changed your name today...i think once a day is enough, try again tomorrow"});
+      } else {
+        getUserIdFromName(req, res, errMsg, req.body.newName, function (otherUserID) {
+          if (otherUserID && String(otherUserID) !== String(user._id)) {return res.send({error: "we regret to inform you that this username is already taken"});}
+          //
+          var oldName = user.username.toLowerCase();
+          user.username = req.body.newName;
+          if (!user.settings) {user.settings = {}};
+          user.settings.dateOfPreviousNameChange = pool.getCurDate();
+          if (req.body.newName.toLowerCase() !== oldName) { // this check is in case they were only changing capitalization
+            createUserUrl(req, res, errMsg, req.body.newName.toLowerCase(), user._id, function () {
+              dbDeleteByID(req, res, errMsg, 'userUrls', oldName, function () {
+                writeToUser(req, res, errMsg, user, function () {
+                  res.send({error: false, name: req.body.newName});
+                });
               });
             });
-          });
-        } else {
-          writeToUser(req, res, errMsg, user, function () {
-            res.send({error: false, name: req.body.newName});
-          });
-        }
-      });
-    }
+          } else {
+            writeToUser(req, res, errMsg, user, function () {
+              res.send({error: false, name: req.body.newName});
+            });
+          }
+        });
+      }
+    });
   });
 });
 
@@ -3151,16 +3251,20 @@ app.post('/verifyEmail', function (req, res) {
 // change user email
 app.post('/changeEmail', function (req, res) {
   var errMsg = "email change error<br><br>";
-  if (!req.body.email) {return sendError(req, res, errMsg+"malformed request");}
-  readCurrentUser(req, res, errMsg, {list:['email']}, function (user) {
-    bcrypt.hash(req.body.email, 10, function(err, emailHash) {
+  if (!req.body.email || !req.body.password) {return sendError(req, res, errMsg+"malformed request");}
+  readCurrentUser(req, res, errMsg, {list:['email','password']}, function (user) {
+    bcrypt.compare(req.body.password, user.password, function (err, isMatch) {
       if (err) {return sendError(req, res, errMsg+err);}
-      else {
-        user.email = emailHash;
-        writeToUser(req, res, errMsg, user, function () {
-          return res.send({error: false, email: req.body.email});
-        });
-      }
+      else if (!isMatch) {return res.send({error: false, noMatch:true});}
+      bcrypt.hash(req.body.email, 10, function(err, emailHash) {
+        if (err) {return sendError(req, res, errMsg+err);}
+        else {
+          user.email = emailHash;
+          writeToUser(req, res, errMsg, user, function () {
+            return res.send({error: false, email: req.body.email});
+          });
+        }
+      });
     });
   });
 });
@@ -3191,24 +3295,29 @@ app.post('/changePasswordStart', function (req, res) {
 
 // swap in re-encrypted inbox and new keys
 app.post('/changePasswordFin', function (req, res) {
-  if (!req.body.newKeys || !req.body.newPass || !req.body.newThreads) {return sendError(req, res, errMsg+"malformed request")}
   var errMsg = "password change error2<br><br>";
+  if (!req.body.newKeys || !req.body.newPass || !req.body.newThreads || !req.body.oldPass) {return sendError(req, res, errMsg+"malformed request")}
 
   readCurrentUser(req, res, errMsg, {list:['password','keyPublic','keyPrivate','inbox']}, function (user) {
-    var y = pool.passwordValidate(req.body.newPass);
-    if (y) {return res.send({error:y});}
-    else {
-      bcrypt.hash(req.body.newPass, 10, function(err, passHash) {
-        if (err) {return sendError(req, res, err);}
-        else {
-          user.password = passHash;
-          user.inbox.threads = req.body.newThreads;
-          user.keyPublic = req.body.newKeys.pubKey;
-          user.keyPrivate = req.body.newKeys.privKey;
-          writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
-        }
-      });
-    }
+    bcrypt.compare(req.body.oldPass, user.password, function (err, isMatch) {
+      if (err) {return sendError(req, res, errMsg+err);}
+      else if (!isMatch) {return res.send({error: false, noMatch:true});}
+      var y = pool.passwordValidate(req.body.newPass);
+      if (y) {return res.send({error:y});}
+      else {
+        bcrypt.hash(req.body.newPass, 10, function(err, passHash) {
+          if (err) {return sendError(req, res, err);}
+          else {
+            user.password = passHash;
+            if (!user.inbox) {user.inbox = {}}
+            user.inbox.threads = req.body.newThreads;
+            user.keyPublic = req.body.newKeys.pubKey;
+            user.keyPrivate = req.body.newKeys.privKey;
+            writeToUser(req, res, errMsg, user, function () { return res.send({error: false}); });
+          }
+        });
+      }
+    });
   });
 });
 
@@ -3216,6 +3325,8 @@ app.post('/changePasswordFin', function (req, res) {
 app.post('/passResetRequest', function (req, res) {
   var errMsg = "password reset request error<br><br>";
   if (!req.body.username || !req.body.email) {return sendError(req, res, errMsg+"malformed request 258")}
+  if (rateLimited('reset-'+req.ip, 10)) {return res.send({error:tooMany});}
+  recordAttempt('reset-'+req.ip);
   getUserIdFromName(req, res, errMsg, req.body.username, function (userID) {
     if (!userID) {return res.send({error: false});}  // if username is not registered, don't tell them that... i guess
     readUser(req, res, errMsg, userID, {list:['email', 'settings',]}, function(user) {
@@ -3823,8 +3934,6 @@ app.post('/getPosts', function (req, res) {
 
 // RSS feed for schlaugh, general ping
 app.get('/~rss', function (req, res) {
-  var errMsg = "rss error<br><br>";
-
   var feed = new RSS({
     title: 'schlaugh',
     description: "schlaugh is a quiet place for reading and writing",
@@ -3852,21 +3961,7 @@ app.get('/~rss', function (req, res) {
     });
   }
 
-  var fileName = "feed.xml";
-  var xml = feed.xml({ indent: true });
-        // save the xml file, just so we have a path from which to send it
-  fs.writeFile(fileName, xml, function (err) {
-    if (err) {return sendError(req, res, errMsg+err);}
-    fileName = path.resolve(fileName);      // get the full path
-    //
-    res.sendFile(fileName, function (err) {
-      if (err) {return sendError(req, res, errMsg+err);}
-      // delete the file
-      fs.unlink(fileName, (err) => {
-        if (err) throw err;
-      });
-    });
-  });
+  res.type('application/rss+xml').send(feed.xml({ indent: true }));
 });
 
 // RSS feed route for an author
@@ -3896,53 +3991,43 @@ app.get('/:author/~rss', function (req, res) {
         var minutesRemaining = 60 - time.getUTCMinutes();
         feed.ttl = (hoursRemaining*60) + minutesRemaining;
 
-        for (var i = 0; i < author.postList.length && i < 11; i++) {
-          var post = author.postList[author.postList.length-1-i];
+        var itemCount = 0;
+        for (var i = author.postList.length-1; i > -1 && itemCount < 11; i--) {
+          var post = author.postList[i];
+          if (!post || !author.posts[post.date] || !author.posts[post.date][post.num]) {continue;}
+          var thisPost = author.posts[post.date][post.num];
+          if (thisPost.private) {continue;}
+          itemCount++;
+
           var description = "schlaugh post by "+author.username+" for "+post.date;
-          if (post && author.posts[post.date]) {
-            if (author.posts[post.date][post.num].title) {
-              var title = author.posts[post.date][post.num].title;
-            } else {
-              var title = description;
-            }
-            var tagString = "";
-            if (author.posts[post.date][post.num].tags) {
-              for (var tag in author.posts[post.date][post.num].tags) {
-                if (author.posts[post.date][post.num].tags.hasOwnProperty(tag)) {
-                  tagString += tag + ", "
-                }
+          if (thisPost.title) {
+            var title = thisPost.title;
+          } else {
+            var title = description;
+          }
+          var tagString = "";
+          if (thisPost.tags) {
+            for (var tag in thisPost.tags) {
+              if (thisPost.tags.hasOwnProperty(tag)) {
+                tagString += tag + ", "
               }
             }
-            if (tagString !== "") {
-              tagString = tagString.substr(0, (tagString.length-2));
-              description = description + ", tagged:" +tagString;
-            }
-            feed.item({
-              title: title,
-              description: description,
-              url: "https://www.schlaugh.com/~/" + author.posts[post.date][post.num].post_id,
-              // categories: // eh? i could put the tags there i guess?
-              //tags: author.posts[post.date][post.num].tags,
-              date: post.date+"T09:00:00",
-            });
           }
+          if (tagString !== "") {
+            tagString = tagString.substr(0, (tagString.length-2));
+            description = description + ", tagged:" +tagString;
+          }
+          feed.item({
+            title: title,
+            description: description,
+            url: "https://www.schlaugh.com/~/" + thisPost.post_id,
+            // categories: // eh? i could put the tags there i guess?
+            //tags: thisPost.tags,
+            date: post.date+"T09:00:00",
+          });
         }
 
-        var fileName = "feed.xml";
-        var xml = feed.xml({ indent: true });
-        // save the xml file, just so we have a path from which to send it
-        fs.writeFile(fileName, xml, function (err) {
-          if (err) {return sendError(req, res, errMsg+err);}
-          fileName = path.resolve(fileName);      // get the full path
-          //
-          res.sendFile(fileName, function (err) {
-            if (err) {return sendError(req, res, errMsg+err);}
-            // delete the file
-            fs.unlink(fileName, (err) => {
-              if (err) throw err;
-            });
-          });
-        });
+        res.type('application/rss+xml').send(feed.xml({ indent: true }));
 
       });
     });

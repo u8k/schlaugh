@@ -123,6 +123,7 @@
               var singleQuote = true;
             } else {
               var qPos = string.substr(pos+1).search(/"/);
+              var singleQuote = false;
             }
             if (qPos === -1) {
               imgList.push(string.substr(pos+1));
@@ -143,6 +144,7 @@
                 var singleQuote = true;
               } else {
                 var qPos = string.substr(pos+1).search(/"/);
+                var singleQuote = false;
               }
               if (qPos === -1) {
                 imgList.push(string.substr(pos+1));
@@ -160,6 +162,7 @@
                 var singleQuote = true;
               } else {
                 var qPos = string.substr(pos+1).search(/"/);
+                var singleQuote = false;
               }
               if (qPos === -1) {
                 imgList.push(string.substr(pos+1));
